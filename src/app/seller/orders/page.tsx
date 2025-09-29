@@ -8,8 +8,6 @@ import Footer from "@/components/footer/Footer";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
 
-export const dynamic = "force-dynamic";
-
 // Enums for order statuses and types
 enum OrderStatus {
   PENDING = "pending",
@@ -104,9 +102,7 @@ function classNames(...classes: (string | false | null | undefined)[]) {
 
 export default function SellerOrdersPage() {
   const router = useRouter();
-  const { accessToken } = useSelector(
-    (state: RootState) => state?.auth || { accessToken: null }
-  );
+  const { token } = useSelector((state: RootState) => state.auth);
 
   // Demo orders data
   const demoOrders: Order[] = [

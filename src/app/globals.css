@@ -1,26 +1,404 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: 'Urbanist';
+  src: url('/fonts/Urbanist-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Urbanist';
+  src: url('/fonts/Urbanist-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Urbanist';
+  src: url('/fonts/Urbanist-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Urbanist';
+  src: url('/fonts/Urbanist-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Primary colors */
+  --primary-background: #F2EFE6;
+  --primary-base: #6C715D;
+  --primary-accent1: #E0A374;
+  --primary-accent2: #CB5927;
+  --primary-accent3: #653011;
+
+  /* Secondary colors */
+  --secondary-soft-highlight: #C0D1C7;
+  --secondary-muted-edge: #407178;
+  --secondary-highlight1: #D3E458;
+  --secondary-highlight2: #A6B1E7;
+  --secondary-black: #000809;
+
+  /* Typography */
+  --font-family: 'Urbanist', sans-serif;
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.25rem;
+  --font-size-xl: 1.5rem;
+  --font-size-heading: 2.25rem;
+  --font-size-display: 3.5rem;
+
+  /* Spacing */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 2rem;
+  --spacing-xl: 4rem;
+  --section-spacing: 6rem;
+
+  /* Light mode defaults */
+  --background: var(--primary-background);
+  --foreground: var(--secondary-black);
+
+  /* Dark mode colors */
+  --dark-background: #0a0a0b;
+  --dark-surface: #1a1a1c;
+  --dark-surface-elevated: #2a2a2d;
+  --dark-border: rgba(255, 255, 255, 0.08);
+  --dark-border-subtle: rgba(255, 255, 255, 0.04);
+  --dark-text-primary: #ffffff;
+  --dark-text-secondary: rgba(255, 255, 255, 0.7);
+  --dark-text-tertiary: rgba(255, 255, 255, 0.5);
+  --dark-accent: #3b82f6;
+  --dark-accent-hover: #2563eb;
+  --dark-success: #10b981;
+  --dark-warning: #f59e0b;
+  --dark-error: #ef4444;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-primary: var(--primary-base);
+  --color-accent: var(--primary-accent2);
+  --color-secondary: var(--secondary-muted-edge);
+  --font-sans: var(--font-family);
 }
 
+/* Commenting out the dark mode media query to disable automatic dark mode */
+/* 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: var(--secondary-black);
+    --foreground: var(--primary-background);
+  }
+}
+*/
+
+body {
+  background: var(--primary-background);
+  color: var(--foreground);
+  font-family: var(--font-family);
+  line-height: 1.5;
+  letter-spacing: normal;
+  overflow-x: hidden;
+}
+
+/* Premium background pattern */
+/* Removed decorative background pattern for flat aesthetic */
+/* body::before {} */
+
+/* Base component styles */
+.btn {
+  border-radius: 6px;
+  padding: 0.4rem 1rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+  height: fit-content;
+  box-shadow: none;
+}
+
+.btn-primary {
+  background-color: var(--primary-accent2);
+  color: #FFFFFF;
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-accent3);
+}
+
+.btn-secondary {
+  background-color: var(--secondary-muted-edge);
+  color: #FFFFFF;
+}
+
+.btn-secondary:hover {
+  background-color: var(--secondary-black);
+}
+
+.btn-ghost {
+  background-color: transparent;
+  border: 1px solid var(--primary-base);
+  color: var(--primary-base);
+  box-shadow: none;
+}
+
+.btn-ghost:hover {
+  color: var(--primary-accent1);
+  border-color: var(--primary-accent1);
+}
+
+.card {
+  border-radius: 18px;
+  padding: 2rem;
+  background-color: #FFFFFF;
+}
+
+.card:hover {}
+
+.input {
+  border: 1px solid var(--secondary-soft-highlight);
+  border-radius: 5px;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+  background-color: white;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  letter-spacing: 0.01em;
+  height: 34px;
+}
+
+.input:focus {
+  border-color: var(--primary-base);
+  outline: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 0 0 1px var(--primary-base);
+}
+
+.input::placeholder {
+  color: #A0A0A0;
+  font-size: 0.875rem;
+}
+
+.input:disabled {
+  background-color: #F7F7F7;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.nav {
+  background-color: var(--primary-background);
+  height: 72px;
+  font-size: 1rem;
+}
+
+/* Premium Dashboard Styles */
+.dashboard-container {
+  min-height: 100vh;
+  padding-left: 0;
+  transition: all 0.3s ease;
+}
+
+@media (min-width: 1024px) {
+  .dashboard-container {
+    padding-left: 6rem;
+    /* Space for floating nav */
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Dashboard content spacing */
+.dashboard-main {
+  padding-top: 20rem;
+  /* 320px - extremely generous space below fixed header */
+  margin-top: 3rem;
+  /* Additional margin for extra clearance */
+}
+
+@media (max-width: 1023px) {
+  .dashboard-main {
+    padding-top: 18rem;
+    /* 288px - extremely generous mobile spacing */
+    margin-top: 2rem;
+    /* Additional margin for mobile */
+  }
+}
+
+/* Glassmorphic effects */
+.glass {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.glass-dark {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Premium animations */
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.float-animation {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* Smooth scroll */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* Responsive utilities */
+.content-spacing {
+  padding: 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .content-spacing {
+    padding: 2rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .content-spacing {
+    padding: 3rem;
+  }
+}
+
+/* Typography enhancements */
+.text-balance {
+  text-wrap: balance;
+}
+
+.text-pretty {
+  text-wrap: pretty;
+}
+
+/* Focus rings for accessibility */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-gray-900/20 focus:ring-offset-2;
+}
+
+/* Mobile adjustments */
+@media (max-width: 1023px) {
+  .floating-nav {
+    transform: scale(0.85);
+    left: 1rem !important;
+  }
+
+  .floating-cta {
+    transform: scale(0.9);
+    bottom: 1rem !important;
+    right: 1rem !important;
+  }
+}
+
+/* Dark mode styles */
+.dark-mode {
+  background: var(--dark-background);
+  color: var(--dark-text-primary);
+}
+
+.dark-mode::before {
+  background:
+    radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.03) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(16, 185, 129, 0.02) 0%, transparent 50%),
+    radial-gradient(circle at 40% 80%, rgba(59, 130, 246, 0.02) 0%, transparent 50%);
+}
+
+/* Dark mode card variants */
+.dark-card {
+  background: var(--dark-surface);
+  border: 1px solid var(--dark-border);
+  color: var(--dark-text-primary);
+}
+
+.dark-card-elevated {
+  background: var(--dark-surface-elevated);
+  border: 1px solid var(--dark-border);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+}
+
+.dark-glass {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: rgba(26, 26, 28, 0.8);
+  border: 1px solid var(--dark-border);
+}
+
+/* Dark mode animations */
+.dark-float {
+  animation: darkFloat 8s ease-in-out infinite;
+}
+
+@keyframes darkFloat {
+
+  0%,
+  100% {
+    transform: translateY(0px) scale(1);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+  }
+
+  50% {
+    transform: translateY(-10px) scale(1.02);
+    box-shadow: 0 25px 30px -5px rgba(0, 0, 0, 0.4);
+  }
+}
+
+/* Dark mode scrollbar */
+.dark-mode ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.dark-mode ::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.dark-mode ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.dark-mode ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }

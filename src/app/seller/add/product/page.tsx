@@ -10,8 +10,6 @@ import { getApiClient } from "@/lib/apiClient";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
 
-export const dynamic = "force-dynamic";
-
 // Enums matching the API
 enum ProductStatus {
   DRAFT = "draft",
@@ -88,9 +86,7 @@ function classNames(...classes: (string | false | null | undefined)[]) {
 
 export default function AddProductPage() {
   const router = useRouter();
-  const { accessToken } = useSelector(
-    (state: RootState) => state?.auth || { accessToken: null }
-  );
+  const { token } = useSelector((state: RootState) => state.auth);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -261,7 +257,7 @@ export default function AddProductPage() {
     setError(null);
 
     try {
-      const apiClient = getApiClient(() => accessToken);
+      const apiClient = getApiClient(() => token);
 
       // First, create the product
       const productData = {
@@ -1324,12 +1320,12 @@ export default function AddProductPage() {
                       </span>
                       <span
                         className={`px-2 py-1 rounded text-xs ${
-                          (formData.stock_quantity || 0) > 0
+                          formData.stock_quantity > 0
                             ? "bg-green-100 text-green-800"
                             : "bg-red-100 text-red-800"
                         }`}
                       >
-                        {(formData.stock_quantity || 0) > 0
+                        {formData.stock_quantity > 0
                           ? "In Stock"
                           : "Out of Stock"}
                       </span>

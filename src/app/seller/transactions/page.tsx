@@ -8,8 +8,6 @@ import Footer from "@/components/footer/Footer";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
 
-export const dynamic = "force-dynamic";
-
 // Enums for transaction types and statuses
 enum TransactionType {
   SALE = "sale",
@@ -80,9 +78,7 @@ function classNames(...classes: (string | false | null | undefined)[]) {
 
 export default function SellerTransactionsPage() {
   const router = useRouter();
-  const { accessToken } = useSelector(
-    (state: RootState) => state?.auth || { accessToken: null }
-  );
+  const { token } = useSelector((state: RootState) => state.auth);
 
   // Demo transactions data
   const demoTransactions: Transaction[] = [

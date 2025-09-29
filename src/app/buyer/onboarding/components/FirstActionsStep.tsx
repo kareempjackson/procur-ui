@@ -300,7 +300,7 @@ export default function FirstActionsStep({
             onClick={() => onNext({ completedActions: [] })}
             className="text-sm text-[var(--secondary-muted-edge)] hover:text-[var(--secondary-black)] transition-colors"
           >
-            Skip for now - I&apos;ll explore later
+            Skip for now - I'll explore later
           </button>
         </div>
       </div>

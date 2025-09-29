@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, Suspense } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/store";
 import {
@@ -10,7 +10,7 @@ import {
   selectAuthError,
 } from "@/store/slices/authSlice";
 
-function VerifyPageContent() {
+export default function VerifyPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const dispatch = useAppDispatch();
@@ -173,19 +173,5 @@ function VerifyPageContent() {
         </footer>
       </main>
     </div>
-  );
-}
-
-export default function VerifyPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center">
-          Loading...
-        </div>
-      }
-    >
-      <VerifyPageContent />
-    </Suspense>
   );
 }

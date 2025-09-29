@@ -9,8 +9,6 @@ import { getApiClient } from "@/lib/apiClient";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
 
-export const dynamic = "force-dynamic";
-
 // Enums matching the API
 enum ProductStatus {
   DRAFT = "draft",
@@ -76,9 +74,7 @@ function classNames(...classes: (string | false | null | undefined)[]) {
 
 export default function SellerProductsPage() {
   const router = useRouter();
-  const { accessToken } = useSelector(
-    (state: RootState) => state?.auth || { accessToken: null }
-  );
+  const { token } = useSelector((state: RootState) => state.auth);
 
   // Demo products data
   const demoProducts: Product[] = [
