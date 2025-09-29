@@ -5,6 +5,9 @@ const nextConfig: NextConfig = {
     // Allow production builds to successfully complete even if there are ESLint errors
     ignoreDuringBuilds: true,
   },
+  turbopack: {
+    root: __dirname,
+  },
   /* config options here */
 };
 
