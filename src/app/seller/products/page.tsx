@@ -74,7 +74,7 @@ function classNames(...classes: (string | false | null | undefined)[]) {
 
 export default function SellerProductsPage() {
   const router = useRouter();
-  const { token } = useSelector((state: RootState) => state.auth);
+  const accessToken = useSelector((state: RootState) => state.auth.accessToken);
 
   // Demo products data
   const demoProducts: Product[] = [

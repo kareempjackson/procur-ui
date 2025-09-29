@@ -86,7 +86,7 @@ function classNames(...classes: (string | false | null | undefined)[]) {
 
 export default function AddProductPage() {
   const router = useRouter();
-  const { token } = useSelector((state: RootState) => state.auth);
+  const accessToken = useSelector((state: RootState) => state.auth.accessToken);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -257,7 +257,7 @@ export default function AddProductPage() {
     setError(null);
 
     try {
-      const apiClient = getApiClient(() => token);
+      const apiClient = getApiClient(() => accessToken);
 
       // First, create the product
       const productData = {
@@ -1320,12 +1320,12 @@ export default function AddProductPage() {
                       </span>
                       <span
                         className={`px-2 py-1 rounded text-xs ${
-                          formData.stock_quantity > 0
+                          (formData.stock_quantity ?? 0) > 0
                             ? "bg-green-100 text-green-800"
                             : "bg-red-100 text-red-800"
                         }`}
                       >
-                        {formData.stock_quantity > 0
+                        {(formData.stock_quantity ?? 0) > 0
                           ? "In Stock"
                           : "Out of Stock"}
                       </span>

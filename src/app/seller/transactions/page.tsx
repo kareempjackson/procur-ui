@@ -78,7 +78,7 @@ function classNames(...classes: (string | false | null | undefined)[]) {
 
 export default function SellerTransactionsPage() {
   const router = useRouter();
-  const { token } = useSelector((state: RootState) => state.auth);
+  const accessToken = useSelector((state: RootState) => state.auth.accessToken);
 
   // Demo transactions data
   const demoTransactions: Transaction[] = [
