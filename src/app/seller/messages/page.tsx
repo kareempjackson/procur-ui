@@ -1,8 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
-import SellerTopNavigation from "@/components/navigation/SellerTopNavigation";
-import Footer from "@/components/footer/Footer";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   MagnifyingGlassIcon,
   PaperClipIcon,
@@ -13,178 +17,143 @@ import {
   InformationCircleIcon,
 } from "@heroicons/react/24/outline";
 import { StarIcon } from "@heroicons/react/24/solid";
+import { getApiClient } from "@/lib/apiClient";
+import { useSelector } from "react-redux";
+import { selectAuthToken, selectAuthUser } from "@/store/slices/authSlice";
+import { getSupabaseClient } from "@/lib/supabaseClient";
 
-type Message = {
-  id: number;
-  senderId: string;
-  text: string;
-  timestamp: Date;
-  isMe: boolean;
+type ApiConversation = {
+  id: string;
+  type: "direct" | "group" | "contextual";
+  title: string | null;
+  context_type: string | null;
+  context_id: string | null;
+  created_at: string;
+  updated_at: string;
+  metadata?: Record<string, unknown> | null;
 };
 
-type Conversation = {
-  id: number;
-  buyerName: string;
-  buyerBusiness: string;
-  buyerAvatar: string;
-  lastMessage: string;
-  lastMessageTime: Date;
-  unread: boolean;
-  unreadCount: number;
-  isOnline: boolean;
-  rating?: number;
-  messages: Message[];
+type ApiMessage = {
+  id: string;
+  conversation_id: string;
+  sender_user_id: string;
+  text: string | null;
+  created_at: string;
+  deleted_at: string | null;
 };
 
 export default function SellerMessagesPage() {
+  const authToken = useSelector(selectAuthToken);
+  const authUser = useSelector(selectAuthUser);
+
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeConversation, setActiveConversation] = useState<number | null>(
-    1
-  );
+  const [conversations, setConversations] = useState<ApiConversation[]>([]);
+  const [loadingConversations, setLoadingConversations] = useState(true);
+  const [activeConversationId, setActiveConversationId] = useState<
+    string | null
+  >(null);
+  const [messages, setMessages] = useState<ApiMessage[]>([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const [messageInput, setMessageInput] = useState("");
   const [showDetails, setShowDetails] = useState(false);
+  const listEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Mock conversations data
-  const conversations: Conversation[] = [
-    {
-      id: 1,
-      buyerName: "Sarah Johnson",
-      buyerBusiness: "GreenLeaf Market",
-      buyerAvatar:
-        "https://ui-avatars.com/api/?name=Sarah+Johnson&background=407178&color=fff",
-      lastMessage: "Great! I'll place the order for 50 lbs of tomatoes.",
-      lastMessageTime: new Date(Date.now() - 5 * 60000),
-      unread: true,
-      unreadCount: 2,
-      isOnline: true,
-      rating: 4.8,
-      messages: [
-        {
-          id: 1,
-          senderId: "buyer",
-          text: "Hi! I'm interested in ordering organic tomatoes. Do you have them in stock?",
-          timestamp: new Date(Date.now() - 60 * 60000),
-          isMe: false,
-        },
-        {
-          id: 2,
-          senderId: "me",
-          text: "Hello Sarah! Yes, we have fresh organic Roma tomatoes available. How much are you looking to order?",
-          timestamp: new Date(Date.now() - 55 * 60000),
-          isMe: true,
-        },
-        {
-          id: 3,
-          senderId: "buyer",
-          text: "I need about 50 lbs for this week. What's your price?",
-          timestamp: new Date(Date.now() - 50 * 60000),
-          isMe: false,
-        },
-        {
-          id: 4,
-          senderId: "me",
-          text: "For 50 lbs, I can offer $4.50 per lb. They're freshly harvested this morning.",
-          timestamp: new Date(Date.now() - 45 * 60000),
-          isMe: true,
-        },
-        {
-          id: 5,
-          senderId: "buyer",
-          text: "That sounds perfect! Can you deliver by Thursday?",
-          timestamp: new Date(Date.now() - 10 * 60000),
-          isMe: false,
-        },
-        {
-          id: 6,
-          senderId: "me",
-          text: "Absolutely! Thursday morning works great. I'll have them packaged and ready.",
-          timestamp: new Date(Date.now() - 7 * 60000),
-          isMe: true,
-        },
-        {
-          id: 7,
-          senderId: "buyer",
-          text: "Great! I'll place the order for 50 lbs of tomatoes.",
-          timestamp: new Date(Date.now() - 5 * 60000),
-          isMe: false,
-        },
-      ],
-    },
-    {
-      id: 2,
-      buyerName: "Michael Chen",
-      buyerBusiness: "FreshCo Foods",
-      buyerAvatar:
-        "https://ui-avatars.com/api/?name=Michael+Chen&background=CB5927&color=fff",
-      lastMessage: "Thank you! The last delivery was excellent.",
-      lastMessageTime: new Date(Date.now() - 2 * 3600000),
-      unread: false,
-      unreadCount: 0,
-      isOnline: false,
-      rating: 5.0,
-      messages: [
-        {
-          id: 1,
-          senderId: "buyer",
-          text: "Thank you! The last delivery was excellent.",
-          timestamp: new Date(Date.now() - 2 * 3600000),
-          isMe: false,
-        },
-      ],
-    },
-    {
-      id: 3,
-      buyerName: "Emma Rodriguez",
-      buyerBusiness: "Urban Grocer",
-      buyerAvatar:
-        "https://ui-avatars.com/api/?name=Emma+Rodriguez&background=2D5F6C&color=fff",
-      lastMessage: "Do you have any organic cucumbers available?",
-      lastMessageTime: new Date(Date.now() - 24 * 3600000),
-      unread: false,
-      unreadCount: 0,
-      isOnline: false,
-      rating: 4.9,
-      messages: [
-        {
-          id: 1,
-          senderId: "buyer",
-          text: "Do you have any organic cucumbers available?",
-          timestamp: new Date(Date.now() - 24 * 3600000),
-          isMe: false,
-        },
-      ],
-    },
-    {
-      id: 4,
-      buyerName: "David Thompson",
-      buyerBusiness: "Healthy Harvest Co.",
-      buyerAvatar:
-        "https://ui-avatars.com/api/?name=David+Thompson&background=8B7355&color=fff",
-      lastMessage: "I received the invoice, processing payment now.",
-      lastMessageTime: new Date(Date.now() - 48 * 3600000),
-      unread: false,
-      unreadCount: 0,
-      isOnline: true,
-      rating: 4.7,
-      messages: [
-        {
-          id: 1,
-          senderId: "buyer",
-          text: "I received the invoice, processing payment now.",
-          timestamp: new Date(Date.now() - 48 * 3600000),
-          isMe: false,
-        },
-      ],
-    },
-  ];
+  const client = useMemo(
+    () => getApiClient(() => authToken || null),
+    [authToken]
+  );
+  const supabase = useMemo(() => getSupabaseClient(), []);
 
-  const filteredConversations = conversations.filter(
-    (conv) =>
-      conv.buyerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      conv.buyerBusiness.toLowerCase().includes(searchQuery.toLowerCase())
+  const fetchConversations = useCallback(async () => {
+    setLoadingConversations(true);
+    try {
+      const { data } = await client.get<ApiConversation[]>("/conversations", {
+        params: { limit: 50 },
+      });
+      setConversations(data);
+      if (!activeConversationId && data.length > 0) {
+        setActiveConversationId(data[0].id);
+      }
+    } catch (e) {
+      setConversations([]);
+    } finally {
+      setLoadingConversations(false);
+    }
+  }, [client, activeConversationId]);
+
+  const fetchMessages = useCallback(
+    async (conversationId: string) => {
+      setLoadingMessages(true);
+      try {
+        const { data } = await client.get<ApiMessage[]>(
+          `/conversations/${conversationId}/messages`,
+          { params: { limit: 50 } }
+        );
+        setMessages(data.reverse());
+      } catch (e) {
+        setMessages([]);
+      } finally {
+        setLoadingMessages(false);
+        setTimeout(
+          () => listEndRef.current?.scrollIntoView({ behavior: "smooth" }),
+          0
+        );
+      }
+    },
+    [client]
   );
 
-  const activeConv = conversations.find((c) => c.id === activeConversation);
+  useEffect(() => {
+    if (!authToken) return;
+    fetchConversations();
+  }, [authToken, fetchConversations]);
+
+  useEffect(() => {
+    if (!activeConversationId) return;
+    fetchMessages(activeConversationId);
+  }, [activeConversationId, fetchMessages]);
+
+  // Supabase Realtime subscriptions (optional if env provided)
+  useEffect(() => {
+    if (!supabase || !activeConversationId) return;
+    const channel = supabase
+      .channel(`conversation:${activeConversationId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `conversation_id=eq.${activeConversationId}`,
+        },
+        (payload) => {
+          const m = payload.new as ApiMessage;
+          setMessages((prev) => [...prev, m]);
+          setTimeout(
+            () => listEndRef.current?.scrollIntoView({ behavior: "smooth" }),
+            0
+          );
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "messages",
+          filter: `conversation_id=eq.${activeConversationId}`,
+        },
+        (payload) => {
+          const m = payload.new as ApiMessage;
+          setMessages((prev) => prev.map((x) => (x.id === m.id ? m : x)));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase, activeConversationId]);
 
   const formatTime = (date: Date) => {
     const now = new Date();
@@ -200,16 +169,30 @@ export default function SellerMessagesPage() {
     return date.toLocaleDateString();
   };
 
-  const formatMessageTime = (date: Date) => {
+  const formatMessageTime = (iso: string) => {
+    const date = new Date(iso);
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
-  const handleSendMessage = () => {
-    if (!messageInput.trim()) return;
-
-    // Add message logic here
-    console.log("Sending message:", messageInput);
+  const handleSendMessage = async () => {
+    if (!messageInput.trim() || !activeConversationId || !authUser) return;
+    const text = messageInput.trim();
     setMessageInput("");
+    try {
+      await client.post(`/conversations/${activeConversationId}/messages`, {
+        senderUserId: authUser.id,
+        senderOrgId: authUser.organizationId ?? undefined,
+        content_type: "text",
+        text,
+      });
+      // Optimistic: message will arrive via realtime insert; if realtime not configured, fallback fetch
+      if (!supabase) {
+        fetchMessages(activeConversationId);
+      }
+    } catch {
+      // restore input on failure
+      setMessageInput(text);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -219,10 +202,18 @@ export default function SellerMessagesPage() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-[var(--primary-background)] flex flex-col">
-      <SellerTopNavigation />
+  const filteredConversations = conversations.filter((c) => {
+    const name = c.title || c.context_type || c.id;
+    return name.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 
+  const activeConv = useMemo(
+    () => conversations.find((c) => c.id === activeConversationId) || null,
+    [conversations, activeConversationId]
+  );
+
+  return (
+    <div className="h-screen overflow-hidden bg-[var(--primary-background)] flex flex-col">
       <main className="flex-1 flex overflow-hidden">
         {/* Conversations Sidebar */}
         <div className="w-full lg:w-96 border-r border-gray-200 bg-white flex flex-col">
@@ -247,67 +238,50 @@ export default function SellerMessagesPage() {
 
           {/* Conversations List */}
           <div className="flex-1 overflow-y-auto">
-            {filteredConversations.length === 0 ? (
+            {loadingConversations ? (
               <div className="p-6 text-center text-gray-500">
-                No conversations found
+                Loading conversations…
+              </div>
+            ) : filteredConversations.length === 0 ? (
+              <div className="p-6 text-center text-gray-500">
+                No conversations yet. Start a conversation from an order or RFQ.
               </div>
             ) : (
               <div>
                 {filteredConversations.map((conversation) => (
                   <button
                     key={conversation.id}
-                    onClick={() => setActiveConversation(conversation.id)}
+                    onClick={() => setActiveConversationId(conversation.id)}
                     className={`w-full p-4 flex items-start space-x-3 hover:bg-gray-50 transition-colors duration-200 border-b border-gray-100 ${
-                      activeConversation === conversation.id ? "bg-gray-50" : ""
+                      activeConversationId === conversation.id
+                        ? "bg-gray-50"
+                        : ""
                     }`}
                   >
                     <div className="relative flex-shrink-0">
-                      <img
-                        src={conversation.buyerAvatar}
-                        alt={conversation.buyerName}
-                        className="w-12 h-12 rounded-full"
-                      />
-                      {conversation.isOnline && (
-                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
-                      )}
+                      <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 text-sm">
+                        {conversation.title?.[0]?.toUpperCase() ||
+                          conversation.type[0].toUpperCase()}
+                      </div>
                     </div>
 
                     <div className="flex-1 min-w-0 text-left">
                       <div className="flex items-center justify-between mb-1">
-                        <h3
-                          className={`text-sm font-semibold truncate ${
-                            conversation.unread
-                              ? "text-gray-900"
-                              : "text-gray-700"
-                          }`}
-                        >
-                          {conversation.buyerName}
+                        <h3 className="text-sm font-semibold truncate text-gray-900">
+                          {conversation.title ||
+                            conversation.context_type ||
+                            "Conversation"}
                         </h3>
                         <span className="text-xs text-gray-500 ml-2 flex-shrink-0">
-                          {formatTime(conversation.lastMessageTime)}
+                          {formatTime(new Date(conversation.updated_at))}
                         </span>
                       </div>
 
                       <p className="text-xs text-gray-600 mb-1 truncate">
-                        {conversation.buyerBusiness}
+                        {conversation.context_type
+                          ? `${conversation.context_type} • ${conversation.context_id}`
+                          : conversation.id}
                       </p>
-
-                      <div className="flex items-center justify-between">
-                        <p
-                          className={`text-sm truncate ${
-                            conversation.unread
-                              ? "font-medium text-gray-900"
-                              : "text-gray-600"
-                          }`}
-                        >
-                          {conversation.lastMessage}
-                        </p>
-                        {conversation.unreadCount > 0 && (
-                          <span className="ml-2 flex-shrink-0 bg-[var(--primary-accent2)] text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                            {conversation.unreadCount}
-                          </span>
-                        )}
-                      </div>
                     </div>
                   </button>
                 ))}
@@ -324,32 +298,27 @@ export default function SellerMessagesPage() {
               <div className="p-4 border-b border-gray-200 flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <div className="relative">
-                    <img
-                      src={activeConv.buyerAvatar}
-                      alt={activeConv.buyerName}
-                      className="w-10 h-10 rounded-full"
-                    />
-                    {activeConv.isOnline && (
-                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
-                    )}
+                    <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 text-sm">
+                      {activeConv.title?.[0]?.toUpperCase() ||
+                        activeConv.type[0].toUpperCase()}
+                    </div>
                   </div>
                   <div>
                     <h2 className="text-lg font-semibold text-gray-900">
-                      {activeConv.buyerName}
+                      {activeConv.title ||
+                        activeConv.context_type ||
+                        "Conversation"}
                     </h2>
-                    <div className="flex items-center space-x-2">
-                      <p className="text-sm text-gray-600">
-                        {activeConv.buyerBusiness}
-                      </p>
-                      {activeConv.rating && (
-                        <div className="flex items-center space-x-1">
-                          <StarIcon className="h-4 w-4 text-yellow-400" />
-                          <span className="text-sm text-gray-600">
-                            {activeConv.rating}
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                    {activeConv.context_type && (
+                      <div className="flex items-center space-x-2">
+                        <p className="text-sm text-gray-600">
+                          {activeConv.context_type}
+                          {activeConv.context_id
+                            ? ` • ${activeConv.context_id}`
+                            : ""}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -371,48 +340,58 @@ export default function SellerMessagesPage() {
 
               {/* Messages */}
               <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
-                {activeConv.messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex ${
-                      message.isMe ? "justify-end" : "justify-start"
-                    }`}
-                  >
+                {loadingMessages ? (
+                  <div className="text-center text-gray-500">
+                    Loading messages…
+                  </div>
+                ) : messages.length === 0 ? (
+                  <div className="text-center text-gray-500">
+                    No messages yet. Say hello!
+                  </div>
+                ) : (
+                  messages.map((message) => (
                     <div
-                      className={`flex items-end space-x-2 max-w-xl ${
-                        message.isMe ? "flex-row-reverse space-x-reverse" : ""
+                      key={message.id}
+                      className={`flex ${
+                        message.sender_user_id === authUser?.id
+                          ? "justify-end"
+                          : "justify-start"
                       }`}
                     >
-                      {!message.isMe && (
-                        <img
-                          src={activeConv.buyerAvatar}
-                          alt={activeConv.buyerName}
-                          className="w-8 h-8 rounded-full flex-shrink-0"
-                        />
-                      )}
-                      <div>
-                        <div
-                          className={`px-4 py-3 rounded-2xl ${
-                            message.isMe
-                              ? "bg-[var(--primary-accent2)] text-white rounded-br-sm"
-                              : "bg-white border border-gray-200 text-gray-900 rounded-bl-sm"
-                          }`}
-                        >
-                          <p className="text-sm leading-relaxed">
-                            {message.text}
+                      <div
+                        className={`flex items-end space-x-2 max-w-xl ${
+                          message.sender_user_id === authUser?.id
+                            ? "flex-row-reverse space-x-reverse"
+                            : ""
+                        }`}
+                      >
+                        <div>
+                          <div
+                            className={`px-4 py-3 rounded-2xl ${
+                              message.sender_user_id === authUser?.id
+                                ? "bg-[var(--primary-accent2)] text-white rounded-br-sm"
+                                : "bg-white border border-gray-200 text-gray-900 rounded-bl-sm"
+                            }`}
+                          >
+                            <p className="text-sm leading-relaxed">
+                              {message.text}
+                            </p>
+                          </div>
+                          <p
+                            className={`text-xs text-gray-500 mt-1 px-1 ${
+                              message.sender_user_id === authUser?.id
+                                ? "text-right"
+                                : ""
+                            }`}
+                          >
+                            {formatMessageTime(message.created_at)}
                           </p>
                         </div>
-                        <p
-                          className={`text-xs text-gray-500 mt-1 px-1 ${
-                            message.isMe ? "text-right" : ""
-                          }`}
-                        >
-                          {formatMessageTime(message.timestamp)}
-                        </p>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
+                <div ref={listEndRef} />
               </div>
 
               {/* Message Input */}
@@ -474,25 +453,20 @@ export default function SellerMessagesPage() {
             <div className="space-y-6">
               {/* Buyer Info */}
               <div className="text-center">
-                <img
-                  src={activeConv.buyerAvatar}
-                  alt={activeConv.buyerName}
-                  className="w-20 h-20 rounded-full mx-auto mb-3"
-                />
+                <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center mx-auto mb-3 text-gray-600 text-lg">
+                  {activeConv.title?.[0]?.toUpperCase() ||
+                    activeConv.type[0].toUpperCase()}
+                </div>
                 <h4 className="font-semibold text-gray-900">
-                  {activeConv.buyerName}
+                  {activeConv.title ||
+                    activeConv.context_type ||
+                    "Conversation"}
                 </h4>
-                <p className="text-sm text-gray-600">
-                  {activeConv.buyerBusiness}
-                </p>
-                {activeConv.rating && (
-                  <div className="flex items-center justify-center space-x-1 mt-2">
-                    <StarIcon className="h-5 w-5 text-yellow-400" />
-                    <span className="font-semibold text-gray-900">
-                      {activeConv.rating}
-                    </span>
-                    <span className="text-sm text-gray-600">(24 reviews)</span>
-                  </div>
+                {activeConv.context_type && (
+                  <p className="text-sm text-gray-600">
+                    {activeConv.context_type}
+                    {activeConv.context_id ? ` • ${activeConv.context_id}` : ""}
+                  </p>
                 )}
               </div>
 
@@ -541,7 +515,7 @@ export default function SellerMessagesPage() {
         )}
       </main>
 
-      <Footer />
+      {/* No footer on messaging page to keep full-viewport messenger */}
     </div>
   );
 }

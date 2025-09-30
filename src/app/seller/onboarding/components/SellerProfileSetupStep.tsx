@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 
 interface SellerOnboardingData {
   businessName: string;
@@ -131,11 +132,10 @@ export default function SellerProfileSetupStep({
 }: SellerProfileSetupStepProps) {
   const [formData, setFormData] = useState({
     businessName: data.businessName || "",
-    farmType: data.farmType || "",
-    location: data.location || "",
-    farmSize: data.farmSize || "",
-    certifications: data.certifications || [],
-    farmingMethods: data.farmingMethods || [],
+    phone: "",
+    address: data.location || "",
+    farmerIdPreview: "",
+    farmLogoPreview: "",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -149,34 +149,26 @@ export default function SellerProfileSetupStep({
     }
   };
 
-  const handleArrayToggle = (field: string, value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: (prev[field as keyof typeof prev] as string[]).includes(value)
-        ? (prev[field as keyof typeof prev] as string[]).filter(
-            (item) => item !== value
-          )
-        : [...(prev[field as keyof typeof prev] as string[]), value],
-    }));
+  const handleFileChange = (
+    field: "farmerIdPreview" | "farmLogoPreview",
+    file?: File | null
+  ) => {
+    if (!file) {
+      setFormData((prev) => ({ ...prev, [field]: "" }));
+      return;
+    }
+    const previewUrl = URL.createObjectURL(file);
+    setFormData((prev) => ({ ...prev, [field]: previewUrl }));
   };
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
     if (!formData.businessName.trim()) {
-      newErrors.businessName = "Farm/Business name is required";
+      newErrors.businessName = "Business name is required";
     }
-    if (!formData.farmType) {
-      newErrors.farmType = "Please select your farm type";
-    }
-    if (!formData.location.trim()) {
-      newErrors.location = "Location is required";
-    }
-    if (!formData.farmSize) {
-      newErrors.farmSize = "Please select your farm size";
-    }
-    if (formData.farmingMethods.length === 0) {
-      newErrors.farmingMethods = "Please select at least one farming method";
+    if (!formData.address.trim()) {
+      newErrors.address = "Business address is required";
     }
 
     setErrors(newErrors);
@@ -193,7 +185,7 @@ export default function SellerProfileSetupStep({
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    onNext(formData);
+    onNext({ businessName: formData.businessName, location: formData.address });
   };
 
   return (
@@ -205,11 +197,10 @@ export default function SellerProfileSetupStep({
             {/* Header */}
             <div className="space-y-4">
               <h1 className="text-3xl md:text-4xl font-bold text-[var(--secondary-black)]">
-                Tell us about your farm
+                Tell us about your business
               </h1>
               <p className="text-lg text-[var(--secondary-muted-edge)] leading-relaxed">
-                Help buyers understand your operation and connect with the right
-                customers for your products.
+                Help buyers learn who you are and how to reach you.
               </p>
             </div>
 
@@ -221,7 +212,7 @@ export default function SellerProfileSetupStep({
                   htmlFor="businessName"
                   className="block text-sm font-semibold text-[var(--secondary-black)]"
                 >
-                  Farm/Business Name *
+                  Business Name *
                 </label>
                 <input
                   id="businessName"
@@ -230,15 +221,16 @@ export default function SellerProfileSetupStep({
                   onChange={(e) =>
                     handleInputChange("businessName", e.target.value)
                   }
-                  placeholder="Enter your farm or business name"
+                  placeholder="Enter your business name"
                   className={`
-                    input w-full text-base py-3 px-4
+                    input w-full text-base py-3 px-5 rounded-full
                     ${
                       errors.businessName
                         ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
                         : ""
                     }
                   `}
+                  style={{ borderRadius: 9999 }}
                   aria-describedby={
                     errors.businessName ? "businessName-error" : undefined
                   }
@@ -254,205 +246,122 @@ export default function SellerProfileSetupStep({
                 )}
               </div>
 
-              {/* Location */}
+              {/* Phone Number */}
               <div className="space-y-2">
                 <label
-                  htmlFor="location"
+                  htmlFor="phone"
                   className="block text-sm font-semibold text-[var(--secondary-black)]"
                 >
-                  Location *
+                  Phone Number
                 </label>
                 <input
-                  id="location"
+                  id="phone"
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => handleInputChange("phone", e.target.value)}
+                  placeholder="(XXX) XXX-XXXX"
+                  className="input w-full text-base py-3 px-5 rounded-full"
+                  style={{ borderRadius: 9999 }}
+                />
+              </div>
+
+              {/* Farm Address */}
+              <div className="space-y-2">
+                <label
+                  htmlFor="address"
+                  className="block text-sm font-semibold text-[var(--secondary-black)]"
+                >
+                  Farm Address *
+                </label>
+                <input
+                  id="address"
                   type="text"
-                  value={formData.location}
-                  onChange={(e) =>
-                    handleInputChange("location", e.target.value)
-                  }
-                  placeholder="City, State/Province, Country"
-                  className={`
-                    input w-full text-base py-3 px-4
-                    ${
-                      errors.location
-                        ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                        : ""
-                    }
-                  `}
+                  value={formData.address}
+                  onChange={(e) => handleInputChange("address", e.target.value)}
+                  placeholder="Street, City, Country"
+                  className={`input w-full text-base py-3 px-5 rounded-full ${
+                    errors.address
+                      ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                      : ""
+                  }`}
+                  style={{ borderRadius: 9999 }}
                   aria-describedby={
-                    errors.location ? "location-error" : undefined
+                    errors.address ? "address-error" : undefined
                   }
                 />
-                {errors.location && (
+                {errors.address && (
                   <p
-                    id="location-error"
+                    id="address-error"
                     className="text-sm text-red-600"
                     role="alert"
                   >
-                    {errors.location}
+                    {errors.address}
                   </p>
                 )}
               </div>
 
-              {/* Farm Type */}
-              <div className="space-y-4">
-                <div>
+              {/* Uploads */}
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="seller-card p-4">
                   <label className="block text-sm font-semibold text-[var(--secondary-black)] mb-2">
-                    Farm Type *
+                    Farmer's ID (Image)
                   </label>
-                  {errors.farmType && (
-                    <p className="text-sm text-red-600 mb-3" role="alert">
-                      {errors.farmType}
-                    </p>
-                  )}
+                  <div className="flex items-center justify-center h-40 bg-[var(--secondary-soft-highlight)]/10 rounded-2xl overflow-hidden">
+                    {formData.farmerIdPreview ? (
+                      <Image
+                        src={formData.farmerIdPreview}
+                        alt="ID Preview"
+                        width={300}
+                        height={160}
+                        className="object-cover w-full h-full"
+                      />
+                    ) : (
+                      <span className="text-sm text-[var(--secondary-muted-edge)]">
+                        Upload an image
+                      </span>
+                    )}
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="mt-3"
+                    onChange={(e) =>
+                      handleFileChange("farmerIdPreview", e.target.files?.[0])
+                    }
+                  />
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {farmTypes.map((type) => (
-                    <button
-                      key={type.id}
-                      type="button"
-                      onClick={() => handleInputChange("farmType", type.id)}
-                      className={`
-                        p-4 rounded-2xl border-2 transition-all duration-200 text-left
-                        hover:scale-105 focus:outline-none focus:ring-4 focus:ring-[var(--primary-accent2)]/20
-                        ${
-                          formData.farmType === type.id
-                            ? "border-[var(--primary-accent2)] bg-[var(--primary-accent2)]/5"
-                            : "border-[var(--secondary-soft-highlight)] hover:border-[var(--primary-base)]"
-                        }
-                      `}
-                      aria-pressed={formData.farmType === type.id}
-                    >
-                      <div className="flex items-start space-x-3">
-                        <span className="text-2xl mt-1">{type.icon}</span>
-                        <div>
-                          <div className="font-semibold text-[var(--secondary-black)] mb-1">
-                            {type.label}
-                          </div>
-                          <div className="text-xs text-[var(--secondary-muted-edge)] leading-relaxed">
-                            {type.description}
-                          </div>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
+
+                <div className="seller-card p-4">
+                  <label className="block text-sm font-semibold text-[var(--secondary-black)] mb-2">
+                    Farm Logo
+                  </label>
+                  <div className="flex items-center justify-center h-40 bg-[var(--secondary-soft-highlight)]/10 rounded-2xl overflow-hidden">
+                    {formData.farmLogoPreview ? (
+                      <Image
+                        src={formData.farmLogoPreview}
+                        alt="Logo Preview"
+                        width={300}
+                        height={160}
+                        className="object-contain w-full h-full p-6"
+                      />
+                    ) : (
+                      <span className="text-sm text-[var(--secondary-muted-edge)]">
+                        Upload a logo
+                      </span>
+                    )}
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="mt-3"
+                    onChange={(e) =>
+                      handleFileChange("farmLogoPreview", e.target.files?.[0])
+                    }
+                  />
                 </div>
               </div>
 
-              {/* Farm Size */}
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-[var(--secondary-black)] mb-2">
-                    Farm Size *
-                  </label>
-                  {errors.farmSize && (
-                    <p className="text-sm text-red-600 mb-3" role="alert">
-                      {errors.farmSize}
-                    </p>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  {farmSizes.map((size) => (
-                    <button
-                      key={size.id}
-                      type="button"
-                      onClick={() => handleInputChange("farmSize", size.id)}
-                      className={`
-                        farm-size-option
-                        ${formData.farmSize === size.id ? "selected" : ""}
-                      `}
-                      aria-pressed={formData.farmSize === size.id}
-                    >
-                      <div className="farm-size-icon">{size.icon}</div>
-                      <div className="font-semibold text-[var(--secondary-black)] text-sm">
-                        {size.label}
-                      </div>
-                      <div className="text-xs text-[var(--secondary-muted-edge)]">
-                        {size.range}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Certifications */}
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-[var(--secondary-black)] mb-2">
-                    Certifications (Optional)
-                  </label>
-                  <p className="text-sm text-[var(--secondary-muted-edge)] mb-4">
-                    Select any certifications your farm holds
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  {certifications.map((cert) => (
-                    <button
-                      key={cert.id}
-                      type="button"
-                      onClick={() =>
-                        handleArrayToggle("certifications", cert.id)
-                      }
-                      className={`
-                        certification-badge
-                        ${
-                          formData.certifications.includes(cert.id)
-                            ? "selected"
-                            : ""
-                        }
-                      `}
-                      aria-pressed={formData.certifications.includes(cert.id)}
-                    >
-                      <span className="mr-2">{cert.icon}</span>
-                      {cert.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Farming Methods */}
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-[var(--secondary-black)] mb-2">
-                    Farming Methods *
-                  </label>
-                  <p className="text-sm text-[var(--secondary-muted-edge)] mb-4">
-                    Select all methods that apply to your operation
-                  </p>
-                  {errors.farmingMethods && (
-                    <p className="text-sm text-red-600 mb-3" role="alert">
-                      {errors.farmingMethods}
-                    </p>
-                  )}
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {farmingMethods.map((method) => (
-                    <button
-                      key={method.id}
-                      type="button"
-                      onClick={() =>
-                        handleArrayToggle("farmingMethods", method.id)
-                      }
-                      className={`
-                        p-4 rounded-2xl border-2 transition-all duration-200 text-left
-                        hover:scale-105 focus:outline-none focus:ring-4 focus:ring-[var(--primary-accent2)]/20
-                        ${
-                          formData.farmingMethods.includes(method.id)
-                            ? "border-[var(--primary-accent2)] bg-[var(--primary-accent2)]/5"
-                            : "border-[var(--secondary-soft-highlight)] hover:border-[var(--primary-base)]"
-                        }
-                      `}
-                      aria-pressed={formData.farmingMethods.includes(method.id)}
-                    >
-                      <div className="font-semibold text-[var(--secondary-black)] mb-1">
-                        {method.label}
-                      </div>
-                      <div className="text-xs text-[var(--secondary-muted-edge)] leading-relaxed">
-                        {method.description}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
+              {/* Removed Farm Type, Size, Certifications, and Methods for simplified UI */}
 
               {/* Navigation */}
               <div className="flex flex-col sm:flex-row gap-4 pt-8">
@@ -489,69 +398,59 @@ export default function SellerProfileSetupStep({
 
           {/* Visual Column */}
           <div className="space-y-6">
-            {/* Guidance Text */}
             <div className="bg-[var(--primary-accent1)]/10 rounded-2xl p-6">
               <h3 className="font-semibold text-[var(--secondary-black)] mb-2">
-                Why we ask this
+                Location Preview
               </h3>
-              <p className="text-sm text-[var(--secondary-muted-edge)] leading-relaxed">
-                This information helps buyers understand your farming practices,
-                find products that match their needs, and build trust in your
-                operation.
+              <div className="rounded-2xl overflow-hidden border border-[var(--secondary-soft-highlight)]/40">
+                <iframe
+                  title="Farm location map"
+                  className="w-full h-64"
+                  loading="lazy"
+                  src={`https://www.google.com/maps?q=${encodeURIComponent(
+                    formData.address || "Farm"
+                  )}&output=embed`}
+                />
+              </div>
+              <p className="text-xs text-[var(--secondary-muted-edge)] mt-2">
+                Enter your address to update the map preview.
               </p>
             </div>
 
-            {/* Farm Stats Preview */}
-            <div className="space-y-4">
-              <h3 className="font-semibold text-[var(--secondary-black)]">
-                Your Farm Profile Preview
-              </h3>
-              <div className="seller-card p-6">
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-[var(--primary-accent1)]/20 to-[var(--secondary-soft-highlight)]/30 rounded-xl flex items-center justify-center">
-                      <span className="text-2xl">🚜</span>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-[var(--secondary-black)]">
-                        {formData.businessName || "Your Farm Name"}
-                      </h4>
-                      <p className="text-sm text-[var(--secondary-muted-edge)]">
-                        {formData.location || "Your Location"}
-                      </p>
-                    </div>
-                  </div>
-
-                  {formData.farmType && (
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm text-[var(--secondary-muted-edge)]">
-                        Type:
-                      </span>
-                      <span className="text-sm font-medium text-[var(--secondary-black)]">
-                        {
-                          farmTypes.find((t) => t.id === formData.farmType)
-                            ?.label
-                        }
-                      </span>
-                    </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="seller-card p-4 text-center">
+                <div className="text-sm font-semibold mb-2">ID Preview</div>
+                <div className="h-32 rounded-xl bg-[var(--secondary-soft-highlight)]/10 overflow-hidden flex items-center justify-center">
+                  {formData.farmerIdPreview ? (
+                    <Image
+                      src={formData.farmerIdPreview}
+                      alt="ID"
+                      width={220}
+                      height={120}
+                      className="object-cover w-full h-full"
+                    />
+                  ) : (
+                    <span className="text-xs text-[var(--secondary-muted-edge)]">
+                      No image
+                    </span>
                   )}
-
-                  {formData.certifications.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {formData.certifications.map((certId) => {
-                        const cert = certifications.find(
-                          (c) => c.id === certId
-                        );
-                        return cert ? (
-                          <span
-                            key={certId}
-                            className="text-xs bg-[var(--primary-accent1)]/10 text-[var(--primary-accent3)] px-2 py-1 rounded-full"
-                          >
-                            {cert.icon} {cert.label}
-                          </span>
-                        ) : null;
-                      })}
-                    </div>
+                </div>
+              </div>
+              <div className="seller-card p-4 text-center">
+                <div className="text-sm font-semibold mb-2">Logo Preview</div>
+                <div className="h-32 rounded-xl bg-[var(--secondary-soft-highlight)]/10 overflow-hidden flex items-center justify-center">
+                  {formData.farmLogoPreview ? (
+                    <Image
+                      src={formData.farmLogoPreview}
+                      alt="Logo"
+                      width={220}
+                      height={120}
+                      className="object-contain w-full h-full p-4"
+                    />
+                  ) : (
+                    <span className="text-xs text-[var(--secondary-muted-edge)]">
+                      No logo
+                    </span>
                   )}
                 </div>
               </div>

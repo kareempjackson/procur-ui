@@ -3,10 +3,10 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import TopNavigation from "@/components/navigation/TopNavigation";
 import Footer from "@/components/footer/Footer";
-import { useSelector } from "react-redux";
-import { RootState } from "@/store";
+import { useAppDispatch, useAppSelector } from "@/store";
+import { getApiClient } from "@/lib/apiClient";
+import { fetchSellerOrders } from "@/store/slices/sellerOrdersSlice";
 
 // Enums for order statuses and types
 enum OrderStatus {
@@ -102,9 +102,18 @@ function classNames(...classes: (string | false | null | undefined)[]) {
 
 export default function SellerOrdersPage() {
   const router = useRouter();
-  const accessToken = useSelector((state: RootState) => state.auth.accessToken);
 
-  // Demo orders data
+  // Data state
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [totalOrders, setTotalOrders] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(20);
+  const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
+
+  // NOTE: Priority and fulfillment filters are UI-only for now; API supports status, payment_status, order_number, date range
+  // Demo orders data (removed; now from API)
   const demoOrders: Order[] = [
     {
       id: "ord_001",
@@ -435,12 +444,11 @@ export default function SellerOrdersPage() {
     },
   ];
 
-  const [orders, setOrders] = useState<Order[]>(demoOrders);
-  const [error, setError] = useState<string | null>(null);
-  const [totalOrders, setTotalOrders] = useState(demoOrders.length);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(20);
-  const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
+  // Initialize with API data instead of demo
+  useEffect(() => {
+    setOrders([]);
+    setTotalOrders(0);
+  }, []);
 
   // Filter states
   const [filters, setFilters] = useState<OrderFilters>({
@@ -458,133 +466,127 @@ export default function SellerOrdersPage() {
 
   const [showFilters, setShowFilters] = useState(false);
 
-  // Filter orders
-  const filterOrders = () => {
-    let filtered = [...demoOrders];
+  // Fetch orders from API
+  async function fetchOrders(page: number) {
+    try {
+      setLoading(true);
+      setError(null);
+      const client = getApiClient(() => {
+        if (typeof window === "undefined") return null;
+        try {
+          const raw = localStorage.getItem("auth");
+          if (!raw) return null;
+          return (
+            (JSON.parse(raw) as { accessToken?: string }).accessToken ?? null
+          );
+        } catch {
+          return null;
+        }
+      });
 
-    // Search filter
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      filtered = filtered.filter(
-        (order) =>
-          order.order_number.toLowerCase().includes(searchLower) ||
-          order.customer_name.toLowerCase().includes(searchLower) ||
-          order.customer_email.toLowerCase().includes(searchLower) ||
-          order.items.some((item) =>
-            item.product_name.toLowerCase().includes(searchLower)
-          )
-      );
+      const params: Record<string, unknown> = {
+        page,
+        limit: itemsPerPage,
+        sort_by: filters.sort_by,
+        sort_order: filters.sort_order,
+      };
+
+      if (filters.status) params.status = filters.status;
+      if (filters.payment_status)
+        params.payment_status = filters.payment_status;
+      if (filters.search) params.order_number = filters.search;
+
+      if (filters.date_range) {
+        const now = new Date();
+        let from: Date | null = null;
+        switch (filters.date_range) {
+          case "today":
+            from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            break;
+          case "7d":
+            from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            break;
+          case "30d":
+            from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            break;
+          case "90d":
+            from = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+            break;
+          default:
+            from = null;
+        }
+        if (from) params.from_date = from.toISOString();
+      }
+
+      const { data } = await client.get("/sellers/orders", { params });
+      setOrders((data.orders as Order[]) || []);
+      setTotalOrders((data.total as number) || 0);
+    } catch (e: unknown) {
+      setError("Failed to load orders.");
+      setOrders([]);
+      setTotalOrders(0);
+    } finally {
+      setLoading(false);
     }
+  }
 
-    // Status filter
-    if (filters.status) {
-      filtered = filtered.filter((order) => order.status === filters.status);
-    }
+  const dispatch = useAppDispatch();
+  const ordersState = useAppSelector((s) => s.sellerOrders);
 
-    // Priority filter
-    if (filters.priority) {
-      filtered = filtered.filter(
-        (order) => order.priority === filters.priority
-      );
-    }
-
-    // Payment status filter
-    if (filters.payment_status) {
-      filtered = filtered.filter(
-        (order) => order.payment_status === filters.payment_status
-      );
-    }
-
-    // Fulfillment method filter
-    if (filters.fulfillment_method) {
-      filtered = filtered.filter(
-        (order) => order.fulfillment_method === filters.fulfillment_method
-      );
-    }
-
-    // Date range filter
+  async function runFetch(page: number) {
+    const params: any = {
+      page,
+      limit: itemsPerPage,
+      sort_by: filters.sort_by,
+      sort_order: filters.sort_order,
+    };
+    if (filters.status) params.status = filters.status;
+    if (filters.payment_status) params.payment_status = filters.payment_status;
+    if (filters.search) params.order_number = filters.search;
     if (filters.date_range) {
       const now = new Date();
-      let startDate: Date;
-
+      let from: Date | null = null;
       switch (filters.date_range) {
         case "today":
-          startDate = new Date(
-            now.getFullYear(),
-            now.getMonth(),
-            now.getDate()
-          );
+          from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
           break;
         case "7d":
-          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
           break;
         case "30d":
-          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
           break;
         case "90d":
-          startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+          from = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
           break;
         default:
-          startDate = new Date(0);
+          from = null;
       }
-
-      filtered = filtered.filter(
-        (order) => new Date(order.created_at) >= startDate
-      );
+      if (from) params.from_date = from.toISOString();
     }
-
-    // Amount filters
-    if (filters.amount_min) {
-      const minAmount = parseFloat(filters.amount_min);
-      filtered = filtered.filter((order) => order.total_amount >= minAmount);
-    }
-    if (filters.amount_max) {
-      const maxAmount = parseFloat(filters.amount_max);
-      filtered = filtered.filter((order) => order.total_amount <= maxAmount);
-    }
-
-    // Sort orders
-    filtered.sort((a, b) => {
-      let aValue, bValue;
-
-      switch (filters.sort_by) {
-        case "total_amount":
-          aValue = a.total_amount;
-          bValue = b.total_amount;
-          break;
-        case "customer_name":
-          aValue = a.customer_name.toLowerCase();
-          bValue = b.customer_name.toLowerCase();
-          break;
-        case "status":
-          aValue = a.status;
-          bValue = b.status;
-          break;
-        case "priority":
-          aValue = a.priority;
-          bValue = b.priority;
-          break;
-        case "created_at":
-        default:
-          aValue = new Date(a.created_at).getTime();
-          bValue = new Date(b.created_at).getTime();
-          break;
-      }
-
-      if (filters.sort_order === "asc") {
-        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-      } else {
-        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
-      }
-    });
-
-    setOrders(filtered);
-    setTotalOrders(filtered.length);
-  };
+    await dispatch(fetchSellerOrders(params));
+  }
 
   useEffect(() => {
-    filterOrders();
-  }, [filters]);
+    runFetch(currentPage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters, currentPage]);
+
+  useEffect(() => {
+    if (ordersState.status === "succeeded") {
+      setOrders(ordersState.items as unknown as Order[]);
+      setTotalOrders(ordersState.total);
+      setError(null);
+      setLoading(false);
+    } else if (ordersState.status === "loading") {
+      setLoading(true);
+    } else if (ordersState.status === "failed") {
+      setError(ordersState.error || "Failed to load orders.");
+      setOrders([]);
+      setTotalOrders(0);
+      setLoading(false);
+    }
+  }, [ordersState]);
 
   const handleFilterChange = (key: keyof OrderFilters, value: any) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -693,8 +695,8 @@ export default function SellerOrdersPage() {
       }
     }
 
-    // Refresh filtered orders
-    filterOrders();
+    // Refresh UI (server data is source of truth in production)
+    setOrders([...orders]);
   };
 
   // Calculate summary statistics
@@ -728,15 +730,10 @@ export default function SellerOrdersPage() {
   }, [orders]);
 
   const totalPages = Math.ceil(totalOrders / itemsPerPage);
-  const paginatedOrders = orders.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const paginatedOrders = orders; // server paginated
 
   return (
     <div className="min-h-screen bg-[var(--primary-background)]">
-      <TopNavigation />
-
       <main className="max-w-7xl mx-auto px-6 py-10">
         {/* Breadcrumbs */}
         <nav
@@ -796,41 +793,37 @@ export default function SellerOrdersPage() {
         </div>
 
         {/* Summary Stats */}
-        <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)] p-4 mb-6">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="text-center">
-              <div className="text-xs text-[var(--primary-base)] mb-1">
-                Total Revenue
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {[
+            {
+              label: "Total Revenue",
+              value: formatAmount(summaryStats.totalRevenue),
+            },
+            {
+              label: "Pending Orders",
+              value: String(summaryStats.pendingOrders),
+            },
+            {
+              label: "In Progress",
+              value: String(summaryStats.inProgressOrders),
+            },
+            {
+              label: "Completed",
+              value: String(summaryStats.completedOrders),
+            },
+          ].map((k) => (
+            <div
+              key={k.label}
+              className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6 hover:shadow-sm transition-shadow"
+            >
+              <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)]">
+                {k.label}
               </div>
-              <div className="text-lg font-bold text-[var(--primary-accent2)]">
-                {formatAmount(summaryStats.totalRevenue)}
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-xs text-[var(--primary-base)] mb-1">
-                Pending Orders
-              </div>
-              <div className="text-lg font-bold text-yellow-600">
-                {summaryStats.pendingOrders}
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-xs text-[var(--primary-base)] mb-1">
-                In Progress
-              </div>
-              <div className="text-lg font-bold text-blue-600">
-                {summaryStats.inProgressOrders}
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-xs text-[var(--primary-base)] mb-1">
-                Completed
-              </div>
-              <div className="text-lg font-bold text-green-600">
-                {summaryStats.completedOrders}
+              <div className="mt-1 text-2xl font-semibold text-[color:var(--secondary-black)]">
+                {k.value}
               </div>
             </div>
-          </div>
+          ))}
         </div>
 
         {/* Filters Panel */}
@@ -995,7 +988,11 @@ export default function SellerOrdersPage() {
         )}
 
         {/* Orders Table */}
-        {paginatedOrders.length === 0 ? (
+        {loading ? (
+          <div className="text-center py-12 text-sm text-[color:var(--secondary-muted-edge)]">
+            Loading orders…
+          </div>
+        ) : paginatedOrders.length === 0 ? (
           <div className="text-center py-12">
             <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
               <svg
@@ -1176,38 +1173,14 @@ export default function SellerOrdersPage() {
                         </span>
                       </td>
                       <td className="py-2 px-3">
-                        <select
-                          value={order.status}
-                          onChange={(e) =>
-                            handleStatusChange(
-                              order.id,
-                              e.target.value as OrderStatus
-                            )
-                          }
+                        <span
                           className={classNames(
-                            "text-xs border-0 rounded-full px-2 py-1 font-medium focus:ring-1 focus:ring-[var(--primary-accent2)] transition-colors",
+                            "px-1.5 py-0.5 text-xs rounded-full font-medium",
                             getStatusColor(order.status)
                           )}
                         >
-                          <option value={OrderStatus.PENDING}>Pending</option>
-                          <option value={OrderStatus.CONFIRMED}>
-                            Confirmed
-                          </option>
-                          <option value={OrderStatus.PREPARING}>
-                            Preparing
-                          </option>
-                          <option value={OrderStatus.READY}>Ready</option>
-                          <option value={OrderStatus.IN_TRANSIT}>
-                            In Transit
-                          </option>
-                          <option value={OrderStatus.DELIVERED}>
-                            Delivered
-                          </option>
-                          <option value={OrderStatus.CANCELLED}>
-                            Cancelled
-                          </option>
-                          <option value={OrderStatus.REFUNDED}>Refunded</option>
-                        </select>
+                          {order.status.replace(/_/g, " ")}
+                        </span>
                       </td>
                       <td className="py-2 px-3">
                         <span

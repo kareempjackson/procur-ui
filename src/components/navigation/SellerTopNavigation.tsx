@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   BellIcon,
   LanguageIcon,
@@ -21,6 +22,7 @@ const SellerTopNavigation: React.FC = () => {
   });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
 
   const countries = [
     { code: "GD", flag: "🇬🇩", name: "Grenada" },
@@ -95,8 +97,8 @@ const SellerTopNavigation: React.FC = () => {
         <div className="max-w-7xl mx-auto px-6">
           <div className="relative flex items-center h-20">
             {/* Logo */}
-            <div className="flex-shrink-0">
-              <Link href="/" className="flex items-center">
+            <div className="flex-shrink-0 relative">
+              <Link href="/seller" className="flex items-center relative">
                 <Image
                   src="/images/logos/procur-logo.svg"
                   alt="Procur"
@@ -104,6 +106,9 @@ const SellerTopNavigation: React.FC = () => {
                   height={32}
                   className="h-8 w-auto"
                 />
+                <span className="absolute -bottom-2 right-0 text-[10px] leading-none text-[color:var(--secondary-muted-edge)]">
+                  seller
+                </span>
               </Link>
             </div>
 
@@ -112,45 +117,49 @@ const SellerTopNavigation: React.FC = () => {
               {/* Transactions Link */}
               <Link
                 href="/seller/transactions"
-                className="text-gray-800 hover:text-black font-medium text-[15px] transition-all duration-200 relative group"
+                className={`pb-3 font-medium text-[15px] transition-all duration-200 border-b-2 ${
+                  pathname?.startsWith("/seller/transactions")
+                    ? "text-black border-[color:var(--primary-base)]"
+                    : "text-gray-800 hover:text-black border-transparent"
+                }`}
               >
-                <span className="relative">
-                  Transactions
-                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-black transition-all duration-200 group-hover:w-full"></span>
-                </span>
+                <span className="relative">Transactions</span>
               </Link>
 
               {/* Orders Link */}
               <Link
                 href="/seller/orders"
-                className="text-gray-800 hover:text-black font-medium text-[15px] transition-all duration-200 relative group"
+                className={`pb-3 font-medium text-[15px] transition-all duration-200 border-b-2 ${
+                  pathname?.startsWith("/seller/orders")
+                    ? "text-black border-[color:var(--primary-base)]"
+                    : "text-gray-800 hover:text-black border-transparent"
+                }`}
               >
-                <span className="relative">
-                  Orders
-                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-black transition-all duration-200 group-hover:w-full"></span>
-                </span>
+                <span className="relative">Orders</span>
               </Link>
 
               {/* Inventory Link */}
               <Link
                 href="/seller/products"
-                className="text-gray-800 hover:text-black font-medium text-[15px] transition-all duration-200 relative group"
+                className={`pb-3 font-medium text-[15px] transition-all duration-200 border-b-2 ${
+                  pathname?.startsWith("/seller/products")
+                    ? "text-black border-[color:var(--primary-base)]"
+                    : "text-gray-800 hover:text-black border-transparent"
+                }`}
               >
-                <span className="relative">
-                  Inventory
-                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-black transition-all duration-200 group-hover:w-full"></span>
-                </span>
+                <span className="relative">Inventory</span>
               </Link>
 
               {/* Messages Link */}
               <Link
                 href="/seller/messages"
-                className="text-gray-800 hover:text-black font-medium text-[15px] transition-all duration-200 relative group"
+                className={`pb-3 font-medium text-[15px] transition-all duration-200 border-b-2 ${
+                  pathname?.startsWith("/seller/messages")
+                    ? "text-black border-[color:var(--primary-base)]"
+                    : "text-gray-800 hover:text-black border-transparent"
+                }`}
               >
-                <span className="relative">
-                  Messages
-                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-black transition-all duration-200 group-hover:w-full"></span>
-                </span>
+                <span className="relative">Messages</span>
               </Link>
             </div>
 

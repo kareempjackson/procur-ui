@@ -56,25 +56,15 @@ const paymentMethods = [
     id: "bank_transfer",
     label: "Bank Transfer",
     description: "Direct deposit to your bank account",
-    icon: "🏦",
     processingTime: "1-2 business days",
-    supported: true,
-  },
-  {
-    id: "digital_wallet",
-    label: "Digital Wallet",
-    description: "PayPal, Stripe, or other digital wallets",
-    icon: "💳",
-    processingTime: "Instant",
     supported: true,
   },
   {
     id: "check",
     label: "Paper Check",
     description: "Traditional check mailed to your address",
-    icon: "📝",
     processingTime: "5-7 business days",
-    supported: false,
+    supported: true,
   },
 ];
 
@@ -137,6 +127,10 @@ export default function SellerPaymentsStep({
     });
   };
 
+  const handleSkip = () => {
+    onNext({});
+  };
+
   return (
     <div className="min-h-screen pt-24 pb-12 px-6">
       <div className="max-w-6xl mx-auto">
@@ -155,58 +149,6 @@ export default function SellerPaymentsStep({
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-8">
-              {/* Payout Schedule */}
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-[var(--secondary-black)] mb-2">
-                    Payout Schedule
-                  </label>
-                  <p className="text-sm text-[var(--secondary-muted-edge)] mb-4">
-                    Choose how often you want to receive payments
-                  </p>
-                </div>
-                <div className="space-y-3">
-                  {payoutSchedules.map((schedule) => (
-                    <button
-                      key={schedule.id}
-                      type="button"
-                      onClick={() =>
-                        handleInputChange("payoutSchedule", schedule.id)
-                      }
-                      className={`
-                        payment-method-card w-full
-                        ${
-                          formData.payoutSchedule === schedule.id
-                            ? "selected"
-                            : ""
-                        }
-                      `}
-                      aria-pressed={formData.payoutSchedule === schedule.id}
-                    >
-                      <div className="payment-icon">{schedule.icon}</div>
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <h3 className="font-semibold text-[var(--secondary-black)]">
-                            {schedule.label}
-                          </h3>
-                          {schedule.recommended && (
-                            <span className="text-xs bg-[var(--primary-accent2)] text-white px-2 py-1 rounded-full">
-                              Recommended
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm text-[var(--secondary-muted-edge)] mb-2">
-                          {schedule.description}
-                        </p>
-                        <div className="flex items-center space-x-4 text-xs text-[var(--secondary-muted-edge)]">
-                          <span>Processing fee: {schedule.fee}</span>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               {/* Payment Method */}
               <div className="space-y-4">
                 <div>
@@ -217,7 +159,7 @@ export default function SellerPaymentsStep({
                     How would you like to receive your payments?
                   </p>
                 </div>
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {paymentMethods.map((method) => (
                     <button
                       key={method.id}
@@ -227,7 +169,7 @@ export default function SellerPaymentsStep({
                       }
                       disabled={!method.supported}
                       className={`
-                        payment-method-card w-full
+                        payment-method-card w-full h-full
                         ${
                           formData.paymentMethod === method.id ? "selected" : ""
                         }
@@ -239,7 +181,6 @@ export default function SellerPaymentsStep({
                       `}
                       aria-pressed={formData.paymentMethod === method.id}
                     >
-                      <div className="payment-icon">{method.icon}</div>
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-1">
                           <h3 className="font-semibold text-[var(--secondary-black)]">
@@ -285,13 +226,14 @@ export default function SellerPaymentsStep({
                     }
                     placeholder="Enter your bank account number"
                     className={`
-                      input w-full text-base py-3 px-4
+                      input w-full text-base py-3 px-5 rounded-full
                       ${
                         errors.bankAccount
                           ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
                           : ""
                       }
                     `}
+                    style={{ borderRadius: 9999 }}
                     aria-describedby={
                       errors.bankAccount ? "bankAccount-error" : undefined
                     }
@@ -321,13 +263,14 @@ export default function SellerPaymentsStep({
                     onChange={(e) => handleInputChange("taxId", e.target.value)}
                     placeholder="XXX-XX-XXXX or XX-XXXXXXX"
                     className={`
-                      input w-full text-base py-3 px-4
+                      input w-full text-base py-3 px-5 rounded-full
                       ${
                         errors.taxId
                           ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
                           : ""
                       }
                     `}
+                    style={{ borderRadius: 9999 }}
                     aria-describedby={errors.taxId ? "taxId-error" : undefined}
                   />
                   {errors.taxId && (
@@ -414,6 +357,13 @@ export default function SellerPaymentsStep({
                     "Complete Setup"
                   )}
                 </button>
+                <button
+                  type="button"
+                  onClick={handleSkip}
+                  className="btn btn-ghost text-base px-6 py-3 order-3"
+                >
+                  Skip for now
+                </button>
               </div>
             </form>
           </div>
@@ -424,7 +374,7 @@ export default function SellerPaymentsStep({
             <div className="seller-card p-6">
               <div className="flex items-start space-x-4">
                 <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <span className="text-2xl">🔒</span>
+                  <div className="w-3 h-3 bg-green-600 rounded-full" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-[var(--secondary-black)] mb-2">
@@ -440,43 +390,7 @@ export default function SellerPaymentsStep({
               </div>
             </div>
 
-            {/* Payout Preview */}
-            <div className="seller-card p-6">
-              <h3 className="font-semibold text-[var(--secondary-black)] mb-4">
-                Payout Preview
-              </h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-3 bg-[var(--secondary-soft-highlight)]/10 rounded-lg">
-                  <span className="text-sm text-[var(--secondary-black)]">
-                    Weekly Sales
-                  </span>
-                  <span className="text-sm font-semibold text-[var(--secondary-black)]">
-                    $1,250.00
-                  </span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-[var(--secondary-soft-highlight)]/10 rounded-lg">
-                  <span className="text-sm text-[var(--secondary-black)]">
-                    Processing Fee (0.3%)
-                  </span>
-                  <span className="text-sm text-[var(--secondary-muted-edge)]">
-                    -$3.75
-                  </span>
-                </div>
-                <div className="border-t border-[var(--secondary-soft-highlight)]/30 pt-3">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-[var(--secondary-black)]">
-                      Your Payout
-                    </span>
-                    <span className="text-lg font-bold text-[var(--primary-accent2)]">
-                      $1,246.25
-                    </span>
-                  </div>
-                  <p className="text-xs text-[var(--secondary-muted-edge)] mt-1">
-                    Deposited every Friday
-                  </p>
-                </div>
-              </div>
-            </div>
+            {/* Payout Preview removed per request */}
 
             {/* Support */}
             <div className="bg-[var(--primary-accent1)]/10 rounded-2xl p-6">

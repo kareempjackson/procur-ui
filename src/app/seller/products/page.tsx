@@ -1,13 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import TopNavigation from "@/components/navigation/TopNavigation";
 import Footer from "@/components/footer/Footer";
-import { getApiClient } from "@/lib/apiClient";
 import { useSelector } from "react-redux";
-import { RootState } from "@/store";
+import { RootState, useAppDispatch } from "@/store";
+import {
+  deleteSellerProduct,
+  fetchSellerProducts,
+  updateSellerProduct,
+} from "@/store/slices/sellerProductsSlice";
 
 // Enums matching the API
 enum ProductStatus {
@@ -37,15 +40,15 @@ interface Product {
   sale_price?: number;
   currency: string;
   stock_quantity: number;
-  min_stock_level: number;
+  min_stock_level?: number;
   unit_of_measurement: string;
   weight?: number;
-  condition: ProductCondition;
+  condition: ProductCondition | string;
   brand?: string;
-  status: ProductStatus;
+  status: ProductStatus | string;
   is_featured: boolean;
   is_organic: boolean;
-  is_local: boolean;
+  is_local?: boolean;
   created_at: string;
   updated_at: string;
   images?: Array<{
@@ -74,284 +77,14 @@ function classNames(...classes: (string | false | null | undefined)[]) {
 
 export default function SellerProductsPage() {
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const accessToken = useSelector((state: RootState) => state.auth.accessToken);
-
-  // Demo products data
-  const demoProducts: Product[] = [
-    {
-      id: "1",
-      name: "Organic Roma Tomatoes",
-      description:
-        "Fresh, vine-ripened organic Roma tomatoes perfect for sauces and cooking. Grown using sustainable farming practices.",
-      short_description:
-        "Fresh, vine-ripened organic Roma tomatoes perfect for sauces and cooking.",
-      sku: "TOM-ROM-001",
-      category: "Vegetables",
-      subcategory: "Fresh Vegetables",
-      tags: ["organic", "fresh", "local", "vine-ripened"],
-      base_price: 4.99,
-      sale_price: 3.99,
-      currency: "USD",
-      stock_quantity: 150,
-      min_stock_level: 20,
-      unit_of_measurement: "lb",
-      weight: 1.0,
-      condition: ProductCondition.NEW,
-      brand: "FreshFarm Co.",
-      status: ProductStatus.ACTIVE,
-      is_featured: true,
-      is_organic: true,
-      is_local: true,
-      created_at: "2024-01-15T10:30:00Z",
-      updated_at: "2024-01-20T14:45:00Z",
-      images: [
-        {
-          id: "img1",
-          image_url:
-            "https://images.unsplash.com/photo-1546470427-e26264be0b0d?w=400&h=400&fit=crop&crop=center",
-          alt_text: "Fresh organic Roma tomatoes",
-          is_primary: true,
-          display_order: 0,
-        },
-      ],
-    },
-    {
-      id: "2",
-      name: "Free-Range Chicken Eggs",
-      description:
-        "Farm-fresh eggs from free-range chickens. Rich in protein and perfect for any meal.",
-      short_description: "Farm-fresh eggs from free-range chickens.",
-      sku: "EGG-FR-12",
-      category: "Dairy & Eggs",
-      subcategory: "Eggs",
-      tags: ["free-range", "fresh", "protein"],
-      base_price: 6.5,
-      currency: "USD",
-      stock_quantity: 45,
-      min_stock_level: 10,
-      unit_of_measurement: "dozen",
-      condition: ProductCondition.NEW,
-      brand: "Happy Hens Farm",
-      status: ProductStatus.ACTIVE,
-      is_featured: false,
-      is_organic: false,
-      is_local: true,
-      created_at: "2024-01-10T08:15:00Z",
-      updated_at: "2024-01-18T16:20:00Z",
-      images: [
-        {
-          id: "img2",
-          image_url:
-            "https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=400&h=400&fit=crop&crop=center",
-          alt_text: "Free-range chicken eggs",
-          is_primary: true,
-          display_order: 0,
-        },
-      ],
-    },
-    {
-      id: "3",
-      name: "Organic Baby Spinach",
-      description:
-        "Tender, nutrient-rich organic baby spinach leaves. Perfect for salads, smoothies, and cooking.",
-      short_description: "Tender, nutrient-rich organic baby spinach leaves.",
-      sku: "SPN-BAB-001",
-      category: "Vegetables",
-      subcategory: "Leafy Greens",
-      tags: ["organic", "baby spinach", "leafy greens", "superfood"],
-      base_price: 3.49,
-      currency: "USD",
-      stock_quantity: 8,
-      min_stock_level: 15,
-      unit_of_measurement: "lb",
-      condition: ProductCondition.NEW,
-      status: ProductStatus.OUT_OF_STOCK,
-      is_featured: false,
-      is_organic: true,
-      is_local: false,
-      created_at: "2024-01-12T12:00:00Z",
-      updated_at: "2024-01-22T09:30:00Z",
-      images: [
-        {
-          id: "img3",
-          image_url:
-            "https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=400&h=400&fit=crop&crop=center",
-          alt_text: "Fresh organic baby spinach",
-          is_primary: true,
-          display_order: 0,
-        },
-      ],
-    },
-    {
-      id: "4",
-      name: "Artisan Sourdough Bread",
-      description:
-        "Handcrafted sourdough bread made with traditional methods and organic flour.",
-      short_description:
-        "Handcrafted sourdough bread made with traditional methods.",
-      sku: "BRD-SOU-001",
-      category: "Bakery",
-      subcategory: "Bread",
-      tags: ["artisan", "sourdough", "handcrafted", "organic flour"],
-      base_price: 8.99,
-      currency: "USD",
-      stock_quantity: 25,
-      min_stock_level: 5,
-      unit_of_measurement: "piece",
-      condition: ProductCondition.NEW,
-      brand: "Artisan Bakery",
-      status: ProductStatus.ACTIVE,
-      is_featured: true,
-      is_organic: false,
-      is_local: true,
-      created_at: "2024-01-08T06:45:00Z",
-      updated_at: "2024-01-19T11:15:00Z",
-      images: [
-        {
-          id: "img4",
-          image_url:
-            "https://images.unsplash.com/photo-1549931319-a545dcf3bc73?w=400&h=400&fit=crop&crop=center",
-          alt_text: "Artisan sourdough bread",
-          is_primary: true,
-          display_order: 0,
-        },
-      ],
-    },
-    {
-      id: "5",
-      name: "Grass-Fed Ground Beef",
-      description:
-        "Premium grass-fed ground beef from local pasture-raised cattle. No hormones or antibiotics.",
-      short_description:
-        "Premium grass-fed ground beef from local pasture-raised cattle.",
-      sku: "BEF-GRD-001",
-      category: "Meat",
-      subcategory: "Beef",
-      tags: ["grass-fed", "local", "no hormones", "pasture-raised"],
-      base_price: 12.99,
-      sale_price: 10.99,
-      currency: "USD",
-      stock_quantity: 32,
-      min_stock_level: 8,
-      unit_of_measurement: "lb",
-      condition: ProductCondition.NEW,
-      brand: "Green Pastures Ranch",
-      status: ProductStatus.ACTIVE,
-      is_featured: false,
-      is_organic: false,
-      is_local: true,
-      created_at: "2024-01-05T14:20:00Z",
-      updated_at: "2024-01-21T10:45:00Z",
-      images: [
-        {
-          id: "img5",
-          image_url:
-            "https://images.unsplash.com/photo-1588347818121-69f25c4c6c0d?w=400&h=400&fit=crop&crop=center",
-          alt_text: "Grass-fed ground beef",
-          is_primary: true,
-          display_order: 0,
-        },
-      ],
-    },
-    {
-      id: "6",
-      name: "Organic Honey",
-      description:
-        "Pure, raw organic honey harvested from local beehives. Unfiltered and unpasteurized.",
-      short_description:
-        "Pure, raw organic honey harvested from local beehives.",
-      sku: "HON-ORG-001",
-      category: "Pantry",
-      subcategory: "Sweeteners",
-      tags: ["organic", "raw", "unfiltered", "local honey"],
-      base_price: 15.99,
-      currency: "USD",
-      stock_quantity: 18,
-      min_stock_level: 5,
-      unit_of_measurement: "piece",
-      condition: ProductCondition.NEW,
-      brand: "Golden Hive Apiary",
-      status: ProductStatus.DRAFT,
-      is_featured: false,
-      is_organic: true,
-      is_local: true,
-      created_at: "2024-01-20T16:30:00Z",
-      updated_at: "2024-01-22T13:15:00Z",
-    },
-    {
-      id: "7",
-      name: "Heirloom Carrots",
-      description:
-        "Colorful heirloom carrots in purple, orange, and yellow varieties. Sweet and crunchy.",
-      short_description:
-        "Colorful heirloom carrots in purple, orange, and yellow varieties.",
-      sku: "CAR-HEI-001",
-      category: "Vegetables",
-      subcategory: "Root Vegetables",
-      tags: ["heirloom", "colorful", "sweet", "crunchy"],
-      base_price: 4.49,
-      currency: "USD",
-      stock_quantity: 67,
-      min_stock_level: 20,
-      unit_of_measurement: "lb",
-      condition: ProductCondition.NEW,
-      status: ProductStatus.ACTIVE,
-      is_featured: false,
-      is_organic: false,
-      is_local: false,
-      created_at: "2024-01-14T11:45:00Z",
-      updated_at: "2024-01-20T15:30:00Z",
-      images: [
-        {
-          id: "img7",
-          image_url:
-            "https://images.unsplash.com/photo-1445282768818-728615cc910a?w=400&h=400&fit=crop&crop=center",
-          alt_text: "Colorful heirloom carrots",
-          is_primary: true,
-          display_order: 0,
-        },
-      ],
-    },
-    {
-      id: "8",
-      name: "Organic Blueberries",
-      description:
-        "Sweet, juicy organic blueberries packed with antioxidants. Perfect for snacking or baking.",
-      short_description:
-        "Sweet, juicy organic blueberries packed with antioxidants.",
-      sku: "BLU-ORG-001",
-      category: "Fruits",
-      subcategory: "Berries",
-      tags: ["organic", "antioxidants", "sweet", "berries"],
-      base_price: 7.99,
-      currency: "USD",
-      stock_quantity: 0,
-      min_stock_level: 12,
-      unit_of_measurement: "lb",
-      condition: ProductCondition.NEW,
-      brand: "Berry Fresh Farms",
-      status: ProductStatus.OUT_OF_STOCK,
-      is_featured: true,
-      is_organic: true,
-      is_local: false,
-      created_at: "2024-01-16T09:20:00Z",
-      updated_at: "2024-01-23T08:45:00Z",
-      images: [
-        {
-          id: "img8",
-          image_url:
-            "https://images.unsplash.com/photo-1498557850523-fd3d118b962e?w=400&h=400&fit=crop&crop=center",
-          alt_text: "Fresh organic blueberries",
-          is_primary: true,
-          display_order: 0,
-        },
-      ],
-    },
-  ];
-
-  const [products, setProducts] = useState<Product[]>(demoProducts);
-  const [error, setError] = useState<string | null>(null);
-  const [totalProducts, setTotalProducts] = useState(demoProducts.length);
+  const {
+    items: products,
+    total,
+    status: loadStatus,
+    error,
+  } = useSelector((state: RootState) => state.sellerProducts);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(12);
 
@@ -370,92 +103,45 @@ export default function SellerProductsPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showFilters, setShowFilters] = useState(false);
 
-  // Filter demo products
-  const filterProducts = () => {
-    let filtered = [...demoProducts];
-
-    // Search filter
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      filtered = filtered.filter(
-        (product) =>
-          product.name.toLowerCase().includes(searchLower) ||
-          product.description?.toLowerCase().includes(searchLower) ||
-          product.short_description?.toLowerCase().includes(searchLower) ||
-          product.sku?.toLowerCase().includes(searchLower) ||
-          product.tags?.some((tag) => tag.toLowerCase().includes(searchLower))
-      );
+  // Map sort key to API expected values
+  const apiSortBy = useMemo(() => {
+    switch (filters.sort_by) {
+      case "base_price":
+        return "price";
+      default:
+        return filters.sort_by;
     }
+  }, [filters.sort_by]);
 
-    // Category filter
-    if (filters.category) {
-      filtered = filtered.filter(
-        (product) => product.category === filters.category
-      );
-    }
-
-    // Status filter
-    if (filters.status) {
-      filtered = filtered.filter(
-        (product) => product.status === filters.status
-      );
-    }
-
-    // Feature filters
-    if (filters.is_featured !== null) {
-      filtered = filtered.filter(
-        (product) => product.is_featured === filters.is_featured
-      );
-    }
-    if (filters.is_organic !== null) {
-      filtered = filtered.filter(
-        (product) => product.is_organic === filters.is_organic
-      );
-    }
-    if (filters.is_local !== null) {
-      filtered = filtered.filter(
-        (product) => product.is_local === filters.is_local
-      );
-    }
-
-    // Sort products
-    filtered.sort((a, b) => {
-      let aValue, bValue;
-
-      switch (filters.sort_by) {
-        case "name":
-          aValue = a.name.toLowerCase();
-          bValue = b.name.toLowerCase();
-          break;
-        case "base_price":
-          aValue = a.base_price;
-          bValue = b.base_price;
-          break;
-        case "stock_quantity":
-          aValue = a.stock_quantity;
-          bValue = b.stock_quantity;
-          break;
-        case "created_at":
-        default:
-          aValue = new Date(a.created_at).getTime();
-          bValue = new Date(b.created_at).getTime();
-          break;
-      }
-
-      if (filters.sort_order === "asc") {
-        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-      } else {
-        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
-      }
-    });
-
-    setProducts(filtered);
-    setTotalProducts(filtered.length);
-  };
-
+  // Fetch from API when filters/pagination change
   useEffect(() => {
-    filterProducts();
-  }, [filters]);
+    dispatch(
+      fetchSellerProducts({
+        page: currentPage,
+        limit: itemsPerPage,
+        search: filters.search || undefined,
+        category: filters.category || undefined,
+        status: (filters.status as string) || undefined,
+        is_featured:
+          filters.is_featured === null ? undefined : filters.is_featured,
+        is_organic:
+          filters.is_organic === null ? undefined : filters.is_organic,
+        sort_by: apiSortBy,
+        sort_order: filters.sort_order,
+      })
+    );
+  }, [
+    dispatch,
+    currentPage,
+    itemsPerPage,
+    filters.search,
+    filters.category,
+    filters.status,
+    filters.is_featured,
+    filters.is_organic,
+    apiSortBy,
+    filters.sort_order,
+  ]);
 
   const handleFilterChange = (key: keyof ProductFilters, value: any) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -464,26 +150,16 @@ export default function SellerProductsPage() {
 
   const handleDeleteProduct = (productId: string) => {
     if (!confirm("Are you sure you want to delete this product?")) return;
-
-    // Remove from demo data
-    const updatedProducts = demoProducts.filter((p) => p.id !== productId);
-    demoProducts.length = 0;
-    demoProducts.push(...updatedProducts);
-
-    // Refresh filtered products
-    filterProducts();
+    dispatch(deleteSellerProduct(productId));
   };
 
   const handleStatusChange = (productId: string, newStatus: ProductStatus) => {
-    // Update status in demo data
-    const productIndex = demoProducts.findIndex((p) => p.id === productId);
-    if (productIndex !== -1) {
-      demoProducts[productIndex].status = newStatus;
-      demoProducts[productIndex].updated_at = new Date().toISOString();
-    }
-
-    // Refresh filtered products
-    filterProducts();
+    dispatch(
+      updateSellerProduct({
+        id: productId,
+        update: { status: newStatus as unknown as string },
+      })
+    );
   };
 
   const getStatusColor = (status: ProductStatus) => {
@@ -508,11 +184,18 @@ export default function SellerProductsPage() {
     return primaryImage?.image_url || product.images?.[0]?.image_url;
   };
 
-  const totalPages = Math.ceil(totalProducts / itemsPerPage);
+  // Optional client-side filter for is_local (API doesn't currently filter by this)
+  const visibleProducts = useMemo(() => {
+    if (filters.is_local === null) return products;
+    return products.filter((p) => p.is_local === filters.is_local);
+  }, [products, filters.is_local]);
+
+  const totalProducts = visibleProducts.length;
+  const totalPages = Math.ceil((total || 0) / itemsPerPage);
 
   return (
     <div className="min-h-screen bg-[var(--primary-background)]">
-      <TopNavigation />
+      {/* Navigation is provided by seller layout */}
 
       <main className="max-w-7xl mx-auto px-6 py-10">
         {/* Breadcrumbs */}
@@ -757,7 +440,7 @@ export default function SellerProductsPage() {
         {/* Products Count */}
         <div className="flex items-center justify-between mb-6">
           <p className="text-sm text-[var(--primary-base)]">
-            {totalProducts} products found
+            {total ?? 0} products found
           </p>
 
           {totalPages > 1 && (
@@ -792,8 +475,27 @@ export default function SellerProductsPage() {
           </div>
         )}
 
+        {/* Loading State */}
+        {loadStatus === "loading" && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {Array.from({ length: itemsPerPage }).map((_, idx) => (
+              <div
+                key={idx}
+                className="bg-white rounded-3xl border border-[var(--secondary-soft-highlight)] overflow-hidden"
+              >
+                <div className="aspect-square bg-gray-100 animate-pulse" />
+                <div className="p-5 space-y-3">
+                  <div className="h-5 bg-gray-100 rounded w-2/3 animate-pulse" />
+                  <div className="h-4 bg-gray-100 rounded w-1/3 animate-pulse" />
+                  <div className="h-8 bg-gray-100 rounded w-1/2 animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Products Grid/List */}
-        {products.length === 0 ? (
+        {loadStatus !== "loading" && visibleProducts.length === 0 ? (
           <div className="text-center py-12">
             <div className="w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
               <svg
@@ -824,18 +526,18 @@ export default function SellerProductsPage() {
           </div>
         ) : viewMode === "grid" ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {products.map((product) => (
+            {visibleProducts.map((product) => (
               <div
                 key={product.id}
-                className="group bg-white rounded-3xl border border-[var(--secondary-soft-highlight)] overflow-hidden hover:shadow-xl hover:shadow-black/5 hover:-translate-y-1 transition-all duration-300 ease-out"
+                className="group rounded-2xl bg-white/90 backdrop-blur-sm border border-[color:var(--secondary-soft-highlight)]/80 overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 ease-out"
               >
                 {/* Product Image */}
-                <div className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden">
+                <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-[var(--primary-background)] to-white">
                   {getPrimaryImage(product) ? (
                     <img
                       src={getPrimaryImage(product)}
                       alt={product.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+                      className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
@@ -857,11 +559,14 @@ export default function SellerProductsPage() {
                     </div>
                   )}
 
+                  {/* Soft gradient overlay */}
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/5 via-transparent to-transparent" />
+
                   {/* Status Badge */}
                   <div className="absolute top-3 left-3">
                     <span
                       className={classNames(
-                        "px-3 py-1.5 text-xs font-semibold rounded-full backdrop-blur-md shadow-lg border border-white/20",
+                        "px-2.5 py-1 text-[11px] font-semibold rounded-full backdrop-blur-md shadow-sm border border-white/20",
                         product.status === ProductStatus.ACTIVE
                           ? "bg-emerald-500/90 text-white"
                           : product.status === ProductStatus.DRAFT
@@ -875,8 +580,8 @@ export default function SellerProductsPage() {
                     >
                       {product.status === ProductStatus.OUT_OF_STOCK
                         ? "Out of Stock"
-                        : product.status.charAt(0).toUpperCase() +
-                          product.status.slice(1)}
+                        : String(product.status).charAt(0).toUpperCase() +
+                          String(product.status).slice(1)}
                     </span>
                   </div>
 
@@ -936,11 +641,11 @@ export default function SellerProductsPage() {
                   </div>
 
                   {/* Quick Actions Overlay */}
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/15 transition-colors duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
                     <div className="flex items-center gap-2 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
                       <Link
                         href={`/seller/products/${product.id}/edit`}
-                        className="w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors"
+                        className="w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-md hover:bg-white transition-colors"
                       >
                         <svg
                           className="w-4 h-4 text-gray-700"
@@ -958,7 +663,7 @@ export default function SellerProductsPage() {
                       </Link>
                       <button
                         onClick={() => handleDeleteProduct(product.id)}
-                        className="w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg hover:bg-red-50 transition-colors group/delete"
+                        className="w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-md hover:bg-red-50 transition-colors group/delete"
                       >
                         <svg
                           className="w-4 h-4 text-gray-700 group-hover/delete:text-red-600"
@@ -980,14 +685,14 @@ export default function SellerProductsPage() {
 
                 {/* Product Info */}
                 <div className="p-5">
-                  <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-start justify-between mb-2">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-[var(--secondary-black)] text-lg mb-1 truncate">
+                      <h3 className="text-[15px] font-semibold tracking-[-0.01em] text-[var(--secondary-black)] mb-0.5 line-clamp-1">
                         {product.name}
                       </h3>
-                      <p className="text-sm text-[var(--primary-base)] font-medium">
+                      <div className="text-xs text-[var(--primary-base)]">
                         {product.category}
-                      </p>
+                      </div>
                     </div>
                     <div className="ml-3 flex-shrink-0">
                       <select
@@ -998,7 +703,7 @@ export default function SellerProductsPage() {
                             e.target.value as ProductStatus
                           )
                         }
-                        className="text-xs border-0 bg-gray-50 rounded-lg px-2 py-1 font-medium focus:ring-2 focus:ring-[var(--primary-accent2)] focus:bg-white transition-colors"
+                        className="text-[11px] border-0 bg-gray-50 rounded-lg px-2 py-1 font-medium focus:ring-2 focus:ring-[var(--primary-accent2)] focus:bg-white transition-colors"
                       >
                         <option value={ProductStatus.DRAFT}>Draft</option>
                         <option value={ProductStatus.ACTIVE}>Active</option>
@@ -1014,48 +719,41 @@ export default function SellerProductsPage() {
                   </div>
 
                   {product.short_description && (
-                    <p className="text-sm text-[var(--primary-base)] mb-4 line-clamp-2 leading-relaxed">
+                    <p className="text-[13px] text-[var(--primary-base)] mb-3 line-clamp-2 leading-relaxed">
                       {product.short_description}
                     </p>
                   )}
 
                   {/* Price Section */}
-                  <div className="mb-4">
-                    <div className="flex items-baseline gap-2 mb-1">
+                  <div className="mb-3">
+                    <div className="flex items-baseline gap-2">
                       {product.sale_price &&
                       product.sale_price < product.base_price ? (
                         <>
-                          <span className="text-2xl font-bold text-[var(--primary-accent2)]">
+                          <span className="text-xl font-semibold text-[var(--primary-accent2)]">
                             ${product.sale_price.toFixed(2)}
                           </span>
-                          <span className="text-lg text-gray-400 line-through font-medium">
+                          <span className="text-sm text-gray-400 line-through font-medium">
                             ${product.base_price.toFixed(2)}
                           </span>
                         </>
                       ) : (
-                        <span className="text-2xl font-bold text-[var(--secondary-black)]">
+                        <span className="text-xl font-semibold text-[var(--secondary-black)]">
                           ${product.base_price.toFixed(2)}
                         </span>
                       )}
-                      <span className="text-sm text-[var(--primary-base)] font-medium">
+                      <span className="text-xs text-[var(--primary-base)] font-medium">
                         / {product.unit_of_measurement}
                       </span>
                     </div>
-                    {product.sale_price &&
-                      product.sale_price < product.base_price && (
-                        <div className="inline-flex items-center px-2 py-1 bg-red-50 text-red-700 text-xs font-semibold rounded-full">
-                          Save $
-                          {(product.base_price - product.sale_price).toFixed(2)}
-                        </div>
-                      )}
                   </div>
 
                   {/* Stock Info */}
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                  <div className="flex items-center justify-between p-2.5 bg-[var(--primary-background)] rounded-xl border border-[color:var(--secondary-soft-highlight)]/70">
                     <div className="flex items-center gap-2">
                       <div
                         className={classNames(
-                          "w-2 h-2 rounded-full",
+                          "w-1.5 h-1.5 rounded-full",
                           product.stock_quantity > 10
                             ? "bg-green-500"
                             : product.stock_quantity > 0
@@ -1063,12 +761,12 @@ export default function SellerProductsPage() {
                             : "bg-red-500"
                         )}
                       ></div>
-                      <span className="text-sm font-medium text-[var(--secondary-black)]">
+                      <span className="text-[13px] font-medium text-[var(--secondary-black)]">
                         {product.stock_quantity} in stock
                       </span>
                     </div>
                     {product.sku && (
-                      <span className="text-xs text-[var(--primary-base)] font-mono bg-white px-2 py-1 rounded">
+                      <span className="text-[11px] text-[var(--primary-base)] font-mono bg-white px-2 py-0.5 rounded border border-[color:var(--secondary-soft-highlight)]/70">
                         {product.sku}
                       </span>
                     )}
@@ -1105,7 +803,7 @@ export default function SellerProductsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {products.map((product) => (
+                  {visibleProducts.map((product) => (
                     <tr
                       key={product.id}
                       className="border-b border-[var(--secondary-soft-highlight)] last:border-0 hover:bg-gray-25"
@@ -1187,10 +885,12 @@ export default function SellerProductsPage() {
                         <span
                           className={classNames(
                             "px-2 py-1 text-xs rounded-full font-medium",
-                            getStatusColor(product.status)
+                            getStatusColor(product.status as ProductStatus)
                           )}
                         >
-                          {product.status.replace("_", " ").toUpperCase()}
+                          {String(product.status)
+                            .replace("_", " ")
+                            .toUpperCase()}
                         </span>
                       </td>
                       <td className="py-3 px-4">

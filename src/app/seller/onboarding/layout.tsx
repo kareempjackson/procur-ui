@@ -1,3 +1,4 @@
+import AuthGuard from "@/components/AuthGuard";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -12,8 +13,10 @@ export default function SellerOnboardingLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-[var(--primary-background)] overflow-x-hidden">
-      {children}
-    </div>
+    <AuthGuard allowAccountTypes={["seller"]}>
+      <div className="min-h-screen bg-[var(--primary-background)] overflow-x-hidden">
+        {children}
+      </div>
+    </AuthGuard>
   );
 }

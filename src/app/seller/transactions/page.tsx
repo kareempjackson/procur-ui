@@ -3,10 +3,12 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import TopNavigation from "@/components/navigation/TopNavigation";
 import Footer from "@/components/footer/Footer";
-import { useSelector } from "react-redux";
-import { RootState } from "@/store";
+import { useAppDispatch, useAppSelector } from "@/store";
+import {
+  fetchSellerTransactions,
+  fetchTransactionsSummary,
+} from "@/store/slices/sellerTransactionsSlice";
 
 // Enums for transaction types and statuses
 enum TransactionType {
@@ -37,27 +39,26 @@ enum PaymentMethod {
 
 interface Transaction {
   id: string;
+  transaction_number?: string;
   order_id?: string;
-  type: TransactionType;
-  status: TransactionStatus;
+  seller_org_id?: string;
+  buyer_org_id?: string;
+  type: TransactionType | string;
+  status: TransactionStatus | string;
   amount: number;
   currency: string;
-  fee_amount?: number;
-  net_amount: number;
-  payment_method: PaymentMethod;
-  customer_name: string;
-  customer_email?: string;
-  description: string;
-  reference_number?: string;
+  platform_fee?: number;
+  payment_processing_fee?: number;
+  net_amount?: number;
+  payment_method?: PaymentMethod | string;
+  payment_reference?: string;
+  gateway_transaction_id?: string;
+  description?: string;
+  metadata?: Record<string, unknown>;
+  processed_at?: string;
+  settled_at?: string;
   created_at: string;
   updated_at: string;
-  processed_at?: string;
-  metadata?: {
-    product_names?: string[];
-    quantity?: number;
-    shipping_address?: string;
-    notes?: string;
-  };
 }
 
 interface TransactionFilters {
@@ -78,234 +79,11 @@ function classNames(...classes: (string | false | null | undefined)[]) {
 
 export default function SellerTransactionsPage() {
   const router = useRouter();
-  const accessToken = useSelector((state: RootState) => state.auth.accessToken);
 
-  // Demo transactions data
-  const demoTransactions: Transaction[] = [
-    {
-      id: "txn_001",
-      order_id: "#10234",
-      type: TransactionType.SALE,
-      status: TransactionStatus.COMPLETED,
-      amount: 1240.0,
-      currency: "USD",
-      fee_amount: 37.2,
-      net_amount: 1202.8,
-      payment_method: PaymentMethod.CREDIT_CARD,
-      customer_name: "GreenLeaf Market",
-      customer_email: "orders@greenleafmarket.com",
-      description: "Payment for Order #10234 - Organic produce bundle",
-      reference_number: "ref_abc123",
-      created_at: "2024-01-23T14:30:00Z",
-      updated_at: "2024-01-23T14:32:15Z",
-      processed_at: "2024-01-23T14:32:15Z",
-      metadata: {
-        product_names: [
-          "Organic Roma Tomatoes",
-          "Free-Range Eggs",
-          "Baby Spinach",
-        ],
-        quantity: 8,
-        shipping_address: "123 Market St, Green Valley, CA 94102",
-      },
-    },
-    {
-      id: "txn_002",
-      order_id: "#10233",
-      type: TransactionType.SALE,
-      status: TransactionStatus.COMPLETED,
-      amount: 380.0,
-      currency: "USD",
-      fee_amount: 11.4,
-      net_amount: 368.6,
-      payment_method: PaymentMethod.DEBIT_CARD,
-      customer_name: "FreshCo Foods",
-      customer_email: "procurement@freshcofoods.com",
-      description: "Payment for Order #10233 - Fresh vegetables",
-      reference_number: "ref_def456",
-      created_at: "2024-01-22T09:15:00Z",
-      updated_at: "2024-01-22T09:17:30Z",
-      processed_at: "2024-01-22T09:17:30Z",
-      metadata: {
-        product_names: ["Heirloom Carrots", "Organic Honey"],
-        quantity: 3,
-        shipping_address: "456 Fresh Ave, Organic City, CA 94103",
-      },
-    },
-    {
-      id: "txn_003",
-      type: TransactionType.PAYOUT,
-      status: TransactionStatus.COMPLETED,
-      amount: 2450.75,
-      currency: "USD",
-      net_amount: 2450.75,
-      payment_method: PaymentMethod.BANK_TRANSFER,
-      customer_name: "Procur Platform",
-      description: "Weekly payout - Jan 15-21, 2024",
-      reference_number: "payout_week3_2024",
-      created_at: "2024-01-22T00:00:00Z",
-      updated_at: "2024-01-22T08:30:00Z",
-      processed_at: "2024-01-22T08:30:00Z",
-      metadata: {
-        notes: "Automatic weekly payout to registered bank account",
-      },
-    },
-    {
-      id: "txn_004",
-      order_id: "#10232",
-      type: TransactionType.SALE,
-      status: TransactionStatus.PROCESSING,
-      amount: 2115.0,
-      currency: "USD",
-      fee_amount: 63.45,
-      net_amount: 2051.55,
-      payment_method: PaymentMethod.DIGITAL_WALLET,
-      customer_name: "Urban Grocer",
-      customer_email: "orders@urbangrocer.com",
-      description: "Payment for Order #10232 - Large produce order",
-      reference_number: "ref_ghi789",
-      created_at: "2024-01-21T16:45:00Z",
-      updated_at: "2024-01-21T16:47:00Z",
-      metadata: {
-        product_names: [
-          "Grass-Fed Ground Beef",
-          "Artisan Sourdough",
-          "Organic Blueberries",
-        ],
-        quantity: 12,
-        shipping_address: "789 Urban St, Metro City, CA 94104",
-      },
-    },
-    {
-      id: "txn_005",
-      order_id: "#10225",
-      type: TransactionType.REFUND,
-      status: TransactionStatus.COMPLETED,
-      amount: -125.5,
-      currency: "USD",
-      fee_amount: -3.77,
-      net_amount: -129.27,
-      payment_method: PaymentMethod.CREDIT_CARD,
-      customer_name: "Healthy Eats Co",
-      customer_email: "returns@healthyeats.com",
-      description: "Refund for Order #10225 - Damaged goods",
-      reference_number: "ref_refund_001",
-      created_at: "2024-01-20T11:20:00Z",
-      updated_at: "2024-01-20T11:25:00Z",
-      processed_at: "2024-01-20T11:25:00Z",
-      metadata: {
-        product_names: ["Organic Spinach"],
-        quantity: 2,
-        notes: "Customer reported damaged packaging upon delivery",
-      },
-    },
-    {
-      id: "txn_006",
-      type: TransactionType.FEE,
-      status: TransactionStatus.COMPLETED,
-      amount: -25.0,
-      currency: "USD",
-      net_amount: -25.0,
-      payment_method: PaymentMethod.BANK_TRANSFER,
-      customer_name: "Procur Platform",
-      description: "Monthly subscription fee - January 2024",
-      reference_number: "fee_monthly_jan2024",
-      created_at: "2024-01-20T00:00:00Z",
-      updated_at: "2024-01-20T00:01:00Z",
-      processed_at: "2024-01-20T00:01:00Z",
-      metadata: {
-        notes: "Monthly platform subscription fee",
-      },
-    },
-    {
-      id: "txn_007",
-      order_id: "#10220",
-      type: TransactionType.SALE,
-      status: TransactionStatus.FAILED,
-      amount: 567.25,
-      currency: "USD",
-      fee_amount: 17.02,
-      net_amount: 550.23,
-      payment_method: PaymentMethod.CREDIT_CARD,
-      customer_name: "Farm Fresh Market",
-      customer_email: "billing@farmfreshmarket.com",
-      description: "Payment for Order #10220 - Mixed vegetables",
-      reference_number: "ref_failed_001",
-      created_at: "2024-01-19T13:10:00Z",
-      updated_at: "2024-01-19T13:15:00Z",
-      metadata: {
-        product_names: ["Bell Peppers", "Cucumbers"],
-        quantity: 5,
-        notes: "Payment failed - insufficient funds",
-      },
-    },
-    {
-      id: "txn_008",
-      order_id: "#10218",
-      type: TransactionType.SALE,
-      status: TransactionStatus.COMPLETED,
-      amount: 89.99,
-      currency: "USD",
-      fee_amount: 2.7,
-      net_amount: 87.29,
-      payment_method: PaymentMethod.CASH,
-      customer_name: "Local Farmer's Market",
-      description: "Cash payment for Order #10218 - Farmers market booth",
-      reference_number: "cash_001",
-      created_at: "2024-01-18T08:30:00Z",
-      updated_at: "2024-01-18T08:30:00Z",
-      processed_at: "2024-01-18T08:30:00Z",
-      metadata: {
-        product_names: ["Organic Honey"],
-        quantity: 1,
-        notes: "Direct cash payment at farmers market",
-      },
-    },
-    {
-      id: "txn_009",
-      type: TransactionType.ADJUSTMENT,
-      status: TransactionStatus.COMPLETED,
-      amount: 15.75,
-      currency: "USD",
-      net_amount: 15.75,
-      payment_method: PaymentMethod.BANK_TRANSFER,
-      customer_name: "Procur Platform",
-      description: "Price adjustment - Order #10215",
-      reference_number: "adj_001",
-      created_at: "2024-01-17T14:20:00Z",
-      updated_at: "2024-01-17T14:22:00Z",
-      processed_at: "2024-01-17T14:22:00Z",
-      metadata: {
-        notes: "Price correction due to weight discrepancy",
-      },
-    },
-    {
-      id: "txn_010",
-      order_id: "#10210",
-      type: TransactionType.CHARGEBACK,
-      status: TransactionStatus.PENDING,
-      amount: -890.0,
-      currency: "USD",
-      fee_amount: -15.0,
-      net_amount: -905.0,
-      payment_method: PaymentMethod.CREDIT_CARD,
-      customer_name: "Disputed Customer",
-      description: "Chargeback dispute for Order #10210",
-      reference_number: "cb_001",
-      created_at: "2024-01-16T10:00:00Z",
-      updated_at: "2024-01-16T10:00:00Z",
-      metadata: {
-        notes: "Customer disputed charge - under investigation",
-      },
-    },
-  ];
-
-  const [transactions, setTransactions] =
-    useState<Transaction[]>(demoTransactions);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [totalTransactions, setTotalTransactions] = useState(
-    demoTransactions.length
-  );
+  const [loading, setLoading] = useState<boolean>(true);
+  const [totalTransactions, setTotalTransactions] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
   const [selectedTransactions, setSelectedTransactions] = useState<string[]>(
@@ -328,136 +106,8 @@ export default function SellerTransactionsPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
 
-  // Filter transactions
-  const filterTransactions = () => {
-    let filtered = [...demoTransactions];
-
-    // Search filter
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      filtered = filtered.filter(
-        (transaction) =>
-          transaction.id.toLowerCase().includes(searchLower) ||
-          transaction.order_id?.toLowerCase().includes(searchLower) ||
-          transaction.customer_name.toLowerCase().includes(searchLower) ||
-          transaction.description.toLowerCase().includes(searchLower) ||
-          transaction.reference_number?.toLowerCase().includes(searchLower)
-      );
-    }
-
-    // Type filter
-    if (filters.type) {
-      filtered = filtered.filter(
-        (transaction) => transaction.type === filters.type
-      );
-    }
-
-    // Status filter
-    if (filters.status) {
-      filtered = filtered.filter(
-        (transaction) => transaction.status === filters.status
-      );
-    }
-
-    // Payment method filter
-    if (filters.payment_method) {
-      filtered = filtered.filter(
-        (transaction) => transaction.payment_method === filters.payment_method
-      );
-    }
-
-    // Date range filter
-    if (filters.date_range) {
-      const now = new Date();
-      let startDate: Date;
-
-      switch (filters.date_range) {
-        case "today":
-          startDate = new Date(
-            now.getFullYear(),
-            now.getMonth(),
-            now.getDate()
-          );
-          break;
-        case "7d":
-          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          break;
-        case "30d":
-          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-          break;
-        case "90d":
-          startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-          break;
-        default:
-          startDate = new Date(0);
-      }
-
-      filtered = filtered.filter(
-        (transaction) => new Date(transaction.created_at) >= startDate
-      );
-    }
-
-    // Amount filters
-    if (filters.amount_min) {
-      const minAmount = parseFloat(filters.amount_min);
-      filtered = filtered.filter(
-        (transaction) => Math.abs(transaction.amount) >= minAmount
-      );
-    }
-    if (filters.amount_max) {
-      const maxAmount = parseFloat(filters.amount_max);
-      filtered = filtered.filter(
-        (transaction) => Math.abs(transaction.amount) <= maxAmount
-      );
-    }
-
-    // Sort transactions
-    filtered.sort((a, b) => {
-      let aValue, bValue;
-
-      switch (filters.sort_by) {
-        case "amount":
-          aValue = a.amount;
-          bValue = b.amount;
-          break;
-        case "customer_name":
-          aValue = a.customer_name.toLowerCase();
-          bValue = b.customer_name.toLowerCase();
-          break;
-        case "type":
-          aValue = a.type;
-          bValue = b.type;
-          break;
-        case "status":
-          aValue = a.status;
-          bValue = b.status;
-          break;
-        case "created_at":
-        default:
-          aValue = new Date(a.created_at).getTime();
-          bValue = new Date(b.created_at).getTime();
-          break;
-      }
-
-      if (filters.sort_order === "asc") {
-        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-      } else {
-        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
-      }
-    });
-
-    setTransactions(filtered);
-    setTotalTransactions(filtered.length);
-  };
-
-  useEffect(() => {
-    filterTransactions();
-  }, [filters]);
-
-  const handleFilterChange = (key: keyof TransactionFilters, value: any) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
-    setCurrentPage(1); // Reset to first page when filtering
-  };
+  const dispatch = useAppDispatch();
+  const txState = useAppSelector((s) => s.sellerTransactions);
 
   const getTransactionTypeColor = (type: TransactionType) => {
     switch (type) {
@@ -540,50 +190,72 @@ export default function SellerTransactionsPage() {
     }
   };
 
-  // Calculate summary statistics
-  const summaryStats = useMemo(() => {
-    const totalSales = transactions
-      .filter(
-        (t) =>
-          t.type === TransactionType.SALE &&
-          t.status === TransactionStatus.COMPLETED
-      )
-      .reduce((sum, t) => sum + t.amount, 0);
+  // Slice wiring
+  // We keep this file unchanged for brevity in this edit box. (Already integrated earlier in the session.)
 
-    const totalRefunds = transactions
-      .filter(
-        (t) =>
-          t.type === TransactionType.REFUND &&
-          t.status === TransactionStatus.COMPLETED
-      )
-      .reduce((sum, t) => sum + Math.abs(t.amount), 0);
-
-    const totalFees = transactions
-      .filter((t) => t.fee_amount)
-      .reduce((sum, t) => sum + (t.fee_amount || 0), 0);
-
-    const netRevenue = transactions
-      .filter((t) => t.status === TransactionStatus.COMPLETED)
-      .reduce((sum, t) => sum + t.net_amount, 0);
-
-    return {
-      totalSales,
-      totalRefunds,
-      totalFees,
-      netRevenue,
+  useEffect(() => {
+    const params: any = {
+      page: currentPage,
+      limit: itemsPerPage,
+      sort_by: filters.sort_by,
+      sort_order: filters.sort_order,
     };
-  }, [transactions]);
+    if (filters.type) params.type = filters.type;
+    if (filters.status) params.status = filters.status;
+    if (filters.payment_method) params.payment_method = filters.payment_method;
+    if (filters.amount_min) params.min_amount = parseFloat(filters.amount_min);
+    if (filters.amount_max) params.max_amount = parseFloat(filters.amount_max);
+    if (filters.search) params.transaction_number = filters.search;
+    if (filters.date_range) {
+      const now = new Date();
+      let from: Date | null = null;
+      switch (filters.date_range) {
+        case "today":
+          from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          break;
+        case "7d":
+          from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case "30d":
+          from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        case "90d":
+          from = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+          break;
+        default:
+          from = null;
+      }
+      if (from) params.from_date = from.toISOString();
+    }
+    dispatch(fetchSellerTransactions(params));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters, currentPage]);
+
+  useEffect(() => {
+    dispatch(fetchTransactionsSummary({ period: "last_30_days" }));
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (txState.status === "succeeded") {
+      setTransactions(txState.items as unknown as Transaction[]);
+      setTotalTransactions(txState.total);
+      setError(null);
+      setLoading(false);
+    } else if (txState.status === "loading") {
+      setLoading(true);
+    } else if (txState.status === "failed") {
+      setError(txState.error || "Failed to load transactions.");
+      setTransactions([]);
+      setTotalTransactions(0);
+      setLoading(false);
+    }
+  }, [txState]);
 
   const totalPages = Math.ceil(totalTransactions / itemsPerPage);
-  const paginatedTransactions = transactions.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const paginatedTransactions = transactions; // server paginated
 
   return (
     <div className="min-h-screen bg-[var(--primary-background)]">
-      <TopNavigation />
-
       <main className="max-w-7xl mx-auto px-6 py-10">
         {/* Breadcrumbs */}
         <nav
@@ -650,41 +322,37 @@ export default function SellerTransactionsPage() {
         </div>
 
         {/* Summary Stats */}
-        <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)] p-4 mb-6">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="text-center">
-              <div className="text-xs text-[var(--primary-base)] mb-1">
-                Total Sales
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {[
+            {
+              label: "Total Sales",
+              value: formatAmount(txState.summary?.total_sales ?? 0),
+            },
+            {
+              label: "Total Refunds",
+              value: formatAmount(txState.summary?.total_refunds ?? 0),
+            },
+            {
+              label: "Total Fees",
+              value: formatAmount(txState.summary?.total_fees ?? 0),
+            },
+            {
+              label: "Net Revenue",
+              value: formatAmount(txState.summary?.net_earnings ?? 0),
+            },
+          ].map((card) => (
+            <div
+              key={card.label}
+              className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6 hover:shadow-sm transition-shadow"
+            >
+              <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)]">
+                {card.label}
               </div>
-              <div className="text-lg font-bold text-green-600">
-                {formatAmount(summaryStats.totalSales)}
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-xs text-[var(--primary-base)] mb-1">
-                Total Refunds
-              </div>
-              <div className="text-lg font-bold text-red-600">
-                {formatAmount(summaryStats.totalRefunds)}
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-xs text-[var(--primary-base)] mb-1">
-                Total Fees
-              </div>
-              <div className="text-lg font-bold text-purple-600">
-                {formatAmount(summaryStats.totalFees)}
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-xs text-[var(--primary-base)] mb-1">
-                Net Revenue
-              </div>
-              <div className="text-lg font-bold text-[var(--primary-accent2)]">
-                {formatAmount(summaryStats.netRevenue)}
+              <div className="mt-1 text-2xl font-semibold text-[color:var(--secondary-black)]">
+                {card.value}
               </div>
             </div>
-          </div>
+          ))}
         </div>
 
         {/* Filters Panel */}
@@ -694,13 +362,20 @@ export default function SellerTransactionsPage() {
               <input
                 type="text"
                 value={filters.search}
-                onChange={(e) => handleFilterChange("search", e.target.value)}
+                onChange={(e) =>
+                  setFilters((p) => ({ ...p, search: e.target.value }))
+                }
                 placeholder="Search..."
                 className="input w-full text-sm h-8"
               />
               <select
                 value={filters.type}
-                onChange={(e) => handleFilterChange("type", e.target.value)}
+                onChange={(e) =>
+                  setFilters((p) => ({
+                    ...p,
+                    type: e.target.value as TransactionType | "",
+                  }))
+                }
                 className="input w-full text-sm h-8"
               >
                 <option value="">All Types</option>
@@ -713,7 +388,12 @@ export default function SellerTransactionsPage() {
               </select>
               <select
                 value={filters.status}
-                onChange={(e) => handleFilterChange("status", e.target.value)}
+                onChange={(e) =>
+                  setFilters((p) => ({
+                    ...p,
+                    status: e.target.value as TransactionStatus | "",
+                  }))
+                }
                 className="input w-full text-sm h-8"
               >
                 <option value="">All Status</option>
@@ -726,7 +406,16 @@ export default function SellerTransactionsPage() {
               <select
                 value={filters.date_range}
                 onChange={(e) =>
-                  handleFilterChange("date_range", e.target.value)
+                  setFilters((p) => ({
+                    ...p,
+                    date_range: e.target.value as
+                      | "today"
+                      | "7d"
+                      | "30d"
+                      | "90d"
+                      | "custom"
+                      | "",
+                  }))
                 }
                 className="input w-full text-sm h-8"
               >
@@ -739,7 +428,10 @@ export default function SellerTransactionsPage() {
               <select
                 value={filters.payment_method}
                 onChange={(e) =>
-                  handleFilterChange("payment_method", e.target.value)
+                  setFilters((p) => ({
+                    ...p,
+                    payment_method: e.target.value as PaymentMethod | "",
+                  }))
                 }
                 className="input w-full text-sm h-8"
               >
@@ -755,7 +447,7 @@ export default function SellerTransactionsPage() {
                 type="number"
                 value={filters.amount_min}
                 onChange={(e) =>
-                  handleFilterChange("amount_min", e.target.value)
+                  setFilters((p) => ({ ...p, amount_min: e.target.value }))
                 }
                 placeholder="Min $"
                 className="input w-full text-sm h-8"
@@ -766,7 +458,7 @@ export default function SellerTransactionsPage() {
                 type="number"
                 value={filters.amount_max}
                 onChange={(e) =>
-                  handleFilterChange("amount_max", e.target.value)
+                  setFilters((p) => ({ ...p, amount_max: e.target.value }))
                 }
                 placeholder="Max $"
                 className="input w-full text-sm h-8"
@@ -777,8 +469,11 @@ export default function SellerTransactionsPage() {
                 value={`${filters.sort_by}-${filters.sort_order}`}
                 onChange={(e) => {
                   const [sort_by, sort_order] = e.target.value.split("-");
-                  handleFilterChange("sort_by", sort_by);
-                  handleFilterChange("sort_order", sort_order);
+                  setFilters((p) => ({
+                    ...p,
+                    sort_by: sort_by,
+                    sort_order: sort_order as "asc" | "desc",
+                  }));
                 }}
                 className="input w-full text-sm h-8"
               >
@@ -846,7 +541,11 @@ export default function SellerTransactionsPage() {
         )}
 
         {/* Transactions Table */}
-        {paginatedTransactions.length === 0 ? (
+        {loading ? (
+          <div className="text-center py-12 text-sm text-[color:var(--secondary-muted-edge)]">
+            Loading transactions…
+          </div>
+        ) : paginatedTransactions.length === 0 ? (
           <div className="text-center py-12">
             <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
               <svg
@@ -899,7 +598,7 @@ export default function SellerTransactionsPage() {
                       Type
                     </th>
                     <th className="text-left py-2 px-3 font-medium text-[var(--secondary-black)] min-w-[140px]">
-                      Customer
+                      Buyer
                     </th>
                     <th className="text-left py-2 px-3 font-medium text-[var(--secondary-black)] w-20">
                       Amount
@@ -953,7 +652,10 @@ export default function SellerTransactionsPage() {
                         <span
                           className={classNames(
                             "px-1.5 py-0.5 text-xs rounded-full font-medium",
-                            getTransactionTypeColor(transaction.type)
+                            getTransactionTypeColor(
+                              (transaction.type as TransactionType) ||
+                                TransactionType.SALE
+                            )
                           )}
                         >
                           {transaction.type === TransactionType.SALE
@@ -971,7 +673,9 @@ export default function SellerTransactionsPage() {
                       </td>
                       <td className="py-2 px-3">
                         <div className="font-medium text-[var(--secondary-black)] text-xs truncate max-w-[140px]">
-                          {transaction.customer_name}
+                          {transaction.buyer_org_id
+                            ? transaction.buyer_org_id.slice(0, 8) + "…"
+                            : "—"}
                         </div>
                       </td>
                       <td className="py-2 px-3">
@@ -981,11 +685,11 @@ export default function SellerTransactionsPage() {
                             transaction.currency
                           )}
                         </div>
-                        {transaction.fee_amount && (
+                        {transaction.platform_fee && (
                           <div className="text-xs text-[var(--primary-base)]">
                             -
                             {formatAmount(
-                              Math.abs(transaction.fee_amount),
+                              Math.abs(transaction.platform_fee),
                               transaction.currency
                             )}
                           </div>
@@ -995,39 +699,32 @@ export default function SellerTransactionsPage() {
                         <div
                           className={classNames(
                             "font-semibold text-xs",
-                            transaction.net_amount >= 0
+                            (transaction.net_amount ?? 0) >= 0
                               ? "text-green-600"
                               : "text-red-600"
                           )}
                         >
                           {formatAmount(
-                            transaction.net_amount,
+                            transaction.net_amount ?? 0,
                             transaction.currency
                           )}
                         </div>
                       </td>
                       <td className="py-2 px-3 text-xs text-[var(--primary-base)]">
-                        {transaction.payment_method ===
-                        PaymentMethod.CREDIT_CARD
-                          ? "Card"
-                          : transaction.payment_method ===
-                            PaymentMethod.DEBIT_CARD
-                          ? "Debit"
-                          : transaction.payment_method ===
-                            PaymentMethod.BANK_TRANSFER
-                          ? "Bank"
-                          : transaction.payment_method ===
-                            PaymentMethod.DIGITAL_WALLET
-                          ? "Wallet"
-                          : transaction.payment_method === PaymentMethod.CASH
-                          ? "Cash"
-                          : "Check"}
+                        {transaction.payment_method
+                          ? formatPaymentMethod(
+                              transaction.payment_method as PaymentMethod
+                            )
+                          : "—"}
                       </td>
                       <td className="py-2 px-3">
                         <span
                           className={classNames(
                             "px-1.5 py-0.5 text-xs rounded-full font-medium",
-                            getStatusColor(transaction.status)
+                            getStatusColor(
+                              (transaction.status as TransactionStatus) ||
+                                TransactionStatus.PENDING
+                            )
                           )}
                         >
                           {transaction.status === TransactionStatus.COMPLETED

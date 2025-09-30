@@ -7,8 +7,6 @@ import "./seller-onboarding.css";
 // Step components
 import SellerWelcomeStep from "./components/SellerWelcomeStep";
 import SellerProfileSetupStep from "./components/SellerProfileSetupStep";
-import SellerProductsStep from "./components/SellerProductsStep";
-import SellerInventoryStep from "./components/SellerInventoryStep";
 import SellerPaymentsStep from "./components/SellerPaymentsStep";
 import SellerWrapUpStep from "./components/SellerWrapUpStep";
 
@@ -32,7 +30,7 @@ interface SellerOnboardingData {
   completedActions: string[];
 }
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 4;
 
 export default function SellerOnboarding() {
   const router = useRouter();
@@ -144,29 +142,13 @@ export default function SellerOnboarding() {
         );
       case 2:
         return (
-          <SellerProductsStep
+          <SellerPaymentsStep
             data={onboardingData}
             onNext={handleStepComplete}
             onBack={() => handleStepNavigation(1)}
           />
         );
       case 3:
-        return (
-          <SellerInventoryStep
-            data={onboardingData}
-            onNext={handleStepComplete}
-            onBack={() => handleStepNavigation(2)}
-          />
-        );
-      case 4:
-        return (
-          <SellerPaymentsStep
-            data={onboardingData}
-            onNext={handleStepComplete}
-            onBack={() => handleStepNavigation(3)}
-          />
-        );
-      case 5:
         return (
           <SellerWrapUpStep data={onboardingData} onNext={handleStepComplete} />
         );

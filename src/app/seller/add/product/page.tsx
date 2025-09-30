@@ -4,9 +4,10 @@ import { useState, useEffect } from "react";
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import TopNavigation from "@/components/navigation/TopNavigation";
+import SellerTopNavigation from "@/components/navigation/SellerTopNavigation";
 import Footer from "@/components/footer/Footer";
 import { getApiClient } from "@/lib/apiClient";
+import { getSupabaseClient } from "@/lib/supabaseClient";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
 
@@ -37,12 +38,7 @@ enum MeasurementUnit {
   GALLON = "gallon",
 }
 
-interface ProductDimensions {
-  length: number;
-  width: number;
-  height: number;
-  unit: string;
-}
+// Removed ProductDimensions and related UI/state
 
 interface ProductImage {
   file: File;
@@ -64,11 +60,7 @@ interface CreateProductData {
   sale_price?: number;
   currency?: string;
   stock_quantity?: number;
-  min_stock_level?: number;
-  max_stock_level?: number;
   unit_of_measurement: MeasurementUnit;
-  weight?: number;
-  dimensions?: ProductDimensions;
   condition?: ProductCondition;
   brand?: string;
   model?: string;
@@ -77,7 +69,6 @@ interface CreateProductData {
   status?: ProductStatus;
   is_featured?: boolean;
   is_organic?: boolean;
-  is_local?: boolean;
 }
 
 function classNames(...classes: (string | false | null | undefined)[]) {
@@ -98,27 +89,15 @@ export default function AddProductPage() {
     category: "",
     base_price: 0,
     unit_of_measurement: MeasurementUnit.PIECE,
-    currency: "USD",
+    currency: "XCD",
     stock_quantity: 0,
-    min_stock_level: 0,
     condition: ProductCondition.NEW,
     status: ProductStatus.DRAFT,
     is_featured: false,
     is_organic: false,
-    is_local: false,
   });
 
-  // Tags input state
-  const [tagInput, setTagInput] = useState("");
-
-  // Dimensions state
-  const [showDimensions, setShowDimensions] = useState(false);
-  const [dimensions, setDimensions] = useState<ProductDimensions>({
-    length: 0,
-    width: 0,
-    height: 0,
-    unit: "cm",
-  });
+  // Removed physical dimensions state
 
   // Image state
   const [images, setImages] = useState<(ProductImage | null)[]>(
@@ -143,37 +122,7 @@ export default function AddProductPage() {
     }
   };
 
-  const handleTagAdd = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && tagInput.trim()) {
-      e.preventDefault();
-      const newTag = tagInput.trim();
-      if (!formData.tags?.includes(newTag)) {
-        setFormData((prev) => ({
-          ...prev,
-          tags: [...(prev.tags || []), newTag],
-        }));
-      }
-      setTagInput("");
-    }
-  };
-
-  const handleTagRemove = (tagToRemove: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      tags: prev.tags?.filter((tag) => tag !== tagToRemove) || [],
-    }));
-  };
-
-  const handleDimensionChange = (
-    field: keyof ProductDimensions,
-    value: string | number
-  ) => {
-    setDimensions((prev) => ({
-      ...prev,
-      [field]:
-        typeof value === "string" ? value : parseFloat(value.toString()) || 0,
-    }));
-  };
+  // Removed dimension change handler
 
   const handleImageUpload = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -240,15 +189,38 @@ export default function AddProductPage() {
     };
   }, []);
 
-  const uploadImageToStorage = async (file: File): Promise<string> => {
-    // This is a placeholder for actual image upload logic
-    // In a real implementation, you would upload to a cloud storage service
-    // and return the URL. For now, we'll create a mock URL
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve(`https://example.com/images/${Date.now()}-${file.name}`);
-      }, 1000);
-    });
+  const uploadImageToStorage = async (
+    productId: string,
+    file: File,
+    index: number
+  ): Promise<string> => {
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      throw new Error(
+        "Storage not configured. Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY."
+      );
+    }
+
+    const safeName = file.name.toLowerCase().replace(/[^a-z0-9_.-]/g, "_");
+    const objectPath = `products/${productId}/${Date.now()}_${index}_${safeName}`;
+
+    const { data, error } = await supabase.storage
+      .from("procur-img")
+      .upload(objectPath, file, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: file.type || "application/octet-stream",
+      });
+
+    if (error) {
+      throw new Error(`Image upload failed: ${error.message}`);
+    }
+
+    const { data: publicData } = supabase.storage
+      .from("procur-img")
+      .getPublicUrl(data.path);
+
+    return publicData.publicUrl;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -262,7 +234,6 @@ export default function AddProductPage() {
       // First, create the product
       const productData = {
         ...formData,
-        dimensions: showDimensions ? dimensions : undefined,
       };
 
       const response = await apiClient.post("/sellers/products", productData);
@@ -277,29 +248,26 @@ export default function AddProductPage() {
         for (let i = 0; i < uploadedImages.length; i++) {
           const image = uploadedImages[i];
           try {
-            // Upload image to storage and get URL
-            const imageUrl = await uploadImageToStorage(image.file);
+            const imageUrl = await uploadImageToStorage(
+              productId,
+              image.file,
+              i
+            );
 
-            // Add image to product
             await apiClient.post(`/sellers/products/${productId}/images`, {
               image_url: imageUrl,
               alt_text: `${formData.name} - Image ${i + 1}`,
               display_order: i,
-              is_primary: i === 0, // First image is primary
+              is_primary: i === 0,
             });
           } catch (imageError) {
             console.error(`Failed to upload image ${i + 1}:`, imageError);
-            // Continue with other images even if one fails
           }
         }
       }
 
-      setSuccess(true);
-
-      // Redirect to product list or product detail after a short delay
-      setTimeout(() => {
-        router.push("/seller/inventory");
-      }, 2000);
+      // Redirect directly to products list to view the new item
+      router.push("/seller/products");
     } catch (err: any) {
       setError(
         err.response?.data?.message ||
@@ -310,48 +278,10 @@ export default function AddProductPage() {
     }
   };
 
-  if (success) {
-    return (
-      <div className="min-h-screen bg-[var(--primary-background)]">
-        <TopNavigation />
-        <div className="max-w-4xl mx-auto px-6 py-10">
-          <div className="text-center">
-            <div className="w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
-              <svg
-                className="w-8 h-8 text-green-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-            </div>
-            <h1 className="text-2xl font-medium text-[var(--secondary-black)] mb-2">
-              Product Created Successfully!
-            </h1>
-            <p className="text-[var(--primary-base)] mb-6">
-              Your product has been added to your catalog. Redirecting to
-              inventory...
-            </p>
-            <Link href="/seller/inventory" className="btn btn-primary">
-              View Inventory
-            </Link>
-          </div>
-        </div>
-        <Footer />
-      </div>
-    );
-  }
+  // Success screen removed; we redirect directly to /seller/products
 
   return (
     <div className="min-h-screen bg-[var(--primary-background)]">
-      <TopNavigation />
-
       <main className="max-w-7xl mx-auto px-6 py-10">
         {/* Breadcrumbs */}
         <nav
@@ -631,211 +561,6 @@ export default function AddProductPage() {
                 </div>
               </div>
 
-              {/* Product Details */}
-              <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)] p-6">
-                <h2 className="text-lg font-medium text-[var(--secondary-black)] mb-4">
-                  Product Details
-                </h2>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label
-                      htmlFor="sku"
-                      className="block text-sm font-medium text-[var(--secondary-black)] mb-2"
-                    >
-                      SKU
-                    </label>
-                    <input
-                      type="text"
-                      id="sku"
-                      name="sku"
-                      maxLength={100}
-                      value={formData.sku || ""}
-                      onChange={handleInputChange}
-                      className="input w-full"
-                      placeholder="e.g., TOM-ROM-001"
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="barcode"
-                      className="block text-sm font-medium text-[var(--secondary-black)] mb-2"
-                    >
-                      Barcode
-                    </label>
-                    <input
-                      type="text"
-                      id="barcode"
-                      name="barcode"
-                      maxLength={100}
-                      value={formData.barcode || ""}
-                      onChange={handleInputChange}
-                      className="input w-full"
-                      placeholder="Product barcode"
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="brand"
-                      className="block text-sm font-medium text-[var(--secondary-black)] mb-2"
-                    >
-                      Brand
-                    </label>
-                    <input
-                      type="text"
-                      id="brand"
-                      name="brand"
-                      maxLength={100}
-                      value={formData.brand || ""}
-                      onChange={handleInputChange}
-                      className="input w-full"
-                      placeholder="e.g., FreshFarm"
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="model"
-                      className="block text-sm font-medium text-[var(--secondary-black)] mb-2"
-                    >
-                      Model
-                    </label>
-                    <input
-                      type="text"
-                      id="model"
-                      name="model"
-                      maxLength={100}
-                      value={formData.model || ""}
-                      onChange={handleInputChange}
-                      className="input w-full"
-                      placeholder="e.g., Premium"
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="color"
-                      className="block text-sm font-medium text-[var(--secondary-black)] mb-2"
-                    >
-                      Color
-                    </label>
-                    <input
-                      type="text"
-                      id="color"
-                      name="color"
-                      maxLength={50}
-                      value={formData.color || ""}
-                      onChange={handleInputChange}
-                      className="input w-full"
-                      placeholder="e.g., Red"
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="size"
-                      className="block text-sm font-medium text-[var(--secondary-black)] mb-2"
-                    >
-                      Size
-                    </label>
-                    <input
-                      type="text"
-                      id="size"
-                      name="size"
-                      maxLength={50}
-                      value={formData.size || ""}
-                      onChange={handleInputChange}
-                      className="input w-full"
-                      placeholder="e.g., Large"
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="condition"
-                      className="block text-sm font-medium text-[var(--secondary-black)] mb-2"
-                    >
-                      Condition
-                    </label>
-                    <select
-                      id="condition"
-                      name="condition"
-                      value={formData.condition}
-                      onChange={handleInputChange}
-                      className="input w-full"
-                    >
-                      <option value={ProductCondition.NEW}>New</option>
-                      <option value={ProductCondition.USED}>Used</option>
-                      <option value={ProductCondition.REFURBISHED}>
-                        Refurbished
-                      </option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="status"
-                      className="block text-sm font-medium text-[var(--secondary-black)] mb-2"
-                    >
-                      Status
-                    </label>
-                    <select
-                      id="status"
-                      name="status"
-                      value={formData.status}
-                      onChange={handleInputChange}
-                      className="input w-full"
-                    >
-                      <option value={ProductStatus.DRAFT}>Draft</option>
-                      <option value={ProductStatus.ACTIVE}>Active</option>
-                      <option value={ProductStatus.INACTIVE}>Inactive</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Tags */}
-                <div className="mt-6">
-                  <label
-                    htmlFor="tags"
-                    className="block text-sm font-medium text-[var(--secondary-black)] mb-2"
-                  >
-                    Tags
-                  </label>
-                  <div className="space-y-2">
-                    <input
-                      type="text"
-                      id="tags"
-                      value={tagInput}
-                      onChange={(e) => setTagInput(e.target.value)}
-                      onKeyDown={handleTagAdd}
-                      className="input w-full"
-                      placeholder="Type a tag and press Enter"
-                    />
-                    {formData.tags && formData.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {formData.tags.map((tag, index) => (
-                          <span
-                            key={index}
-                            className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-[var(--primary-accent1)] text-[var(--secondary-black)]"
-                          >
-                            {tag}
-                            <button
-                              type="button"
-                              onClick={() => handleTagRemove(tag)}
-                              className="ml-2 text-[var(--primary-base)] hover:text-[var(--secondary-black)]"
-                            >
-                              ×
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
               {/* Pricing & Inventory */}
               <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)] p-6">
                 <h2 className="text-lg font-medium text-[var(--secondary-black)] mb-4">
@@ -863,7 +588,7 @@ export default function AddProductPage() {
                         step="0.01"
                         value={formData.base_price}
                         onChange={handleInputChange}
-                        className="input w-full pl-8"
+                        className="input w-full pl-8 text-right"
                         placeholder="0.00"
                       />
                     </div>
@@ -888,7 +613,7 @@ export default function AddProductPage() {
                         step="0.01"
                         value={formData.sale_price || ""}
                         onChange={handleInputChange}
-                        className="input w-full pl-8"
+                        className="input w-full pl-8 text-right"
                         placeholder="0.00"
                       />
                     </div>
@@ -908,6 +633,7 @@ export default function AddProductPage() {
                       onChange={handleInputChange}
                       className="input w-full"
                     >
+                      <option value="XCD">XCD</option>
                       <option value="USD">USD</option>
                       <option value="EUR">EUR</option>
                       <option value="GBP">GBP</option>
@@ -960,155 +686,7 @@ export default function AddProductPage() {
                       placeholder="0"
                     />
                   </div>
-
-                  <div>
-                    <label
-                      htmlFor="min_stock_level"
-                      className="block text-sm font-medium text-[var(--secondary-black)] mb-2"
-                    >
-                      Minimum Stock Level
-                    </label>
-                    <input
-                      type="number"
-                      id="min_stock_level"
-                      name="min_stock_level"
-                      min="0"
-                      value={formData.min_stock_level}
-                      onChange={handleInputChange}
-                      className="input w-full"
-                      placeholder="0"
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="max_stock_level"
-                      className="block text-sm font-medium text-[var(--secondary-black)] mb-2"
-                    >
-                      Maximum Stock Level
-                    </label>
-                    <input
-                      type="number"
-                      id="max_stock_level"
-                      name="max_stock_level"
-                      min="0"
-                      value={formData.max_stock_level || ""}
-                      onChange={handleInputChange}
-                      className="input w-full"
-                      placeholder="Optional"
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="weight"
-                      className="block text-sm font-medium text-[var(--secondary-black)] mb-2"
-                    >
-                      Weight (kg)
-                    </label>
-                    <input
-                      type="number"
-                      id="weight"
-                      name="weight"
-                      min="0"
-                      step="0.01"
-                      value={formData.weight || ""}
-                      onChange={handleInputChange}
-                      className="input w-full"
-                      placeholder="0.00"
-                    />
-                  </div>
                 </div>
-              </div>
-
-              {/* Physical Dimensions */}
-              <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)] p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-medium text-[var(--secondary-black)]">
-                    Physical Dimensions
-                  </h2>
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={showDimensions}
-                      onChange={(e) => setShowDimensions(e.target.checked)}
-                      className="mr-2"
-                    />
-                    <span className="text-sm text-[var(--primary-base)]">
-                      Add dimensions
-                    </span>
-                  </label>
-                </div>
-
-                {showDimensions && (
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-[var(--secondary-black)] mb-2">
-                        Length
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={dimensions.length}
-                        onChange={(e) =>
-                          handleDimensionChange("length", e.target.value)
-                        }
-                        className="input w-full"
-                        placeholder="0.00"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-[var(--secondary-black)] mb-2">
-                        Width
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={dimensions.width}
-                        onChange={(e) =>
-                          handleDimensionChange("width", e.target.value)
-                        }
-                        className="input w-full"
-                        placeholder="0.00"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-[var(--secondary-black)] mb-2">
-                        Height
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={dimensions.height}
-                        onChange={(e) =>
-                          handleDimensionChange("height", e.target.value)
-                        }
-                        className="input w-full"
-                        placeholder="0.00"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-[var(--secondary-black)] mb-2">
-                        Unit
-                      </label>
-                      <select
-                        value={dimensions.unit}
-                        onChange={(e) =>
-                          handleDimensionChange("unit", e.target.value)
-                        }
-                        className="input w-full"
-                      >
-                        <option value="cm">cm</option>
-                        <option value="in">inches</option>
-                        <option value="m">meters</option>
-                        <option value="ft">feet</option>
-                      </select>
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* Product Attributes */}
@@ -1141,19 +719,6 @@ export default function AddProductPage() {
                     />
                     <span className="text-sm text-[var(--secondary-black)]">
                       Organic Product
-                    </span>
-                  </label>
-
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      name="is_local"
-                      checked={formData.is_local}
-                      onChange={handleInputChange}
-                      className="mr-3"
-                    />
-                    <span className="text-sm text-[var(--secondary-black)]">
-                      Locally Sourced
                     </span>
                   </label>
                 </div>
@@ -1271,11 +836,6 @@ export default function AddProductPage() {
                           Organic
                         </span>
                       )}
-                      {formData.is_local && (
-                        <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded">
-                          Local
-                        </span>
-                      )}
                     </div>
                   </div>
 
@@ -1366,7 +926,6 @@ export default function AddProductPage() {
                       Stock: {formData.stock_quantity}{" "}
                       {formData.unit_of_measurement}
                     </div>
-                    {formData.weight && <div>Weight: {formData.weight}kg</div>}
                   </div>
                 </div>
               </div>

@@ -30,7 +30,6 @@ const nextSteps = [
     title: "Add your first products",
     description:
       "Create product listings with photos, descriptions, and pricing",
-    icon: "📦",
     action: "Add Products",
     href: "/seller/add/product",
   },
@@ -38,7 +37,6 @@ const nextSteps = [
     id: "setup_inventory",
     title: "Set up inventory tracking",
     description: "Configure stock levels and enable low-stock notifications",
-    icon: "📊",
     action: "Manage Inventory",
     href: "/seller/products",
   },
@@ -47,7 +45,6 @@ const nextSteps = [
     title: "Monitor your performance",
     description:
       "Track sales, views, and optimize your listings for better results",
-    icon: "📈",
     action: "View Analytics",
     href: "/seller/analytics",
   },
@@ -171,10 +168,10 @@ export default function SellerWrapUpStep({
             {/* Main Heading */}
             <div className="space-y-4">
               <h1 className="text-4xl md:text-5xl font-bold text-[var(--secondary-black)] leading-tight">
-                Welcome to Procur!
+                Welcome to Procur
               </h1>
               <p className="text-xl md:text-2xl text-[var(--secondary-muted-edge)] font-light leading-relaxed">
-                Your farm is now ready to start selling.
+                Your account is ready to start selling.
               </p>
             </div>
 
@@ -259,53 +256,17 @@ export default function SellerWrapUpStep({
 
             {/* Trust & Support */}
             <div className="pt-8 border-t border-[var(--secondary-soft-highlight)]/30">
-              <div className="flex items-center justify-center lg:justify-start space-x-6 text-sm text-[var(--secondary-muted-edge)]">
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                    <svg
-                      className="w-2.5 h-2.5 text-white"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  </div>
+              <div className="flex items-center justify-center lg:justify-start gap-6 text-sm text-[var(--secondary-muted-edge)]">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-green-600 rounded-full" />
                   <span>24/7 Support</span>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                    <svg
-                      className="w-2.5 h-2.5 text-white"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-green-600 rounded-full" />
                   <span>Secure Payments</span>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                    <svg
-                      className="w-2.5 h-2.5 text-white"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-green-600 rounded-full" />
                   <span>Global Reach</span>
                 </div>
               </div>
@@ -325,9 +286,7 @@ export default function SellerWrapUpStep({
                   className="seller-card p-6 hover:shadow-lg transition-all duration-300 group"
                 >
                   <div className="flex items-start space-x-4">
-                    <div className="text-3xl group-hover:scale-110 transition-transform duration-300">
-                      {step.icon}
-                    </div>
+                    <div className="w-3 h-3 rounded-full bg-[var(--primary-accent2)] mt-1.5 flex-shrink-0" />
                     <div className="flex-1">
                       <h3 className="font-semibold text-[var(--secondary-black)] mb-2">
                         {step.title}

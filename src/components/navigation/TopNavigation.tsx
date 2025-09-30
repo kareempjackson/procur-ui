@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   ChevronDownIcon,
-  ShoppingCartIcon,
   LanguageIcon,
   Bars3Icon,
   XMarkIcon,
@@ -36,68 +35,6 @@ const TopNavigation: React.FC = () => {
   const navRef = useRef<HTMLDivElement>(null);
 
   // Dropdown menu data
-  const buyProduceMenu = {
-    mostPopular: [
-      {
-        title: "Fruits and berries",
-        href: "/produce/fruits",
-      },
-      {
-        title: "Fresh vegetables",
-        href: "/produce/vegetables",
-      },
-      {
-        title: "Organic produce",
-        href: "/produce/organic",
-      },
-      {
-        title: "Herbs and spices",
-        href: "/produce/herbs",
-      },
-      {
-        title: "Seasonal produce",
-        href: "/produce/seasonal",
-      },
-      {
-        title: "Bulk orders",
-        href: "/produce/bulk",
-      },
-      {
-        title: "Local sourcing",
-        href: "/produce/local",
-      },
-    ],
-    moreCategories: [
-      {
-        title: "Premium suppliers",
-        href: "/suppliers/premium",
-      },
-      {
-        title: "Certified organic",
-        href: "/suppliers/organic-certified",
-      },
-      {
-        title: "Farm direct",
-        href: "/suppliers/farm-direct",
-      },
-      {
-        title: "Wholesale distributors",
-        href: "/suppliers/wholesale",
-      },
-      {
-        title: "International imports",
-        href: "/suppliers/international",
-      },
-      {
-        title: "Specialty producers",
-        href: "/suppliers/specialty",
-      },
-      {
-        title: "Browse all suppliers",
-        href: "/suppliers/all",
-      },
-    ],
-  };
 
   const forBuyersMenu: DropdownItem[] = [
     {
@@ -232,69 +169,7 @@ const TopNavigation: React.FC = () => {
     setActiveDropdown(dropdownName);
   };
 
-  const renderBuyProduceMegaMenu = () => (
-    <div className="absolute top-full left-0 w-[1000px] bg-white border border-gray-200 rounded-lg shadow-xl z-50 mt-2 animate-in fade-in slide-in-from-top-2 duration-200 overflow-hidden">
-      <div className="flex">
-        {/* Most Popular Categories - Left Column */}
-        <div className="flex-1 px-8 py-6">
-          <h3 className="font-bold text-gray-900 mb-4 text-sm tracking-wide">
-            Most popular categories
-          </h3>
-          <div className="space-y-2">
-            {buyProduceMenu.mostPopular.map((item, index) => (
-              <Link
-                key={index}
-                href={item.href}
-                className="block px-0 py-1.5 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50/80 rounded-md transition-all duration-200"
-                onClick={() => setActiveDropdown(null)}
-              >
-                {item.title}
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        {/* More Categories - Middle Column */}
-        <div className="flex-1 px-8 py-6 border-l border-gray-200">
-          <h3 className="font-bold text-gray-900 mb-4 text-sm tracking-wide">
-            More categories
-          </h3>
-          <div className="space-y-2">
-            {buyProduceMenu.moreCategories.map((item, index) => (
-              <Link
-                key={index}
-                href={item.href}
-                className="block px-0 py-1.5 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50/80 rounded-md transition-all duration-200"
-                onClick={() => setActiveDropdown(null)}
-              >
-                {item.title}
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        {/* Promotional Banner - Right Column */}
-        <div className="w-96 p-8 bg-gradient-to-br from-green-50 to-blue-50 border-l border-gray-200">
-          <div className="text-center">
-            <h3 className="text-xl font-bold text-gray-900 mb-2">
-              Fresh Produce
-            </h3>
-            <h4 className="text-base font-semibold text-gray-700 mb-3">
-              & farm-to-table
-            </h4>
-            <p className="text-sm text-gray-600 mb-4">Check the offers</p>
-            <Link
-              href="/produce/browse"
-              className="inline-block bg-blue-600 text-white px-6 py-2.5 rounded-full font-medium text-sm hover:bg-blue-700 transition-colors duration-200"
-              onClick={() => setActiveDropdown(null)}
-            >
-              Shop now
-            </Link>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  // Removed: Buy Produce mega menu in favor of a single Marketplace link
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const renderMegaMenu = (sections: MegaMenuSection[]) => (
@@ -388,27 +263,13 @@ const TopNavigation: React.FC = () => {
 
             {/* Main Navigation - absolutely centered */}
             <div className="hidden lg:flex items-center space-x-10 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-              {/* Buy Produce Dropdown */}
-              <div
-                className="relative"
-                onMouseEnter={() => handleMouseEnter("buy-produce")}
+              {/* Marketplace Link (no dropdown) */}
+              <Link
+                href="/marketplace"
+                className="text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)] font-semibold text-[15px] transition-all duration-200"
               >
-                <button
-                  className="flex items-center space-x-1 text-gray-800 hover:text-black font-medium text-[15px] transition-all duration-200 relative group"
-                  onClick={() => handleDropdownToggle("buy-produce")}
-                >
-                  <span className="relative">
-                    Buy Produce
-                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-black transition-all duration-200 group-hover:w-full"></span>
-                  </span>
-                  <ChevronDownIcon
-                    className={`h-4 w-4 transition-transform duration-200 ${
-                      activeDropdown === "buy-produce" ? "rotate-180" : ""
-                    }`}
-                  />
-                </button>
-                {activeDropdown === "buy-produce" && renderBuyProduceMegaMenu()}
-              </div>
+                <span className="relative">Marketplace</span>
+              </Link>
 
               {/* For Buyers Dropdown */}
               <div
@@ -416,13 +277,10 @@ const TopNavigation: React.FC = () => {
                 onMouseEnter={() => handleMouseEnter("for-buyers")}
               >
                 <button
-                  className="flex items-center space-x-1 text-gray-800 hover:text-black font-medium text-[15px] transition-all duration-200 relative group"
+                  className="flex items-center space-x-1 text-gray-800 hover:text-black font-medium text-[15px] transition-all duration-200"
                   onClick={() => handleDropdownToggle("for-buyers")}
                 >
-                  <span className="relative">
-                    For Buyers
-                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-black transition-all duration-200 group-hover:w-full"></span>
-                  </span>
+                  <span className="relative">For Buyers</span>
                   <ChevronDownIcon
                     className={`h-4 w-4 transition-transform duration-200 ${
                       activeDropdown === "for-buyers" ? "rotate-180" : ""
@@ -439,13 +297,10 @@ const TopNavigation: React.FC = () => {
                 onMouseEnter={() => handleMouseEnter("for-suppliers")}
               >
                 <button
-                  className="flex items-center space-x-1 text-gray-800 hover:text-black font-medium text-[15px] transition-all duration-200 relative group"
+                  className="flex items-center space-x-1 text-gray-800 hover:text-black font-medium text-[15px] transition-all duration-200"
                   onClick={() => handleDropdownToggle("for-suppliers")}
                 >
-                  <span className="relative">
-                    For Suppliers
-                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-black transition-all duration-200 group-hover:w-full"></span>
-                  </span>
+                  <span className="relative">For Suppliers</span>
                   <ChevronDownIcon
                     className={`h-4 w-4 transition-transform duration-200 ${
                       activeDropdown === "for-suppliers" ? "rotate-180" : ""
@@ -462,13 +317,10 @@ const TopNavigation: React.FC = () => {
                 onMouseEnter={() => handleMouseEnter("for-government")}
               >
                 <button
-                  className="flex items-center space-x-1 text-gray-800 hover:text-black font-medium text-[15px] transition-all duration-200 relative group"
+                  className="flex items-center space-x-1 text-gray-800 hover:text-black font-medium text-[15px] transition-all duration-200"
                   onClick={() => handleDropdownToggle("for-government")}
                 >
-                  <span className="relative">
-                    For Government
-                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-black transition-all duration-200 group-hover:w-full"></span>
-                  </span>
+                  <span className="relative">For Government</span>
                   <ChevronDownIcon
                     className={`h-4 w-4 transition-transform duration-200 ${
                       activeDropdown === "for-government" ? "rotate-180" : ""
@@ -482,12 +334,9 @@ const TopNavigation: React.FC = () => {
               {/* Blog Link */}
               <a
                 href="/blog"
-                className="text-gray-800 hover:text-black font-medium text-[15px] transition-all duration-200 relative group"
+                className="text-gray-800 hover:text-black font-medium text-[15px] transition-all duration-200"
               >
-                <span className="relative">
-                  Blog
-                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-black transition-all duration-200 group-hover:w-full"></span>
-                </span>
+                <span className="relative">Blog</span>
               </a>
             </div>
 
@@ -544,16 +393,7 @@ const TopNavigation: React.FC = () => {
             <span className="text-lg">{selectedCountry.flag}</span>
           </button>
 
-          {/* Cart */}
-          <Link
-            href="/checkout"
-            className="relative text-gray-700 hover:text-gray-900 transition-colors duration-200"
-          >
-            <ShoppingCartIcon className="h-6 w-6" />
-            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-              3
-            </span>
-          </Link>
+          {/* Cart hidden */}
 
           {/* Try Procur Button */}
           <Link
@@ -569,10 +409,10 @@ const TopNavigation: React.FC = () => {
           <div className="lg:hidden bg-white border-t border-gray-100">
             <div className="px-6 py-4 space-y-4">
               <a
-                href="/produce"
-                className="block text-gray-800 font-medium py-2"
+                href="/marketplace"
+                className="block text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)] font-semibold py-2"
               >
-                Buy Produce
+                Marketplace
               </a>
               <a
                 href="/buyers"
@@ -602,12 +442,7 @@ const TopNavigation: React.FC = () => {
                     <span className="text-sm">{selectedLanguage}</span>
                   </button>
                   <button className="text-lg">{selectedCountry.flag}</button>
-                  <Link href="/checkout" className="relative text-gray-700">
-                    <ShoppingCartIcon className="h-6 w-6" />
-                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
-                      3
-                    </span>
-                  </Link>
+                  {/* Cart hidden on mobile */}
                 </div>
                 <button className="bg-black text-white px-4 py-2 rounded-full font-medium text-sm">
                   Try Procur
