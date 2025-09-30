@@ -248,8 +248,6 @@ export default function BuyerClient() {
 
   return (
     <div className="min-h-screen bg-[var(--primary-background)]">
-      <TopNavigation />
-
       <main
         className="max-w-[1280px] mx-auto px-6 md:px-8 py-8 md:py-10"
         role="main"

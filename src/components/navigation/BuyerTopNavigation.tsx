@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   BellIcon,
-  LanguageIcon,
+  ShoppingCartIcon,
   Bars3Icon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
@@ -19,31 +19,12 @@ import {
 } from "@/store/slices/notificationsSlice";
 import { useNotificationsSocket } from "@/hooks/useNotificationsSocket";
 
-const SellerTopNavigation: React.FC = () => {
+const BuyerTopNavigation: React.FC = () => {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-  const [showCountryModal, setShowCountryModal] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState("EN");
-  const [selectedCountry, setSelectedCountry] = useState({
-    code: "GD",
-    flag: "🇬🇩",
-    name: "Grenada",
-  });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const router = useRouter();
-
-  const countries = [
-    { code: "GD", flag: "🇬🇩", name: "Grenada" },
-    { code: "VC", flag: "🇻🇨", name: "St. Vincent" },
-    { code: "TT", flag: "🇹🇹", name: "Trinidad & Tobago" },
-    { code: "BB", flag: "🇧🇧", name: "Barbados" },
-    { code: "LC", flag: "🇱🇨", name: "St. Lucia" },
-    { code: "PA", flag: "🇵🇦", name: "Panama" },
-    { code: "CO", flag: "🇨🇴", name: "Colombia" },
-  ];
-
-  const languages = ["EN", "ES", "FR", "DE", "PT", "ZH"];
 
   // Notifications state
   const dispatch = useAppDispatch();
@@ -61,7 +42,7 @@ const SellerTopNavigation: React.FC = () => {
   const displayName =
     (authUser?.fullname && authUser.fullname.trim()) ||
     (authUser?.email ? authUser.email.split("@")[0] : "User");
-  const businessName = authUser?.organizationName || "Seller";
+  const organizationName = authUser?.organizationName || "Buyer";
   const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(
     displayName
   )}&background=407178&color=fff`;
@@ -100,7 +81,7 @@ const SellerTopNavigation: React.FC = () => {
           <div className="relative flex items-center h-20">
             {/* Logo */}
             <div className="flex-shrink-0 relative">
-              <Link href="/seller" className="flex items-center relative">
+              <Link href="/buyer" className="flex items-center relative">
                 <Image
                   src="/images/logos/procur-logo.svg"
                   alt="Procur"
@@ -109,7 +90,7 @@ const SellerTopNavigation: React.FC = () => {
                   className="h-8 w-auto"
                 />
                 <span className="absolute -bottom-2 right-0 text-[10px] leading-none text-[color:var(--secondary-muted-edge)]">
-                  seller
+                  buyer
                 </span>
               </Link>
             </div>
@@ -118,9 +99,9 @@ const SellerTopNavigation: React.FC = () => {
             <div className="hidden lg:flex items-center space-x-10 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
               {/* Transactions Link */}
               <Link
-                href="/seller/transactions"
+                href="/buyer/transactions"
                 className={`pb-3 font-medium text-[15px] transition-all duration-200 border-b-2 ${
-                  pathname?.startsWith("/seller/transactions")
+                  pathname?.startsWith("/buyer/transactions")
                     ? "text-black border-[color:var(--primary-base)]"
                     : "text-gray-800 hover:text-black border-transparent"
                 }`}
@@ -130,9 +111,9 @@ const SellerTopNavigation: React.FC = () => {
 
               {/* Orders Link */}
               <Link
-                href="/seller/orders"
+                href="/buyer/orders"
                 className={`pb-3 font-medium text-[15px] transition-all duration-200 border-b-2 ${
-                  pathname?.startsWith("/seller/orders")
+                  pathname?.startsWith("/buyer/orders")
                     ? "text-black border-[color:var(--primary-base)]"
                     : "text-gray-800 hover:text-black border-transparent"
                 }`}
@@ -140,23 +121,23 @@ const SellerTopNavigation: React.FC = () => {
                 <span className="relative">Orders</span>
               </Link>
 
-              {/* Inventory Link */}
+              {/* Saved Suppliers Link */}
               <Link
-                href="/seller/products"
+                href="/buyer/saved-suppliers"
                 className={`pb-3 font-medium text-[15px] transition-all duration-200 border-b-2 ${
-                  pathname?.startsWith("/seller/products")
+                  pathname?.startsWith("/buyer/saved-suppliers")
                     ? "text-black border-[color:var(--primary-base)]"
                     : "text-gray-800 hover:text-black border-transparent"
                 }`}
               >
-                <span className="relative">Inventory</span>
+                <span className="relative">Saved Suppliers</span>
               </Link>
 
               {/* Messages Link */}
               <Link
-                href="/seller/messages"
+                href="/buyer/messages"
                 className={`pb-3 font-medium text-[15px] transition-all duration-200 border-b-2 ${
-                  pathname?.startsWith("/seller/messages")
+                  pathname?.startsWith("/buyer/messages")
                     ? "text-black border-[color:var(--primary-base)]"
                     : "text-gray-800 hover:text-black border-transparent"
                 }`}
@@ -225,7 +206,7 @@ const SellerTopNavigation: React.FC = () => {
                         {safeItems.slice(0, 10).map((n: any) => (
                           <Link
                             key={n.id}
-                            href="/seller/notifications"
+                            href="/buyer/notifications"
                             className={`block px-4 py-3 hover:bg-gray-50/80 transition-all duration-200 border-b border-gray-100 last:border-0 ${
                               !n.read_at ? "bg-blue-50/30" : ""
                             }`}
@@ -258,7 +239,7 @@ const SellerTopNavigation: React.FC = () => {
                       </div>
                       <div className="px-4 py-2 border-t border-gray-200">
                         <Link
-                          href="/seller/notifications"
+                          href="/buyer/notifications"
                           className="text-sm text-blue-600 hover:text-blue-700 font-medium"
                           onClick={() => setActiveDropdown(null)}
                         >
@@ -270,12 +251,21 @@ const SellerTopNavigation: React.FC = () => {
                 )}
               </div>
 
-              {/* Add Product Button */}
+              {/* Checkout Icon */}
               <Link
-                href="/seller/add/product"
+                href="/checkout"
+                className="relative text-gray-700 hover:text-gray-900 transition-colors duration-200"
+                title="Checkout"
+              >
+                <ShoppingCartIcon className="h-6 w-6" />
+              </Link>
+
+              {/* Make Request Button */}
+              <Link
+                href="/buyer/request"
                 className="bg-black text-white px-6 py-2.5 rounded-full font-medium text-[15px] hover:bg-gray-800 transition-colors duration-200"
               >
-                Add Product
+                Make Request
               </Link>
 
               {/* User Profile Dropdown */}
@@ -298,84 +288,38 @@ const SellerTopNavigation: React.FC = () => {
                           {displayName}
                         </div>
                         <div className="text-sm text-gray-600">
-                          {businessName}
+                          {organizationName}
                         </div>
                       </div>
                       <div className="py-2">
                         <Link
-                          href="/seller/profile"
+                          href="/buyer/profile"
                           className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50/80 hover:text-gray-900 transition-all duration-200"
                           onClick={() => setActiveDropdown(null)}
                         >
                           Profile Settings
                         </Link>
                         <Link
-                          href="/seller/business"
+                          href="/buyer/orders"
                           className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50/80 hover:text-gray-900 transition-all duration-200"
                           onClick={() => setActiveDropdown(null)}
                         >
-                          Business Settings
+                          Orders
                         </Link>
                         <Link
-                          href="/seller/payments"
+                          href="/buyer/payment-methods"
                           className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50/80 hover:text-gray-900 transition-all duration-200"
                           onClick={() => setActiveDropdown(null)}
                         >
-                          Billing & Payments
+                          Payment Methods
                         </Link>
                         <Link
-                          href="/seller/help"
+                          href="/buyer/help"
                           className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50/80 hover:text-gray-900 transition-all duration-200"
                           onClick={() => setActiveDropdown(null)}
                         >
                           Help & Support
                         </Link>
-                      </div>
-                      <div className="border-t border-gray-200 py-2">
-                        {/* Language Selector */}
-                        <div className="px-4 py-2">
-                          <label className="text-xs text-gray-500 uppercase tracking-wide mb-1 block">
-                            Language
-                          </label>
-                          <div className="flex flex-wrap gap-1.5">
-                            {languages.map((lang) => (
-                              <button
-                                key={lang}
-                                onClick={() => {
-                                  setSelectedLanguage(lang);
-                                }}
-                                className={`px-3 py-1.5 text-sm rounded-md transition-all duration-200 ${
-                                  selectedLanguage === lang
-                                    ? "bg-[var(--primary-accent2)] text-white"
-                                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                                }`}
-                              >
-                                {lang}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Country Selector */}
-                        <div className="px-4 py-2">
-                          <label className="text-xs text-gray-500 uppercase tracking-wide mb-1 block">
-                            Country
-                          </label>
-                          <button
-                            onClick={() => {
-                              setShowCountryModal(true);
-                              setActiveDropdown(null);
-                            }}
-                            className="flex items-center space-x-2 w-full px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-all duration-200"
-                          >
-                            <span className="text-lg">
-                              {selectedCountry.flag}
-                            </span>
-                            <span className="text-sm text-gray-700 font-medium">
-                              {selectedCountry.name}
-                            </span>
-                          </button>
-                        </div>
                       </div>
                       <div className="border-t border-gray-200 py-2">
                         <button
@@ -402,31 +346,31 @@ const SellerTopNavigation: React.FC = () => {
           <div className="lg:hidden bg-white border-t border-gray-100">
             <div className="px-6 py-4 space-y-4">
               <Link
-                href="/seller/add/product"
+                href="/buyer/request"
                 className="block w-full bg-black text-white px-6 py-2.5 rounded-full font-medium text-center hover:bg-gray-800 transition-colors duration-200"
               >
-                Add Product
+                Make Request
               </Link>
               <Link
-                href="/seller/transactions"
+                href="/buyer/transactions"
                 className="block text-gray-800 font-medium py-2"
               >
                 Transactions
               </Link>
               <Link
-                href="/seller/orders"
+                href="/buyer/orders"
                 className="block text-gray-800 font-medium py-2"
               >
                 Orders
               </Link>
               <Link
-                href="/seller/products"
+                href="/buyer/saved-suppliers"
                 className="block text-gray-800 font-medium py-2"
               >
-                Inventory
+                Saved Suppliers
               </Link>
               <Link
-                href="/seller/messages"
+                href="/buyer/messages"
                 className="block text-gray-800 font-medium py-2"
               >
                 Messages
@@ -434,7 +378,7 @@ const SellerTopNavigation: React.FC = () => {
               <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                 <div className="flex items-center space-x-4">
                   <Link
-                    href="/seller/notifications"
+                    href="/buyer/notifications"
                     className="relative text-gray-700"
                   >
                     <BellIcon className="h-6 w-6" />
@@ -444,8 +388,15 @@ const SellerTopNavigation: React.FC = () => {
                       </span>
                     )}
                   </Link>
+                  <Link
+                    href="/checkout"
+                    className="relative text-gray-700"
+                    title="Checkout"
+                  >
+                    <ShoppingCartIcon className="h-6 w-6" />
+                  </Link>
                 </div>
-                <Link href="/seller/profile">
+                <Link href="/buyer/profile">
                   <img
                     src={avatarUrl}
                     alt={displayName}
@@ -457,40 +408,8 @@ const SellerTopNavigation: React.FC = () => {
           </div>
         )}
       </nav>
-
-      {/* Country Selection Modal */}
-      {showCountryModal && (
-        <div className="fixed inset-0 backdrop-blur-xs bg-white/20 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96 max-h-96 overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Select Country</h3>
-              <button
-                className="text-gray-400 hover:text-gray-600"
-                onClick={() => setShowCountryModal(false)}
-              >
-                ✕
-              </button>
-            </div>
-            <div className="space-y-2">
-              {countries.map((country) => (
-                <button
-                  key={country.code}
-                  className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
-                  onClick={() => {
-                    setSelectedCountry(country);
-                    setShowCountryModal(false);
-                  }}
-                >
-                  <span className="text-xl">{country.flag}</span>
-                  <span className="font-medium">{country.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 };
 
-export default SellerTopNavigation;
+export default BuyerTopNavigation;

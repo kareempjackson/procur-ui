@@ -8,6 +8,7 @@ import harvestReducer from "./slices/harvestSlice";
 import sellerProductsReducer from "./slices/sellerProductsSlice";
 import harvestFeedReducer from "./slices/harvestFeedSlice";
 import sellerReducer from "./slices/sellerSlice";
+import notificationsReducer from "./slices/notificationsSlice";
 
 export const store = configureStore({
   reducer: {
@@ -19,6 +20,7 @@ export const store = configureStore({
     sellerProducts: sellerProductsReducer,
     harvestFeed: harvestFeedReducer,
     seller: sellerReducer,
+    notifications: notificationsReducer,
   },
   devTools: process.env.NODE_ENV !== "production",
 });

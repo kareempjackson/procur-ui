@@ -89,6 +89,27 @@ export const signin = createAsyncThunk(
   }
 );
 
+export const devSignin = createAsyncThunk(
+  "auth/devSignin",
+  async (
+    payload: { accountType: "seller" | "buyer" | "government" },
+    { rejectWithValue }
+  ) => {
+    try {
+      const client = getClient();
+      const { data } = await client.post("/auth/dev-signin", payload);
+      return data as {
+        accessToken: string;
+        tokenType: string;
+        expiresIn: number;
+        user: AuthUser;
+      };
+    } catch (err: unknown) {
+      return rejectWithValue(extractErrorMessage(err, "Failed to dev sign in"));
+    }
+  }
+);
+
 export const signup = createAsyncThunk(
   "auth/signup",
   async (payload: SignupPayload, { rejectWithValue }) => {
@@ -210,6 +231,44 @@ const authSlice = createSlice({
       .addCase(signin.rejected, (state, action) => {
         state.status = "failed";
         state.error = (action.payload as string) || "Failed to sign in";
+      })
+      .addCase(devSignin.pending, (state) => {
+        state.status = "loading";
+        state.error = null;
+      })
+      .addCase(
+        devSignin.fulfilled,
+        (
+          state,
+          action: PayloadAction<{
+            accessToken: string;
+            tokenType: string;
+            expiresIn: number;
+            user: AuthUser;
+          }>
+        ) => {
+          state.status = "succeeded";
+          state.error = null;
+          state.accessToken = action.payload.accessToken;
+          state.tokenType = action.payload.tokenType;
+          state.expiresIn = action.payload.expiresIn;
+          state.user = action.payload.user;
+          if (typeof window !== "undefined") {
+            localStorage.setItem(
+              "auth",
+              JSON.stringify({
+                accessToken: state.accessToken,
+                tokenType: state.tokenType,
+                expiresIn: state.expiresIn,
+                user: state.user,
+              })
+            );
+          }
+        }
+      )
+      .addCase(devSignin.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = (action.payload as string) || "Failed to dev sign in";
       })
       .addCase(signup.pending, (state) => {
         state.status = "loading";

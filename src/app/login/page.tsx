@@ -5,7 +5,7 @@ import Image from "next/image";
 import TopNavigation from "@/components/navigation/TopNavigation";
 import Footer from "@/components/footer/Footer";
 import { useAppDispatch } from "@/store";
-import { signin } from "@/store/slices/authSlice";
+import { signin, devSignin } from "@/store/slices/authSlice";
 import { useRouter } from "next/navigation";
 
 const LoginPage: React.FC = () => {
@@ -58,6 +58,29 @@ const LoginPage: React.FC = () => {
       router.replace(dest);
     } catch (err) {
       const message = typeof err === "string" ? err : "Failed to sign in";
+      setError(message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDevSignin = async (type: "seller" | "buyer" | "government") => {
+    setError(null);
+    setIsLoading(true);
+    try {
+      const auth = await dispatch(devSignin({ accountType: type })).unwrap();
+      const next = getNextParam();
+      if (next) {
+        router.replace(next);
+        return;
+      }
+      const dest = getDestination(
+        auth.user.accountType,
+        auth.user.emailVerified
+      );
+      router.replace(dest);
+    } catch (err) {
+      const message = typeof err === "string" ? err : "Dev sign in failed";
       setError(message);
     } finally {
       setIsLoading(false);
@@ -184,6 +207,39 @@ const LoginPage: React.FC = () => {
                   )}
                 </button>
               </form>
+
+              {/* Dev Auth (only renders in non-production) */}
+              {process.env.NEXT_PUBLIC_ENV !== "production" && (
+                <div className="space-y-3">
+                  <div className="text-xs text-gray-500">Dev quick sign-in</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <button
+                      type="button"
+                      disabled={isLoading}
+                      onClick={() => handleDevSignin("seller")}
+                      className="btn btn-outline !rounded-full"
+                    >
+                      Seller
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isLoading}
+                      onClick={() => handleDevSignin("buyer")}
+                      className="btn btn-outline !rounded-full"
+                    >
+                      Buyer
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isLoading}
+                      onClick={() => handleDevSignin("government")}
+                      className="btn btn-outline !rounded-full"
+                    >
+                      Government
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Privacy Policy Link */}
               <div className="text-center">
