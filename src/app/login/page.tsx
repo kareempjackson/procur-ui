@@ -104,7 +104,7 @@ const LoginPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="btn btn-secondary w-full flex justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn btn-secondary !rounded-full w-full flex justify-center disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading ? (
                   <div className="flex items-center">

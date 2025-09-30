@@ -188,47 +188,7 @@ export default function SellerWelcomeStep({ onNext }: SellerWelcomeStepProps) {
           </div>
         </div>
 
-        {/* Additional seller benefits */}
-        <div className="mt-16 grid md:grid-cols-3 gap-8">
-          <div className="text-center space-y-4">
-            <div className="w-16 h-16 bg-[var(--primary-accent1)]/10 rounded-full flex items-center justify-center mx-auto">
-              <span className="text-2xl">🌾</span>
-            </div>
-            <h3 className="font-semibold text-[var(--secondary-black)]">
-              Showcase Your Farm
-            </h3>
-            <p className="text-sm text-[var(--secondary-muted-edge)] leading-relaxed">
-              Create a beautiful profile that tells your farm's story and builds
-              trust with buyers.
-            </p>
-          </div>
-
-          <div className="text-center space-y-4">
-            <div className="w-16 h-16 bg-[var(--primary-accent1)]/10 rounded-full flex items-center justify-center mx-auto">
-              <span className="text-2xl">📈</span>
-            </div>
-            <h3 className="font-semibold text-[var(--secondary-black)]">
-              Grow Your Business
-            </h3>
-            <p className="text-sm text-[var(--secondary-muted-edge)] leading-relaxed">
-              Access analytics, manage inventory, and reach new markets to scale
-              your operations.
-            </p>
-          </div>
-
-          <div className="text-center space-y-4">
-            <div className="w-16 h-16 bg-[var(--primary-accent1)]/10 rounded-full flex items-center justify-center mx-auto">
-              <span className="text-2xl">💰</span>
-            </div>
-            <h3 className="font-semibold text-[var(--secondary-black)]">
-              Get Paid Fast
-            </h3>
-            <p className="text-sm text-[var(--secondary-muted-edge)] leading-relaxed">
-              Secure payments with flexible payout schedules that work for your
-              cash flow.
-            </p>
-          </div>
-        </div>
+        {/* Additional seller benefits removed per request */}
       </div>
     </div>
   );
