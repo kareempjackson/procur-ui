@@ -4,15 +4,15 @@ import React from "react";
 import Image from "next/image";
 
 const Footer: React.FC = () => {
-  const footerSections = {
-    "For Buyers": [
-      { title: "Marketplace", href: "/buyers/marketplace" },
-      { title: "Request Quotes", href: "/buyers/quotes" },
-      { title: "Order Management", href: "/buyers/orders" },
-      { title: "Quality Assurance", href: "/buyers/quality" },
-      { title: "Logistics Support", href: "/buyers/logistics" },
-      { title: "Payment Solutions", href: "/buyers/payments" },
-      { title: "Buyer Portal", href: "/buyers/portal" },
+  const footerSections: Record<string, { title: string; href: string }[]> = {
+    "For Purchasers": [
+      { title: "Marketplace", href: "/purchasers/marketplace" },
+      { title: "Request Quotes", href: "/purchasers/quotes" },
+      { title: "Order Management", href: "/purchasers/orders" },
+      { title: "Quality Assurance", href: "/purchasers/quality" },
+      { title: "Logistics Support", href: "/purchasers/logistics" },
+      { title: "Payment Solutions", href: "/purchasers/payments" },
+      { title: "Buyer Portal", href: "/purchasers/portal" },
     ],
     "For Suppliers": [
       { title: "Supplier Portal", href: "/suppliers/portal" },
@@ -22,8 +22,8 @@ const Footer: React.FC = () => {
       { title: "Marketing Tools", href: "/suppliers/marketing" },
     ],
     "For Government": [
-      { title: "Reporting & Analytics", href: "/government/reporting" },
-      { title: "Vendor Management", href: "/government/vendors" },
+      { title: "Reporting & Analytics", href: "/gov/reporting" },
+      { title: "Vendor Management", href: "/gov/vendors" },
     ],
     Resources: [
       { title: "Documentation", href: "/resources/docs" },
@@ -138,17 +138,17 @@ const Footer: React.FC = () => {
             {/* Top row (4 sections) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12 w-full lg:w-[88%]">
               {[
-                "For Buyers",
+                "For Purchasers",
                 "For Suppliers",
                 "For Government",
                 "Resources",
-              ].map((key) => renderSection(key, (footerSections as any)[key]))}
+              ].map((key) => renderSection(key, footerSections[key]))}
             </div>
 
             {/* Bottom row (3 sections) */}
             <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 gap-8 lg:gap-12 mt-8 w-full lg:w-[70%]">
               {["Company", "Help", "Terms & Policies"].map((key) =>
-                renderSection(key, (footerSections as any)[key])
+                renderSection(key, footerSections[key])
               )}
             </div>
           </div>

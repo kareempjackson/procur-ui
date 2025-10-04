@@ -4,7 +4,11 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import TopNavigation from "@/components/navigation/TopNavigation";
+import BuyerTopNavigation from "@/components/navigation/BuyerTopNavigation";
+import SellerTopNavigation from "@/components/navigation/SellerTopNavigation";
 import Footer from "@/components/footer/Footer";
+import { useAppSelector } from "@/store";
+import { selectAuthUser } from "@/store/slices/authSlice";
 import {
   MagnifyingGlassIcon,
   ChevronDownIcon,
@@ -28,6 +32,7 @@ import {
 } from "@heroicons/react/24/outline";
 
 export default function Home() {
+  const user = useAppSelector(selectAuthUser);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -391,7 +396,14 @@ export default function Home() {
         Shipping updates and regional availability
       </div>
 
-      <TopNavigation />
+      {/* Render navigation based on user account type */}
+      {user?.accountType === "buyer" ? (
+        <BuyerTopNavigation />
+      ) : user?.accountType === "seller" ? (
+        <SellerTopNavigation />
+      ) : (
+        <TopNavigation />
+      )}
 
       {/* Sticky Search Bar */}
       <div

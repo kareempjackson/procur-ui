@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Footer from "@/components/footer/Footer";
 import { useState } from "react";
 import { useAppDispatch, useAppSelector } from "@/store";
 import {
@@ -285,8 +284,6 @@ export default function SellerHarvestUpdatePage() {
           </div>
         </form>
       </main>
-
-      <Footer />
     </div>
   );
 }

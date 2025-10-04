@@ -3,7 +3,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Footer from "@/components/footer/Footer";
 import { useSelector } from "react-redux";
 import { RootState, useAppDispatch } from "@/store";
 import {
@@ -987,8 +986,6 @@ export default function SellerProductsPage() {
           </div>
         )}
       </main>
-
-      <Footer />
     </div>
   );
 }

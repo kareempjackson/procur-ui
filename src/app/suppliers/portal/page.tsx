@@ -1,5 +1,4 @@
 import TopNavigation from "@/components/navigation/TopNavigation";
-import Footer from "@/components/footer/Footer";
 import type { Metadata } from "next";
 import Image from "next/image";
 import {
@@ -240,8 +239,8 @@ export default function SupplierPortalPage() {
               smarter, and more profitably.
             </p>
             <blockquote className="mt-8 md:mt-10 border-l-4 border-[var(--primary-accent2)] pl-5 italic text-xl text-gray-800">
-              "Great suppliers don&apos;t just grow produce — they grow businesses.
-              Procur gives you the tools to do both."
+              "Great suppliers don&apos;t just grow produce — they grow
+              businesses. Procur gives you the tools to do both."
             </blockquote>
           </div>
         </section>
@@ -518,8 +517,6 @@ export default function SupplierPortalPage() {
           </div>
         </section>
       </main>
-
-      <Footer />
     </div>
   );
 }

@@ -1,6 +1,5 @@
 "use client";
 
-import Footer from "@/components/footer/Footer";
 import Link from "next/link";
 import Image from "next/image";
 import { useMemo, useEffect, useState } from "react";
@@ -678,8 +677,6 @@ export default function SellerDashboardPage() {
           </div>
         </section>
       </main>
-
-      <Footer />
     </div>
   );
 }

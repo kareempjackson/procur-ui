@@ -1,5 +1,4 @@
 import TopNavigation from "@/components/navigation/TopNavigation";
-import Footer from "@/components/footer/Footer";
 import type { Metadata } from "next";
 import Image from "next/image";
 import {
@@ -630,8 +629,6 @@ export default function SupplierMarketingPage() {
           </div>
         </section>
       </main>
-
-      <Footer />
     </div>
   );
 }

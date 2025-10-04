@@ -1,6 +1,5 @@
 "use client";
 
-import Footer from "@/components/footer/Footer";
 import { useMemo, useState } from "react";
 
 type PaymentMethod = {
@@ -350,8 +349,6 @@ export default function BuyerPaymentMethodsPage() {
           </div>
         )}
       </main>
-
-      <Footer />
     </div>
   );
 }

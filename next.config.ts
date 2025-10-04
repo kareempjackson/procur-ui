@@ -20,6 +20,11 @@ const nextConfig: NextConfig = {
         hostname: "storage.example.com",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "ui-avatars.com",
+        pathname: "/api/**",
+      },
     ],
   },
   /* config options here */

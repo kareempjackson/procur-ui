@@ -9,7 +9,12 @@ import {
   LanguageIcon,
   Bars3Icon,
   XMarkIcon,
+  ChartBarIcon,
 } from "@heroicons/react/24/outline";
+import {
+  BellIcon as BellSolidIcon,
+  ChartBarIcon as ChartBarSolidIcon,
+} from "@heroicons/react/24/solid";
 import { useAppDispatch, useAppSelector } from "@/store";
 import { selectAuthUser, signout } from "@/store/slices/authSlice";
 import {
@@ -97,10 +102,10 @@ const SellerTopNavigation: React.FC = () => {
     <>
       <nav className={`${navBgClass} sticky top-0 z-40`} ref={navRef}>
         <div className="max-w-7xl mx-auto px-6">
-          <div className="relative flex items-center h-20">
-            {/* Logo */}
-            <div className="flex-shrink-0 relative">
-              <Link href="/seller" className="flex items-center relative">
+          <div className="flex items-center h-20">
+            {/* Logo - Left Section */}
+            <div className="flex-[0.8] flex items-center">
+              <Link href="/seller" className="flex items-center relative group">
                 <Image
                   src="/images/logos/procur-logo.svg"
                   alt="Procur"
@@ -108,44 +113,62 @@ const SellerTopNavigation: React.FC = () => {
                   height={32}
                   className="h-8 w-auto"
                 />
-                <span className="absolute -bottom-2 right-0 text-[10px] leading-none text-[color:var(--secondary-muted-edge)]">
+                <span
+                  className={`absolute -bottom-2 right-0 text-[10px] leading-none transition-colors duration-200 ${
+                    pathname === "/seller"
+                      ? "text-[var(--primary-accent2)] font-semibold"
+                      : "text-[color:var(--secondary-muted-edge)]"
+                  }`}
+                >
                   seller
                 </span>
               </Link>
             </div>
 
-            {/* Main Navigation - absolutely centered */}
-            <div className="hidden lg:flex items-center space-x-10 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-              {/* Transactions Link */}
+            {/* Main Navigation - Center Section */}
+            <div className="hidden lg:flex items-center justify-center space-x-8 flex-1">
+              {/* Requests Link */}
               <Link
-                href="/seller/transactions"
-                className={`pb-3 font-medium text-[15px] transition-all duration-200 border-b-2 ${
-                  pathname?.startsWith("/seller/transactions")
-                    ? "text-black border-[color:var(--primary-base)]"
+                href="/seller/purchase-requests"
+                className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
+                  pathname?.startsWith("/seller/purchase-requests")
+                    ? "text-[var(--primary-accent2)] border-[var(--primary-accent2)]"
                     : "text-gray-800 hover:text-black border-transparent"
                 }`}
               >
-                <span className="relative">Transactions</span>
+                <span className="relative">Requests</span>
               </Link>
 
               {/* Orders Link */}
               <Link
                 href="/seller/orders"
-                className={`pb-3 font-medium text-[15px] transition-all duration-200 border-b-2 ${
+                className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
                   pathname?.startsWith("/seller/orders")
-                    ? "text-black border-[color:var(--primary-base)]"
+                    ? "text-[var(--primary-accent2)] border-[var(--primary-accent2)]"
                     : "text-gray-800 hover:text-black border-transparent"
                 }`}
               >
                 <span className="relative">Orders</span>
               </Link>
 
+              {/* Transactions Link */}
+              <Link
+                href="/seller/transactions"
+                className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
+                  pathname?.startsWith("/seller/transactions")
+                    ? "text-[var(--primary-accent2)] border-[var(--primary-accent2)]"
+                    : "text-gray-800 hover:text-black border-transparent"
+                }`}
+              >
+                <span className="relative">Transactions</span>
+              </Link>
+
               {/* Inventory Link */}
               <Link
                 href="/seller/products"
-                className={`pb-3 font-medium text-[15px] transition-all duration-200 border-b-2 ${
+                className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
                   pathname?.startsWith("/seller/products")
-                    ? "text-black border-[color:var(--primary-base)]"
+                    ? "text-[var(--primary-accent2)] border-[var(--primary-accent2)]"
                     : "text-gray-800 hover:text-black border-transparent"
                 }`}
               >
@@ -155,9 +178,9 @@ const SellerTopNavigation: React.FC = () => {
               {/* Messages Link */}
               <Link
                 href="/seller/messages"
-                className={`pb-3 font-medium text-[15px] transition-all duration-200 border-b-2 ${
+                className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
                   pathname?.startsWith("/seller/messages")
-                    ? "text-black border-[color:var(--primary-base)]"
+                    ? "text-[var(--primary-accent2)] border-[var(--primary-accent2)]"
                     : "text-gray-800 hover:text-black border-transparent"
                 }`}
               >
@@ -177,15 +200,40 @@ const SellerTopNavigation: React.FC = () => {
               )}
             </button>
 
-            {/* Right Side Actions - anchored to nav right */}
-            <div className="hidden lg:flex items-center space-x-6 ml-auto">
+            {/* Right Side Actions - Right Section */}
+            <div className="hidden lg:flex items-center justify-end space-x-5 flex-[1.4]">
+              {/* Analytics */}
+              <Link
+                href="/seller/analytics"
+                className={`relative transition-colors duration-200 flex items-center ${
+                  pathname?.startsWith("/seller/analytics")
+                    ? "text-[var(--primary-accent2)]"
+                    : "text-gray-700 hover:text-gray-900"
+                }`}
+                title="Analytics"
+              >
+                {pathname?.startsWith("/seller/analytics") ? (
+                  <ChartBarSolidIcon className="h-6 w-6" />
+                ) : (
+                  <ChartBarIcon className="h-6 w-6 stroke-2" />
+                )}
+              </Link>
+
               {/* Notifications */}
-              <div className="relative">
+              <div className="relative flex items-center">
                 <button
-                  className="relative text-gray-700 hover:text-gray-900 transition-colors duration-200"
+                  className={`relative transition-colors duration-200 flex items-center ${
+                    pathname?.startsWith("/seller/notifications")
+                      ? "text-[var(--primary-accent2)]"
+                      : "text-gray-700 hover:text-gray-900"
+                  }`}
                   onClick={() => handleDropdownToggle("notifications")}
                 >
-                  <BellIcon className="h-6 w-6" />
+                  {pathname?.startsWith("/seller/notifications") ? (
+                    <BellSolidIcon className="h-6 w-6" />
+                  ) : (
+                    <BellIcon className="h-6 w-6 stroke-2" />
+                  )}
                   {unreadCount > 0 && (
                     <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
                       {unreadCount}
@@ -273,7 +321,11 @@ const SellerTopNavigation: React.FC = () => {
               {/* Add Product Button */}
               <Link
                 href="/seller/add/product"
-                className="bg-black text-white px-6 py-2.5 rounded-full font-medium text-[15px] hover:bg-gray-800 transition-colors duration-200"
+                className={`px-6 py-2.5 rounded-full font-medium text-[15px] transition-all duration-200 flex items-center ${
+                  pathname?.startsWith("/seller/add")
+                    ? "bg-[var(--primary-accent2)] text-white shadow-md"
+                    : "bg-black text-white hover:bg-gray-800"
+                }`}
               >
                 Add Product
               </Link>
@@ -408,16 +460,22 @@ const SellerTopNavigation: React.FC = () => {
                 Add Product
               </Link>
               <Link
-                href="/seller/transactions"
+                href="/seller/purchase-requests"
                 className="block text-gray-800 font-medium py-2"
               >
-                Transactions
+                Requests
               </Link>
               <Link
                 href="/seller/orders"
                 className="block text-gray-800 font-medium py-2"
               >
                 Orders
+              </Link>
+              <Link
+                href="/seller/transactions"
+                className="block text-gray-800 font-medium py-2"
+              >
+                Transactions
               </Link>
               <Link
                 href="/seller/products"
@@ -433,6 +491,13 @@ const SellerTopNavigation: React.FC = () => {
               </Link>
               <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                 <div className="flex items-center space-x-4">
+                  <Link
+                    href="/seller/analytics"
+                    className="relative text-gray-700"
+                    title="Analytics"
+                  >
+                    <ChartBarIcon className="h-6 w-6" />
+                  </Link>
                   <Link
                     href="/seller/notifications"
                     className="relative text-gray-700"

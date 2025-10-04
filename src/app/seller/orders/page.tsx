@@ -3,7 +3,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Footer from "@/components/footer/Footer";
 import { useAppDispatch, useAppSelector } from "@/store";
 import { getApiClient } from "@/lib/apiClient";
 import { fetchSellerOrders } from "@/store/slices/sellerOrdersSlice";
@@ -1308,8 +1307,6 @@ export default function SellerOrdersPage() {
           </div>
         )}
       </main>
-
-      <Footer />
     </div>
   );
 }

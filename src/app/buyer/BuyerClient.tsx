@@ -1,978 +1,1175 @@
 "use client";
 
-import TopNavigation from "@/components/navigation/TopNavigation";
-import Footer from "@/components/footer/Footer";
+import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getApiClient } from "@/lib/apiClient";
 import Link from "next/link";
-
-type Seller = {
-  id: string;
-  name: string;
-  description?: string;
-  business_type?: string;
-  logo_url?: string;
-  location?: string;
-  average_rating?: number;
-  review_count: number;
-  product_count: number;
-  years_in_business?: number;
-  is_verified: boolean;
-  specialties?: string[];
-  distance?: number;
-};
-
-type Product = {
-  id: string;
-  name: string;
-  short_description?: string;
-  category: string;
-  subcategory?: string;
-  current_price: number;
-  base_price: number;
-  sale_price?: number;
-  currency: string;
-  stock_quantity: number;
-  unit_of_measurement: string;
-  condition: string;
-  brand?: string;
-  image_url?: string;
-  images?: string[];
-  tags?: string[];
-  is_organic: boolean;
-  is_local: boolean;
-  is_featured: boolean;
-  average_rating?: number;
-  review_count: number;
-  seller: Seller;
-  distance?: number;
-  estimated_delivery_days?: number;
-  is_favorited?: boolean;
-};
-
-type Paged<T> = {
-  items: T[];
-  total: number;
-  page: number;
-  limit: number;
-};
-
-function getClient() {
-  return getApiClient(() => {
-    if (typeof window === "undefined") return null;
-    try {
-      const raw = localStorage.getItem("auth");
-      if (!raw) return null;
-      const parsed = JSON.parse(raw) as { accessToken?: string };
-      return parsed.accessToken ?? null;
-    } catch {
-      return null;
-    }
-  });
-}
-
-function useDebounced<T>(value: T, delayMs: number) {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), delayMs);
-    return () => clearTimeout(t);
-  }, [value, delayMs]);
-  return debounced;
-}
-
-function classNames(...classes: (string | false | null | undefined)[]) {
-  return classes.filter(Boolean).join(" ");
-}
+import {
+  MagnifyingGlassIcon,
+  FunnelIcon,
+  HeartIcon,
+  MapPinIcon,
+  StarIcon,
+  ClockIcon,
+  CheckBadgeIcon,
+  ChatBubbleLeftIcon,
+  UserGroupIcon,
+  CalendarIcon,
+  ArrowRightIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+} from "@heroicons/react/24/outline";
+import { HeartIcon as HeartSolidIcon } from "@heroicons/react/24/solid";
 
 export default function BuyerClient() {
-  const [heroLoaded, setHeroLoaded] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All Categories");
+  const [savedItems, setSavedItems] = useState<Set<number>>(new Set());
+  const [showFilters, setShowFilters] = useState(false);
+  const [showHarvestFeed, setShowHarvestFeed] = useState(true);
+  const [hasOverflow, setHasOverflow] = useState(false);
+  const categoryScrollRef = useRef<HTMLDivElement>(null);
 
-  const [keyword, setKeyword] = useState("");
-  const [region, setRegion] = useState("");
-  const [productType, setProductType] = useState("");
-  const [organic, setOrganic] = useState<"any" | "organic" | "conventional">(
-    "any"
+  // Filter states
+  const [selectedAvailability, setSelectedAvailability] = useState<string[]>(
+    []
   );
-  const [priceMin, setPriceMin] = useState<string>("");
-  const [priceMax, setPriceMax] = useState<string>("");
-  const [harvestDate, setHarvestDate] = useState<string>("");
-  const [sort, setSort] = useState<
-    "Newest" | "Price low→high" | "Price high→low" | "Availability"
-  >("Newest");
+  const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
+  const [selectedCertifications, setSelectedCertifications] = useState<
+    string[]
+  >([]);
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 100]);
 
-  const debouncedKeyword = useDebounced(keyword, 250);
+  // Categories for horizontal scroll (eBay-style)
+  const categories = [
+    { name: "All Categories", icon: "🌾" },
+    { name: "Vegetables", icon: "🥬" },
+    { name: "Fruits", icon: "🍎" },
+    { name: "Herbs", icon: "🌿" },
+    { name: "Grains", icon: "🌾" },
+    { name: "Legumes", icon: "🫘" },
+    { name: "Root Crops", icon: "🥔" },
+    { name: "Leafy Greens", icon: "🥗" },
+    { name: "Organic", icon: "✨" },
+    { name: "Export Ready", icon: "🌍" },
+  ];
 
-  const [products, setProducts] = useState<Paged<Product>>({
-    items: [],
-    total: 0,
-    page: 1,
-    limit: 24,
-  });
-  const [sellers, setSellers] = useState<Paged<Seller>>({
-    items: [],
-    total: 0,
-    page: 1,
-    limit: 6,
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [loadingSellers, setLoadingSellers] = useState(false);
-  const [errorSellers, setErrorSellers] = useState<string | null>(null);
+  // Social Media Timeline - Harvest Updates
+  const harvestUpdates = [
+    {
+      id: 1,
+      farmName: "Caribbean Farms Co.",
+      farmAvatar:
+        "https://ui-avatars.com/api/?name=Caribbean+Farms&background=CB5927&color=fff",
+      location: "Kingston, Jamaica",
+      timeAgo: "2 hours ago",
+      content:
+        "🌱 Exciting news! Our organic tomato harvest is starting next week. Pre-orders now available for 500kg batches. First-grade quality guaranteed!",
+      images: [
+        "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+      ],
+      likes: 42,
+      comments: 8,
+      harvestDate: "Oct 15, 2025",
+      verified: true,
+    },
+    {
+      id: 2,
+      farmName: "Tropical Harvest Ltd",
+      farmAvatar:
+        "https://ui-avatars.com/api/?name=Tropical+Harvest&background=407178&color=fff",
+      location: "Santo Domingo, DR",
+      timeAgo: "5 hours ago",
+      content:
+        "Just completed our mango harvest! 🥭 Premium Alphonso variety, perfect for export. Available in 20kg crates. Limited stock!",
+      images: [
+        "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+      ],
+      likes: 67,
+      comments: 15,
+      harvestDate: "Available Now",
+      verified: true,
+    },
+    {
+      id: 3,
+      farmName: "Island Fresh Produce",
+      farmAvatar:
+        "https://ui-avatars.com/api/?name=Island+Fresh&background=6C715D&color=fff",
+      location: "Bridgetown, Barbados",
+      timeAgo: "1 day ago",
+      content:
+        "Our sweet potato harvest exceeded expectations! 🍠 2 tons available for immediate delivery. Organic certified and ready for local or export markets.",
+      images: [
+        "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+      ],
+      likes: 89,
+      comments: 12,
+      harvestDate: "Available Now",
+      verified: true,
+    },
+  ];
 
-  const liveRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (liveRef.current) {
-      liveRef.current.textContent = `${products.total} results`;
-    }
-  }, [products.total]);
+  // Available Harvests - Expanded with more variety
+  const allHarvests = [
+    {
+      id: 1,
+      name: "Organic Cherry Tomatoes",
+      farm: "Caribbean Farms Co.",
+      farmRating: 4.8,
+      location: "Kingston, Jamaica",
+      country: "Jamaica",
+      price: 3.5,
+      unit: "lb",
+      minOrder: "100 lbs",
+      availability: "Pre-order",
+      availabilityDate: "Oct 15, 2025",
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+      discount: "15% off pre-order",
+      tags: ["Organic", "Pre-order"],
+      verified: true,
+      category: "Vegetables",
+    },
+    {
+      id: 2,
+      name: "Alphonso Mangoes",
+      farm: "Tropical Harvest Ltd",
+      farmRating: 4.9,
+      location: "Santo Domingo, DR",
+      country: "Dominican Republic",
+      price: 4.2,
+      unit: "lb",
+      minOrder: "50 lbs",
+      availability: "Available Now",
+      availabilityDate: "Available Now",
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+      discount: null,
+      tags: ["Export Ready", "Premium"],
+      verified: true,
+      category: "Fruits",
+    },
+    {
+      id: 3,
+      name: "Sweet Potatoes",
+      farm: "Island Fresh Produce",
+      farmRating: 4.7,
+      location: "Bridgetown, Barbados",
+      country: "Barbados",
+      price: 1.8,
+      unit: "lb",
+      minOrder: "200 lbs",
+      availability: "Available Now",
+      availabilityDate: "Available Now",
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+      discount: "20% off bulk",
+      tags: ["Organic", "Bulk"],
+      verified: true,
+      category: "Root Crops",
+    },
+    {
+      id: 4,
+      name: "Fresh Lettuce",
+      farm: "Green Valley Cooperative",
+      farmRating: 4.6,
+      location: "Port of Spain, Trinidad",
+      country: "Trinidad and Tobago",
+      price: 2.25,
+      unit: "head",
+      minOrder: "50 heads",
+      availability: "Pre-order",
+      availabilityDate: "Oct 12, 2025",
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+      discount: null,
+      tags: ["Hydroponic", "Local"],
+      verified: false,
+      category: "Leafy Greens",
+    },
+    {
+      id: 5,
+      name: "Scotch Bonnet Peppers",
+      farm: "Spice Island Farms",
+      farmRating: 4.9,
+      location: "St. George's, Grenada",
+      country: "Grenada",
+      price: 5.8,
+      unit: "lb",
+      minOrder: "25 lbs",
+      availability: "Available Now",
+      availabilityDate: "Available Now",
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+      discount: null,
+      tags: ["Hot", "Export Ready"],
+      verified: true,
+      category: "Vegetables",
+    },
+    {
+      id: 6,
+      name: "Organic Basil",
+      farm: "Herb Haven",
+      farmRating: 4.5,
+      location: "Castries, St. Lucia",
+      country: "St. Lucia",
+      price: 8.5,
+      unit: "bunch",
+      minOrder: "20 bunches",
+      availability: "Pre-order",
+      availabilityDate: "Oct 10, 2025",
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+      discount: "10% off",
+      tags: ["Organic", "Fresh"],
+      verified: true,
+      category: "Herbs",
+    },
+    {
+      id: 7,
+      name: "Fresh Coconuts",
+      farm: "Palm Paradise",
+      farmRating: 4.7,
+      location: "Nassau, Bahamas",
+      country: "Bahamas",
+      price: 2.0,
+      unit: "each",
+      minOrder: "100 units",
+      availability: "Available Now",
+      availabilityDate: "Available Now",
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+      discount: null,
+      tags: ["Fresh", "Export Ready"],
+      verified: true,
+      category: "Fruits",
+    },
+    {
+      id: 8,
+      name: "Organic Spinach",
+      farm: "Green Leaf Farms",
+      farmRating: 4.6,
+      location: "Kingston, Jamaica",
+      country: "Jamaica",
+      price: 3.0,
+      unit: "lb",
+      minOrder: "75 lbs",
+      availability: "Available Now",
+      availabilityDate: "Available Now",
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+      discount: "5% off",
+      tags: ["Organic", "Local"],
+      verified: true,
+      category: "Leafy Greens",
+    },
+    {
+      id: 9,
+      name: "Plantains",
+      farm: "Caribbean Harvest Co.",
+      farmRating: 4.8,
+      location: "Santo Domingo, DR",
+      country: "Dominican Republic",
+      price: 1.5,
+      unit: "lb",
+      minOrder: "200 lbs",
+      availability: "Pre-order",
+      availabilityDate: "Oct 20, 2025",
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+      discount: null,
+      tags: ["Bulk", "Export Ready"],
+      verified: true,
+      category: "Fruits",
+    },
+    {
+      id: 10,
+      name: "Organic Ginger",
+      farm: "Spice Valley",
+      farmRating: 4.9,
+      location: "Port of Spain, Trinidad",
+      country: "Trinidad and Tobago",
+      price: 12.0,
+      unit: "lb",
+      minOrder: "25 lbs",
+      availability: "Available Now",
+      availabilityDate: "Available Now",
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+      discount: "10% off bulk",
+      tags: ["Organic", "Premium"],
+      verified: true,
+      category: "Herbs",
+    },
+    {
+      id: 11,
+      name: "Bell Peppers",
+      farm: "Veggie Garden Ltd",
+      farmRating: 4.4,
+      location: "Bridgetown, Barbados",
+      country: "Barbados",
+      price: 4.0,
+      unit: "lb",
+      minOrder: "50 lbs",
+      availability: "Pre-order",
+      availabilityDate: "Oct 18, 2025",
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+      discount: null,
+      tags: ["Fresh", "Local"],
+      verified: false,
+      category: "Vegetables",
+    },
+    {
+      id: 12,
+      name: "Papaya",
+      farm: "Tropical Fruits Inc",
+      farmRating: 4.7,
+      location: "Nassau, Bahamas",
+      country: "Bahamas",
+      price: 3.8,
+      unit: "lb",
+      minOrder: "100 lbs",
+      availability: "Available Now",
+      availabilityDate: "Available Now",
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+      discount: "15% off",
+      tags: ["Fresh", "Export Ready"],
+      verified: true,
+      category: "Fruits",
+    },
+  ];
 
-  const fetchProducts = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const client = getClient();
-      const params: Record<string, unknown> = {
-        page: products.page,
-        limit: products.limit,
-        search: debouncedKeyword || undefined,
-        category: productType || undefined,
-        min_price: priceMin ? Number(priceMin) : undefined,
-        max_price: priceMax ? Number(priceMax) : undefined,
-        is_organic:
-          organic === "organic"
-            ? true
-            : organic === "conventional"
-            ? false
-            : undefined,
-        sort_by:
-          sort === "Newest"
-            ? "created_at"
-            : sort === "Price low→high" || sort === "Price high→low"
-            ? "price"
-            : "popularity",
-        sort_order: sort === "Price low→high" ? "asc" : "desc",
-        location: region || undefined,
-        in_stock: true,
-      };
-      const { data } = await client.get("/buyers/marketplace/products", {
-        params,
-      });
-      const mapped: Paged<Product> = {
-        items: data.products ?? [],
-        total: data.total ?? 0,
-        page: data.page ?? 1,
-        limit: data.limit ?? 24,
-      };
-      setProducts(mapped);
-    } catch (e: unknown) {
-      setError(
-        (e as any)?.response?.data?.message || "Failed to load products"
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [
-    debouncedKeyword,
-    productType,
-    priceMin,
-    priceMax,
-    organic,
-    sort,
-    region,
-    products.page,
-    products.limit,
-  ]);
+  // Featured Suppliers
+  const featuredSuppliers = [
+    {
+      id: 1,
+      name: "Caribbean Farms Co.",
+      location: "Kingston, Jamaica",
+      rating: 4.8,
+      totalReviews: 234,
+      products: 47,
+      responseTime: "< 2 hours",
+      verified: true,
+      certifications: ["Organic", "Fair Trade"],
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+    },
+    {
+      id: 2,
+      name: "Tropical Harvest Ltd",
+      location: "Santo Domingo, DR",
+      rating: 4.9,
+      totalReviews: 189,
+      products: 32,
+      responseTime: "< 1 hour",
+      verified: true,
+      certifications: ["Export Ready", "GAP"],
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+    },
+    {
+      id: 3,
+      name: "Island Fresh Produce",
+      location: "Bridgetown, Barbados",
+      rating: 4.7,
+      totalReviews: 156,
+      products: 28,
+      responseTime: "< 3 hours",
+      verified: true,
+      certifications: ["Organic", "Local"],
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+    },
+    {
+      id: 4,
+      name: "Green Valley Cooperative",
+      location: "Port of Spain, Trinidad",
+      rating: 4.6,
+      totalReviews: 98,
+      products: 24,
+      responseTime: "< 4 hours",
+      verified: false,
+      certifications: ["Hydroponic"],
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+    },
+  ];
 
-  const fetchSellers = useCallback(async () => {
-    setLoadingSellers(true);
-    setErrorSellers(null);
-    try {
-      const client = getClient();
-      const params: Record<string, unknown> = {
-        page: 1,
-        limit: 6,
-        search: debouncedKeyword || undefined,
-        location: region || undefined,
-        is_verified: true,
-        sort_by: "product_count",
-        sort_order: "desc",
-      };
-      const { data } = await client.get("/buyers/marketplace/sellers", {
-        params,
-      });
-      const mapped: Paged<Seller> = {
-        items: data.sellers ?? [],
-        total: data.total ?? 0,
-        page: data.page ?? 1,
-        limit: data.limit ?? 6,
-      };
-      setSellers(mapped);
-    } catch (e: unknown) {
-      setErrorSellers(
-        (e as any)?.response?.data?.message || "Failed to load farms"
-      );
-    } finally {
-      setLoadingSellers(false);
-    }
-  }, [debouncedKeyword, region]);
-
-  useEffect(() => {
-    fetchProducts();
-    fetchSellers();
-  }, [fetchProducts, fetchSellers]);
-
-  const upcomingByDate = useMemo(() => {
-    const map = new Map<string, Product[]>();
-    products.items.forEach((p) => {
-      const tag = p.tags?.find((t) => /^harvest:\d{4}-\d{2}-\d{2}$/.test(t));
-      if (tag) {
-        const date = tag.split(":")[1];
-        if (!map.has(date)) map.set(date, []);
-        map.get(date)!.push(p);
+  const toggleSave = (id: number) => {
+    setSavedItems((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
       }
+      return newSet;
     });
-    if (harvestDate) {
-      const filtered = new Map<string, Product[]>();
-      if (map.has(harvestDate))
-        filtered.set(harvestDate, map.get(harvestDate)!);
-      return filtered;
-    }
-    return map;
-  }, [products.items, harvestDate]);
-
-  const log = (name: string, data?: Record<string, unknown>) => {
-    // eslint-disable-next-line no-console
-    console.log(name, data);
   };
+
+  // Check if categories overflow (need scroll arrows)
+  useEffect(() => {
+    const checkOverflow = () => {
+      if (categoryScrollRef.current) {
+        const { scrollWidth, clientWidth } = categoryScrollRef.current;
+        setHasOverflow(scrollWidth > clientWidth);
+      }
+    };
+
+    checkOverflow();
+    window.addEventListener("resize", checkOverflow);
+    return () => window.removeEventListener("resize", checkOverflow);
+  }, []);
+
+  const scrollCategories = (direction: "left" | "right") => {
+    if (categoryScrollRef.current) {
+      const scrollAmount = 300;
+      categoryScrollRef.current.scrollBy({
+        left: direction === "left" ? -scrollAmount : scrollAmount,
+        behavior: "smooth",
+      });
+    }
+  };
+
+  // Filter functions
+  const toggleFilter = (
+    filterArray: string[],
+    setFilter: (arr: string[]) => void,
+    value: string
+  ) => {
+    if (filterArray.includes(value)) {
+      setFilter(filterArray.filter((item) => item !== value));
+    } else {
+      setFilter([...filterArray, value]);
+    }
+  };
+
+  const clearAllFilters = () => {
+    setSelectedAvailability([]);
+    setSelectedCountries([]);
+    setSelectedCertifications([]);
+    setPriceRange([0, 100]);
+  };
+
+  // Get unique countries from harvests
+  const countries = Array.from(
+    new Set(allHarvests.map((h) => h.country))
+  ).sort();
+
+  // Get unique certifications from harvests
+  const certifications = Array.from(
+    new Set(allHarvests.flatMap((h) => h.tags))
+  ).sort();
+
+  // Filter harvests based on selected filters
+  const filteredHarvests = allHarvests.filter((harvest) => {
+    // Search query filter
+    if (
+      searchQuery &&
+      !harvest.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+      !harvest.farm.toLowerCase().includes(searchQuery.toLowerCase())
+    ) {
+      return false;
+    }
+
+    // Category filter
+    if (
+      selectedCategory !== "All Categories" &&
+      harvest.category !== selectedCategory
+    ) {
+      return false;
+    }
+
+    // Availability filter
+    if (
+      selectedAvailability.length > 0 &&
+      !selectedAvailability.includes(harvest.availability)
+    ) {
+      return false;
+    }
+
+    // Country filter
+    if (
+      selectedCountries.length > 0 &&
+      !selectedCountries.includes(harvest.country)
+    ) {
+      return false;
+    }
+
+    // Certification filter
+    if (selectedCertifications.length > 0) {
+      const hasAnyCertification = selectedCertifications.some((cert) =>
+        harvest.tags.includes(cert)
+      );
+      if (!hasAnyCertification) {
+        return false;
+      }
+    }
+
+    // Price range filter
+    if (harvest.price < priceRange[0] || harvest.price > priceRange[1]) {
+      return false;
+    }
+
+    return true;
+  });
+
+  const activeFiltersCount =
+    selectedAvailability.length +
+    selectedCountries.length +
+    selectedCertifications.length +
+    (priceRange[0] !== 0 || priceRange[1] !== 100 ? 1 : 0);
 
   return (
     <div className="min-h-screen bg-[var(--primary-background)]">
-      <main
-        className="max-w-[1280px] mx-auto px-6 md:px-8 py-8 md:py-10"
-        role="main"
-      >
-        {/* Hero */}
-        <section aria-labelledby="hero-title" className="mb-8 md:mb-10">
-          <div className="relative overflow-hidden rounded-3xl border border-[var(--secondary-soft-highlight)] min-h-[420px] md:min-h-[560px]">
-            <div className="absolute inset-0">
-              <Image
-                src="/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg"
-                alt=""
-                fill
-                priority
-                onLoad={() => setHeroLoaded(true)}
-                className={classNames(
-                  "object-cover object-center transition-opacity",
-                  heroLoaded ? "opacity-100" : "opacity-0"
-                )}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/35 to-transparent" />
-            </div>
-            <div className="relative p-8 md:p-12">
-              <h1
-                id="hero-title"
-                className="text-white text-[28px] md:text-[40px] leading-tight font-medium max-w-2xl text-balance drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]"
-              >
-                Discover Fresh Produce, Direct from Farms
-              </h1>
-              <p className="mt-2 text-white/90 text-sm md:text-base max-w-2xl drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
-                Browse trusted farms, explore current inventory, and pre-order
-                upcoming harvests.
-              </p>
-
-              <div className="mt-4 flex flex-col sm:flex-row gap-3">
-                <a
-                  href="#in-stock"
-                  className="btn btn-primary h-10 px-5"
-                  onClick={() =>
-                    log("buyer_cta_click", { cta: "browse_produce" })
-                  }
-                >
-                  Browse Produce
-                </a>
-                <a
-                  href="#featured-farms"
-                  className="btn btn-ghost h-10 px-5 text-white hover:bg-white/15 border border-white/30"
-                  onClick={() => log("buyer_cta_click", { cta: "view_farms" })}
-                >
-                  View Farms
-                </a>
+      <main>
+        {/* Search Section */}
+        <section className="bg-white border-b border-[var(--secondary-soft-highlight)]/30">
+          <div className="max-w-[1400px] mx-auto px-6 py-3">
+            <div className="flex gap-2 items-center">
+              <div className="flex-1 flex items-center bg-[var(--primary-background)] rounded-full overflow-hidden border border-[var(--secondary-soft-highlight)]/30">
+                <input
+                  type="text"
+                  placeholder="Search for produce, farms, or categories..."
+                  className="flex-1 px-3 py-2 text-xs outline-none bg-transparent placeholder:text-[var(--secondary-muted-edge)] text-[var(--secondary-black)]"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                <button className="p-2 m-0.5 bg-[var(--primary-accent2)] text-white rounded-full hover:bg-[var(--primary-accent3)] transition-all duration-200">
+                  <MagnifyingGlassIcon className="h-4 w-4" />
+                </button>
               </div>
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="relative flex items-center gap-1.5 px-3 py-2 bg-[var(--primary-background)] border border-[var(--secondary-soft-highlight)]/30 rounded-full hover:bg-white transition-colors duration-200"
+              >
+                <FunnelIcon className="h-3.5 w-3.5 text-[var(--secondary-black)]" />
+                <span className="font-medium text-xs text-[var(--secondary-black)]">
+                  Filters
+                </span>
+                {activeFiltersCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-[var(--primary-accent2)] text-white text-[9px] rounded-full h-4 w-4 flex items-center justify-center font-semibold">
+                    {activeFiltersCount}
+                  </span>
+                )}
+              </button>
+            </div>
 
-              <div className="mt-6 grid grid-cols-3 gap-3 max-w-md text-white/90 text-sm">
-                {[
-                  "250+ farms listed",
-                  "1,200+ products available",
-                  "Serving 15+ regions",
-                ].map((s, i) => (
-                  <div
-                    key={s}
-                    className={classNames(
-                      "px-3 py-2 rounded-xl bg-black/30 backdrop-blur-sm",
-                      i !== 0 && ""
-                    )}
+            {/* Category Scroll - eBay Style */}
+            <div className="relative mt-2">
+              {hasOverflow && (
+                <>
+                  <button
+                    onClick={() => scrollCategories("left")}
+                    className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white shadow-lg rounded-full p-1 hover:bg-gray-50 transition-all duration-200"
                   >
-                    {s}
-                  </div>
+                    <ChevronLeftIcon className="h-3 w-3 text-[var(--secondary-black)]" />
+                  </button>
+                  <button
+                    onClick={() => scrollCategories("right")}
+                    className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white shadow-lg rounded-full p-1 hover:bg-gray-50 transition-all duration-200"
+                  >
+                    <ChevronRightIcon className="h-3 w-3 text-[var(--secondary-black)]" />
+                  </button>
+                </>
+              )}
+              <div
+                ref={categoryScrollRef}
+                className={`flex gap-1.5 overflow-x-auto scrollbar-hide scroll-smooth ${
+                  hasOverflow ? "px-6" : "px-0"
+                }`}
+                style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+              >
+                {categories.map((category) => (
+                  <button
+                    key={category.name}
+                    onClick={() => setSelectedCategory(category.name)}
+                    className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full font-medium text-xs transition-all duration-200 whitespace-nowrap ${
+                      selectedCategory === category.name
+                        ? "bg-[var(--primary-accent2)] text-white shadow-md"
+                        : "bg-white text-[var(--secondary-black)] hover:bg-[var(--primary-background)] border border-[var(--secondary-soft-highlight)]/30"
+                    }`}
+                  >
+                    <span className="text-sm">{category.icon}</span>
+                    {category.name}
+                  </button>
                 ))}
               </div>
             </div>
           </div>
         </section>
 
-        {/* Filters + Search */}
-        <section aria-labelledby="filters-title" className="mb-6">
-          <h2 id="filters-title" className="sr-only">
-            Search and Filters
-          </h2>
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col md:flex-row md:items-center gap-3">
-              <div
-                role="search"
-                aria-label="Search"
-                className="flex items-center gap-2 w-full md:w-[420px]"
-              >
-                <input
-                  className="input w-full"
-                  placeholder="Search farms or products"
-                  value={keyword}
-                  onChange={(e) => setKeyword(e.target.value)}
-                  onBlur={() =>
-                    log("buyer_search_filter_change", {
-                      filter_name: "keyword",
-                      value: keyword,
-                    })
-                  }
-                  aria-controls="in-stock-list"
-                />
+        {/* Filter Panel */}
+        {showFilters && (
+          <div className="bg-white border-b border-[var(--secondary-soft-highlight)]/30">
+            <div className="max-w-[1400px] mx-auto px-6 py-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-[var(--secondary-black)]">
+                  Filter Products
+                </h3>
+                <button
+                  onClick={clearAllFilters}
+                  className="text-xs text-[var(--primary-accent2)] hover:underline font-medium"
+                >
+                  Clear All
+                </button>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
-                <select
-                  aria-label="Region"
-                  value={region}
-                  onChange={(e) => setRegion(e.target.value)}
-                  className="input h-9"
-                >
-                  <option value="">All regions</option>
-                  <option value="US-CA">California</option>
-                  <option value="US-NY">New York</option>
-                  <option value="US-TX">Texas</option>
-                </select>
-
-                <select
-                  aria-label="Product type"
-                  value={productType}
-                  onChange={(e) => setProductType(e.target.value)}
-                  className="input h-9"
-                >
-                  <option value="">All products</option>
-                  <option value="Vegetables">Vegetables</option>
-                  <option value="Fruits">Fruits</option>
-                  <option value="Herbs">Herbs</option>
-                  <option value="Grains">Grains</option>
-                  <option value="Specialty">Specialty</option>
-                </select>
-
-                <select
-                  aria-label="Organic or Conventional"
-                  value={organic}
-                  onChange={(e) => setOrganic(e.target.value as any)}
-                  className="input h-9"
-                >
-                  <option value="any">Organic/Conventional</option>
-                  <option value="organic">Organic</option>
-                  <option value="conventional">Conventional</option>
-                </select>
-
-                <div className="flex items-center gap-1">
-                  <input
-                    aria-label="Min price"
-                    className="input h-9 w-24"
-                    placeholder="Min"
-                    inputMode="numeric"
-                    value={priceMin}
-                    onChange={(e) => setPriceMin(e.target.value)}
-                  />
-                  <span className="text-[var(--primary-base)]">–</span>
-                  <input
-                    aria-label="Max price"
-                    className="input h-9 w-24"
-                    placeholder="Max"
-                    inputMode="numeric"
-                    value={priceMax}
-                    onChange={(e) => setPriceMax(e.target.value)}
-                  />
+              <div className="grid md:grid-cols-4 gap-4">
+                {/* Availability Filter */}
+                <div>
+                  <h4 className="text-xs font-semibold text-[var(--secondary-black)] mb-2">
+                    Availability
+                  </h4>
+                  <div className="space-y-1.5">
+                    {["Available Now", "Pre-order"].map((option) => (
+                      <label
+                        key={option}
+                        className="flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedAvailability.includes(option)}
+                          onChange={() =>
+                            toggleFilter(
+                              selectedAvailability,
+                              setSelectedAvailability,
+                              option
+                            )
+                          }
+                          className="w-3.5 h-3.5 rounded border-[var(--secondary-soft-highlight)] text-[var(--primary-accent2)] focus:ring-[var(--primary-accent2)]"
+                        />
+                        <span className="text-xs text-[var(--secondary-black)]">
+                          {option}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
 
-                <input
-                  type="date"
-                  aria-label="Harvest date"
-                  className="input h-9"
-                  value={harvestDate}
-                  onChange={(e) => setHarvestDate(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {[
-                "Newest",
-                "Price low→high",
-                "Price high→low",
-                "Availability",
-              ].map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setSort(s as any)}
-                  className={classNames(
-                    "px-3 py-1.5 text-sm rounded-full",
-                    sort === s
-                      ? "bg-[var(--primary-accent2)] text-white"
-                      : "text-[var(--primary-base)] hover:bg-white"
-                  )}
-                  aria-pressed={sort === s}
-                >
-                  {s}
-                </button>
-              ))}
-              <div
-                ref={liveRef}
-                aria-live="polite"
-                aria-atomic="true"
-                className="sr-only"
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* Featured Farms */}
-        <section
-          id="featured-farms"
-          aria-labelledby="featured-farms-title"
-          className="mb-8"
-        >
-          <div className="flex items-end justify-between gap-3 mb-3">
-            <div>
-              <h2
-                id="featured-farms-title"
-                className="text-[22px] md:text-[24px] font-medium text-[var(--secondary-black)]"
-              >
-                Featured Farms
-              </h2>
-              <p className="text-sm text-[var(--secondary-muted-edge)]">
-                Meet the growers behind your food.
-              </p>
-            </div>
-            <Link
-              href="/seller"
-              className="text-sm text-[var(--primary-base)] hover:text-[var(--primary-accent2)]"
-            >
-              View all →
-            </Link>
-          </div>
-
-          <div className="hidden md:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {loadingSellers &&
-              Array.from({ length: 3 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="h-44 rounded-2xl border border-[var(--secondary-soft-highlight)] bg-white animate-pulse"
-                />
-              ))}
-            {!loadingSellers &&
-              sellers.items.map((farm) => (
-                <article
-                  key={farm.id}
-                  className="border border-[var(--secondary-soft-highlight)] rounded-2xl overflow-hidden bg-white hover:shadow-sm focus-within:shadow-sm transition-shadow"
-                >
-                  <div className="h-32 w-full bg-gray-100 relative">
-                    {farm.logo_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={farm.logo_url}
-                        alt={farm.name}
-                        className="absolute inset-0 h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="absolute inset-0 grid place-items-center text-[var(--primary-base)]">
-                        {farm.name.slice(0, 1)}
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-4">
-                    <div className="text-[var(--secondary-black)] font-medium truncate">
-                      {farm.name}
-                    </div>
-                    <div className="mt-0.5 text-sm text-[var(--primary-base)] truncate">
-                      {farm.location || "Location unavailable"}
-                    </div>
-                    <div className="mt-2 flex items-center justify-between text-sm">
-                      <span className="text-[var(--primary-base)]">
-                        {farm.product_count} listings
-                      </span>
-                      <Link
-                        href={`/farms/${farm.id}`}
-                        className="btn btn-ghost h-8 px-3"
-                        onClick={() =>
-                          log("buyer_farm_card_view", {
-                            farm_id: farm.id,
-                            position: "featured",
-                          })
-                        }
+                {/* Country Filter */}
+                <div>
+                  <h4 className="text-xs font-semibold text-[var(--secondary-black)] mb-2">
+                    Country
+                  </h4>
+                  <div className="space-y-1.5 max-h-28 overflow-y-auto">
+                    {countries.map((country) => (
+                      <label
+                        key={country}
+                        className="flex items-center gap-1.5 cursor-pointer"
                       >
-                        View Farm
-                      </Link>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            {!loadingSellers && !errorSellers && sellers.items.length === 0 && (
-              <div className="col-span-3 text-sm text-[var(--primary-base)]">
-                No featured farms right now.
-              </div>
-            )}
-            {errorSellers && (
-              <div className="col-span-3 text-sm text-[var(--primary-accent2)]">
-                {errorSellers}
-              </div>
-            )}
-          </div>
-
-          {/* Mobile horizontal scroll */}
-          <div
-            className="md:hidden overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none]"
-            style={{ WebkitOverflowScrolling: "touch" }}
-          >
-            <div className="flex gap-3 pr-2">
-              {loadingSellers &&
-                Array.from({ length: 3 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="min-w-[260px] h-44 rounded-2xl border border-[var(--secondary-soft-highlight)] bg-white animate-pulse"
-                  />
-                ))}
-              {!loadingSellers &&
-                sellers.items.map((farm) => (
-                  <article
-                    key={farm.id}
-                    className="min-w-[260px] border border-[var(--secondary-soft-highlight)] rounded-2xl overflow-hidden bg-white hover:shadow-sm focus-within:shadow-sm transition-shadow"
-                  >
-                    <div className="h-28 w-full bg-gray-100 relative">
-                      {farm.logo_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={farm.logo_url}
-                          alt={farm.name}
-                          className="absolute inset-0 h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="absolute inset-0 grid place-items-center text-[var(--primary-base)]">
-                          {farm.name.slice(0, 1)}
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-3">
-                      <div className="text-[var(--secondary-black)] font-medium truncate">
-                        {farm.name}
-                      </div>
-                      <div className="mt-0.5 text-sm text-[var(--primary-base)] truncate">
-                        {farm.location || "Location"}
-                      </div>
-                      <div className="mt-2 flex items-center justify-between text-sm">
-                        <span className="text-[var(--primary-base)]">
-                          {farm.product_count} listings
-                        </span>
-                        <Link
-                          href={`/farms/${farm.id}`}
-                          className="text-[var(--primary-base)] hover:text-[var(--primary-accent2)]"
-                        >
-                          View
-                        </Link>
-                      </div>
-                    </div>
-                  </article>
-                ))}
-            </div>
-          </div>
-        </section>
-
-        {/* In Stock Today */}
-        <section
-          id="in-stock"
-          aria-labelledby="in-stock-title"
-          className="mb-8"
-        >
-          <div className="flex items-end justify-between gap-3 mb-3">
-            <div>
-              <h2
-                id="in-stock-title"
-                className="text-[22px] md:text-[24px] font-medium text-[var(--secondary-black)]"
-              >
-                In Stock Today
-              </h2>
-              <p className="text-sm text-[var(--secondary-muted-edge)]">
-                Ready to ship within 24h
-              </p>
-            </div>
-          </div>
-
-          {/* Loading & errors */}
-          {loading && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="h-64 rounded-2xl border border-[var(--secondary-soft-highlight)] bg-white animate-pulse"
-                />
-              ))}
-            </div>
-          )}
-          {error && !loading && (
-            <div className="text-sm text-[var(--primary-accent2)]">{error}</div>
-          )}
-
-          <div
-            id="in-stock-list"
-            role="list"
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-          >
-            {!loading &&
-              !error &&
-              products.items.map((p, idx) => {
-                const low =
-                  p.stock_quantity <= 0 ? false : p.stock_quantity < 10;
-                return (
-                  <article
-                    key={p.id}
-                    role="listitem"
-                    className="border border-[var(--secondary-soft-highlight)] rounded-2xl overflow-hidden bg-white hover:shadow-sm focus-within:shadow-sm transition-shadow"
-                  >
-                    <div className="h-40 w-full bg-gray-100 relative">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={
-                          p.image_url ||
-                          "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg"
-                        }
-                        alt={p.name}
-                        className="absolute inset-0 h-full w-full object-cover"
-                      />
-                      <div className="absolute top-2 left-2 flex gap-1">
-                        {p.is_organic && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] bg-white/90 text-[var(--secondary-black)]">
-                            Organic
-                          </span>
-                        )}
-                        {low && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] bg-[color:rgb(203_89_39_/_.10)] text-[var(--primary-accent2)]">
-                            Low stock
-                          </span>
-                        )}
-                        {p.is_local && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] bg-white/90 text-[var(--secondary-black)]">
-                            Local
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="p-4">
-                      <div
-                        className="text-[var(--secondary-black)] font-medium truncate"
-                        title={p.name}
-                      >
-                        {p.name}
-                      </div>
-                      <div className="mt-0.5 text-sm text-[var(--primary-base)] truncate">
-                        {p.seller?.name}
-                      </div>
-                      <div className="mt-2 flex items-center justify-between">
-                        <div className="text-[var(--secondary-black)]">
-                          {new Intl.NumberFormat(undefined, {
-                            style: "currency",
-                            currency: p.currency || "USD",
-                          }).format(p.current_price)}
-                          <span className="text-sm text-[var(--primary-base)]">
-                            {" "}
-                            / {p.unit_of_measurement}
-                          </span>
-                        </div>
-                        <div className="text-sm text-[var(--primary-base)]">
-                          {p.stock_quantity} available
-                        </div>
-                      </div>
-                      <div className="mt-3 flex items-center gap-2">
-                        <button
-                          className="btn btn-primary h-9 px-4"
-                          onClick={() =>
-                            log("buyer_product_click", {
-                              product_id: p.id,
-                              farm_id: p.seller?.id,
-                              position: idx,
-                              section: "in_stock",
-                            })
+                        <input
+                          type="checkbox"
+                          checked={selectedCountries.includes(country)}
+                          onChange={() =>
+                            toggleFilter(
+                              selectedCountries,
+                              setSelectedCountries,
+                              country
+                            )
                           }
-                        >
-                          Add to Cart
-                        </button>
-                        <Link
-                          href={`/products/${p.id}`}
-                          className="btn btn-ghost h-9 px-4"
-                        >
-                          View Details
-                        </Link>
-                      </div>
+                          className="w-3.5 h-3.5 rounded border-[var(--secondary-soft-highlight)] text-[var(--primary-accent2)] focus:ring-[var(--primary-accent2)]"
+                        />
+                        <span className="text-xs text-[var(--secondary-black)]">
+                          {country}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Certifications/Tags Filter */}
+                <div>
+                  <h4 className="text-xs font-semibold text-[var(--secondary-black)] mb-2">
+                    Certifications
+                  </h4>
+                  <div className="space-y-1.5 max-h-28 overflow-y-auto">
+                    {certifications.map((cert) => (
+                      <label
+                        key={cert}
+                        className="flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedCertifications.includes(cert)}
+                          onChange={() =>
+                            toggleFilter(
+                              selectedCertifications,
+                              setSelectedCertifications,
+                              cert
+                            )
+                          }
+                          className="w-3.5 h-3.5 rounded border-[var(--secondary-soft-highlight)] text-[var(--primary-accent2)] focus:ring-[var(--primary-accent2)]"
+                        />
+                        <span className="text-xs text-[var(--secondary-black)]">
+                          {cert}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Price Range Filter */}
+                <div>
+                  <h4 className="text-xs font-semibold text-[var(--secondary-black)] mb-2">
+                    Price Range (per unit)
+                  </h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        value={priceRange[0]}
+                        onChange={(e) =>
+                          setPriceRange([Number(e.target.value), priceRange[1]])
+                        }
+                        className="w-16 px-2 py-1 text-xs border border-[var(--secondary-soft-highlight)]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)]"
+                        placeholder="Min"
+                      />
+                      <span className="text-xs text-[var(--secondary-muted-edge)]">
+                        to
+                      </span>
+                      <input
+                        type="number"
+                        value={priceRange[1]}
+                        onChange={(e) =>
+                          setPriceRange([priceRange[0], Number(e.target.value)])
+                        }
+                        className="w-16 px-2 py-1 text-xs border border-[var(--secondary-soft-highlight)]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)]"
+                        placeholder="Max"
+                      />
                     </div>
-                  </article>
-                );
-              })}
-            {!loading && !error && products.items.length === 0 && (
-              <div className="col-span-full text-sm text-[var(--primary-base)]">
-                No matches. Try adjusting filters.
+                    <div className="text-[10px] text-[var(--secondary-muted-edge)]">
+                      ${priceRange[0]} - ${priceRange[1]}
+                    </div>
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
-        </section>
 
-        {/* Upcoming Harvests */}
-        <section aria-labelledby="upcoming-title" className="mb-8">
-          <div className="flex items-end justify-between gap-3 mb-3">
-            <div>
-              <h2
-                id="upcoming-title"
-                className="text-[22px] md:text-[24px] font-medium text-[var(--secondary-black)]"
-              >
-                Upcoming Harvests
-              </h2>
-              <p className="text-sm text-[var(--secondary-muted-edge)]">
-                Pre-order fresh produce before it sells out
-              </p>
-            </div>
-          </div>
-
-          {upcomingByDate.size === 0 ? (
-            <div className="text-sm text-[var(--primary-base)]">
-              No upcoming harvests found. Check back soon.
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <div className="flex items-start gap-4">
-                {Array.from(upcomingByDate.entries()).map(([date, items]) => (
-                  <div key={date} className="min-w-[260px]">
-                    <div className="sticky top-0 bg-[var(--primary-background)]/80 backdrop-blur px-1 py-1.5 rounded-md text-sm text-[var(--secondary-black)]">
-                      {new Date(date).toLocaleDateString(undefined, {
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </div>
-                    <div className="mt-2 space-y-3">
-                      {items.map((p) => (
-                        <article
-                          key={p.id}
-                          className="border border-[var(--secondary-soft-highlight)] rounded-2xl overflow-hidden bg-white"
+              {/* Active Filters Display */}
+              {activeFiltersCount > 0 && (
+                <div className="mt-4 pt-3 border-t border-[var(--secondary-soft-highlight)]/30">
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedAvailability.map((filter) => (
+                      <span
+                        key={filter}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-[var(--primary-accent2)]/10 text-[var(--primary-accent2)] rounded-full text-xs"
+                      >
+                        {filter}
+                        <button
+                          onClick={() =>
+                            toggleFilter(
+                              selectedAvailability,
+                              setSelectedAvailability,
+                              filter
+                            )
+                          }
+                          className="hover:text-[var(--primary-accent3)]"
                         >
-                          <div className="h-28 w-full bg-gray-100 relative">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={
-                                p.image_url ||
-                                "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg"
-                              }
-                              alt={p.name}
-                              className="absolute inset-0 h-full w-full object-cover"
-                            />
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                    {selectedCountries.map((filter) => (
+                      <span
+                        key={filter}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-[var(--primary-accent2)]/10 text-[var(--primary-accent2)] rounded-full text-xs"
+                      >
+                        {filter}
+                        <button
+                          onClick={() =>
+                            toggleFilter(
+                              selectedCountries,
+                              setSelectedCountries,
+                              filter
+                            )
+                          }
+                          className="hover:text-[var(--primary-accent3)]"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                    {selectedCertifications.map((filter) => (
+                      <span
+                        key={filter}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-[var(--primary-accent2)]/10 text-[var(--primary-accent2)] rounded-full text-xs"
+                      >
+                        {filter}
+                        <button
+                          onClick={() =>
+                            toggleFilter(
+                              selectedCertifications,
+                              setSelectedCertifications,
+                              filter
+                            )
+                          }
+                          className="hover:text-[var(--primary-accent3)]"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="max-w-[1400px] mx-auto px-6 py-5">
+          <div className="grid gap-5 lg:grid-cols-3">
+            {/* Main Content - Products */}
+            <div className="space-y-5 lg:col-span-2">
+              {/* Available Harvests Grid */}
+              <section>
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h2 className="text-lg font-medium text-[var(--secondary-black)]">
+                      Available Harvests
+                    </h2>
+                    <p className="text-xs text-[var(--secondary-muted-edge)] mt-0.5">
+                      Showing {filteredHarvests.length} of {allHarvests.length}{" "}
+                      products
+                    </p>
+                  </div>
+                  <select className="px-3 py-1.5 bg-white border border-[var(--secondary-soft-highlight)]/30 rounded-full text-xs font-medium text-[var(--secondary-black)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)]">
+                    <option>Sort: Newest</option>
+                    <option>Price: Low to High</option>
+                    <option>Price: High to Low</option>
+                    <option>Most Popular</option>
+                  </select>
+                </div>
+
+                {filteredHarvests.length === 0 ? (
+                  <div className="bg-white rounded-2xl p-8 text-center border border-[var(--secondary-soft-highlight)]/20">
+                    <FunnelIcon className="h-12 w-12 text-[var(--secondary-muted-edge)] mx-auto mb-3 opacity-50" />
+                    <h3 className="text-lg font-semibold text-[var(--secondary-black)] mb-1.5">
+                      No products found
+                    </h3>
+                    <p className="text-sm text-[var(--secondary-muted-edge)] mb-4">
+                      Try adjusting your filters to see more results
+                    </p>
+                    <button
+                      onClick={clearAllFilters}
+                      className="px-4 py-2 bg-[var(--primary-accent2)] text-white rounded-full text-sm font-medium hover:bg-[var(--primary-accent3)] transition-all duration-200"
+                    >
+                      Clear All Filters
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                    {filteredHarvests.map((harvest) => (
+                      <Link
+                        key={harvest.id}
+                        href={`/buyer/product/${harvest.id}`}
+                        className="bg-white rounded-lg overflow-hidden border border-[var(--secondary-soft-highlight)]/20 hover:shadow-md transition-all duration-200 group block"
+                      >
+                        <div className="relative h-32">
+                          <Image
+                            src={harvest.image}
+                            alt={harvest.name}
+                            fill
+                            className="object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                          {harvest.discount && (
+                            <div className="absolute top-1.5 left-1.5 bg-[var(--primary-accent2)] text-white px-1.5 py-0.5 rounded text-[10px] font-bold">
+                              {harvest.discount}
+                            </div>
+                          )}
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              toggleSave(harvest.id);
+                            }}
+                            className="absolute top-1.5 right-1.5 bg-white/90 backdrop-blur-sm p-1 rounded-full hover:bg-white transition-all duration-200 z-10"
+                          >
+                            {savedItems.has(harvest.id) ? (
+                              <HeartSolidIcon className="h-3.5 w-3.5 text-[var(--primary-accent2)]" />
+                            ) : (
+                              <HeartIcon className="h-3.5 w-3.5 text-[var(--secondary-black)]" />
+                            )}
+                          </button>
+                          <div className="absolute bottom-1.5 right-1.5 flex items-center gap-0.5 bg-white/90 backdrop-blur-sm px-1.5 py-0.5 rounded-full">
+                            <StarIcon className="h-2.5 w-2.5 fill-yellow-400 text-yellow-400" />
+                            <span className="text-[10px] font-bold">
+                              {harvest.farmRating}
+                            </span>
                           </div>
-                          <div className="p-3">
-                            <div className="text-[var(--secondary-black)] font-medium truncate">
-                              {p.name}
-                            </div>
-                            <div className="mt-0.5 text-sm text-[var(--primary-base)] truncate">
-                              {p.seller?.name}
-                            </div>
-                            <div className="mt-2 flex items-center justify-between text-sm">
-                              <span className="text-[var(--secondary-black)]">
-                                {new Intl.NumberFormat(undefined, {
-                                  style: "currency",
-                                  currency: p.currency || "USD",
-                                }).format(p.current_price)}
+                        </div>
+
+                        <div className="p-3">
+                          <h3 className="font-semibold text-sm text-[var(--secondary-black)] mb-2 group-hover:text-[var(--primary-accent2)] transition-colors line-clamp-1">
+                            {harvest.name}
+                          </h3>
+
+                          <div
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              window.location.href = `/buyer/supplier/${harvest.id}`;
+                            }}
+                            className="flex items-center gap-1.5 mb-2 group/supplier cursor-pointer"
+                          >
+                            <div className="w-5 h-5 rounded-full bg-[var(--primary-accent2)]/10 flex items-center justify-center flex-shrink-0">
+                              <span className="text-[8px] font-bold text-[var(--primary-accent2)]">
+                                {harvest.farm.charAt(0)}
                               </span>
-                              <span className="text-[var(--primary-base)]">
-                                Pre-order price
+                            </div>
+                            <span className="text-[11px] text-[var(--secondary-muted-edge)] truncate group-hover/supplier:text-[var(--primary-accent2)] transition-colors">
+                              {harvest.farm}
+                            </span>
+                            {harvest.verified && (
+                              <CheckBadgeIcon className="h-2.5 w-2.5 text-[var(--primary-accent2)] flex-shrink-0" />
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-1 text-[11px] text-[var(--secondary-muted-edge)] mb-2">
+                            <MapPinIcon className="h-2.5 w-2.5 flex-shrink-0" />
+                            <span className="truncate">{harvest.location}</span>
+                          </div>
+
+                          <div className="flex flex-wrap gap-1 mb-2">
+                            {harvest.tags.slice(0, 2).map((tag) => (
+                              <span
+                                key={tag}
+                                className="px-1.5 py-0.5 bg-[var(--primary-background)] rounded text-[10px] font-medium text-[var(--secondary-black)]"
+                              >
+                                {tag}
                               </span>
+                            ))}
+                          </div>
+
+                          <div className="flex items-center justify-between pt-2 border-t border-[var(--secondary-soft-highlight)]/20">
+                            <div>
+                              <div className="text-lg font-bold text-[var(--secondary-black)] leading-none">
+                                ${harvest.price.toFixed(2)}
+                                <span className="text-[10px] font-normal text-[var(--secondary-muted-edge)]">
+                                  /{harvest.unit}
+                                </span>
+                              </div>
+                              <div className="text-[10px] text-[var(--secondary-muted-edge)] mt-0.5">
+                                Min: {harvest.minOrder}
+                              </div>
                             </div>
                             <button
-                              className="mt-3 btn btn-primary h-9 px-4"
-                              onClick={() =>
-                                log("buyer_preorder_action", {
-                                  product_id: p.id,
-                                  expected_harvest_date: date,
-                                  quantity_requested: 1,
-                                })
-                              }
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                console.log("Add to cart:", harvest.id);
+                              }}
+                              className="px-3 py-1.5 bg-[var(--primary-accent2)] text-white rounded-full text-xs font-semibold hover:bg-[var(--primary-accent3)] transition-all duration-200"
                             >
-                              Reserve Now
+                              Add
                             </button>
                           </div>
-                        </article>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+
+                {filteredHarvests.length > 0 &&
+                  filteredHarvests.length < allHarvests.length && (
+                    <div className="text-center mt-5">
+                      <button className="px-5 py-2 bg-white border-2 border-[var(--primary-accent2)] text-[var(--primary-accent2)] rounded-full text-sm font-medium hover:bg-[var(--primary-accent2)] hover:text-white transition-all duration-200">
+                        Load More Harvests
+                      </button>
+                    </div>
+                  )}
+              </section>
+            </div>
+
+            {/* Sidebar - Right Side */}
+            <div className="space-y-4">
+              {/* Harvest Social Feed - Toggleable */}
+              <section className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/20 overflow-hidden">
+                <button
+                  onClick={() => setShowHarvestFeed(!showHarvestFeed)}
+                  className="w-full p-3 flex items-center justify-between hover:bg-[var(--primary-background)] transition-colors duration-200"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <CalendarIcon className="h-4 w-4 text-[var(--primary-accent2)]" />
+                    <h3 className="text-sm font-semibold text-[var(--secondary-black)]">
+                      Harvest Updates
+                    </h3>
+                  </div>
+                  <ChevronRightIcon
+                    className={`h-4 w-4 text-[var(--secondary-muted-edge)] transition-transform duration-200 ${
+                      showHarvestFeed ? "rotate-90" : ""
+                    }`}
+                  />
+                </button>
+
+                {showHarvestFeed && (
+                  <div className="max-h-[500px] overflow-y-auto border-t border-[var(--secondary-soft-highlight)]/20">
+                    <div className="p-3 space-y-3">
+                      {harvestUpdates.map((update) => (
+                        <div
+                          key={update.id}
+                          className="pb-3 border-b border-[var(--secondary-soft-highlight)]/20 last:border-0 last:pb-0"
+                        >
+                          {/* Compact Post Header */}
+                          <div className="flex items-start gap-1.5 mb-2">
+                            <div className="relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
+                              <Image
+                                src={update.farmAvatar}
+                                alt={update.farmName}
+                                fill
+                                className="object-cover"
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1">
+                                <h4 className="font-semibold text-xs text-[var(--secondary-black)] truncate">
+                                  {update.farmName}
+                                </h4>
+                                {update.verified && (
+                                  <CheckBadgeIcon className="h-3 w-3 text-[var(--primary-accent2)] flex-shrink-0" />
+                                )}
+                              </div>
+                              <div className="flex items-center gap-0.5 text-[10px] text-[var(--secondary-muted-edge)]">
+                                <ClockIcon className="h-2.5 w-2.5" />
+                                {update.timeAgo}
+                              </div>
+                            </div>
+                            <div className="px-1.5 py-0.5 bg-[var(--secondary-highlight1)]/20 rounded-full text-[10px] font-medium text-[var(--secondary-black)] whitespace-nowrap">
+                              {update.harvestDate}
+                            </div>
+                          </div>
+
+                          <p className="text-xs text-[var(--secondary-black)] mb-2 leading-relaxed">
+                            {update.content}
+                          </p>
+
+                          {/* Compact Post Image */}
+                          <div className="relative h-32 rounded-lg overflow-hidden mb-2">
+                            <Image
+                              src={update.images[0]}
+                              alt="Harvest update"
+                              fill
+                              className="object-cover"
+                            />
+                          </div>
+
+                          {/* Compact Post Actions */}
+                          <div className="flex items-center justify-between text-[10px]">
+                            <button className="flex items-center gap-0.5 text-[var(--secondary-muted-edge)] hover:text-[var(--primary-accent2)] transition-colors">
+                              <HeartIcon className="h-3 w-3" />
+                              <span>{update.likes}</span>
+                            </button>
+                            <button className="flex items-center gap-0.5 text-[var(--secondary-muted-edge)] hover:text-[var(--primary-accent2)] transition-colors">
+                              <ChatBubbleLeftIcon className="h-3 w-3" />
+                              <span>{update.comments}</span>
+                            </button>
+                            <Link
+                              href={`/buyer/harvest/${update.id}`}
+                              className="flex items-center gap-0.5 text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)] transition-colors font-medium"
+                            >
+                              View
+                              <ArrowRightIcon className="h-2.5 w-2.5" />
+                            </Link>
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </section>
-
-        {/* Marketplace Highlights */}
-        <section aria-labelledby="highlights-title" className="mb-8">
-          <h2
-            id="highlights-title"
-            className="text-[22px] md:text-[24px] font-medium text-[var(--secondary-black)] mb-3"
-          >
-            Marketplace Highlights
-          </h2>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* Top Categories */}
-            <div className="border border-[var(--secondary-soft-highlight)] rounded-2xl p-4 bg-white">
-              <div className="text-[var(--secondary-black)] font-medium">
-                Top Categories
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {["Vegetables", "Fruits", "Herbs", "Grains", "Specialty"].map(
-                  (c) => (
-                    <button
-                      key={c}
-                      className="px-3 py-1.5 rounded-full text-sm bg-gray-50 text-[var(--secondary-black)] hover:bg-gray-100"
-                      onClick={() => setProductType(c)}
-                    >
-                      {c}
-                    </button>
-                  )
                 )}
-              </div>
-            </div>
+              </section>
 
-            {/* Trending (re-use first few products) */}
-            <div className="border border-[var(--secondary-soft-highlight)] rounded-2xl p-4 bg-white">
-              <div className="text-[var(--secondary-black)] font-medium">
-                Trending Products
-              </div>
-              <div className="mt-3 overflow-x-auto">
-                <div className="flex gap-3 pr-2">
-                  {products.items.slice(0, 6).map((p) => (
-                    <button
-                      key={p.id}
-                      className="min-w-[160px] border border-[var(--secondary-soft-highlight)] rounded-xl p-3 text-left hover:bg-gray-50"
-                      onClick={() =>
-                        log("buyer_product_click", {
-                          product_id: p.id,
-                          farm_id: p.seller?.id,
-                          section: "trending",
-                        })
-                      }
-                    >
-                      <div className="h-20 w-full bg-gray-100 rounded-lg mb-2 overflow-hidden">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={
-                            p.image_url ||
-                            "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg"
-                          }
-                          alt={p.name}
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                      <div
-                        className="text-[var(--secondary-black)] text-sm truncate"
-                        title={p.name}
-                      >
-                        {p.name}
-                      </div>
-                      <div className="text-[var(--primary-base)] text-xs truncate">
-                        {p.seller?.name}
-                      </div>
-                    </button>
-                  ))}
-                  {products.items.length === 0 && (
-                    <div className="text-sm text-[var(--primary-base)]">
-                      No trending items yet.
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Buyer Favorites (placeholder links) */}
-            <div className="border border-[var(--secondary-soft-highlight)] rounded-2xl p-4 bg-white">
-              <div className="text-[var(--secondary-black)] font-medium">
-                Buyer Favorites
-              </div>
-              <ul className="mt-3 space-y-2 text-sm">
-                {["High-rated farms", "Best sellers", "Fastest delivery"].map(
-                  (t) => (
-                    <li key={t}>
-                      <button
-                        className="text-[var(--primary-base)] hover:text-[var(--primary-accent2)]"
-                        onClick={() =>
-                          log("buyer_highlight_click", { title: t })
-                        }
-                      >
-                        {t} →
-                      </button>
-                    </li>
-                  )
-                )}
-              </ul>
-            </div>
-          </div>
-        </section>
-
-        {/* Insights footer */}
-        <section aria-labelledby="insights-title" className="mb-4">
-          <h2 id="insights-title" className="sr-only">
-            Insights and Links
-          </h2>
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-            <div className="lg:col-span-3 border border-[var(--secondary-soft-highlight)] rounded-2xl p-4 bg-white">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {[
-                  "Average delivery time: 2.3 days",
-                  "Repeat purchase rate: 42%",
-                  "Farms with certifications: 68%",
-                ].map((s) => (
-                  <div
-                    key={s}
-                    className="px-3 py-3 rounded-xl bg-gray-50 text-sm text-[var(--secondary-black)]"
-                  >
-                    {s}
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="border border-[var(--secondary-soft-highlight)] rounded-2xl p-4 bg-white">
-              <ul className="space-y-2 text-sm">
-                {[
-                  "How Procur Works",
-                  "Sustainability Commitment",
-                  "Buyer Help Center",
-                ].map((l) => (
-                  <li key={l}>
+              {/* Featured Suppliers */}
+              <section className="bg-white rounded-2xl p-4 border border-[var(--secondary-soft-highlight)]/20">
+                <h3 className="text-sm font-semibold text-[var(--secondary-black)] mb-3 flex items-center gap-1.5">
+                  <UserGroupIcon className="h-4 w-4 text-[var(--primary-accent2)]" />
+                  Featured Suppliers
+                </h3>
+                <div className="space-y-3">
+                  {featuredSuppliers.map((supplier) => (
                     <Link
-                      href="#"
-                      className="text-[var(--primary-base)] hover:text-[var(--primary-accent2)]"
+                      key={supplier.id}
+                      href={`/seller/${supplier.name
+                        .toLowerCase()
+                        .replace(/\s+/g, "-")}`}
+                      className="block group"
                     >
-                      {l}
+                      <div className="flex gap-2">
+                        <div className="relative w-12 h-12 rounded-xl overflow-hidden flex-shrink-0">
+                          <Image
+                            src={supplier.image}
+                            alt={supplier.name}
+                            fill
+                            className="object-cover group-hover:scale-110 transition-transform duration-300"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1 mb-0.5">
+                            <h4 className="font-semibold text-xs text-[var(--secondary-black)] truncate group-hover:text-[var(--primary-accent2)] transition-colors">
+                              {supplier.name}
+                            </h4>
+                            {supplier.verified && (
+                              <CheckBadgeIcon className="h-3 w-3 text-[var(--primary-accent2)] flex-shrink-0" />
+                            )}
+                          </div>
+                          <div className="flex items-center gap-0.5 text-[10px] text-[var(--secondary-muted-edge)] mb-1">
+                            <MapPinIcon className="h-2.5 w-2.5" />
+                            <span className="truncate">
+                              {supplier.location}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-[10px]">
+                            <div className="flex items-center gap-0.5">
+                              <StarIcon className="h-2.5 w-2.5 fill-yellow-400 text-yellow-400" />
+                              <span className="font-medium">
+                                {supplier.rating}
+                              </span>
+                              <span className="text-[var(--secondary-muted-edge)]">
+                                ({supplier.totalReviews})
+                              </span>
+                            </div>
+                            <span className="text-[var(--secondary-muted-edge)]">
+                              {supplier.products} products
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     </Link>
-                  </li>
-                ))}
-              </ul>
+                  ))}
+                </div>
+                <Link
+                  href="/buyer/suppliers"
+                  className="block w-full mt-3 py-2 text-xs font-medium text-[var(--primary-accent2)] hover:bg-[var(--primary-background)] rounded-lg transition-colors duration-200 text-center"
+                >
+                  View All Suppliers →
+                </Link>
+              </section>
+
+              {/* Quick Stats */}
+              <section className="bg-gradient-to-br from-[var(--primary-accent2)] to-[var(--primary-accent3)] rounded-2xl p-4 text-white">
+                <h3 className="text-sm font-semibold mb-3">
+                  Marketplace Stats
+                </h3>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs opacity-90">Active Harvests</span>
+                    <span className="text-base font-bold">1,247</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs opacity-90">
+                      Verified Suppliers
+                    </span>
+                    <span className="text-base font-bold">342</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs opacity-90">
+                      This Week&apos;s Orders
+                    </span>
+                    <span className="text-base font-bold">8,923</span>
+                  </div>
+                </div>
+              </section>
+
+              {/* Help & Support */}
+              <section className="bg-[var(--secondary-highlight1)]/10 rounded-2xl p-4 border border-[var(--secondary-highlight1)]/30">
+                <h3 className="text-sm font-semibold text-[var(--secondary-black)] mb-2">
+                  Need Help?
+                </h3>
+                <p className="text-xs text-[var(--secondary-muted-edge)] mb-3">
+                  Our team is here to assist you with orders, suppliers, and
+                  more.
+                </p>
+                <button className="w-full py-2 bg-[var(--secondary-black)] text-white rounded-full text-xs font-medium hover:bg-[var(--secondary-muted-edge)] transition-colors duration-200">
+                  Contact Support
+                </button>
+              </section>
             </div>
           </div>
-        </section>
+        </div>
       </main>
-
-      <Footer />
     </div>
   );
 }

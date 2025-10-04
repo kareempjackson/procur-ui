@@ -1,5 +1,13 @@
 import AuthGuard from "@/components/AuthGuard";
 import BuyerTopNavigation from "@/components/navigation/BuyerTopNavigation";
+import Footer from "@/components/footer/Footer";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Buyer Dashboard",
+  description:
+    "Manage your orders, browse suppliers, and discover fresh produce on Procur's buyer dashboard.",
+};
 
 export default function BuyerLayout({
   children,
@@ -7,9 +15,12 @@ export default function BuyerLayout({
   children: React.ReactNode;
 }) {
   return (
-    <AuthGuard allowAccountTypes={["buyer"]}>
-      <BuyerTopNavigation />
-      {children}
-    </AuthGuard>
+    <>
+      <AuthGuard allowAccountTypes={["buyer"]}>
+        <BuyerTopNavigation />
+        {children}
+      </AuthGuard>
+      <Footer />
+    </>
   );
 }

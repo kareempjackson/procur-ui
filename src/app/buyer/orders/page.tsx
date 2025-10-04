@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import Footer from "@/components/footer/Footer";
 import { getApiClient } from "@/lib/apiClient";
 
 type BuyerOrder = {
@@ -302,8 +301,6 @@ export default function BuyerOrdersPage() {
           </div>
         )}
       </main>
-
-      <Footer />
     </div>
   );
 }

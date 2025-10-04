@@ -3,7 +3,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Footer from "@/components/footer/Footer";
 import { useAppDispatch, useAppSelector } from "@/store";
 import {
   fetchSellerTransactions,
@@ -809,8 +808,6 @@ export default function SellerTransactionsPage() {
           </div>
         )}
       </main>
-
-      <Footer />
     </div>
   );
 }

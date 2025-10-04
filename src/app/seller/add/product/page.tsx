@@ -5,7 +5,6 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import SellerTopNavigation from "@/components/navigation/SellerTopNavigation";
-import Footer from "@/components/footer/Footer";
 import { getApiClient } from "@/lib/apiClient";
 import { getSupabaseClient } from "@/lib/supabaseClient";
 import { useSelector } from "react-redux";
@@ -933,8 +932,6 @@ export default function AddProductPage() {
           </div>
         </div>
       </main>
-
-      <Footer />
     </div>
   );
 }

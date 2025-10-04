@@ -6,10 +6,18 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   BellIcon,
+  HeartIcon,
   ShoppingCartIcon,
   Bars3Icon,
   XMarkIcon,
+  ChartBarIcon,
 } from "@heroicons/react/24/outline";
+import {
+  BellIcon as BellSolidIcon,
+  HeartIcon as HeartSolidIcon,
+  ShoppingCartIcon as ShoppingCartSolidIcon,
+  ChartBarIcon as ChartBarSolidIcon,
+} from "@heroicons/react/24/solid";
 import { useAppDispatch, useAppSelector } from "@/store";
 import { selectAuthUser, signout } from "@/store/slices/authSlice";
 import {
@@ -78,10 +86,10 @@ const BuyerTopNavigation: React.FC = () => {
     <>
       <nav className={`${navBgClass} sticky top-0 z-40`} ref={navRef}>
         <div className="max-w-7xl mx-auto px-6">
-          <div className="relative flex items-center h-20">
-            {/* Logo */}
-            <div className="flex-shrink-0 relative">
-              <Link href="/buyer" className="flex items-center relative">
+          <div className="flex items-center h-20">
+            {/* Logo - Left Section */}
+            <div className="flex-[0.8] flex items-center">
+              <Link href="/buyer" className="flex items-center relative group">
                 <Image
                   src="/images/logos/procur-logo.svg"
                   alt="Procur"
@@ -89,56 +97,74 @@ const BuyerTopNavigation: React.FC = () => {
                   height={32}
                   className="h-8 w-auto"
                 />
-                <span className="absolute -bottom-2 right-0 text-[10px] leading-none text-[color:var(--secondary-muted-edge)]">
+                <span
+                  className={`absolute -bottom-2 right-0 text-[10px] leading-none transition-colors duration-200 ${
+                    pathname === "/buyer"
+                      ? "text-[var(--primary-accent2)] font-semibold"
+                      : "text-[color:var(--secondary-muted-edge)]"
+                  }`}
+                >
                   buyer
                 </span>
               </Link>
             </div>
 
-            {/* Main Navigation - absolutely centered */}
-            <div className="hidden lg:flex items-center space-x-10 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-              {/* Transactions Link */}
+            {/* Main Navigation - Center Section */}
+            <div className="hidden lg:flex items-center justify-center space-x-8 flex-1">
+              {/* Suppliers Link */}
               <Link
-                href="/buyer/transactions"
-                className={`pb-3 font-medium text-[15px] transition-all duration-200 border-b-2 ${
-                  pathname?.startsWith("/buyer/transactions")
-                    ? "text-black border-[color:var(--primary-base)]"
+                href="/buyer/suppliers"
+                className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
+                  pathname?.startsWith("/buyer/suppliers")
+                    ? "text-[var(--primary-accent2)] border-[var(--primary-accent2)]"
                     : "text-gray-800 hover:text-black border-transparent"
                 }`}
               >
-                <span className="relative">Transactions</span>
+                <span className="relative">Suppliers</span>
+              </Link>
+
+              {/* Requests Link */}
+              <Link
+                href="/buyer/requests"
+                className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
+                  pathname?.startsWith("/buyer/requests")
+                    ? "text-[var(--primary-accent2)] border-[var(--primary-accent2)]"
+                    : "text-gray-800 hover:text-black border-transparent"
+                }`}
+              >
+                <span className="relative">Requests</span>
               </Link>
 
               {/* Orders Link */}
               <Link
                 href="/buyer/orders"
-                className={`pb-3 font-medium text-[15px] transition-all duration-200 border-b-2 ${
+                className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
                   pathname?.startsWith("/buyer/orders")
-                    ? "text-black border-[color:var(--primary-base)]"
+                    ? "text-[var(--primary-accent2)] border-[var(--primary-accent2)]"
                     : "text-gray-800 hover:text-black border-transparent"
                 }`}
               >
                 <span className="relative">Orders</span>
               </Link>
 
-              {/* Saved Suppliers Link */}
+              {/* Transactions Link */}
               <Link
-                href="/buyer/saved-suppliers"
-                className={`pb-3 font-medium text-[15px] transition-all duration-200 border-b-2 ${
-                  pathname?.startsWith("/buyer/saved-suppliers")
-                    ? "text-black border-[color:var(--primary-base)]"
+                href="/buyer/transactions"
+                className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
+                  pathname?.startsWith("/buyer/transactions")
+                    ? "text-[var(--primary-accent2)] border-[var(--primary-accent2)]"
                     : "text-gray-800 hover:text-black border-transparent"
                 }`}
               >
-                <span className="relative">Saved Suppliers</span>
+                <span className="relative">Transactions</span>
               </Link>
 
               {/* Messages Link */}
               <Link
                 href="/buyer/messages"
-                className={`pb-3 font-medium text-[15px] transition-all duration-200 border-b-2 ${
+                className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
                   pathname?.startsWith("/buyer/messages")
-                    ? "text-black border-[color:var(--primary-base)]"
+                    ? "text-[var(--primary-accent2)] border-[var(--primary-accent2)]"
                     : "text-gray-800 hover:text-black border-transparent"
                 }`}
               >
@@ -158,15 +184,57 @@ const BuyerTopNavigation: React.FC = () => {
               )}
             </button>
 
-            {/* Right Side Actions - anchored to nav right */}
-            <div className="hidden lg:flex items-center space-x-6 ml-auto">
+            {/* Right Side Actions - Right Section */}
+            <div className="hidden lg:flex items-center justify-end space-x-5 flex-[1.4]">
+              {/* Analytics */}
+              <Link
+                href="/buyer/analytics"
+                className={`relative transition-colors duration-200 flex items-center ${
+                  pathname?.startsWith("/buyer/analytics")
+                    ? "text-[var(--primary-accent2)]"
+                    : "text-gray-700 hover:text-gray-900"
+                }`}
+                title="Analytics"
+              >
+                {pathname?.startsWith("/buyer/analytics") ? (
+                  <ChartBarSolidIcon className="h-6 w-6" />
+                ) : (
+                  <ChartBarIcon className="h-6 w-6 stroke-2" />
+                )}
+              </Link>
+
+              {/* Saved Suppliers */}
+              <Link
+                href="/buyer/saved-suppliers"
+                className={`relative transition-colors duration-200 flex items-center ${
+                  pathname?.startsWith("/buyer/saved-suppliers")
+                    ? "text-[var(--primary-accent2)]"
+                    : "text-gray-700 hover:text-gray-900"
+                }`}
+                title="Saved Suppliers"
+              >
+                {pathname?.startsWith("/buyer/saved-suppliers") ? (
+                  <HeartSolidIcon className="h-6 w-6" />
+                ) : (
+                  <HeartIcon className="h-6 w-6 stroke-2" />
+                )}
+              </Link>
+
               {/* Notifications */}
-              <div className="relative">
+              <div className="relative flex items-center">
                 <button
-                  className="relative text-gray-700 hover:text-gray-900 transition-colors duration-200"
+                  className={`relative transition-colors duration-200 flex items-center ${
+                    pathname?.startsWith("/buyer/notifications")
+                      ? "text-[var(--primary-accent2)]"
+                      : "text-gray-700 hover:text-gray-900"
+                  }`}
                   onClick={() => handleDropdownToggle("notifications")}
                 >
-                  <BellIcon className="h-6 w-6" />
+                  {pathname?.startsWith("/buyer/notifications") ? (
+                    <BellSolidIcon className="h-6 w-6" />
+                  ) : (
+                    <BellIcon className="h-6 w-6 stroke-2" />
+                  )}
                   {unreadCount > 0 && (
                     <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
                       {unreadCount}
@@ -251,25 +319,43 @@ const BuyerTopNavigation: React.FC = () => {
                 )}
               </div>
 
-              {/* Checkout Icon */}
+              {/* Cart Icon */}
               <Link
-                href="/checkout"
-                className="relative text-gray-700 hover:text-gray-900 transition-colors duration-200"
-                title="Checkout"
+                href="/buyer/cart"
+                className={`relative transition-colors duration-200 flex items-center ${
+                  pathname?.startsWith("/buyer/cart") ||
+                  pathname?.startsWith("/buyer/checkout")
+                    ? "text-[var(--primary-accent2)]"
+                    : "text-gray-700 hover:text-gray-900"
+                }`}
+                title="Shopping Cart"
               >
-                <ShoppingCartIcon className="h-6 w-6" />
+                {pathname?.startsWith("/buyer/cart") ||
+                pathname?.startsWith("/buyer/checkout") ? (
+                  <ShoppingCartSolidIcon className="h-6 w-6" />
+                ) : (
+                  <ShoppingCartIcon className="h-6 w-6 stroke-2" />
+                )}
+                {/* Cart item count badge - will be dynamic later */}
+                <span className="absolute -top-2 -right-2 bg-[var(--primary-accent2)] text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold">
+                  3
+                </span>
               </Link>
 
               {/* Make Request Button */}
               <Link
                 href="/buyer/request"
-                className="bg-black text-white px-6 py-2.5 rounded-full font-medium text-[15px] hover:bg-gray-800 transition-colors duration-200"
+                className={`px-6 py-2.5 rounded-full font-medium text-[15px] transition-all duration-200 flex items-center ${
+                  pathname?.startsWith("/buyer/request")
+                    ? "bg-[var(--primary-accent2)] text-white shadow-md"
+                    : "bg-black text-white hover:bg-gray-800"
+                }`}
               >
                 Make Request
               </Link>
 
               {/* User Profile Dropdown */}
-              <div className="relative">
+              <div className="relative flex items-center">
                 <button
                   className="flex items-center space-x-2 hover:opacity-80 transition-opacity duration-200"
                   onClick={() => handleDropdownToggle("user")}
@@ -352,10 +438,16 @@ const BuyerTopNavigation: React.FC = () => {
                 Make Request
               </Link>
               <Link
-                href="/buyer/transactions"
+                href="/buyer/suppliers"
                 className="block text-gray-800 font-medium py-2"
               >
-                Transactions
+                Suppliers
+              </Link>
+              <Link
+                href="/buyer/requests"
+                className="block text-gray-800 font-medium py-2"
+              >
+                Requests
               </Link>
               <Link
                 href="/buyer/orders"
@@ -364,10 +456,10 @@ const BuyerTopNavigation: React.FC = () => {
                 Orders
               </Link>
               <Link
-                href="/buyer/saved-suppliers"
+                href="/buyer/transactions"
                 className="block text-gray-800 font-medium py-2"
               >
-                Saved Suppliers
+                Transactions
               </Link>
               <Link
                 href="/buyer/messages"
@@ -377,6 +469,20 @@ const BuyerTopNavigation: React.FC = () => {
               </Link>
               <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                 <div className="flex items-center space-x-4">
+                  <Link
+                    href="/buyer/analytics"
+                    className="relative text-gray-700"
+                    title="Analytics"
+                  >
+                    <ChartBarIcon className="h-6 w-6" />
+                  </Link>
+                  <Link
+                    href="/buyer/saved-suppliers"
+                    className="relative text-gray-700"
+                    title="Saved Suppliers"
+                  >
+                    <HeartIcon className="h-6 w-6" />
+                  </Link>
                   <Link
                     href="/buyer/notifications"
                     className="relative text-gray-700"
@@ -389,11 +495,14 @@ const BuyerTopNavigation: React.FC = () => {
                     )}
                   </Link>
                   <Link
-                    href="/checkout"
+                    href="/buyer/cart"
                     className="relative text-gray-700"
-                    title="Checkout"
+                    title="Shopping Cart"
                   >
                     <ShoppingCartIcon className="h-6 w-6" />
+                    <span className="absolute -top-1 -right-1 bg-[var(--primary-accent2)] text-white text-xs rounded-full h-4 w-4 flex items-center justify-center font-semibold text-[10px]">
+                      3
+                    </span>
                   </Link>
                 </div>
                 <Link href="/buyer/profile">
