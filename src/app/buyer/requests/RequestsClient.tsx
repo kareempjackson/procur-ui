@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   MagnifyingGlassIcon,
@@ -11,11 +11,43 @@ import {
   CalendarIcon,
   CurrencyDollarIcon,
   ChatBubbleLeftIcon,
+  PlusIcon,
+  DocumentTextIcon,
 } from "@heroicons/react/24/outline";
+import { useAppDispatch, useAppSelector } from "@/store";
+import { fetchRequests, setFilters } from "@/store/slices/buyerRequestsSlice";
+import ProcurLoader from "@/components/ProcurLoader";
 
 export default function RequestsClient() {
+  const dispatch = useAppDispatch();
+  const { requests, status, error, pagination } = useAppSelector(
+    (state) => state.buyerRequests
+  );
+
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
+
+  // Fetch requests on mount
+  useEffect(() => {
+    dispatch(fetchRequests({ page: 1, limit: 20 }));
+  }, [dispatch]);
+
+  // Fetch requests when filters change (debounced)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      const filters: any = {
+        page: 1,
+        limit: 20,
+      };
+
+      if (searchQuery) filters.search = searchQuery;
+      if (selectedStatus !== "all") filters.status = selectedStatus;
+
+      dispatch(fetchRequests(filters));
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, selectedStatus, dispatch]);
 
   // Mock requests data
   const allRequests = [
@@ -174,29 +206,44 @@ export default function RequestsClient() {
     },
   ];
 
-  // Filter logic
-  const filteredRequests = allRequests.filter((request) => {
-    // Search filter
-    if (
-      searchQuery &&
-      !request.productName.toLowerCase().includes(searchQuery.toLowerCase())
-    ) {
-      return false;
-    }
+  // Use requests from Redux (already filtered by API)
+  const filteredRequests = requests.map((request) => ({
+    id: request.id,
+    productName: request.product_name,
+    quantity: `${request.quantity} ${request.unit_of_measurement}`,
+    deliveryDate: request.date_needed
+      ? new Date(request.date_needed).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })
+      : "Flexible",
+    deliveryLocation: request.target_seller_name || "Open Market",
+    status: request.status,
+    createdDate: new Date(request.created_at).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }),
+    bidsCount: request.response_count || 0,
+    budget:
+      request.budget_range?.min && request.budget_range?.max
+        ? `${request.budget_range.currency || "$"}${
+            request.budget_range.min
+          } - ${request.budget_range.currency || "$"}${
+            request.budget_range.max
+          }`
+        : "Open",
+    orderType: request.category || "one-off",
+    urgency: request.product_type || "standard",
+  }));
 
-    // Status filter
-    if (selectedStatus !== "all" && request.status !== selectedStatus) {
-      return false;
-    }
-
-    return true;
-  });
-
+  // Status counts from pagination
   const statusCounts = {
-    all: allRequests.length,
-    active: allRequests.filter((r) => r.status === "active").length,
-    completed: allRequests.filter((r) => r.status === "completed").length,
-    expired: allRequests.filter((r) => r.status === "expired").length,
+    all: pagination.totalItems,
+    active: requests.filter((r) => r.status === "active").length,
+    completed: requests.filter((r) => r.status === "completed").length,
+    expired: requests.filter((r) => r.status === "expired").length,
   };
 
   const getStatusStyles = (status: string) => {
@@ -224,6 +271,36 @@ export default function RequestsClient() {
         return <ClockIcon className="h-4 w-4" />;
     }
   };
+
+  // Loading state
+  if (status === "loading" && requests.length === 0) {
+    return (
+      <div className="min-h-screen bg-[var(--primary-background)] flex items-center justify-center">
+        <ProcurLoader size="lg" text="Loading requests..." />
+      </div>
+    );
+  }
+
+  // Error state
+  if (status === "failed" && error) {
+    return (
+      <div className="min-h-screen bg-[var(--primary-background)] flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <DocumentTextIcon className="h-16 w-16 text-[var(--secondary-muted-edge)] mx-auto mb-4 opacity-50" />
+          <h2 className="text-xl font-bold text-[var(--secondary-black)] mb-2">
+            Failed to Load Requests
+          </h2>
+          <p className="text-[var(--secondary-muted-edge)] mb-4">{error}</p>
+          <button
+            onClick={() => dispatch(fetchRequests({ page: 1, limit: 20 }))}
+            className="px-6 py-3 bg-[var(--primary-accent2)] text-white rounded-full font-semibold hover:bg-[var(--primary-accent3)] transition-all duration-200"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[var(--primary-background)]">
@@ -338,7 +415,7 @@ export default function RequestsClient() {
                           </span>
                           {request.orderType === "recurring" && (
                             <span className="px-2.5 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
-                              Recurring ({request.recurringFrequency})
+                              Recurring
                             </span>
                           )}
                         </div>
@@ -346,21 +423,6 @@ export default function RequestsClient() {
                           Requested on {request.createdDate}
                         </p>
                       </div>
-
-                      {request.status === "completed" &&
-                        request.acceptedBid && (
-                          <div className="text-right">
-                            <div className="text-sm text-[var(--secondary-muted-edge)] mb-1">
-                              Accepted Bid
-                            </div>
-                            <div className="text-lg font-bold text-[var(--primary-accent2)]">
-                              {request.acceptedBid.price}
-                            </div>
-                            <div className="text-xs text-[var(--secondary-muted-edge)]">
-                              {request.acceptedBid.supplierName}
-                            </div>
-                          </div>
-                        )}
                     </div>
 
                     {/* Request Details Grid */}

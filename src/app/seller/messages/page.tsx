@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   MagnifyingGlassIcon,
   PaperClipIcon,
@@ -21,6 +22,7 @@ import { getApiClient } from "@/lib/apiClient";
 import { useSelector } from "react-redux";
 import { selectAuthToken, selectAuthUser } from "@/store/slices/authSlice";
 import { getSupabaseClient } from "@/lib/supabaseClient";
+import { useMessagingSocket } from "@/hooks/useMessagingSocket";
 
 type ApiConversation = {
   id: string;
@@ -31,6 +33,7 @@ type ApiConversation = {
   created_at: string;
   updated_at: string;
   metadata?: Record<string, unknown> | null;
+  unread_count?: number;
 };
 
 type ApiMessage = {
@@ -43,6 +46,9 @@ type ApiMessage = {
 };
 
 export default function SellerMessagesPage() {
+  const searchParams = useSearchParams();
+  const conversationIdParam = searchParams.get("conversationId");
+
   const authToken = useSelector(selectAuthToken);
   const authUser = useSelector(selectAuthUser);
 
@@ -51,18 +57,98 @@ export default function SellerMessagesPage() {
   const [loadingConversations, setLoadingConversations] = useState(true);
   const [activeConversationId, setActiveConversationId] = useState<
     string | null
-  >(null);
+  >(conversationIdParam);
   const [messages, setMessages] = useState<ApiMessage[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [messageInput, setMessageInput] = useState("");
   const [showDetails, setShowDetails] = useState(false);
+  const [participants, setParticipants] = useState<any[]>([]);
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const [typingUsers, setTypingUsers] = useState<Record<string, boolean>>({});
   const listEndRef = useRef<HTMLDivElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const client = useMemo(
     () => getApiClient(() => authToken || null),
     [authToken]
   );
   const supabase = useMemo(() => getSupabaseClient(), []);
+
+  // Initialize audio notification
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      audioRef.current = new Audio("/notification.mp3");
+      audioRef.current.volume = 0.5;
+    }
+  }, []);
+
+  // WebSocket integration for real-time notifications
+  const { emitTyping, isConnected } = useMessagingSocket({
+    onNewMessage: useCallback(
+      (event: any) => {
+        const { conversationId, message } = event;
+
+        // If message is from current conversation and not from us, add it
+        if (
+          conversationId === activeConversationId &&
+          message.sender_user_id !== authUser?.id
+        ) {
+          setMessages((prev) => {
+            // Avoid duplicates (Supabase realtime might also fire)
+            if (prev.some((m) => m.id === message.id)) {
+              return prev;
+            }
+            return [...prev, message];
+          });
+          setTimeout(
+            () => listEndRef.current?.scrollIntoView({ behavior: "smooth" }),
+            100
+          );
+        } else if (message.sender_user_id !== authUser?.id) {
+          // Message from different conversation - update unread count
+          setUnreadCounts((prev) => ({
+            ...prev,
+            [conversationId]: (prev[conversationId] || 0) + 1,
+          }));
+
+          // Play notification sound
+          try {
+            audioRef.current?.play().catch(console.error);
+          } catch (e) {
+            console.error("Failed to play notification sound:", e);
+          }
+
+          // Update conversations list order
+          setConversations((prev) =>
+            prev.map((c) =>
+              c.id === conversationId
+                ? { ...c, updated_at: new Date().toISOString() }
+                : c
+            )
+          );
+        }
+      },
+      [activeConversationId, authUser?.id]
+    ),
+    onTyping: useCallback((event: any) => {
+      const { conversationId, userId, isTyping } = event;
+      setTypingUsers((prev) => ({
+        ...prev,
+        [`${conversationId}:${userId}`]: isTyping,
+      }));
+    }, []),
+    onError: useCallback((error: any) => {
+      console.error("WebSocket error:", error);
+    }, []),
+  });
+
+  // Handle conversation ID from URL params
+  useEffect(() => {
+    if (conversationIdParam) {
+      setActiveConversationId(conversationIdParam);
+    }
+  }, [conversationIdParam]);
 
   const fetchConversations = useCallback(async () => {
     setLoadingConversations(true);
@@ -111,7 +197,20 @@ export default function SellerMessagesPage() {
   useEffect(() => {
     if (!activeConversationId) return;
     fetchMessages(activeConversationId);
-  }, [activeConversationId, fetchMessages]);
+
+    // Clear unread count for this conversation
+    setUnreadCounts((prev) => {
+      const updated = { ...prev };
+      delete updated[activeConversationId];
+      return updated;
+    });
+
+    // Fetch participants
+    client
+      .get(`/conversations/${activeConversationId}/participants`)
+      .then(({ data }) => setParticipants(data || []))
+      .catch(() => setParticipants([]));
+  }, [activeConversationId, fetchMessages, client]);
 
   // Supabase Realtime subscriptions (optional if env provided)
   useEffect(() => {
@@ -195,10 +294,38 @@ export default function SellerMessagesPage() {
     }
   };
 
+  // Handle typing indicator
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setMessageInput(e.target.value);
+
+    if (!activeConversationId) return;
+
+    // Emit typing started
+    emitTyping(activeConversationId, true);
+
+    // Clear previous timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Set new timeout to emit typing stopped
+    typingTimeoutRef.current = setTimeout(() => {
+      emitTyping(activeConversationId, false);
+    }, 2000);
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
+
+      // Clear typing indicator
+      if (activeConversationId) {
+        emitTyping(activeConversationId, false);
+      }
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
     }
   };
 
@@ -212,6 +339,20 @@ export default function SellerMessagesPage() {
     [conversations, activeConversationId]
   );
 
+  // Calculate total unread count
+  const totalUnreadCount = useMemo(() => {
+    return Object.values(unreadCounts).reduce((sum, count) => sum + count, 0);
+  }, [unreadCounts]);
+
+  // Check if someone is typing in active conversation
+  const isTypingInActiveConv = useMemo(() => {
+    if (!activeConversationId) return false;
+    return Object.entries(typingUsers).some(
+      ([key, isTyping]) =>
+        key.startsWith(`${activeConversationId}:`) && isTyping
+    );
+  }, [activeConversationId, typingUsers]);
+
   return (
     <div className="h-screen overflow-hidden bg-[var(--primary-background)] flex flex-col">
       <main className="flex-1 flex overflow-hidden">
@@ -219,9 +360,33 @@ export default function SellerMessagesPage() {
         <div className="w-full lg:w-96 border-r border-gray-200 bg-white flex flex-col">
           {/* Header */}
           <div className="p-6 border-b border-gray-200">
-            <h1 className="text-2xl font-semibold text-gray-900 mb-4">
-              Messages
-            </h1>
+            <div className="flex items-center justify-between mb-4">
+              <h1 className="text-2xl font-semibold text-gray-900">Messages</h1>
+              <div className="flex items-center gap-2">
+                {/* WebSocket Connection Indicator */}
+                <div
+                  className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs ${
+                    isConnected
+                      ? "bg-green-100 text-green-700"
+                      : "bg-gray-100 text-gray-600"
+                  }`}
+                  title={isConnected ? "Connected" : "Disconnected"}
+                >
+                  <div
+                    className={`w-2 h-2 rounded-full ${
+                      isConnected ? "bg-green-500" : "bg-gray-400"
+                    }`}
+                  />
+                  {isConnected ? "Live" : "Offline"}
+                </div>
+                {/* Unread Badge */}
+                {totalUnreadCount > 0 && (
+                  <div className="flex items-center justify-center min-w-[24px] h-6 px-2 bg-[var(--primary-accent2)] text-white text-xs font-bold rounded-full">
+                    {totalUnreadCount > 99 ? "99+" : totalUnreadCount}
+                  </div>
+                )}
+              </div>
+            </div>
 
             {/* Search */}
             <div className="relative">
@@ -272,9 +437,18 @@ export default function SellerMessagesPage() {
                             conversation.context_type ||
                             "Conversation"}
                         </h3>
-                        <span className="text-xs text-gray-500 ml-2 flex-shrink-0">
-                          {formatTime(new Date(conversation.updated_at))}
-                        </span>
+                        <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+                          <span className="text-xs text-gray-500">
+                            {formatTime(new Date(conversation.updated_at))}
+                          </span>
+                          {unreadCounts[conversation.id] > 0 && (
+                            <div className="flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-[var(--primary-accent2)] text-white text-[10px] font-bold rounded-full">
+                              {unreadCounts[conversation.id] > 9
+                                ? "9+"
+                                : unreadCounts[conversation.id]}
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       <p className="text-xs text-gray-600 mb-1 truncate">
@@ -391,6 +565,34 @@ export default function SellerMessagesPage() {
                     </div>
                   ))
                 )}
+                {/* Typing Indicator */}
+                {isTypingInActiveConv && (
+                  <div className="flex justify-start">
+                    <div className="flex items-end space-x-2 max-w-xl">
+                      <div>
+                        <div className="px-4 py-3 rounded-2xl bg-white border border-gray-200 rounded-bl-sm">
+                          <div className="flex items-center space-x-1">
+                            <div
+                              className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                              style={{ animationDelay: "0ms" }}
+                            />
+                            <div
+                              className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                              style={{ animationDelay: "150ms" }}
+                            />
+                            <div
+                              className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                              style={{ animationDelay: "300ms" }}
+                            />
+                          </div>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1 px-1">
+                          Typing...
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div ref={listEndRef} />
               </div>
 
@@ -404,7 +606,7 @@ export default function SellerMessagesPage() {
                   <div className="flex-1 relative">
                     <textarea
                       value={messageInput}
-                      onChange={(e) => setMessageInput(e.target.value)}
+                      onChange={handleInputChange}
                       onKeyPress={handleKeyPress}
                       placeholder="Type a message..."
                       rows={1}

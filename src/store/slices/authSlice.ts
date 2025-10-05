@@ -7,6 +7,7 @@ export type AuthUser = {
   id: string;
   email: string;
   fullname: string;
+  profileImg?: string;
   role: string;
   accountType: string;
   emailVerified: boolean;

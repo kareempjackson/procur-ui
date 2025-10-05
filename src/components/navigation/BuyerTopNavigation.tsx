@@ -25,6 +25,7 @@ import {
   markNotificationRead,
   selectNotifications,
 } from "@/store/slices/notificationsSlice";
+import { fetchCart } from "@/store/slices/buyerCartSlice";
 import { useNotificationsSocket } from "@/hooks/useNotificationsSocket";
 
 const BuyerTopNavigation: React.FC = () => {
@@ -37,6 +38,7 @@ const BuyerTopNavigation: React.FC = () => {
   // Notifications state
   const dispatch = useAppDispatch();
   const { items, status } = useAppSelector(selectNotifications);
+  const { cart } = useAppSelector((state) => state.buyerCart);
   useNotificationsSocket();
 
   useEffect(() => {
@@ -44,6 +46,11 @@ const BuyerTopNavigation: React.FC = () => {
       dispatch(fetchNotifications(undefined));
     }
   }, [status, dispatch]);
+
+  // Fetch cart on mount to get item count
+  useEffect(() => {
+    dispatch(fetchCart());
+  }, [dispatch]);
 
   // Authenticated user data
   const authUser = useAppSelector(selectAuthUser);
@@ -81,6 +88,9 @@ const BuyerTopNavigation: React.FC = () => {
     ? ((items as unknown as { data: unknown[] }).data as any[])
     : [];
   const unreadCount = safeItems.filter((n: any) => !n.read_at).length;
+
+  // Cart item count
+  const cartItemCount = cart?.total_items || 0;
 
   return (
     <>
@@ -336,10 +346,12 @@ const BuyerTopNavigation: React.FC = () => {
                 ) : (
                   <ShoppingCartIcon className="h-6 w-6 stroke-2" />
                 )}
-                {/* Cart item count badge - will be dynamic later */}
-                <span className="absolute -top-2 -right-2 bg-[var(--primary-accent2)] text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold">
-                  3
-                </span>
+                {/* Cart item count badge */}
+                {cartItemCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-[var(--primary-accent2)] text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold">
+                    {cartItemCount}
+                  </span>
+                )}
               </Link>
 
               {/* Make Request Button */}
@@ -500,9 +512,11 @@ const BuyerTopNavigation: React.FC = () => {
                     title="Shopping Cart"
                   >
                     <ShoppingCartIcon className="h-6 w-6" />
-                    <span className="absolute -top-1 -right-1 bg-[var(--primary-accent2)] text-white text-xs rounded-full h-4 w-4 flex items-center justify-center font-semibold text-[10px]">
-                      3
-                    </span>
+                    {cartItemCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-[var(--primary-accent2)] text-white text-xs rounded-full h-4 w-4 flex items-center justify-center font-semibold text-[10px]">
+                        {cartItemCount}
+                      </span>
+                    )}
                   </Link>
                 </div>
                 <Link href="/buyer/profile">

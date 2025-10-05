@@ -36,36 +36,41 @@ const TopNavigation: React.FC = () => {
 
   // Dropdown menu data
 
-  const forBuyersMenu: DropdownItem[] = [
+  const forPurchasersMenu: DropdownItem[] = [
     {
       title: "Marketplace",
       description: "Browse all suppliers",
-      href: "/buyers/marketplace",
+      href: "/purchasers/marketplace",
     },
     {
       title: "Request Quotes",
       description: "Get custom pricing",
-      href: "/buyers/quotes",
+      href: "/purchasers/quotes",
     },
     {
       title: "Order Management",
       description: "Track your orders",
-      href: "/buyers/orders",
+      href: "/purchasers/orders",
     },
     {
       title: "Quality Assurance",
       description: "Product quality standards",
-      href: "/buyers/quality",
+      href: "/purchasers/quality",
     },
     {
       title: "Logistics Support",
       description: "Shipping and delivery",
-      href: "/buyers/logistics",
+      href: "/purchasers/logistics",
     },
     {
       title: "Payment Solutions",
       description: "Secure payment options",
-      href: "/buyers/payments",
+      href: "/purchasers/payments",
+    },
+    {
+      title: "Buyer Portal",
+      description: "Your purchasing hub",
+      href: "/purchasers/portal",
     },
   ];
 
@@ -91,11 +96,6 @@ const TopNavigation: React.FC = () => {
       href: "/suppliers/analytics",
     },
     {
-      title: "Certification",
-      description: "Quality certifications",
-      href: "/suppliers/certification",
-    },
-    {
       title: "Marketing Tools",
       description: "Promote your products",
       href: "/suppliers/marketing",
@@ -104,34 +104,14 @@ const TopNavigation: React.FC = () => {
 
   const forGovernmentMenu: DropdownItem[] = [
     {
-      title: "Procurement Platform",
-      description: "Government purchasing",
-      href: "/government/procurement",
-    },
-    {
-      title: "Compliance Tools",
-      description: "Regulatory compliance",
-      href: "/government/compliance",
-    },
-    {
       title: "Reporting & Analytics",
       description: "Procurement insights",
-      href: "/government/reporting",
+      href: "/gov/reporting",
     },
     {
       title: "Vendor Management",
       description: "Supplier relationships",
-      href: "/government/vendors",
-    },
-    {
-      title: "Budget Planning",
-      description: "Cost optimization",
-      href: "/government/budget",
-    },
-    {
-      title: "Transparency Portal",
-      description: "Public procurement data",
-      href: "/government/transparency",
+      href: "/gov/vendors",
     },
   ];
 
@@ -222,9 +202,6 @@ const TopNavigation: React.FC = () => {
             className="flex items-center space-x-4 px-3 py-3 rounded-lg hover:bg-gray-50/80 transition-all duration-200 group"
             onClick={() => setActiveDropdown(null)}
           >
-            <div className="w-10 h-10 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex-shrink-0 flex items-center justify-center group-hover:from-blue-50 group-hover:to-blue-100 transition-all duration-200">
-              <div className="w-5 h-5 bg-gradient-to-br from-gray-400 to-gray-500 rounded-sm group-hover:from-blue-400 group-hover:to-blue-500 transition-all duration-200"></div>
-            </div>
             <div className="flex-1">
               <div className="font-medium text-gray-900 text-sm mb-1 group-hover:text-gray-800">
                 {item.title}
@@ -262,33 +239,33 @@ const TopNavigation: React.FC = () => {
             </div>
 
             {/* Main Navigation - absolutely centered */}
-            <div className="hidden lg:flex items-center space-x-10 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            <div className="hidden lg:flex items-center space-x-6 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
               {/* Marketplace Link (no dropdown) */}
               <Link
                 href="/marketplace"
-                className="text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)] font-semibold text-[15px] transition-all duration-200"
+                className="text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)] font-semibold text-[15px] transition-all duration-200 whitespace-nowrap"
               >
                 <span className="relative">Marketplace</span>
               </Link>
 
-              {/* For Buyers Dropdown */}
+              {/* For Purchasers Dropdown */}
               <div
                 className="relative"
-                onMouseEnter={() => handleMouseEnter("for-buyers")}
+                onMouseEnter={() => handleMouseEnter("for-purchasers")}
               >
                 <button
-                  className="flex items-center space-x-1 text-gray-800 hover:text-black font-medium text-[15px] transition-all duration-200"
-                  onClick={() => handleDropdownToggle("for-buyers")}
+                  className="flex items-center space-x-1 text-gray-800 hover:text-black font-medium text-[15px] transition-all duration-200 whitespace-nowrap"
+                  onClick={() => handleDropdownToggle("for-purchasers")}
                 >
-                  <span className="relative">For Buyers</span>
+                  <span className="relative">For Purchasers</span>
                   <ChevronDownIcon
                     className={`h-4 w-4 transition-transform duration-200 ${
-                      activeDropdown === "for-buyers" ? "rotate-180" : ""
+                      activeDropdown === "for-purchasers" ? "rotate-180" : ""
                     }`}
                   />
                 </button>
-                {activeDropdown === "for-buyers" &&
-                  renderDropdownMenu(forBuyersMenu)}
+                {activeDropdown === "for-purchasers" &&
+                  renderDropdownMenu(forPurchasersMenu)}
               </div>
 
               {/* For Suppliers Dropdown */}
@@ -297,7 +274,7 @@ const TopNavigation: React.FC = () => {
                 onMouseEnter={() => handleMouseEnter("for-suppliers")}
               >
                 <button
-                  className="flex items-center space-x-1 text-gray-800 hover:text-black font-medium text-[15px] transition-all duration-200"
+                  className="flex items-center space-x-1 text-gray-800 hover:text-black font-medium text-[15px] transition-all duration-200 whitespace-nowrap"
                   onClick={() => handleDropdownToggle("for-suppliers")}
                 >
                   <span className="relative">For Suppliers</span>
@@ -317,7 +294,7 @@ const TopNavigation: React.FC = () => {
                 onMouseEnter={() => handleMouseEnter("for-government")}
               >
                 <button
-                  className="flex items-center space-x-1 text-gray-800 hover:text-black font-medium text-[15px] transition-all duration-200"
+                  className="flex items-center space-x-1 text-gray-800 hover:text-black font-medium text-[15px] transition-all duration-200 whitespace-nowrap"
                   onClick={() => handleDropdownToggle("for-government")}
                 >
                   <span className="relative">For Government</span>
@@ -334,7 +311,7 @@ const TopNavigation: React.FC = () => {
               {/* Blog Link */}
               <a
                 href="/blog"
-                className="text-gray-800 hover:text-black font-medium text-[15px] transition-all duration-200"
+                className="text-gray-800 hover:text-black font-medium text-[15px] transition-all duration-200 whitespace-nowrap"
               >
                 <span className="relative">Blog</span>
               </a>
@@ -415,10 +392,10 @@ const TopNavigation: React.FC = () => {
                 Marketplace
               </a>
               <a
-                href="/buyers"
+                href="/purchasers"
                 className="block text-gray-800 font-medium py-2"
               >
-                For Buyers
+                For Purchasers
               </a>
               <a
                 href="/suppliers"

@@ -7,8 +7,9 @@ import Link from "next/link";
 import SellerTopNavigation from "@/components/navigation/SellerTopNavigation";
 import { getApiClient } from "@/lib/apiClient";
 import { getSupabaseClient } from "@/lib/supabaseClient";
-import { useSelector } from "react-redux";
-import { RootState } from "@/store";
+import { useAppDispatch, useAppSelector } from "@/store";
+import { createSellerProduct } from "@/store/slices/sellerProductsSlice";
+import type { RootState } from "@/store";
 
 // Enums matching the API
 enum ProductStatus {
@@ -74,13 +75,19 @@ function classNames(...classes: (string | false | null | undefined)[]) {
   return classes.filter(Boolean).join(" ");
 }
 
+const DRAFT_STORAGE_KEY = "seller-product-draft";
+const DRAFT_AUTO_SAVE_INTERVAL = 30000; // 30 seconds
+
 export default function AddProductPage() {
   const router = useRouter();
-  const accessToken = useSelector((state: RootState) => state.auth.accessToken);
+  const dispatch = useAppDispatch();
+  const accessToken = useAppSelector((state) => state.auth.accessToken);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [draftRestored, setDraftRestored] = useState(false);
 
   // Form data state
   const [formData, setFormData] = useState<CreateProductData>({
@@ -121,7 +128,58 @@ export default function AddProductPage() {
     }
   };
 
-  // Removed dimension change handler
+  // Restore draft from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY);
+      if (savedDraft) {
+        try {
+          const parsedDraft = JSON.parse(savedDraft);
+          // Only restore if there's actual content
+          if (
+            parsedDraft.name ||
+            parsedDraft.category ||
+            parsedDraft.base_price > 0
+          ) {
+            setFormData(parsedDraft);
+            setDraftRestored(true);
+          }
+        } catch (e) {
+          console.error("Failed to restore draft:", e);
+        }
+      }
+    }
+  }, []);
+
+  // Auto-save draft to localStorage
+  useEffect(() => {
+    // Don't auto-save if form is empty or being submitted
+    if (isSubmitting) return;
+    if (!formData.name && !formData.category && formData.base_price === 0)
+      return;
+
+    const autoSaveInterval = setInterval(() => {
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(formData));
+          setLastSaved(new Date());
+        } catch (e) {
+          console.error("Failed to auto-save draft:", e);
+        }
+      }
+    }, DRAFT_AUTO_SAVE_INTERVAL);
+
+    return () => clearInterval(autoSaveInterval);
+  }, [formData, isSubmitting]);
+
+  // Clear draft from localStorage
+  const clearDraft = () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(DRAFT_STORAGE_KEY);
+      setLastSaved(null);
+      setDraftRestored(false);
+    }
+  };
 
   const handleImageUpload = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -228,50 +286,56 @@ export default function AddProductPage() {
     setError(null);
 
     try {
-      const apiClient = getApiClient(() => accessToken);
+      // Create product using Redux thunk
+      const result = await dispatch(createSellerProduct(formData));
 
-      // First, create the product
-      const productData = {
-        ...formData,
-      };
+      // Check if creation was successful
+      if (createSellerProduct.fulfilled.match(result)) {
+        const productId = result.payload.id;
 
-      const response = await apiClient.post("/sellers/products", productData);
-      const productId = response.data.id;
+        // Upload images if any exist
+        const uploadedImages = images.filter(
+          (img): img is ProductImage => img !== null
+        );
 
-      // Then, upload images if any exist
-      const uploadedImages = images.filter(
-        (img): img is ProductImage => img !== null
-      );
+        if (uploadedImages.length > 0) {
+          const apiClient = getApiClient(() => accessToken);
 
-      if (uploadedImages.length > 0) {
-        for (let i = 0; i < uploadedImages.length; i++) {
-          const image = uploadedImages[i];
-          try {
-            const imageUrl = await uploadImageToStorage(
-              productId,
-              image.file,
-              i
-            );
+          for (let i = 0; i < uploadedImages.length; i++) {
+            const image = uploadedImages[i];
+            try {
+              const imageUrl = await uploadImageToStorage(
+                productId,
+                image.file,
+                i
+              );
 
-            await apiClient.post(`/sellers/products/${productId}/images`, {
-              image_url: imageUrl,
-              alt_text: `${formData.name} - Image ${i + 1}`,
-              display_order: i,
-              is_primary: i === 0,
-            });
-          } catch (imageError) {
-            console.error(`Failed to upload image ${i + 1}:`, imageError);
+              await apiClient.post(`/sellers/products/${productId}/images`, {
+                image_url: imageUrl,
+                alt_text: `${formData.name} - Image ${i + 1}`,
+                display_order: i,
+                is_primary: i === 0,
+              });
+            } catch (imageError) {
+              console.error(`Failed to upload image ${i + 1}:`, imageError);
+              // Continue with other images even if one fails
+            }
           }
         }
-      }
 
-      // Redirect directly to products list to view the new item
-      router.push("/seller/products");
+        // Clear draft after successful submission
+        clearDraft();
+
+        // Redirect to products list
+        router.push("/seller/products");
+      } else {
+        // Handle rejected action
+        throw new Error(
+          (result.payload as string) || "Failed to create product"
+        );
+      }
     } catch (err: any) {
-      setError(
-        err.response?.data?.message ||
-          "Failed to create product. Please try again."
-      );
+      setError(err.message || "Failed to create product. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -313,12 +377,58 @@ export default function AddProductPage() {
 
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-[32px] leading-tight text-[var(--secondary-black)] font-medium">
-            Add New Product
-          </h1>
-          <p className="mt-2 text-[var(--secondary-muted-edge)]">
-            Create a new product listing for your catalog
-          </p>
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-[32px] leading-tight text-[var(--secondary-black)] font-medium">
+                Add New Product
+              </h1>
+              <p className="mt-2 text-[var(--secondary-muted-edge)]">
+                Create a new product listing for your catalog
+              </p>
+            </div>
+
+            {/* Auto-save indicator */}
+            <div className="flex items-center gap-2 text-sm">
+              {draftRestored && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg border border-blue-200">
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  <span className="text-xs font-medium">Draft restored</span>
+                </div>
+              )}
+              {lastSaved && (
+                <div className="flex items-center gap-1.5 text-[var(--secondary-muted-edge)]">
+                  <svg
+                    className="w-4 h-4 text-green-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                  <span className="text-xs">
+                    Auto-saved {new Date(lastSaved).toLocaleTimeString()}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Error Alert */}
@@ -725,14 +835,50 @@ export default function AddProductPage() {
 
               {/* Form Actions */}
               <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-[var(--secondary-soft-highlight)]">
-                <button
-                  type="button"
-                  onClick={() => router.back()}
-                  className="btn btn-ghost order-2 sm:order-1"
-                  disabled={isSubmitting}
-                >
-                  Cancel
-                </button>
+                <div className="flex gap-3 order-2 sm:order-1">
+                  <button
+                    type="button"
+                    onClick={() => router.back()}
+                    className="btn btn-ghost"
+                    disabled={isSubmitting}
+                  >
+                    Cancel
+                  </button>
+
+                  {(formData.name ||
+                    formData.category ||
+                    formData.base_price > 0) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (
+                          confirm(
+                            "Are you sure you want to clear the draft? This cannot be undone."
+                          )
+                        ) {
+                          setFormData({
+                            name: "",
+                            category: "",
+                            base_price: 0,
+                            unit_of_measurement: MeasurementUnit.PIECE,
+                            currency: "XCD",
+                            stock_quantity: 0,
+                            condition: ProductCondition.NEW,
+                            status: ProductStatus.DRAFT,
+                            is_featured: false,
+                            is_organic: false,
+                          });
+                          setImages(Array(5).fill(null));
+                          clearDraft();
+                        }
+                      }}
+                      className="btn btn-ghost text-red-600 hover:bg-red-50"
+                      disabled={isSubmitting}
+                    >
+                      Clear Draft
+                    </button>
+                  )}
+                </div>
 
                 <div className="flex gap-3 order-1 sm:order-2 sm:ml-auto">
                   <button

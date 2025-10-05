@@ -369,13 +369,6 @@ const SellerTopNavigation: React.FC = () => {
                           Business Settings
                         </Link>
                         <Link
-                          href="/seller/payments"
-                          className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50/80 hover:text-gray-900 transition-all duration-200"
-                          onClick={() => setActiveDropdown(null)}
-                        >
-                          Billing & Payments
-                        </Link>
-                        <Link
                           href="/seller/help"
                           className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50/80 hover:text-gray-900 transition-all duration-200"
                           onClick={() => setActiveDropdown(null)}

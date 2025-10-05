@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   MagnifyingGlassIcon,
@@ -20,179 +20,71 @@ import {
   ClockIcon as ClockSolidIcon,
   XCircleIcon as XCircleSolidIcon,
 } from "@heroicons/react/24/solid";
+import { useAppDispatch, useAppSelector } from "@/store";
+import {
+  fetchProductRequests,
+  setFilters,
+} from "@/store/slices/sellerProductRequestsSlice";
+import ProcurLoader from "@/components/ProcurLoader";
 
 export default function PurchaseRequestsClient() {
-  const [activeTab, setActiveTab] = useState("all"); // 'all', 'new', 'responded', 'accepted', 'declined'
+  const dispatch = useAppDispatch();
+  const { requests, status, error, pagination, filters } = useAppSelector(
+    (state) => state.sellerProductRequests
+  );
+
+  const [activeTab, setActiveTab] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Mock purchase requests data
-  const requests = [
-    {
-      id: "req1",
-      buyerName: "Kingston Restaurant Group",
-      buyerRating: 4.8,
-      productName: "Organic Hass Avocados",
-      status: "new", // new, responded, accepted, declined
-      orderType: "one-off",
-      quantity: "500 kg",
-      unitPrice: "$2.50/kg",
-      totalBudget: "$1250",
-      deliveryDate: "2024-11-15",
-      deliveryLocation: "Kingston, Jamaica",
-      createdAt: "2024-10-01",
-      urgency: "medium",
-      responded: false,
-      bidAccepted: false,
-    },
-    {
-      id: "req2",
-      buyerName: "Caribbean Hotels Ltd",
-      buyerRating: 4.9,
-      productName: "Fresh Scotch Bonnet Peppers",
-      status: "accepted",
-      orderType: "recurring",
-      recurringFrequency: "weekly",
-      quantity: "100 lbs",
-      unitPrice: "$3.00/lb",
-      totalBudget: "$300",
-      deliveryDate: "2024-10-28",
-      deliveryLocation: "Montego Bay, Jamaica",
-      createdAt: "2024-09-20",
-      urgency: "high",
-      responded: true,
-      myBid: {
-        price: "$2.80/lb",
-        deliveryDate: "2024-10-28",
-        notes: "We can supply premium quality peppers with weekly delivery.",
-      },
-      bidAccepted: true,
-    },
-    {
-      id: "req3",
-      buyerName: "Island Fresh Markets",
-      buyerRating: 4.7,
-      productName: "Sweet Potatoes (Beauregard)",
-      status: "responded",
-      orderType: "one-off",
-      quantity: "2 tons",
-      unitPrice: "$0.80/kg",
-      totalBudget: "$1600",
-      deliveryDate: "2024-12-01",
-      deliveryLocation: "Port of Spain, Trinidad",
-      createdAt: "2024-10-10",
-      urgency: "low",
-      responded: true,
-      myBid: {
-        price: "$0.75/kg",
-        deliveryDate: "2024-12-01",
-        notes:
-          "Fresh harvest available. Can accommodate your delivery schedule.",
-      },
-      bidAccepted: false,
-    },
-    {
-      id: "req4",
-      buyerName: "Green Leaf Grocery",
-      buyerRating: 4.5,
-      productName: "Organic Callaloo",
-      status: "declined",
-      orderType: "recurring",
-      recurringFrequency: "biweekly",
-      quantity: "50 lbs",
-      unitPrice: "$4.00/lb",
-      totalBudget: "$200",
-      deliveryDate: "2024-09-30",
-      deliveryLocation: "Kingston, Jamaica",
-      createdAt: "2024-09-01",
-      urgency: "high",
-      responded: true,
-      myBid: {
-        price: "$4.20/lb",
-        deliveryDate: "2024-09-30",
-        notes: "Premium organic callaloo, certified.",
-      },
-      bidAccepted: false,
-      bidDeclined: true,
-    },
-    {
-      id: "req5",
-      buyerName: "Tropicana Food Services",
-      buyerRating: 4.6,
-      productName: "Yellow Yams",
-      status: "new",
-      orderType: "one-off",
-      quantity: "1000 kg",
-      unitPrice: "$1.20/kg",
-      totalBudget: "$1200",
-      deliveryDate: "2024-11-20",
-      deliveryLocation: "Kingston, Jamaica",
-      createdAt: "2024-10-12",
-      urgency: "medium",
-      responded: false,
-      bidAccepted: false,
-    },
-    {
-      id: "req6",
-      buyerName: "Sunshine Catering Co.",
-      buyerRating: 4.4,
-      productName: "Fresh Ginger Root",
-      status: "responded",
-      orderType: "recurring",
-      recurringFrequency: "monthly",
-      quantity: "200 kg",
-      unitPrice: "$3.50/kg",
-      totalBudget: "$700",
-      deliveryDate: "2024-11-05",
-      deliveryLocation: "Kingston, Jamaica",
-      createdAt: "2024-10-08",
-      urgency: "medium",
-      responded: true,
-      myBid: {
-        price: "$3.40/kg",
-        deliveryDate: "2024-11-05",
-        notes: "Fresh ginger, can supply monthly. Quality guaranteed.",
-      },
-      bidAccepted: false,
-    },
-  ];
+  // Fetch requests on mount and when filters change
+  useEffect(() => {
+    const statusFilter =
+      activeTab === "all"
+        ? undefined
+        : activeTab === "new"
+        ? "open"
+        : activeTab;
 
-  const filteredRequests = requests.filter((request) => {
-    const matchesSearch =
-      request.productName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      request.buyerName.toLowerCase().includes(searchQuery.toLowerCase());
+    dispatch(
+      fetchProductRequests({
+        ...filters,
+        status: statusFilter,
+        search: searchQuery || undefined,
+      })
+    );
+  }, [dispatch, activeTab, searchQuery]);
 
-    if (activeTab === "all") {
-      return matchesSearch;
-    }
-    return request.status === activeTab && matchesSearch;
-  });
+  // Loading state
+  if (status === "loading" && requests.length === 0) {
+    return <ProcurLoader size="lg" text="Loading purchase requests..." />;
+  }
 
-  const getStatusBadge = (
-    status: string,
-    bidAccepted?: boolean,
-    bidDeclined?: boolean
-  ) => {
-    if (status === "accepted" || bidAccepted) {
+  const getStatusBadge = (request: any) => {
+    // Has quote and it's accepted
+    if (request.my_quote?.status === "accepted") {
       return {
         text: "Accepted",
         className: "bg-green-100 text-green-700",
         icon: <CheckCircleSolidIcon className="h-3.5 w-3.5" />,
       };
     }
-    if (status === "declined" || bidDeclined) {
+    // Has quote and it's rejected
+    if (request.my_quote?.status === "rejected") {
       return {
         text: "Declined",
         className: "bg-red-100 text-red-700",
         icon: <XCircleSolidIcon className="h-3.5 w-3.5" />,
       };
     }
-    if (status === "responded") {
+    // Has quote but still pending
+    if (request.my_quote) {
       return {
         text: "Awaiting Response",
         className: "bg-yellow-100 text-yellow-700",
         icon: <ClockSolidIcon className="h-3.5 w-3.5" />,
       };
     }
+    // New request - no quote yet
     return {
       text: "New Request",
       className: "bg-blue-100 text-blue-700",
@@ -200,17 +92,29 @@ export default function PurchaseRequestsClient() {
     };
   };
 
-  const getUrgencyColor = (urgency: string) => {
-    switch (urgency) {
-      case "high":
-        return "text-red-600";
-      case "medium":
-        return "text-yellow-600";
-      case "low":
-        return "text-green-600";
-      default:
-        return "text-gray-600";
-    }
+  const formatCurrency = (amount: number, currency = "USD") => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+    }).format(amount);
+  };
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "Not specified";
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  // Tab counts
+  const tabCounts = {
+    all: pagination.total,
+    new: requests.filter((r) => !r.my_quote && r.status === "open").length,
+    responded: requests.filter((r) => r.my_quote).length,
+    accepted: requests.filter((r) => r.my_quote?.status === "accepted").length,
+    declined: requests.filter((r) => r.my_quote?.status === "rejected").length,
   };
 
   return (
@@ -250,12 +154,7 @@ export default function PurchaseRequestsClient() {
                   }`}
                 >
                   {tab.label} (
-                  {
-                    requests.filter(
-                      (r) => tab.key === "all" || r.status === tab.key
-                    ).length
-                  }
-                  )
+                  {tabCounts[tab.key as keyof typeof tabCounts] || 0})
                 </button>
               ))}
             </div>
@@ -290,8 +189,15 @@ export default function PurchaseRequestsClient() {
           )}
         </div>
 
+        {/* Error state */}
+        {status === "failed" && (
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-6 mb-6">
+            <p className="text-red-600 text-center">{error}</p>
+          </div>
+        )}
+
         {/* Requests List */}
-        {filteredRequests.length === 0 ? (
+        {requests.length === 0 ? (
           <div className="bg-white rounded-2xl p-12 text-center border border-[var(--secondary-soft-highlight)]/20">
             <DocumentTextIcon className="h-16 w-16 text-[var(--secondary-muted-edge)] mx-auto mb-4 opacity-50" />
             <h3 className="text-xl font-semibold text-[var(--secondary-black)] mb-2">
@@ -305,12 +211,11 @@ export default function PurchaseRequestsClient() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredRequests.map((request) => {
-              const statusBadge = getStatusBadge(
-                request.status,
-                request.bidAccepted,
-                request.bidDeclined
-              );
+            {requests.map((request) => {
+              const statusBadge = getStatusBadge(request);
+              const hasQuote = !!request.my_quote;
+              const isAccepted = request.my_quote?.status === "accepted";
+              const isRejected = request.my_quote?.status === "rejected";
 
               return (
                 <div
@@ -322,10 +227,10 @@ export default function PurchaseRequestsClient() {
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1 min-w-0">
                         <h3 className="text-lg font-semibold text-[var(--secondary-black)] line-clamp-1 mb-1">
-                          {request.productName}
+                          {request.product_name}
                         </h3>
                         <p className="text-sm text-[var(--secondary-muted-edge)] line-clamp-1">
-                          {request.buyerName}
+                          {request.buyer_name}
                         </p>
                       </div>
                       <div
@@ -336,24 +241,13 @@ export default function PurchaseRequestsClient() {
                       </div>
                     </div>
 
-                    {/* Order Type & Urgency */}
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="flex items-center gap-1 text-sm text-[var(--secondary-muted-edge)]">
+                    {/* Category */}
+                    {request.category && (
+                      <div className="flex items-center gap-1 text-sm text-[var(--secondary-muted-edge)] mb-3">
                         <TagIcon className="h-4 w-4 flex-shrink-0" />
-                        <span>
-                          {request.orderType === "recurring"
-                            ? `Recurring (${request.recurringFrequency})`
-                            : "One-Off"}
-                        </span>
+                        <span>{request.category}</span>
                       </div>
-                      <span
-                        className={`text-xs font-medium uppercase ${getUrgencyColor(
-                          request.urgency
-                        )}`}
-                      >
-                        {request.urgency} urgency
-                      </span>
-                    </div>
+                    )}
 
                     {/* Request Details */}
                     <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm mb-4">
@@ -361,49 +255,68 @@ export default function PurchaseRequestsClient() {
                         <span className="font-medium text-[var(--secondary-black)]">
                           Qty:
                         </span>
-                        <span>{request.quantity}</span>
-                      </div>
-                      <div className="flex items-center gap-1 text-[var(--secondary-muted-edge)]">
-                        <span className="font-medium text-[var(--secondary-black)]">
-                          Budget:
+                        <span>
+                          {request.quantity} {request.unit_of_measurement}
                         </span>
-                        <span>{request.totalBudget}</span>
                       </div>
+                      {request.budget_range && (
+                        <div className="flex items-center gap-1 text-[var(--secondary-muted-edge)]">
+                          <span className="font-medium text-[var(--secondary-black)]">
+                            Budget:
+                          </span>
+                          <span>
+                            {formatCurrency(
+                              request.budget_range.max_price || 0,
+                              request.budget_range.currency
+                            )}
+                          </span>
+                        </div>
+                      )}
                       <div className="flex items-center gap-1 text-[var(--secondary-muted-edge)] col-span-2">
                         <CalendarDaysIcon className="h-4 w-4 flex-shrink-0" />
-                        <span>Delivery: {request.deliveryDate}</span>
+                        <span>Delivery: {formatDate(request.date_needed)}</span>
                       </div>
-                      <div className="flex items-center gap-1 text-[var(--secondary-muted-edge)] col-span-2">
-                        <MapPinIcon className="h-4 w-4 flex-shrink-0" />
-                        <span className="truncate">
-                          {request.deliveryLocation}
-                        </span>
-                      </div>
+                      {request.delivery_location && (
+                        <div className="flex items-center gap-1 text-[var(--secondary-muted-edge)] col-span-2">
+                          <MapPinIcon className="h-4 w-4 flex-shrink-0" />
+                          <span className="truncate">
+                            {request.delivery_location}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     {/* My Bid Info (if responded) */}
-                    {request.responded && request.myBid && (
-                      <div className="mb-4 p-3 bg-[var(--primary-background)] rounded-xl">
-                        <p className="text-xs font-semibold text-[var(--secondary-black)] mb-1">
-                          Your Bid:
-                        </p>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-[var(--secondary-muted-edge)]">
-                            Price:
-                          </span>
-                          <span className="font-bold text-[var(--primary-accent2)]">
-                            {request.myBid.price}
-                          </span>
+                    {hasQuote &&
+                      request.my_quote &&
+                      request.my_quote.unit_price && (
+                        <div className="mb-4 p-3 bg-[var(--primary-background)] rounded-xl">
+                          <p className="text-xs font-semibold text-[var(--secondary-black)] mb-1">
+                            Your Quote:
+                          </p>
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-[var(--secondary-muted-edge)]">
+                              Price:
+                            </span>
+                            <span className="font-bold text-[var(--primary-accent2)]">
+                              {formatCurrency(
+                                request.my_quote.unit_price,
+                                request.my_quote.currency || "USD"
+                              )}
+                              /{request.unit_of_measurement}
+                            </span>
+                          </div>
+                          {request.my_quote.notes && (
+                            <p className="text-xs text-[var(--secondary-muted-edge)] mt-1 line-clamp-2">
+                              {request.my_quote.notes}
+                            </p>
+                          )}
                         </div>
-                        <p className="text-xs text-[var(--secondary-muted-edge)] mt-1 line-clamp-2">
-                          {request.myBid.notes}
-                        </p>
-                      </div>
-                    )}
+                      )}
 
                     {/* Actions */}
                     <div className="pt-4 border-t border-[var(--secondary-soft-highlight)]/20">
-                      {request.status === "new" && !request.responded && (
+                      {!hasQuote && request.status === "open" && (
                         <Link
                           href={`/seller/purchase-requests/${request.id}`}
                           className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-[var(--primary-accent2)] text-white rounded-full text-sm font-medium hover:bg-[var(--primary-accent3)] transition-all duration-200"
@@ -412,7 +325,7 @@ export default function PurchaseRequestsClient() {
                           <ArrowRightIcon className="h-4 w-4" />
                         </Link>
                       )}
-                      {request.status === "responded" && (
+                      {hasQuote && !isAccepted && !isRejected && (
                         <div className="flex gap-2">
                           <Link
                             href={`/seller/purchase-requests/${request.id}`}
@@ -426,7 +339,7 @@ export default function PurchaseRequestsClient() {
                           </button>
                         </div>
                       )}
-                      {request.status === "accepted" && request.bidAccepted && (
+                      {isAccepted && (
                         <div className="text-center">
                           <p className="text-sm text-green-600 font-medium mb-2">
                             🎉 Your bid was accepted!
@@ -440,7 +353,7 @@ export default function PurchaseRequestsClient() {
                           </Link>
                         </div>
                       )}
-                      {request.status === "declined" && request.bidDeclined && (
+                      {isRejected && (
                         <div className="text-center">
                           <p className="text-sm text-red-600 font-medium">
                             Your bid was not selected this time.

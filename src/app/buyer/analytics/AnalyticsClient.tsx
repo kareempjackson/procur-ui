@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ChartBarIcon,
   CurrencyDollarIcon,
@@ -9,601 +9,478 @@ import {
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon,
   CalendarIcon,
-  MapPinIcon,
+  BanknotesIcon,
   ClockIcon,
-  ArrowPathIcon,
-  FunnelIcon,
+  CheckCircleIcon,
+  TruckIcon,
+  StarIcon,
 } from "@heroicons/react/24/outline";
+import { useAppDispatch, useAppSelector } from "@/store";
+import { fetchTransactions } from "@/store/slices/buyerTransactionsSlice";
+import { fetchOrders } from "@/store/slices/buyerOrdersSlice";
+import ProcurLoader from "@/components/ProcurLoader";
 
 export default function AnalyticsClient() {
+  const dispatch = useAppDispatch();
+  const { summary, status } = useAppSelector(
+    (state) => state.buyerTransactions
+  );
+  const { orders: ordersData } = useAppSelector((state) => state.buyerOrders);
+
   const [timeRange, setTimeRange] = useState("30days");
-  const [selectedCategory, setSelectedCategory] = useState("all");
 
-  // Mock Analytics Data - In production, this would come from API
-  const overviewStats = {
-    totalSpent: 127543.89,
-    totalSpentChange: 12.5,
-    orderCount: 248,
-    orderCountChange: -3.2,
-    avgOrderValue: 514.29,
-    avgOrderValueChange: 15.8,
-    activeSuppliers: 34,
-    activeSuppliersChange: 8.5,
-  };
+  // Fetch data on mount
+  useEffect(() => {
+    dispatch(fetchTransactions({ page: 1, limit: 100 }));
+    dispatch(fetchOrders({ page: 1, limit: 100 }));
+  }, [dispatch]);
 
-  // Spending over time (last 12 months)
-  const spendingTrend = [
-    { month: "Jan", amount: 8234 },
-    { month: "Feb", amount: 9456 },
-    { month: "Mar", amount: 11234 },
-    { month: "Apr", amount: 10567 },
-    { month: "May", amount: 12890 },
-    { month: "Jun", amount: 11234 },
-    { month: "Jul", amount: 13456 },
-    { month: "Aug", amount: 10234 },
-    { month: "Sep", amount: 14567 },
-    { month: "Oct", amount: 12890 },
-    { month: "Nov", amount: 11234 },
-    { month: "Dec", amount: 11547 },
-  ];
+  // Loading state
+  if (status === "loading" || !summary) {
+    return <ProcurLoader size="lg" text="Loading analytics..." />;
+  }
 
-  // Category breakdown
-  const categoryBreakdown = [
-    { category: "Vegetables", amount: 45234, percentage: 35, color: "#407178" },
-    { category: "Fruits", amount: 32145, percentage: 25, color: "#CB5927" },
-    { category: "Herbs", amount: 19234, percentage: 15, color: "#6C715D" },
-    { category: "Root Crops", amount: 16345, percentage: 13, color: "#8B7355" },
-    { category: "Grains", amount: 12345, percentage: 10, color: "#5A6C57" },
-    { category: "Other", amount: 2240, percentage: 2, color: "#9CA3AF" },
-  ];
+  // Ensure orders is an array
+  const orders = Array.isArray(ordersData) ? ordersData : [];
 
-  // Top suppliers by spend
-  const topSuppliers = [
-    {
-      name: "Caribbean Farms Co.",
-      amount: 23456,
-      orders: 45,
-      avgDeliveryTime: "2.3 days",
-      rating: 4.8,
-    },
-    {
-      name: "Tropical Harvest Ltd",
-      amount: 19234,
-      orders: 38,
-      avgDeliveryTime: "1.8 days",
-      rating: 4.9,
-    },
-    {
-      name: "Island Fresh Produce",
-      amount: 16345,
-      orders: 32,
-      avgDeliveryTime: "3.1 days",
-      rating: 4.7,
-    },
-    {
-      name: "Green Valley Cooperative",
-      amount: 12890,
-      orders: 28,
-      avgDeliveryTime: "2.7 days",
-      rating: 4.6,
-    },
-    {
-      name: "Spice Island Farms",
-      amount: 11234,
-      orders: 24,
-      avgDeliveryTime: "2.2 days",
-      rating: 4.9,
-    },
-  ];
+  // Calculate order stats
+  const totalOrders = orders.length;
+  const completedOrders = orders.filter((o) => o.status === "delivered").length;
+  const pendingOrders = orders.filter(
+    (o) => o.status === "pending" || o.status === "processing"
+  ).length;
+  const cancelledOrders = orders.filter((o) => o.status === "cancelled").length;
 
-  // Team member activity
-  const teamActivity = [
-    {
-      name: "Sarah Johnson",
-      role: "Procurement Manager",
-      orders: 87,
-      amount: 45234,
-      avgOrderValue: 520,
-    },
-    {
-      name: "Michael Chen",
-      role: "Kitchen Manager",
-      orders: 64,
-      amount: 32145,
-      avgOrderValue: 502,
-    },
-    {
-      name: "Emily Rodriguez",
-      role: "Operations Lead",
-      orders: 52,
-      amount: 28456,
-      avgOrderValue: 547,
-    },
-    {
-      name: "James Wilson",
-      role: "Assistant Manager",
-      orders: 45,
-      amount: 21708,
-      avgOrderValue: 482,
-    },
-  ];
-
-  // Spending by location
-  const locationSpending = [
-    { location: "Kingston, Jamaica", amount: 38456, percentage: 30 },
-    { location: "Santo Domingo, DR", amount: 32145, percentage: 25 },
-    { location: "Port of Spain, Trinidad", amount: 25678, percentage: 20 },
-    { location: "Bridgetown, Barbados", amount: 19234, percentage: 15 },
-    { location: "Other Locations", amount: 12030, percentage: 10 },
-  ];
-
-  // Order timing analysis
-  const orderTiming = [
-    { day: "Monday", count: 42, avgValue: 532 },
-    { day: "Tuesday", count: 38, avgValue: 498 },
-    { day: "Wednesday", count: 35, avgValue: 521 },
-    { day: "Thursday", count: 39, avgValue: 545 },
-    { day: "Friday", count: 44, avgValue: 502 },
-    { day: "Saturday", count: 28, avgValue: 478 },
-    { day: "Sunday", count: 22, avgValue: 456 },
-  ];
-
-  const maxSpending = Math.max(...spendingTrend.map((d) => d.amount));
-  const maxOrderCount = Math.max(...orderTiming.map((d) => d.count));
-
-  const formatCurrency = (amount: number) => {
+  // Format currency
+  const formatCurrency = (amount: number, currency = "USD") => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "USD",
+      currency,
     }).format(amount);
   };
 
+  // Format percentage
   const formatPercentage = (value: number) => {
     return `${value > 0 ? "+" : ""}${value.toFixed(1)}%`;
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[var(--primary-background)]">
       <main className="max-w-[1400px] mx-auto px-6 py-8">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-3xl font-semibold text-[var(--secondary-black)]">
-                Procurement Analytics
+              <h1 className="text-3xl font-bold text-[var(--secondary-black)] mb-1">
+                Analytics Dashboard
               </h1>
-              <p className="text-[var(--secondary-muted-edge)] mt-1">
-                Gain insights into your purchasing patterns and make data-driven
-                business decisions
+              <p className="text-sm text-[var(--secondary-muted-edge)]">
+                Insights into your procurement performance
               </p>
             </div>
-            <div className="flex items-center gap-3">
+
+            {/* Time Range Selector */}
+            <div className="flex items-center gap-2">
+              <CalendarIcon className="h-5 w-5 text-[var(--secondary-muted-edge)]" />
               <select
                 value={timeRange}
                 onChange={(e) => setTimeRange(e.target.value)}
-                className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-[var(--secondary-black)] focus:outline-none focus:border-[var(--primary-accent2)]"
+                className="px-4 py-2 border border-[var(--secondary-soft-highlight)] rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)]/20 focus:border-[var(--primary-accent2)] transition-all bg-white"
               >
-                <option value="7days">Last 7 Days</option>
-                <option value="30days">Last 30 Days</option>
-                <option value="90days">Last 90 Days</option>
-                <option value="1year">Last Year</option>
-                <option value="all">All Time</option>
+                <option value="7days">Last 7 days</option>
+                <option value="30days">Last 30 days</option>
+                <option value="90days">Last 90 days</option>
+                <option value="1year">Last year</option>
+                <option value="all">All time</option>
               </select>
-              <button className="flex items-center gap-2 px-4 py-2 bg-[var(--primary-accent2)] text-white rounded-lg font-medium">
-                <ArrowPathIcon className="h-5 w-5" />
-                Refresh
-              </button>
             </div>
           </div>
         </div>
 
-        {/* Key Metrics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {/* Overview Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {/* Total Spent */}
-          <div className="bg-white rounded-lg p-5 border border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-2.5 bg-green-50 rounded-lg">
-                <CurrencyDollarIcon className="h-6 w-6 text-green-600" />
+          <div className="bg-gradient-to-br from-[#CB5927] to-[#653011] rounded-2xl p-6 text-white shadow-xl">
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-3 bg-white/20 rounded-xl">
+                <CurrencyDollarIcon className="h-7 w-7" />
               </div>
-              <div
-                className={`flex items-center gap-1 text-xs font-semibold ${
-                  overviewStats.totalSpentChange > 0
-                    ? "text-green-600"
-                    : "text-red-600"
-                }`}
-              >
-                {overviewStats.totalSpentChange > 0 ? (
-                  <ArrowTrendingUpIcon className="h-4 w-4" />
-                ) : (
-                  <ArrowTrendingDownIcon className="h-4 w-4" />
-                )}
-                {formatPercentage(overviewStats.totalSpentChange)}
+              <div className="text-right">
+                <div className="text-xs opacity-90 mb-1">Total Spent</div>
+                <div className="text-2xl font-bold">
+                  {formatCurrency(summary.total_spent, summary.currency)}
+                </div>
               </div>
             </div>
-            <div className="text-2xl font-semibold text-[var(--secondary-black)] mb-1">
-              {formatCurrency(overviewStats.totalSpent)}
-            </div>
-            <div className="text-sm text-[var(--secondary-muted-edge)]">
-              Total Spent
+            <div className="flex items-center gap-2 text-sm">
+              <span className="px-2 py-0.5 bg-white/20 rounded-full text-xs">
+                {summary.total_transactions} transactions
+              </span>
             </div>
           </div>
 
-          {/* Order Count */}
-          <div className="bg-white rounded-lg p-5 border border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-2.5 bg-blue-50 rounded-lg">
-                <ShoppingCartIcon className="h-6 w-6 text-blue-600" />
+          {/* Total Orders */}
+          <div className="bg-gradient-to-br from-[#C0D1C7] to-[#407178] rounded-2xl p-6 text-white shadow-xl">
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-3 bg-white/20 rounded-xl">
+                <ShoppingCartIcon className="h-7 w-7" />
               </div>
-              <div
-                className={`flex items-center gap-1 text-xs font-semibold ${
-                  overviewStats.orderCountChange > 0
-                    ? "text-green-600"
-                    : "text-red-600"
-                }`}
-              >
-                {overviewStats.orderCountChange > 0 ? (
-                  <ArrowTrendingUpIcon className="h-4 w-4" />
-                ) : (
-                  <ArrowTrendingDownIcon className="h-4 w-4" />
-                )}
-                {formatPercentage(overviewStats.orderCountChange)}
+              <div className="text-right">
+                <div className="text-xs opacity-90 mb-1">Total Orders</div>
+                <div className="text-2xl font-bold">{totalOrders}</div>
               </div>
             </div>
-            <div className="text-2xl font-semibold text-[var(--secondary-black)] mb-1">
-              {overviewStats.orderCount}
-            </div>
-            <div className="text-sm text-[var(--secondary-muted-edge)]">
-              Total Orders
+            <div className="flex items-center gap-2 text-sm">
+              <CheckCircleIcon className="h-4 w-4 opacity-80" />
+              <span className="text-xs opacity-90">
+                {completedOrders} completed
+              </span>
             </div>
           </div>
 
           {/* Average Order Value */}
-          <div className="bg-white rounded-lg p-5 border border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-2.5 bg-[var(--primary-accent2)]/10 rounded-lg">
-                <ChartBarIcon className="h-6 w-6 text-[var(--primary-accent2)]" />
+          <div className="bg-gradient-to-br from-[#A6B1E7] to-[#8091D5] rounded-2xl p-6 text-white shadow-xl">
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-3 bg-white/20 rounded-xl">
+                <ChartBarIcon className="h-7 w-7" />
               </div>
-              <div
-                className={`flex items-center gap-1 text-xs font-semibold ${
-                  overviewStats.avgOrderValueChange > 0
-                    ? "text-green-600"
-                    : "text-red-600"
-                }`}
-              >
-                {overviewStats.avgOrderValueChange > 0 ? (
-                  <ArrowTrendingUpIcon className="h-4 w-4" />
-                ) : (
-                  <ArrowTrendingDownIcon className="h-4 w-4" />
-                )}
-                {formatPercentage(overviewStats.avgOrderValueChange)}
+              <div className="text-right">
+                <div className="text-xs opacity-90 mb-1">Avg Order Value</div>
+                <div className="text-2xl font-bold">
+                  {formatCurrency(
+                    summary.average_transaction_amount,
+                    summary.currency
+                  )}
+                </div>
               </div>
             </div>
-            <div className="text-2xl font-semibold text-[var(--secondary-black)] mb-1">
-              {formatCurrency(overviewStats.avgOrderValue)}
-            </div>
-            <div className="text-sm text-[var(--secondary-muted-edge)]">
-              Avg. Order Value
+            <div className="flex items-center gap-2 text-sm">
+              <BanknotesIcon className="h-4 w-4 opacity-80" />
+              <span className="text-xs opacity-90">Per transaction</span>
             </div>
           </div>
 
-          {/* Active Suppliers */}
-          <div className="bg-white rounded-lg p-5 border border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-2.5 bg-purple-50 rounded-lg">
-                <UserGroupIcon className="h-6 w-6 text-purple-600" />
+          {/* Top Suppliers */}
+          <div className="bg-gradient-to-br from-[#E0A374] to-[#CB5927] rounded-2xl p-6 text-white shadow-xl">
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-3 bg-white/20 rounded-xl">
+                <UserGroupIcon className="h-7 w-7" />
               </div>
-              <div
-                className={`flex items-center gap-1 text-xs font-semibold ${
-                  overviewStats.activeSuppliersChange > 0
-                    ? "text-green-600"
-                    : "text-red-600"
-                }`}
-              >
-                {overviewStats.activeSuppliersChange > 0 ? (
-                  <ArrowTrendingUpIcon className="h-4 w-4" />
-                ) : (
-                  <ArrowTrendingDownIcon className="h-4 w-4" />
-                )}
-                {formatPercentage(overviewStats.activeSuppliersChange)}
+              <div className="text-right">
+                <div className="text-xs opacity-90 mb-1">Top Suppliers</div>
+                <div className="text-2xl font-bold">
+                  {summary.top_sellers?.length || 0}
+                </div>
               </div>
             </div>
-            <div className="text-2xl font-semibold text-[var(--secondary-black)] mb-1">
-              {overviewStats.activeSuppliers}
-            </div>
-            <div className="text-sm text-[var(--secondary-muted-edge)]">
-              Active Suppliers
+            <div className="flex items-center gap-2 text-sm">
+              <StarIcon className="h-4 w-4 opacity-80" />
+              <span className="text-xs opacity-90">Active partnerships</span>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - 2/3 width */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Spending Trend Chart */}
-            <div className="bg-white rounded-lg p-6 border border-gray-200">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-xl font-semibold text-[var(--secondary-black)]">
-                    Spending Trend
-                  </h2>
-                  <p className="text-sm text-[var(--secondary-muted-edge)] mt-1">
-                    Monthly spending over the last year
-                  </p>
-                </div>
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-[var(--secondary-black)] focus:outline-none focus:border-[var(--primary-accent2)]"
-                >
-                  <option value="all">All Categories</option>
-                  <option value="vegetables">Vegetables</option>
-                  <option value="fruits">Fruits</option>
-                  <option value="herbs">Herbs</option>
-                </select>
+        {/* Two Column Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          {/* Spending Trend - Takes 2 columns */}
+          <div className="lg:col-span-2 bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/30 p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-lg font-bold text-[var(--secondary-black)] mb-1">
+                  Monthly Spending Trend
+                </h3>
+                <p className="text-xs text-[var(--secondary-muted-edge)]">
+                  Your procurement spending over time
+                </p>
               </div>
+              <div className="px-3 py-1.5 bg-[var(--primary-accent2)]/10 rounded-full text-xs font-medium text-[var(--primary-accent2)]">
+                Last 12 months
+              </div>
+            </div>
 
-              {/* Bar Chart */}
-              <div className="h-64 flex items-end justify-between gap-2">
-                {spendingTrend.map((data, index) => (
-                  <div
-                    key={index}
-                    className="flex-1 flex flex-col items-center"
-                  >
-                    <div className="w-full flex flex-col items-center">
-                      <div className="relative group w-full">
-                        <div
-                          className="bg-[var(--primary-accent2)] rounded-t"
-                          style={{
-                            height: `${(data.amount / maxSpending) * 200}px`,
-                            minHeight: "20px",
-                          }}
-                        />
-                        {/* Tooltip */}
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10">
-                          <div className="bg-gray-900 text-white text-xs rounded px-3 py-2 whitespace-nowrap">
-                            <div className="font-semibold">
-                              {formatCurrency(data.amount)}
+            {/* Simple Bar Chart */}
+            <div className="space-y-3">
+              {summary.monthly_spending &&
+              summary.monthly_spending.length > 0 ? (
+                summary.monthly_spending.map((item, index) => {
+                  const maxAmount = Math.max(
+                    ...summary.monthly_spending.map((m) => m.amount)
+                  );
+                  const percentage = (item.amount / maxAmount) * 100;
+
+                  return (
+                    <div key={index} className="flex items-center gap-3">
+                      <div className="w-12 text-xs font-medium text-[var(--secondary-muted-edge)]">
+                        {item.month}
+                      </div>
+                      <div className="flex-1 relative">
+                        <div className="h-10 bg-[var(--primary-background)] rounded-lg overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-[var(--primary-accent2)] to-[var(--primary-accent3)] rounded-lg transition-all duration-500 flex items-center px-3"
+                            style={{ width: `${percentage}%` }}
+                          >
+                            {percentage > 30 && (
+                              <span className="text-xs font-semibold text-white">
+                                {formatCurrency(item.amount, summary.currency)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="w-16 text-right">
+                        <span className="text-xs text-[var(--secondary-muted-edge)]">
+                          {item.transaction_count} orders
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-8 text-sm text-[var(--secondary-muted-edge)]">
+                  No spending data available
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Transaction Status Breakdown */}
+          <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/30 p-6 shadow-sm">
+            <h3 className="text-lg font-bold text-[var(--secondary-black)] mb-4">
+              Transaction Status
+            </h3>
+
+            <div className="space-y-4">
+              {summary.transactions_by_status &&
+              Object.keys(summary.transactions_by_status).length > 0 ? (
+                Object.entries(summary.transactions_by_status).map(
+                  ([status, count]) => {
+                    const colors: Record<string, { bg: string; text: string }> =
+                      {
+                        completed: {
+                          bg: "bg-[#C0D1C7]/20",
+                          text: "text-[#407178]",
+                        },
+                        pending: {
+                          bg: "bg-[#E0A374]/20",
+                          text: "text-[#CB5927]",
+                        },
+                        failed: {
+                          bg: "bg-[#CB5927]/20",
+                          text: "text-[#653011]",
+                        },
+                        cancelled: {
+                          bg: "bg-[#6C715D]/20",
+                          text: "text-[#6C715D]",
+                        },
+                      };
+
+                    const color =
+                      colors[status.toLowerCase()] || colors.cancelled;
+
+                    return (
+                      <div
+                        key={status}
+                        className="flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-10 h-10 ${color.bg} rounded-lg flex items-center justify-center`}
+                          >
+                            <span className={`text-sm font-bold ${color.text}`}>
+                              {count}
+                            </span>
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium text-[var(--secondary-black)] capitalize">
+                              {status}
                             </div>
-                            <div className="text-gray-300 mt-0.5">
-                              {data.month}
+                            <div className="text-xs text-[var(--secondary-muted-edge)]">
+                              {(
+                                (count / summary.total_transactions) *
+                                100
+                              ).toFixed(0)}
+                              % of total
                             </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="text-xs text-[var(--secondary-muted-edge)] mt-2">
-                      {data.month}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                    );
+                  }
+                )
+              ) : (
+                <div className="text-center py-8 text-sm text-[var(--secondary-muted-edge)]">
+                  No transaction status data
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Top Suppliers Table */}
+        {summary.top_sellers && summary.top_sellers.length > 0 && (
+          <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/30 overflow-hidden shadow-sm mb-8">
+            <div className="p-6 border-b border-[var(--secondary-soft-highlight)]">
+              <h3 className="text-lg font-bold text-[var(--secondary-black)] mb-1">
+                Top Suppliers by Volume
+              </h3>
+              <p className="text-xs text-[var(--secondary-muted-edge)]">
+                Your most valuable supplier partnerships
+              </p>
             </div>
 
-            {/* Category Breakdown */}
-            <div className="bg-white rounded-lg p-6 border border-gray-200">
-              <h2 className="text-xl font-semibold text-[var(--secondary-black)] mb-6">
-                Spending by Category
-              </h2>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-[var(--primary-background)]">
+                  <tr>
+                    <th className="text-left py-3 px-6 text-xs font-semibold text-[var(--secondary-black)] uppercase tracking-wider">
+                      Rank
+                    </th>
+                    <th className="text-left py-3 px-6 text-xs font-semibold text-[var(--secondary-black)] uppercase tracking-wider">
+                      Supplier
+                    </th>
+                    <th className="text-left py-3 px-6 text-xs font-semibold text-[var(--secondary-black)] uppercase tracking-wider">
+                      Total Spent
+                    </th>
+                    <th className="text-left py-3 px-6 text-xs font-semibold text-[var(--secondary-black)] uppercase tracking-wider">
+                      Orders
+                    </th>
+                    <th className="text-left py-3 px-6 text-xs font-semibold text-[var(--secondary-black)] uppercase tracking-wider">
+                      Avg Order
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {summary.top_sellers.map((seller, index) => (
+                    <tr
+                      key={seller.seller_id}
+                      className={`border-b border-[var(--secondary-soft-highlight)]/20 last:border-0 hover:bg-[var(--primary-background)]/50 transition-colors ${
+                        index % 2 === 0
+                          ? "bg-white"
+                          : "bg-[var(--primary-background)]/20"
+                      }`}
+                    >
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                              index === 0
+                                ? "bg-[#E0A374] text-white"
+                                : index === 1
+                                ? "bg-[#C0D1C7] text-[#407178]"
+                                : index === 2
+                                ? "bg-[#A6B1E7] text-white"
+                                : "bg-[var(--primary-background)] text-[var(--secondary-muted-edge)]"
+                            }`}
+                          >
+                            #{index + 1}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="font-medium text-sm text-[var(--secondary-black)]">
+                          {seller.seller_name}
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="font-bold text-sm text-[var(--secondary-black)]">
+                          {formatCurrency(
+                            seller.total_amount,
+                            summary.currency
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="text-sm text-[var(--secondary-muted-edge)]">
+                          {seller.transaction_count} orders
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="text-sm text-[var(--secondary-muted-edge)]">
+                          {formatCurrency(
+                            seller.total_amount / seller.transaction_count,
+                            summary.currency
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
-              <div className="space-y-4">
-                {categoryBreakdown.map((category, index) => (
-                  <div key={index}>
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="w-4 h-4 rounded"
-                          style={{ backgroundColor: category.color }}
-                        />
-                        <span className="font-medium text-[var(--secondary-black)]">
-                          {category.category}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <span className="text-sm font-semibold text-[var(--secondary-black)]">
-                          {formatCurrency(category.amount)}
-                        </span>
-                        <span className="text-sm text-[var(--secondary-muted-edge)] w-12 text-right">
-                          {category.percentage}%
-                        </span>
-                      </div>
-                    </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2">
-                      <div
-                        className="h-2 rounded-full"
-                        style={{
-                          width: `${category.percentage}%`,
-                          backgroundColor: category.color,
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
+        {/* Key Metrics Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Net Spent */}
+          <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/30 p-6 shadow-sm">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-[#CB5927]/10 rounded-lg">
+                <BanknotesIcon className="h-5 w-5 text-[#CB5927]" />
+              </div>
+              <div className="text-xs font-semibold text-[var(--secondary-muted-edge)] uppercase tracking-wide">
+                Net Spent
               </div>
             </div>
-
-            {/* Top Suppliers */}
-            <div className="bg-white rounded-lg p-6 border border-gray-200">
-              <h2 className="text-xl font-semibold text-[var(--secondary-black)] mb-6">
-                Top Suppliers by Spend
-              </h2>
-
-              <div className="space-y-3">
-                {topSuppliers.map((supplier, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-[var(--primary-accent2)] text-white font-semibold">
-                        {index + 1}
-                      </div>
-                      <div>
-                        <div className="font-semibold text-[var(--secondary-black)]">
-                          {supplier.name}
-                        </div>
-                        <div className="text-sm text-[var(--secondary-muted-edge)] flex items-center gap-3 mt-1">
-                          <span>{supplier.orders} orders</span>
-                          <span className="flex items-center gap-1">
-                            <ClockIcon className="h-3.5 w-3.5" />
-                            {supplier.avgDeliveryTime}
-                          </span>
-                          <span className="text-yellow-600">
-                            ★ {supplier.rating}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-lg font-semibold text-[var(--secondary-black)]">
-                        {formatCurrency(supplier.amount)}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <div className="text-2xl font-bold text-[var(--secondary-black)] mb-1">
+              {formatCurrency(summary.net_spent, summary.currency)}
+            </div>
+            <div className="text-xs text-[var(--secondary-muted-edge)]">
+              After refunds & adjustments
             </div>
           </div>
 
-          {/* Right Column - 1/3 width */}
-          <div className="space-y-6">
-            {/* Team Activity */}
-            <div className="bg-white rounded-lg p-6 border border-gray-200">
-              <h2 className="text-xl font-semibold text-[var(--secondary-black)] mb-6">
-                Team Activity
-              </h2>
-
-              <div className="space-y-4">
-                {teamActivity.map((member, index) => (
-                  <div
-                    key={index}
-                    className="pb-4 border-b border-gray-200 last:border-0"
-                  >
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-10 h-10 rounded-lg bg-[var(--primary-accent2)] flex items-center justify-center text-white font-semibold text-sm">
-                        {member.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")}
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-semibold text-sm text-[var(--secondary-black)]">
-                          {member.name}
-                        </div>
-                        <div className="text-xs text-[var(--secondary-muted-edge)] mt-0.5">
-                          {member.role}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div className="bg-gray-50 p-2.5 rounded-lg">
-                        <div className="text-[var(--secondary-muted-edge)] mb-1">
-                          Orders
-                        </div>
-                        <div className="font-semibold text-sm text-[var(--secondary-black)]">
-                          {member.orders}
-                        </div>
-                      </div>
-                      <div className="bg-gray-50 p-2.5 rounded-lg">
-                        <div className="text-[var(--secondary-muted-edge)] mb-1">
-                          Spent
-                        </div>
-                        <div className="font-semibold text-sm text-[var(--secondary-black)]">
-                          {formatCurrency(member.amount)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+          {/* Total Refunds */}
+          <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/30 p-6 shadow-sm">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-[#C0D1C7]/30 rounded-lg">
+                <ArrowTrendingDownIcon className="h-5 w-5 text-[#407178]" />
+              </div>
+              <div className="text-xs font-semibold text-[var(--secondary-muted-edge)] uppercase tracking-wide">
+                Refunds
               </div>
             </div>
+            <div className="text-2xl font-bold text-[var(--secondary-black)] mb-1">
+              {formatCurrency(summary.total_refunds, summary.currency)}
+            </div>
+            <div className="text-xs text-[var(--secondary-muted-edge)]">
+              Money returned
+            </div>
+          </div>
 
-            {/* Location Spending */}
-            <div className="bg-white rounded-lg p-6 border border-gray-200">
-              <h2 className="text-xl font-semibold text-[var(--secondary-black)] mb-6">
-                Spending by Location
-              </h2>
-
-              <div className="space-y-3">
-                {locationSpending.map((location, index) => (
-                  <div key={index}>
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <MapPinIcon className="h-4 w-4 text-[var(--primary-accent2)]" />
-                        <span className="text-sm font-medium text-[var(--secondary-black)]">
-                          {location.location}
-                        </span>
-                      </div>
-                      <span className="text-sm font-semibold text-[var(--secondary-black)]">
-                        {formatCurrency(location.amount)}
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-100 rounded-full h-1.5">
-                      <div
-                        className="h-1.5 rounded-full bg-[var(--primary-accent2)]"
-                        style={{ width: `${location.percentage}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
+          {/* Total Fees */}
+          <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/30 p-6 shadow-sm">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-[#E0A374]/20 rounded-lg">
+                <CurrencyDollarIcon className="h-5 w-5 text-[#CB5927]" />
+              </div>
+              <div className="text-xs font-semibold text-[var(--secondary-muted-edge)] uppercase tracking-wide">
+                Fees Paid
               </div>
             </div>
+            <div className="text-2xl font-bold text-[var(--secondary-black)] mb-1">
+              {formatCurrency(summary.total_fees, summary.currency)}
+            </div>
+            <div className="text-xs text-[var(--secondary-muted-edge)]">
+              Platform & processing
+            </div>
+          </div>
 
-            {/* Order Timing */}
-            <div className="bg-white rounded-lg p-6 border border-gray-200">
-              <h2 className="text-xl font-semibold text-[var(--secondary-black)] mb-6">
-                Order Timing Insights
-              </h2>
-
-              <div className="space-y-3">
-                {orderTiming.map((day, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-3 flex-1">
-                      <span className="text-sm font-medium text-[var(--secondary-black)] w-20">
-                        {day.day}
-                      </span>
-                      <div className="flex-1 bg-gray-100 rounded-full h-2">
-                        <div
-                          className="h-2 rounded-full bg-[var(--primary-accent2)]"
-                          style={{
-                            width: `${(day.count / maxOrderCount) * 100}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                    <span className="text-sm font-semibold text-[var(--secondary-black)] ml-3">
-                      {day.count}
-                    </span>
-                  </div>
-                ))}
+          {/* Largest Transaction */}
+          <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/30 p-6 shadow-sm">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-[#A6B1E7]/20 rounded-lg">
+                <ArrowTrendingUpIcon className="h-5 w-5 text-[#8091D5]" />
               </div>
-
-              <div className="mt-5 pt-4 border-t border-gray-200">
-                <div className="text-sm text-[var(--secondary-muted-edge)]">
-                  <strong className="text-[var(--secondary-black)]">
-                    Peak Days:
-                  </strong>{" "}
-                  Most orders placed on Mondays and Fridays
-                </div>
+              <div className="text-xs font-semibold text-[var(--secondary-muted-edge)] uppercase tracking-wide">
+                Largest Order
               </div>
             </div>
-
-            {/* Quick Actions */}
-            <div className="bg-[var(--primary-accent2)] rounded-lg p-6 text-white">
-              <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
-              <div className="space-y-2">
-                <button className="w-full py-2.5 bg-white/20 rounded-lg text-sm font-medium">
-                  Export Report (PDF)
-                </button>
-                <button className="w-full py-2.5 bg-white/20 rounded-lg text-sm font-medium">
-                  Download Data (CSV)
-                </button>
-                <button className="w-full py-2.5 bg-white/20 rounded-lg text-sm font-medium">
-                  Schedule Report
-                </button>
-              </div>
+            <div className="text-2xl font-bold text-[var(--secondary-black)] mb-1">
+              {formatCurrency(summary.largest_transaction, summary.currency)}
+            </div>
+            <div className="text-xs text-[var(--secondary-muted-edge)]">
+              Single transaction
             </div>
           </div>
         </div>

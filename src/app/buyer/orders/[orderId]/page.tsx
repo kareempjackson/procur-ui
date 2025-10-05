@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeftIcon,
   CheckCircleIcon,
@@ -17,10 +18,19 @@ import {
   ChatBubbleLeftIcon,
   XCircleIcon,
   StarIcon,
+  ShoppingBagIcon,
 } from "@heroicons/react/24/outline";
+import { useAppDispatch, useAppSelector } from "@/store";
+import {
+  fetchOrderDetail,
+  cancelOrder,
+  clearCurrentOrder,
+} from "@/store/slices/buyerOrdersSlice";
+import { getApiClient } from "@/lib/apiClient";
+import ProcurLoader from "@/components/ProcurLoader";
 
 // Demo order data with full tracking
-const demoOrder = {
+const order = {
   id: "ord_abc123",
   orderNumber: "#10245",
   status: "shipped",
@@ -159,14 +169,133 @@ export default function OrderDetailPage({
 }: {
   params: { orderId: string };
 }) {
+  const router = useRouter();
+  const dispatch = useAppDispatch();
+  const {
+    currentOrder: order,
+    orderDetailStatus,
+    orderDetailError,
+  } = useAppSelector((state) => state.buyerOrders);
+  const authToken = useAppSelector((state) => state.auth.accessToken);
+
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
+  const [isStartingConversation, setIsStartingConversation] = useState(false);
+  const [cancellingOrder, setCancellingOrder] = useState(false);
 
-  const handleCancelOrder = () => {
-    // Will handle order cancellation
-    console.log("Cancelling order with reason:", cancelReason);
-    setShowCancelDialog(false);
+  // Fetch order detail on mount
+  useEffect(() => {
+    dispatch(fetchOrderDetail(params.orderId));
+
+    return () => {
+      dispatch(clearCurrentOrder());
+    };
+  }, [params.orderId, dispatch]);
+
+  const handleCancelOrder = async () => {
+    setCancellingOrder(true);
+    try {
+      await dispatch(
+        cancelOrder({ orderId: params.orderId, reason: cancelReason })
+      ).unwrap();
+      setShowCancelDialog(false);
+      // Refresh order detail
+      dispatch(fetchOrderDetail(params.orderId));
+    } catch (error) {
+      console.error("Failed to cancel order:", error);
+      alert("Failed to cancel order. Please try again.");
+    } finally {
+      setCancellingOrder(false);
+    }
   };
+
+  const handleContactSeller = async () => {
+    if (!authToken || !order) return;
+
+    setIsStartingConversation(true);
+    try {
+      const client = getApiClient(() => authToken);
+      const { data } = await client.post("/conversations/start", {
+        contextType: "order",
+        contextId: params.orderId,
+        withUserId: order.seller_org_id,
+        title: `Order ${order.order_number}`,
+      });
+      router.push(`/buyer/messages?conversationId=${data.id}`);
+    } catch (error) {
+      console.error("Failed to start conversation:", error);
+      alert("Failed to start conversation. Please try again.");
+    } finally {
+      setIsStartingConversation(false);
+    }
+  };
+
+  // Loading state
+  if (orderDetailStatus === "loading" && !order) {
+    return (
+      <div className="min-h-screen bg-[var(--primary-background)] flex items-center justify-center">
+        <ProcurLoader size="lg" text="Loading order details..." />
+      </div>
+    );
+  }
+
+  // Error state
+  if (orderDetailStatus === "failed" && orderDetailError) {
+    return (
+      <div className="min-h-screen bg-[var(--primary-background)] flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <ShoppingBagIcon className="h-16 w-16 text-[var(--secondary-muted-edge)] mx-auto mb-4 opacity-50" />
+          <h2 className="text-xl font-bold text-[var(--secondary-black)] mb-2">
+            Failed to Load Order
+          </h2>
+          <p className="text-[var(--secondary-muted-edge)] mb-4">
+            {orderDetailError}
+          </p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => router.push("/buyer/orders")}
+              className="px-6 py-3 border border-[var(--secondary-soft-highlight)] text-[var(--secondary-black)] rounded-full font-semibold hover:bg-white transition-all duration-200"
+            >
+              Back to Orders
+            </button>
+            <button
+              onClick={() => dispatch(fetchOrderDetail(params.orderId))}
+              className="px-6 py-3 bg-[var(--primary-accent2)] text-white rounded-full font-semibold hover:bg-[var(--primary-accent3)] transition-all duration-200"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // No order found
+  if (!order) {
+    return (
+      <div className="min-h-screen bg-[var(--primary-background)] flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <ShoppingBagIcon className="h-16 w-16 text-[var(--secondary-muted-edge)] mx-auto mb-4 opacity-50" />
+          <h2 className="text-xl font-bold text-[var(--secondary-black)] mb-2">
+            Order Not Found
+          </h2>
+          <p className="text-[var(--secondary-muted-edge)] mb-4">
+            The order you're looking for doesn't exist or has been removed.
+          </p>
+          <button
+            onClick={() => router.push("/buyer/orders")}
+            className="px-6 py-3 bg-[var(--primary-accent2)] text-white rounded-full font-semibold hover:bg-[var(--primary-accent3)] transition-all duration-200"
+          >
+            Back to Orders
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Transform order data for UI (use real order data)
+  const canCancel = order.status === "pending" || order.status === "accepted";
+  const canReview = order.status === "delivered";
 
   return (
     <div className="min-h-screen bg-[var(--primary-background)]">
@@ -187,7 +316,7 @@ export default function OrderDetailPage({
               <ArrowDownTrayIcon className="h-4 w-4" />
               <span className="text-sm font-medium">Download Invoice</span>
             </button>
-            {demoOrder.canReview && (
+            {canReview && (
               <Link
                 href={`/buyer/orders/${params.orderId}/review`}
                 className="flex items-center gap-2 px-5 py-2 bg-[var(--primary-accent2)] text-white rounded-full hover:bg-[var(--primary-accent3)] transition-all shadow-sm"
@@ -207,40 +336,34 @@ export default function OrderDetailPage({
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <h1 className="text-2xl font-bold text-[var(--secondary-black)] mb-2">
-                    Order {demoOrder.orderNumber}
+                    Order {order.order_number}
                   </h1>
                   <div className="flex items-center gap-3 text-sm text-[var(--secondary-muted-edge)]">
                     <div className="flex items-center gap-1">
                       <ClockIcon className="h-4 w-4" />
                       Placed on{" "}
-                      {new Date(demoOrder.createdAt).toLocaleDateString(
-                        "en-US",
-                        {
-                          month: "long",
-                          day: "numeric",
-                          year: "numeric",
-                        }
-                      )}
+                      {new Date(order.created_at).toLocaleDateString("en-US", {
+                        month: "long",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
                     </div>
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-2">
                   <span
                     className={`px-3 py-1.5 rounded-full text-sm font-semibold ${
-                      statusColors[demoOrder.status]
+                      statusColors[order.status]
                     }`}
                   >
-                    {demoOrder.status.charAt(0).toUpperCase() +
-                      demoOrder.status.slice(1)}
-                  </span>
-                  <span className="text-sm text-[var(--secondary-muted-edge)]">
-                    Payment: {demoOrder.paymentStatus}
+                    {order.status.charAt(0).toUpperCase() +
+                      order.status.slice(1)}
                   </span>
                 </div>
               </div>
 
               {/* Quick Actions */}
-              {demoOrder.canCancel && (
+              {canCancel && (
                 <div className="pt-4 border-t border-[var(--secondary-soft-highlight)]/30">
                   <button
                     onClick={() => setShowCancelDialog(true)}
@@ -252,128 +375,8 @@ export default function OrderDetailPage({
               )}
             </div>
 
-            {/* Tracking Information */}
-            {demoOrder.tracking && (
-              <div className="bg-white rounded-3xl border border-[var(--secondary-soft-highlight)]/20 p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-semibold text-[var(--secondary-black)]">
-                    Tracking Information
-                  </h2>
-                  <a
-                    href={demoOrder.tracking.trackingUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)] font-medium"
-                  >
-                    View on {demoOrder.tracking.carrier} →
-                  </a>
-                </div>
-
-                {/* Current Status */}
-                <div className="bg-gradient-to-r from-[var(--primary-accent2)]/10 to-[var(--primary-accent3)]/10 rounded-xl p-4 mb-6">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-[var(--primary-accent2)] rounded-full flex items-center justify-center">
-                      <TruckIcon className="h-6 w-6 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-semibold text-[var(--secondary-black)]">
-                        {demoOrder.tracking.currentStatus}
-                      </p>
-                      <p className="text-sm text-[var(--secondary-muted-edge)]">
-                        {demoOrder.tracking.lastLocation}
-                      </p>
-                    </div>
-                    <div className="text-right text-sm text-[var(--secondary-muted-edge)]">
-                      {new Date(demoOrder.tracking.lastUpdate).toLocaleString(
-                        "en-US",
-                        {
-                          month: "short",
-                          day: "numeric",
-                          hour: "numeric",
-                          minute: "2-digit",
-                        }
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Tracking Number */}
-                <div className="flex items-center justify-between p-3 bg-[var(--primary-background)] rounded-lg mb-6">
-                  <span className="text-sm text-[var(--secondary-muted-edge)]">
-                    Tracking Number
-                  </span>
-                  <span className="font-mono font-semibold text-[var(--secondary-black)]">
-                    {demoOrder.tracking.trackingNumber}
-                  </span>
-                </div>
-
-                {/* Timeline */}
-                <div className="space-y-1">
-                  {demoOrder.tracking.events.map((event, index) => (
-                    <div key={event.id} className="flex gap-4">
-                      <div className="flex flex-col items-center">
-                        <div
-                          className={`w-3 h-3 rounded-full ${
-                            index === 0
-                              ? event.isEstimate
-                                ? "bg-gray-300"
-                                : "bg-green-500"
-                              : event.isEstimate
-                              ? "bg-gray-300"
-                              : "bg-[var(--primary-accent2)]"
-                          }`}
-                        />
-                        {index < demoOrder.tracking.events.length - 1 && (
-                          <div className="w-0.5 h-16 bg-gray-200" />
-                        )}
-                      </div>
-                      <div
-                        className={`flex-1 ${
-                          index < demoOrder.tracking.events.length - 1
-                            ? "pb-4"
-                            : ""
-                        }`}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <p
-                              className={`font-semibold ${
-                                event.isEstimate
-                                  ? "text-[var(--secondary-muted-edge)]"
-                                  : "text-[var(--secondary-black)]"
-                              }`}
-                            >
-                              {event.status}
-                            </p>
-                            <p className="text-sm text-[var(--secondary-muted-edge)] mt-0.5">
-                              {event.description}
-                            </p>
-                            <p className="text-xs text-[var(--secondary-muted-edge)] mt-0.5">
-                              {event.location}
-                            </p>
-                          </div>
-                          {event.date && (
-                            <span className="text-xs text-[var(--secondary-muted-edge)]">
-                              {new Date(event.date).toLocaleString("en-US", {
-                                month: "short",
-                                day: "numeric",
-                                hour: "numeric",
-                                minute: "2-digit",
-                              })}
-                            </span>
-                          )}
-                          {event.isEstimate && (
-                            <span className="text-xs text-[var(--secondary-muted-edge)]">
-                              {event.location}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Tracking Information - TODO: Add tracking support to Order type */}
+            {/* {order.tracking && (...)} */}
 
             {/* Order Items */}
             <div className="bg-white rounded-3xl border border-[var(--secondary-soft-highlight)]/20 p-6">
@@ -381,42 +384,45 @@ export default function OrderDetailPage({
                 Order Items
               </h2>
               <div className="space-y-4">
-                {demoOrder.items.map((item) => (
+                {order.items.map((item) => (
                   <div
                     key={item.id}
                     className="flex gap-4 pb-4 border-b border-[var(--secondary-soft-highlight)]/30 last:border-0 last:pb-0"
                   >
                     <Link
-                      href={`/buyer/product/${item.productId}`}
+                      href={`/buyer/product/${item.product_id}`}
                       className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 group"
                     >
                       <Image
-                        src={item.image}
-                        alt={item.name}
+                        src={
+                          item.product_image ||
+                          "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg"
+                        }
+                        alt={item.product_name}
                         fill
                         className="object-cover group-hover:scale-110 transition-transform"
                       />
                     </Link>
                     <div className="flex-1">
                       <Link
-                        href={`/buyer/product/${item.productId}`}
+                        href={`/buyer/product/${item.product_id}`}
                         className="font-semibold text-[var(--secondary-black)] hover:text-[var(--primary-accent2)] transition-colors"
                       >
-                        {item.name}
+                        {item.product_name}
                       </Link>
                       <p className="text-sm text-[var(--secondary-muted-edge)] mt-1">
                         Quantity: {item.quantity} {item.unit}
                       </p>
                       <p className="text-sm text-[var(--secondary-muted-edge)]">
-                        ${item.price.toFixed(2)} per {item.unit}
+                        ${item.unit_price.toFixed(2)} per {item.unit}
                       </p>
                     </div>
                     <div className="text-right">
                       <p className="font-semibold text-[var(--secondary-black)]">
-                        ${item.total.toFixed(2)}
+                        ${item.subtotal.toFixed(2)}
                       </p>
                       <Link
-                        href={`/buyer/product/${item.productId}`}
+                        href={`/buyer/product/${item.product_id}`}
                         className="text-sm text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)] mt-2 inline-block"
                       >
                         Buy Again
@@ -428,12 +434,12 @@ export default function OrderDetailPage({
             </div>
 
             {/* Delivery Notes */}
-            {demoOrder.notes && (
+            {order.buyer_notes && (
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                 <h3 className="font-semibold text-blue-900 text-sm mb-2">
                   Delivery Instructions
                 </h3>
-                <p className="text-sm text-blue-800">{demoOrder.notes}</p>
+                <p className="text-sm text-blue-800">{order.buyer_notes}</p>
               </div>
             )}
           </div>
@@ -451,7 +457,7 @@ export default function OrderDetailPage({
                     Subtotal
                   </span>
                   <span className="font-medium text-[var(--secondary-black)]">
-                    ${demoOrder.subtotal.toFixed(2)}
+                    ${order.subtotal.toFixed(2)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
@@ -459,7 +465,7 @@ export default function OrderDetailPage({
                     Shipping
                   </span>
                   <span className="font-medium text-[var(--secondary-black)]">
-                    ${demoOrder.shipping.toFixed(2)}
+                    ${order.shipping_cost.toFixed(2)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
@@ -467,7 +473,7 @@ export default function OrderDetailPage({
                     Tax
                   </span>
                   <span className="font-medium text-[var(--secondary-black)]">
-                    ${demoOrder.tax.toFixed(2)}
+                    ${order.tax.toFixed(2)}
                   </span>
                 </div>
                 <div className="border-t border-[var(--secondary-soft-highlight)]/30 pt-3">
@@ -476,7 +482,7 @@ export default function OrderDetailPage({
                       Total
                     </span>
                     <span className="font-bold text-xl text-[var(--secondary-black)]">
-                      ${demoOrder.total.toFixed(2)}
+                      ${order.total_amount.toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -490,69 +496,56 @@ export default function OrderDetailPage({
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-[var(--secondary-black)]">
-                      {demoOrder.seller.name}
-                    </span>
-                    {demoOrder.seller.verified && (
-                      <CheckBadgeIcon className="h-5 w-5 text-[var(--primary-accent2)]" />
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1 text-sm">
-                    <StarIcon className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                    <span className="font-medium text-[var(--secondary-black)]">
-                      {demoOrder.seller.rating}
-                    </span>
-                    <span className="text-[var(--secondary-muted-edge)]">
-                      ({demoOrder.seller.totalReviews} reviews)
+                      {order.seller_name}
                     </span>
                   </div>
-                  <div className="text-sm text-[var(--secondary-muted-edge)]">
-                    <div className="flex items-center gap-2 mb-1">
-                      <MapPinIcon className="h-4 w-4" />
-                      {demoOrder.seller.location}
+                  {order.seller_location && (
+                    <div className="text-sm text-[var(--secondary-muted-edge)]">
+                      <div className="flex items-center gap-2 mb-1">
+                        <MapPinIcon className="h-4 w-4" />
+                        {order.seller_location}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <EnvelopeIcon className="h-4 w-4" />
-                      {demoOrder.seller.email}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <PhoneIcon className="h-4 w-4" />
-                      {demoOrder.seller.phone}
-                    </div>
-                  </div>
-                  <Link
-                    href={`/buyer/messages?seller=${demoOrder.seller.id}`}
-                    className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-[var(--primary-accent2)] text-white rounded-full hover:bg-[var(--primary-accent3)] transition-all mt-3 shadow-sm"
+                  )}
+                  <button
+                    onClick={handleContactSeller}
+                    disabled={isStartingConversation}
+                    className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-[var(--primary-accent2)] text-white rounded-full hover:bg-[var(--primary-accent3)] transition-all mt-3 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <ChatBubbleLeftIcon className="h-4 w-4" />
-                    <span className="text-sm font-medium">Contact Seller</span>
-                  </Link>
+                    <span className="text-sm font-medium">
+                      {isStartingConversation ? "Loading..." : "Contact Seller"}
+                    </span>
+                  </button>
                 </div>
               </div>
 
               {/* Shipping Address */}
-              <div className="pt-4 border-t border-[var(--secondary-soft-highlight)]/30 mt-4">
-                <h4 className="font-semibold text-[var(--secondary-black)] mb-3">
-                  Shipping Address
-                </h4>
-                <div className="text-sm text-[var(--secondary-black)]">
-                  <p className="font-medium">
-                    {demoOrder.shippingAddress.name}
-                  </p>
-                  <p className="text-[var(--secondary-muted-edge)] mt-1">
-                    {demoOrder.shippingAddress.street}
-                  </p>
-                  {demoOrder.shippingAddress.apartment && (
+              {order.shipping_address && (
+                <div className="pt-4 border-t border-[var(--secondary-soft-highlight)]/30 mt-4">
+                  <h4 className="font-semibold text-[var(--secondary-black)] mb-3">
+                    Shipping Address
+                  </h4>
+                  <div className="text-sm text-[var(--secondary-black)]">
                     <p className="text-[var(--secondary-muted-edge)]">
-                      {demoOrder.shippingAddress.apartment}
+                      {order.shipping_address.address_line1}
                     </p>
-                  )}
-                  <p className="text-[var(--secondary-muted-edge)]">
-                    {demoOrder.shippingAddress.city},{" "}
-                    {demoOrder.shippingAddress.state}{" "}
-                    {demoOrder.shippingAddress.zipCode}
-                  </p>
+                    {order.shipping_address.address_line2 && (
+                      <p className="text-[var(--secondary-muted-edge)]">
+                        {order.shipping_address.address_line2}
+                      </p>
+                    )}
+                    <p className="text-[var(--secondary-muted-edge)]">
+                      {order.shipping_address.city},{" "}
+                      {order.shipping_address.state}{" "}
+                      {order.shipping_address.postal_code}
+                    </p>
+                    <p className="text-[var(--secondary-muted-edge)]">
+                      {order.shipping_address.country}
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -594,9 +587,10 @@ export default function OrderDetailPage({
                 </button>
                 <button
                   onClick={handleCancelOrder}
-                  className="flex-1 px-5 py-2.5 bg-red-600 text-white rounded-full hover:bg-red-700 transition-all shadow-sm"
+                  disabled={cancellingOrder}
+                  className="flex-1 px-5 py-2.5 bg-red-600 text-white rounded-full hover:bg-red-700 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Cancel Order
+                  {cancellingOrder ? "Cancelling..." : "Cancel Order"}
                 </button>
               </div>
             </div>

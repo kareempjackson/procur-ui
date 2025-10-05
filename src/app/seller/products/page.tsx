@@ -10,6 +10,7 @@ import {
   fetchSellerProducts,
   updateSellerProduct,
 } from "@/store/slices/sellerProductsSlice";
+import ProcurLoader from "@/components/ProcurLoader";
 
 // Enums matching the API
 enum ProductStatus {
@@ -476,21 +477,7 @@ export default function SellerProductsPage() {
 
         {/* Loading State */}
         {loadStatus === "loading" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {Array.from({ length: itemsPerPage }).map((_, idx) => (
-              <div
-                key={idx}
-                className="bg-white rounded-3xl border border-[var(--secondary-soft-highlight)] overflow-hidden"
-              >
-                <div className="aspect-square bg-gray-100 animate-pulse" />
-                <div className="p-5 space-y-3">
-                  <div className="h-5 bg-gray-100 rounded w-2/3 animate-pulse" />
-                  <div className="h-4 bg-gray-100 rounded w-1/3 animate-pulse" />
-                  <div className="h-8 bg-gray-100 rounded w-1/2 animate-pulse" />
-                </div>
-              </div>
-            ))}
-          </div>
+          <ProcurLoader size="lg" text="Loading products..." />
         )}
 
         {/* Products Grid/List */}
@@ -524,72 +511,79 @@ export default function SellerProductsPage() {
             </Link>
           </div>
         ) : viewMode === "grid" ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {visibleProducts.map((product) => (
               <div
                 key={product.id}
-                className="group rounded-2xl bg-white/90 backdrop-blur-sm border border-[color:var(--secondary-soft-highlight)]/80 overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 ease-out"
+                className="bg-white rounded-lg overflow-hidden border border-[var(--secondary-soft-highlight)]/20 hover:shadow-md transition-all duration-200 group"
               >
                 {/* Product Image */}
-                <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-[var(--primary-background)] to-white">
+                <div className="relative h-48 overflow-hidden bg-gray-50">
                   {getPrimaryImage(product) ? (
                     <img
                       src={getPrimaryImage(product)}
                       alt={product.name}
-                      className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <div className="w-16 h-16 bg-white/80 backdrop-blur-sm rounded-2xl flex items-center justify-center shadow-lg">
-                        <svg
-                          className="w-8 h-8 text-gray-400"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={1.5}
-                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                          />
-                        </svg>
-                      </div>
+                      <svg
+                        className="w-12 h-12 text-gray-300"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                        />
+                      </svg>
                     </div>
                   )}
 
-                  {/* Soft gradient overlay */}
-                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/5 via-transparent to-transparent" />
-
                   {/* Status Badge */}
-                  <div className="absolute top-3 left-3">
-                    <span
-                      className={classNames(
-                        "px-2.5 py-1 text-[11px] font-semibold rounded-full backdrop-blur-md shadow-sm border border-white/20",
-                        product.status === ProductStatus.ACTIVE
-                          ? "bg-emerald-500/90 text-white"
-                          : product.status === ProductStatus.DRAFT
-                          ? "bg-slate-500/90 text-white"
-                          : product.status === ProductStatus.INACTIVE
-                          ? "bg-amber-500/90 text-white"
-                          : product.status === ProductStatus.OUT_OF_STOCK
-                          ? "bg-red-500/90 text-white"
-                          : "bg-red-600/90 text-white"
-                      )}
-                    >
-                      {product.status === ProductStatus.OUT_OF_STOCK
-                        ? "Out of Stock"
-                        : String(product.status).charAt(0).toUpperCase() +
-                          String(product.status).slice(1)}
-                    </span>
-                  </div>
+                  {product.status !== ProductStatus.ACTIVE && (
+                    <div className="absolute top-2 left-2">
+                      <span
+                        className={classNames(
+                          "px-2 py-0.5 text-[10px] font-bold rounded text-white",
+                          product.status === ProductStatus.DRAFT
+                            ? "bg-gray-600"
+                            : product.status === ProductStatus.INACTIVE
+                            ? "bg-yellow-600"
+                            : product.status === ProductStatus.OUT_OF_STOCK
+                            ? "bg-red-600"
+                            : "bg-red-700"
+                        )}
+                      >
+                        {product.status === ProductStatus.OUT_OF_STOCK
+                          ? "Out of Stock"
+                          : String(product.status).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
 
-                  {/* Feature Badges */}
-                  <div className="absolute top-3 right-3 flex flex-col gap-2">
+                  {/* Sale Badge */}
+                  {product.sale_price &&
+                    product.sale_price < product.base_price && (
+                      <div className="absolute top-2 left-2 bg-[var(--primary-accent2)] text-white px-1.5 py-0.5 rounded text-[10px] font-bold">
+                        {Math.round(
+                          ((product.base_price - product.sale_price) /
+                            product.base_price) *
+                            100
+                        )}
+                        % OFF
+                      </div>
+                    )}
+
+                  {/* Feature Badges - Top Right */}
+                  <div className="absolute top-2 right-2 flex gap-1">
                     {product.is_featured && (
-                      <div className="w-8 h-8 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-full flex items-center justify-center shadow-lg">
+                      <div className="w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center shadow-sm">
                         <svg
-                          className="w-4 h-4 text-white"
+                          className="w-3 h-3 text-white"
                           fill="currentColor"
                           viewBox="0 0 20 20"
                         >
@@ -598,9 +592,9 @@ export default function SellerProductsPage() {
                       </div>
                     )}
                     {product.is_organic && (
-                      <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-green-500 rounded-full flex items-center justify-center shadow-lg">
+                      <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center shadow-sm">
                         <svg
-                          className="w-4 h-4 text-white"
+                          className="w-3 h-3 text-white"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -608,16 +602,16 @@ export default function SellerProductsPage() {
                           <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
-                            strokeWidth={2}
+                            strokeWidth={2.5}
                             d="M5 13l4 4L19 7"
                           />
                         </svg>
                       </div>
                     )}
                     {product.is_local && (
-                      <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-500 rounded-full flex items-center justify-center shadow-lg">
+                      <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center shadow-sm">
                         <svg
-                          className="w-4 h-4 text-white"
+                          className="w-3 h-3 text-white"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -638,118 +632,74 @@ export default function SellerProductsPage() {
                       </div>
                     )}
                   </div>
-
-                  {/* Quick Actions Overlay */}
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/15 transition-colors duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
-                    <div className="flex items-center gap-2 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
-                      <Link
-                        href={`/seller/products/${product.id}/edit`}
-                        className="w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-md hover:bg-white transition-colors"
-                      >
-                        <svg
-                          className="w-4 h-4 text-gray-700"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                          />
-                        </svg>
-                      </Link>
-                      <button
-                        onClick={() => handleDeleteProduct(product.id)}
-                        className="w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-md hover:bg-red-50 transition-colors group/delete"
-                      >
-                        <svg
-                          className="w-4 h-4 text-gray-700 group-hover/delete:text-red-600"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
                 </div>
 
                 {/* Product Info */}
-                <div className="p-5">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-[15px] font-semibold tracking-[-0.01em] text-[var(--secondary-black)] mb-0.5 line-clamp-1">
-                        {product.name}
-                      </h3>
-                      <div className="text-xs text-[var(--primary-base)]">
-                        {product.category}
-                      </div>
-                    </div>
-                    <div className="ml-3 flex-shrink-0">
-                      <select
-                        value={product.status}
-                        onChange={(e) =>
-                          handleStatusChange(
-                            product.id,
-                            e.target.value as ProductStatus
-                          )
-                        }
-                        className="text-[11px] border-0 bg-gray-50 rounded-lg px-2 py-1 font-medium focus:ring-2 focus:ring-[var(--primary-accent2)] focus:bg-white transition-colors"
-                      >
-                        <option value={ProductStatus.DRAFT}>Draft</option>
-                        <option value={ProductStatus.ACTIVE}>Active</option>
-                        <option value={ProductStatus.INACTIVE}>Inactive</option>
-                        <option value={ProductStatus.OUT_OF_STOCK}>
-                          Out of Stock
-                        </option>
-                        <option value={ProductStatus.DISCONTINUED}>
-                          Discontinued
-                        </option>
-                      </select>
-                    </div>
+                <div className="p-3">
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <Link
+                      href={`/seller/products/${product.id}/edit`}
+                      className="text-sm font-semibold text-[var(--secondary-black)] line-clamp-1 flex-1 hover:text-[var(--primary-accent2)] transition-colors"
+                    >
+                      {product.name}
+                    </Link>
+                    <select
+                      value={product.status}
+                      onChange={(e) =>
+                        handleStatusChange(
+                          product.id,
+                          e.target.value as ProductStatus
+                        )
+                      }
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-[10px] border border-[var(--secondary-soft-highlight)] rounded px-1.5 py-0.5 font-medium focus:ring-1 focus:ring-[var(--primary-accent2)] focus:border-[var(--primary-accent2)] transition-colors"
+                    >
+                      <option value={ProductStatus.DRAFT}>Draft</option>
+                      <option value={ProductStatus.ACTIVE}>Active</option>
+                      <option value={ProductStatus.INACTIVE}>Inactive</option>
+                      <option value={ProductStatus.OUT_OF_STOCK}>
+                        Out of Stock
+                      </option>
+                      <option value={ProductStatus.DISCONTINUED}>
+                        Discontinued
+                      </option>
+                    </select>
                   </div>
 
-                  {product.short_description && (
-                    <p className="text-[13px] text-[var(--primary-base)] mb-3 line-clamp-2 leading-relaxed">
-                      {product.short_description}
-                    </p>
-                  )}
+                  <div className="text-[11px] text-[var(--primary-base)] mb-2">
+                    {product.category}
+                    {product.sku && (
+                      <span className="ml-1 text-[var(--secondary-muted-edge)]">
+                        · SKU: {product.sku}
+                      </span>
+                    )}
+                  </div>
 
-                  {/* Price Section */}
-                  <div className="mb-3">
-                    <div className="flex items-baseline gap-2">
-                      {product.sale_price &&
-                      product.sale_price < product.base_price ? (
-                        <>
-                          <span className="text-xl font-semibold text-[var(--primary-accent2)]">
-                            ${product.sale_price.toFixed(2)}
-                          </span>
-                          <span className="text-sm text-gray-400 line-through font-medium">
-                            ${product.base_price.toFixed(2)}
-                          </span>
-                        </>
-                      ) : (
-                        <span className="text-xl font-semibold text-[var(--secondary-black)]">
+                  {/* Price */}
+                  <div className="flex items-baseline gap-1.5 mb-2">
+                    {product.sale_price &&
+                    product.sale_price < product.base_price ? (
+                      <>
+                        <span className="text-lg font-bold text-[var(--primary-accent2)]">
+                          ${product.sale_price.toFixed(2)}
+                        </span>
+                        <span className="text-sm text-gray-400 line-through">
                           ${product.base_price.toFixed(2)}
                         </span>
-                      )}
-                      <span className="text-xs text-[var(--primary-base)] font-medium">
-                        / {product.unit_of_measurement}
+                      </>
+                    ) : (
+                      <span className="text-lg font-bold text-[var(--secondary-black)]">
+                        ${product.base_price.toFixed(2)}
                       </span>
-                    </div>
+                    )}
+                    <span className="text-[11px] text-[var(--primary-base)]">
+                      / {product.unit_of_measurement}
+                    </span>
                   </div>
 
                   {/* Stock Info */}
-                  <div className="flex items-center justify-between p-2.5 bg-[var(--primary-background)] rounded-xl border border-[color:var(--secondary-soft-highlight)]/70">
-                    <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-between text-[11px] mb-3">
+                    <div className="flex items-center gap-1.5">
                       <div
                         className={classNames(
                           "w-1.5 h-1.5 rounded-full",
@@ -760,15 +710,60 @@ export default function SellerProductsPage() {
                             : "bg-red-500"
                         )}
                       ></div>
-                      <span className="text-[13px] font-medium text-[var(--secondary-black)]">
+                      <span className="font-medium text-[var(--secondary-black)]">
                         {product.stock_quantity} in stock
                       </span>
                     </div>
-                    {product.sku && (
-                      <span className="text-[11px] text-[var(--primary-base)] font-mono bg-white px-2 py-0.5 rounded border border-[color:var(--secondary-soft-highlight)]/70">
-                        {product.sku}
-                      </span>
-                    )}
+                  </div>
+
+                  {/* Action Buttons - Sleek Design */}
+                  <div className="grid grid-cols-2 gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    <Link
+                      href={`/seller/products/${product.id}/edit`}
+                      className="flex items-center justify-center gap-1.5 px-3 py-2 bg-[var(--primary-accent2)] text-white rounded-full text-xs font-medium hover:bg-[var(--primary-accent3)] transition-colors"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <svg
+                        className="w-3.5 h-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                        />
+                      </svg>
+                      Edit
+                    </Link>
+                    <Link
+                      href={`/seller/products/${product.id}/preview`}
+                      className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-[var(--primary-border)] text-[var(--secondary-black)] rounded-full text-xs font-medium hover:bg-gray-50 transition-colors"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <svg
+                        className="w-3.5 h-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                        />
+                      </svg>
+                      View
+                    </Link>
                   </div>
                 </div>
               </div>
@@ -835,9 +830,12 @@ export default function SellerProductsPage() {
                             )}
                           </div>
                           <div>
-                            <div className="font-medium text-[var(--secondary-black)]">
+                            <Link
+                              href={`/seller/products/${product.id}/edit`}
+                              className="font-medium text-[var(--secondary-black)] hover:text-[var(--primary-accent2)] transition-colors"
+                            >
                               {product.name}
-                            </div>
+                            </Link>
                             {product.sku && (
                               <div className="text-sm text-[var(--primary-base)]">
                                 SKU: {product.sku}
@@ -896,13 +894,39 @@ export default function SellerProductsPage() {
                         <div className="flex items-center gap-2">
                           <Link
                             href={`/seller/products/${product.id}/edit`}
-                            className="btn btn-ghost h-8 px-3 text-sm"
+                            className="btn btn-ghost h-8 px-3 text-sm hover:bg-[var(--primary-accent2)]/10 hover:text-[var(--primary-accent2)]"
                           >
                             Edit
+                          </Link>
+                          <Link
+                            href={`/seller/products/${product.id}/preview`}
+                            className="btn btn-ghost h-8 px-3 text-sm hover:bg-blue-50 hover:text-blue-600"
+                            title="View as Buyer"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                              />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                              />
+                            </svg>
                           </Link>
                           <button
                             onClick={() => handleDeleteProduct(product.id)}
                             className="btn btn-ghost h-8 px-2 text-red-600 hover:bg-red-50"
+                            title="Delete Product"
                           >
                             <svg
                               className="w-4 h-4"

@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
@@ -15,6 +16,14 @@ import {
   PencilIcon,
   PlusIcon,
 } from "@heroicons/react/24/outline";
+import { useAppDispatch, useAppSelector } from "@/store";
+import { fetchCart } from "@/store/slices/buyerCartSlice";
+import {
+  fetchAddresses,
+  createOrder,
+  resetCreateOrderStatus,
+} from "@/store/slices/buyerOrdersSlice";
+import ProcurLoader from "@/components/ProcurLoader";
 
 // Demo data - will come from cart in real implementation
 const demoOrderData = {
@@ -124,14 +133,48 @@ const demoPaymentMethods = [
 type CheckoutStep = "shipping" | "review" | "payment";
 
 export default function CheckoutClient() {
+  const router = useRouter();
+  const dispatch = useAppDispatch();
+
+  // Redux state
+  const { cart, status: cartStatus } = useAppSelector(
+    (state) => state.buyerCart
+  );
+  const { addresses, addressesStatus, createOrderStatus, createOrderError } =
+    useAppSelector((state) => state.buyerOrders);
+
+  // Local state
   const [currentStep, setCurrentStep] = useState<CheckoutStep>("shipping");
-  const [selectedAddress, setSelectedAddress] = useState(demoAddresses[0].id);
+  const [selectedAddress, setSelectedAddress] = useState<string>("");
   const [selectedPayment, setSelectedPayment] = useState(
     demoPaymentMethods[0].id
   );
   const [deliveryInstructions, setDeliveryInstructions] = useState("");
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
+
+  // Fetch cart and addresses on mount
+  useEffect(() => {
+    dispatch(fetchCart());
+    dispatch(fetchAddresses());
+  }, [dispatch]);
+
+  // Set default address when addresses load
+  useEffect(() => {
+    if (addresses.length > 0 && !selectedAddress) {
+      const defaultAddr = addresses.find((a) => a.is_default) || addresses[0];
+      setSelectedAddress(defaultAddr.id);
+    }
+  }, [addresses, selectedAddress]);
+
+  // Handle successful order creation
+  useEffect(() => {
+    if (createOrderStatus === "succeeded") {
+      // Redirect to order confirmation
+      router.push("/buyer/order-confirmation");
+      dispatch(resetCreateOrderStatus());
+    }
+  }, [createOrderStatus, router, dispatch]);
 
   const steps = [
     { id: "shipping", label: "Shipping", icon: TruckIcon },
@@ -143,21 +186,82 @@ export default function CheckoutClient() {
     steps.findIndex((s) => s.id === step);
   const currentStepIndex = getStepIndex(currentStep);
 
+  // Transform cart data for display
+  const demoOrderData = cart
+    ? {
+        sellers: cart.seller_groups.map((group) => ({
+          id: group.seller_org_id,
+          name: group.seller_name,
+          location: "Caribbean", // TODO: Get from API when available
+          verified: false, // TODO: Get from API when available
+          items: group.items.map((item) => ({
+            id: item.id,
+            name: item.product_name,
+            image:
+              item.image_url ||
+              "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+            price: item.unit_price,
+            quantity: item.quantity,
+            unit: item.unit_of_measurement,
+          })),
+          subtotal: group.subtotal,
+          shipping: group.estimated_shipping,
+          estimatedDelivery: "Oct 15-20, 2025",
+        })),
+      }
+    : { sellers: [] };
+
+  const demoAddresses = addresses.map((addr) => ({
+    id: addr.id,
+    label: addr.type,
+    name: "", // TODO: Get from profile
+    street: addr.address_line1,
+    apartment: addr.address_line2 || "",
+    city: addr.city,
+    state: addr.state,
+    zipCode: addr.postal_code,
+    country: addr.country,
+    phone: "", // TODO: Get from profile
+    isDefault: addr.is_default,
+  }));
+
   const calculateTotals = () => {
-    const subtotal = demoOrderData.sellers.reduce(
-      (sum, seller) => sum + seller.subtotal,
-      0
-    );
-    const shipping = demoOrderData.sellers.reduce(
-      (sum, seller) => sum + seller.shipping,
-      0
-    );
-    const tax = subtotal * 0.08;
-    const total = subtotal + shipping + tax;
-    return { subtotal, shipping, tax, total };
+    if (!cart) {
+      return { subtotal: 0, shipping: 0, tax: 0, total: 0 };
+    }
+
+    return {
+      subtotal: cart.subtotal,
+      shipping: cart.estimated_shipping,
+      tax: cart.estimated_tax,
+      total: cart.total,
+    };
   };
 
   const totals = calculateTotals();
+
+  const handlePlaceOrder = () => {
+    if (!cart || !selectedAddress) {
+      return;
+    }
+
+    // Collect all cart items for the order
+    const orderItems = cart.seller_groups.flatMap((group) =>
+      group.items.map((item) => ({
+        product_id: item.product_id,
+        quantity: item.quantity,
+      }))
+    );
+
+    dispatch(
+      createOrder({
+        items: orderItems,
+        shipping_address_id: selectedAddress,
+        billing_address_id: selectedAddress, // Using same for now
+        buyer_notes: deliveryInstructions || undefined,
+      })
+    );
+  };
   const selectedAddressData = demoAddresses.find(
     (addr) => addr.id === selectedAddress
   );
@@ -173,11 +277,6 @@ export default function CheckoutClient() {
   const handlePreviousStep = () => {
     if (currentStep === "payment") setCurrentStep("review");
     else if (currentStep === "review") setCurrentStep("shipping");
-  };
-
-  const handlePlaceOrder = () => {
-    // Will handle order placement
-    console.log("Placing order...");
   };
 
   return (
@@ -573,13 +672,31 @@ export default function CheckoutClient() {
                   <ArrowRightIcon className="h-4 w-4" />
                 </button>
               ) : (
-                <button
-                  onClick={handlePlaceOrder}
-                  className="flex items-center gap-2 px-8 py-3 bg-green-600 text-white rounded-full hover:bg-green-700 transition-all shadow-md"
-                >
-                  <CheckIcon className="h-5 w-5" />
-                  Place Order
-                </button>
+                <div className="space-y-3">
+                  {createOrderError && (
+                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-sm text-red-800">{createOrderError}</p>
+                    </div>
+                  )}
+                  <button
+                    onClick={handlePlaceOrder}
+                    disabled={
+                      createOrderStatus === "loading" ||
+                      !selectedAddress ||
+                      !cart
+                    }
+                    className="flex items-center gap-2 px-8 py-3 bg-green-600 text-white rounded-full hover:bg-green-700 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {createOrderStatus === "loading" ? (
+                      <span>Placing Order...</span>
+                    ) : (
+                      <>
+                        <CheckIcon className="h-5 w-5" />
+                        Place Order
+                      </>
+                    )}
+                  </button>
+                </div>
               )}
             </div>
           </div>

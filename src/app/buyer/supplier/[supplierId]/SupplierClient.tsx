@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   MapPinIcon,
   StarIcon,
@@ -15,92 +16,160 @@ import {
   HeartIcon,
 } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartSolidIcon } from "@heroicons/react/24/solid";
+import { useAppDispatch, useAppSelector } from "@/store";
+import {
+  fetchSellerProducts,
+  toggleProductFavoriteAsync,
+} from "@/store/slices/buyerMarketplaceSlice";
+import { addToCartAsync } from "@/store/slices/buyerCartSlice";
+import ProcurLoader from "@/components/ProcurLoader";
+import { getApiClient } from "@/lib/apiClient";
+import { useSelector } from "react-redux";
+import { selectAuthToken } from "@/store/slices/authSlice";
 
 interface SupplierClientProps {
   supplierId: string;
 }
 
 export default function SupplierClient({ supplierId }: SupplierClientProps) {
+  const router = useRouter();
+  const dispatch = useAppDispatch();
+  const {
+    sellerProducts,
+    currentSeller,
+    sellerProductsStatus,
+    sellerProductsError,
+  } = useAppSelector((state) => state.buyerMarketplace);
+  const authToken = useSelector(selectAuthToken);
+
   const [selectedTab, setSelectedTab] = useState<"products" | "about">(
     "products"
   );
-  const [savedProducts, setSavedProducts] = useState<Set<number>>(new Set());
+  const [savedProducts, setSavedProducts] = useState<Set<string>>(new Set());
 
-  // Mock supplier data - would come from API in real implementation
-  const supplier = {
+  // Fetch seller products on mount
+  useEffect(() => {
+    dispatch(fetchSellerProducts(supplierId));
+  }, [dispatch, supplierId]);
+
+  // Use seller data from Redux
+  const supplier = currentSeller || {
     id: supplierId,
     name: "Caribbean Farms Co.",
     description:
       "We are a family-owned farm specializing in organic produce for over 30 years. Our commitment to sustainable farming practices and quality control ensures that every product meets the highest standards. We serve restaurants, retailers, and distributors across the Caribbean and beyond.",
     location: "Kingston, Jamaica",
     country: "Jamaica",
-    rating: 4.8,
-    totalReviews: 234,
-    verified: true,
-    responseTime: "< 2 hours",
-    totalProducts: 47,
-    totalOrders: 1250,
-    onTimeDelivery: 98,
-    memberSince: "2019",
-    certifications: ["USDA Organic", "Fair Trade", "GAP Certified", "Non-GMO"],
-    coverImage:
+    average_rating: 4.8,
+    total_reviews: 234,
+    is_verified: true,
+    product_count: 47,
+    review_count: 234,
+    created_at: "2019-01-01",
+    specialties: ["Organic Produce", "Sustainable Farming", "Export Quality"],
+  };
+
+  // Transform products from Redux to match UI structure
+  const products = sellerProducts.map((product) => ({
+    id: product.id,
+    name: product.name,
+    price: product.sale_price || product.base_price || 0,
+    unit: product.unit_of_measurement,
+    minOrder: `1 ${product.unit_of_measurement}`,
+    image:
+      product.images?.[0] ||
       "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-  };
+    tags: product.tags || [],
+    discount:
+      product.sale_price &&
+      product.base_price &&
+      product.sale_price < product.base_price
+        ? `${Math.round(
+            ((product.base_price - product.sale_price) / product.base_price) *
+              100
+          )}% off`
+        : null,
+    is_favorite: product.is_favorited || false,
+    in_stock: product.stock_quantity > 0,
+  }));
 
-  const products = [
-    {
-      id: 1,
-      name: "Organic Cherry Tomatoes",
-      price: 3.5,
-      unit: "lb",
-      minOrder: "100 lbs",
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      tags: ["Organic", "Pre-order"],
-      discount: "15% off",
-    },
-    {
-      id: 2,
-      name: "Fresh Basil",
-      price: 2.8,
-      unit: "lb",
-      minOrder: "50 lbs",
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      tags: ["Organic", "Fresh"],
-      discount: null,
-    },
-    {
-      id: 3,
-      name: "Bell Peppers",
-      price: 4.2,
-      unit: "lb",
-      minOrder: "100 lbs",
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      tags: ["Fresh", "Export Ready"],
-      discount: null,
-    },
-    {
-      id: 4,
-      name: "Organic Lettuce",
-      price: 3.0,
-      unit: "lb",
-      minOrder: "75 lbs",
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      tags: ["Organic", "Fresh"],
-      discount: "10% off",
-    },
-  ];
-
-  const toggleSave = (productId: number) => {
-    setSavedProducts((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(productId)) {
-        newSet.delete(productId);
-      } else {
-        newSet.add(productId);
+  const toggleSave = async (productId: string) => {
+    try {
+      const product = sellerProducts.find((p) => p.id === productId);
+      if (product) {
+        await dispatch(
+          toggleProductFavoriteAsync({
+            productId,
+            isFavorited: !product.is_favorited,
+          })
+        ).unwrap();
+        // Refresh seller products to get updated favorite status
+        dispatch(fetchSellerProducts(supplierId));
       }
-      return newSet;
-    });
+    } catch (error) {
+      console.error("Failed to toggle favorite:", error);
+    }
   };
+
+  const handleAddToCart = async (productId: string) => {
+    try {
+      await dispatch(
+        addToCartAsync({ productId: productId, quantity: 1 })
+      ).unwrap();
+    } catch (error) {
+      console.error("Failed to add to cart:", error);
+    }
+  };
+
+  const handleMessageSupplier = async () => {
+    if (!authToken) {
+      router.push("/login");
+      return;
+    }
+
+    try {
+      const client = getApiClient(() => authToken);
+      const { data } = await client.post("/conversations/start", {
+        contextType: "supplier",
+        contextId: supplierId,
+        title: `Chat with ${supplier.name}`,
+      });
+
+      if (data?.id) {
+        router.push(`/buyer/messages?conversationId=${data.id}`);
+      }
+    } catch (error) {
+      console.error("Failed to start conversation:", error);
+    }
+  };
+
+  // Loading state
+  if (sellerProductsStatus === "loading") {
+    return <ProcurLoader size="lg" text="Loading supplier..." />;
+  }
+
+  // Error state
+  if (sellerProductsStatus === "failed" && sellerProductsError) {
+    return (
+      <div className="min-h-screen bg-[var(--primary-background)] flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <MapPinIcon className="h-16 w-16 text-[var(--secondary-muted-edge)] mx-auto mb-4 opacity-50" />
+          <h2 className="text-xl font-bold text-[var(--secondary-black)] mb-2">
+            Failed to Load Supplier
+          </h2>
+          <p className="text-[var(--secondary-muted-edge)] mb-4">
+            {sellerProductsError}
+          </p>
+          <Link
+            href="/buyer/suppliers"
+            className="inline-block px-6 py-3 bg-[var(--primary-accent2)] text-white rounded-full font-semibold hover:bg-[var(--primary-accent3)] transition-all duration-200"
+          >
+            Browse All Suppliers
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[var(--primary-background)]">
@@ -120,12 +189,6 @@ export default function SupplierClient({ supplierId }: SupplierClientProps) {
         <div className="bg-white rounded-2xl overflow-hidden border border-[var(--secondary-soft-highlight)]/20 mb-6">
           {/* Cover Image */}
           <div className="relative h-48 bg-gradient-to-br from-[var(--primary-accent2)] to-[var(--primary-accent3)]">
-            <Image
-              src={supplier.coverImage}
-              alt={supplier.name}
-              fill
-              className="object-cover opacity-40"
-            />
             {/* Logo positioned over cover */}
             <div className="absolute -bottom-10 left-6">
               <div className="w-24 h-24 rounded-full bg-white border-4 border-white shadow-xl flex items-center justify-center">
@@ -144,7 +207,7 @@ export default function SupplierClient({ supplierId }: SupplierClientProps) {
                   <h1 className="text-2xl font-bold text-[var(--secondary-black)]">
                     {supplier.name}
                   </h1>
-                  {supplier.verified && (
+                  {supplier.is_verified && (
                     <CheckBadgeIcon className="h-6 w-6 text-[var(--primary-accent2)]" />
                   )}
                 </div>
@@ -156,29 +219,34 @@ export default function SupplierClient({ supplierId }: SupplierClientProps) {
                   <div className="flex items-center gap-1">
                     <StarIcon className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                     <span className="font-medium text-[var(--secondary-black)]">
-                      {supplier.rating}
+                      {supplier.average_rating}
                     </span>
                     <span className="text-[var(--secondary-muted-edge)]">
-                      ({supplier.totalReviews} reviews)
+                      ({supplier.total_reviews} reviews)
                     </span>
                   </div>
-                  <span className="text-[var(--secondary-muted-edge)]">
-                    Member since {supplier.memberSince}
-                  </span>
+                  {supplier.created_at && (
+                    <span className="text-[var(--secondary-muted-edge)]">
+                      Member since {new Date(supplier.created_at).getFullYear()}
+                    </span>
+                  )}
                 </div>
               </div>
 
-              <button className="flex items-center gap-2 px-5 py-2.5 bg-[var(--primary-accent2)] text-white rounded-full text-sm font-medium hover:bg-[var(--primary-accent3)] transition-all duration-200 flex-shrink-0">
+              <button
+                onClick={handleMessageSupplier}
+                className="flex items-center gap-2 px-5 py-2.5 bg-[var(--primary-accent2)] text-white rounded-full text-sm font-medium hover:bg-[var(--primary-accent3)] transition-all duration-200 flex-shrink-0"
+              >
                 <ChatBubbleLeftIcon className="h-4 w-4" />
                 Contact Supplier
               </button>
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-4 gap-4 mt-6 pt-6 border-t border-[var(--secondary-soft-highlight)]/20">
+            <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-[var(--secondary-soft-highlight)]/20">
               <div className="text-center">
                 <div className="text-2xl font-bold text-[var(--primary-accent2)]">
-                  {supplier.totalProducts}
+                  {supplier.product_count}
                 </div>
                 <p className="text-sm text-[var(--secondary-muted-edge)]">
                   Products
@@ -186,26 +254,10 @@ export default function SupplierClient({ supplierId }: SupplierClientProps) {
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-[var(--primary-accent2)]">
-                  {supplier.totalOrders}
+                  {supplier.review_count}
                 </div>
                 <p className="text-sm text-[var(--secondary-muted-edge)]">
-                  Total Orders
-                </p>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-[var(--primary-accent2)]">
-                  {supplier.onTimeDelivery}%
-                </div>
-                <p className="text-sm text-[var(--secondary-muted-edge)]">
-                  On-Time Delivery
-                </p>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-[var(--primary-accent2)]">
-                  {supplier.responseTime}
-                </div>
-                <p className="text-sm text-[var(--secondary-muted-edge)]">
-                  Response Time
+                  Reviews
                 </p>
               </div>
             </div>
@@ -265,7 +317,7 @@ export default function SupplierClient({ supplierId }: SupplierClientProps) {
                     }}
                     className="absolute top-1.5 right-1.5 bg-white/90 backdrop-blur-sm p-1 rounded-full hover:bg-white transition-all duration-200 z-10"
                   >
-                    {savedProducts.has(product.id) ? (
+                    {product.is_favorite ? (
                       <HeartSolidIcon className="h-3.5 w-3.5 text-[var(--primary-accent2)]" />
                     ) : (
                       <HeartIcon className="h-3.5 w-3.5 text-[var(--secondary-black)]" />
@@ -335,19 +387,25 @@ export default function SupplierClient({ supplierId }: SupplierClientProps) {
                 <div className="flex items-center gap-2 mb-3">
                   <ShieldCheckIcon className="h-5 w-5 text-[var(--primary-accent2)]" />
                   <h2 className="text-lg font-semibold text-[var(--secondary-black)]">
-                    Certifications
+                    Specialties
                   </h2>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {supplier.certifications.map((cert) => (
-                    <span
-                      key={cert}
-                      className="px-3 py-1.5 bg-green-50 border border-green-200 rounded-full text-sm font-medium text-green-700"
-                    >
-                      {cert}
-                    </span>
-                  ))}
-                </div>
+                {supplier.specialties && supplier.specialties.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {supplier.specialties.map((spec) => (
+                      <span
+                        key={spec}
+                        className="px-3 py-1.5 bg-green-50 border border-green-200 rounded-full text-sm font-medium text-green-700"
+                      >
+                        {spec}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-[var(--secondary-muted-edge)]">
+                    No specialties listed
+                  </p>
+                )}
               </div>
             </div>
 
@@ -365,28 +423,6 @@ export default function SupplierClient({ supplierId }: SupplierClientProps) {
                       </p>
                       <p className="text-[var(--secondary-muted-edge)]">
                         {supplier.location}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <ClockIcon className="h-4 w-4 text-[var(--primary-accent2)]" />
-                    <div>
-                      <p className="font-medium text-[var(--secondary-black)]">
-                        Response Time
-                      </p>
-                      <p className="text-[var(--secondary-muted-edge)]">
-                        {supplier.responseTime}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <TruckIcon className="h-4 w-4 text-[var(--primary-accent2)]" />
-                    <div>
-                      <p className="font-medium text-[var(--secondary-black)]">
-                        On-Time Delivery
-                      </p>
-                      <p className="text-[var(--secondary-muted-edge)]">
-                        {supplier.onTimeDelivery}%
                       </p>
                     </div>
                   </div>

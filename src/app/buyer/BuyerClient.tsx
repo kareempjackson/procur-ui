@@ -19,17 +19,44 @@ import {
   ChevronRightIcon,
 } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartSolidIcon } from "@heroicons/react/24/solid";
+import { useAppDispatch, useAppSelector } from "@/store";
+import {
+  fetchProducts,
+  fetchSellers,
+  fetchHarvestUpdates,
+  fetchMarketplaceStats,
+  toggleProductFavoriteAsync,
+  toggleHarvestLikeAsync,
+  addHarvestComment,
+  setFilters,
+  clearFilters,
+  setSelectedCategory as setSelectedCategoryAction,
+} from "@/store/slices/buyerMarketplaceSlice";
+import { fetchCart, addToCartAsync } from "@/store/slices/buyerCartSlice";
+import ProcurLoader from "@/components/ProcurLoader";
 
 export default function BuyerClient() {
+  const dispatch = useAppDispatch();
+  const {
+    products,
+    sellers,
+    harvestUpdates,
+    stats,
+    filters,
+    selectedCategory,
+    status,
+    error,
+    pagination,
+  } = useAppSelector((state) => state.buyerMarketplace);
+  const { cart } = useAppSelector((state) => state.buyerCart);
+
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All Categories");
-  const [savedItems, setSavedItems] = useState<Set<number>>(new Set());
   const [showFilters, setShowFilters] = useState(false);
   const [showHarvestFeed, setShowHarvestFeed] = useState(true);
   const [hasOverflow, setHasOverflow] = useState(false);
   const categoryScrollRef = useRef<HTMLDivElement>(null);
 
-  // Filter states
+  // Filter states (local UI state that syncs with Redux)
   const [selectedAvailability, setSelectedAvailability] = useState<string[]>(
     []
   );
@@ -53,8 +80,50 @@ export default function BuyerClient() {
     { name: "Export Ready", icon: "🌍" },
   ];
 
-  // Social Media Timeline - Harvest Updates
-  const harvestUpdates = [
+  // Fetch data on component mount ONCE
+  useEffect(() => {
+    dispatch(fetchProducts({}));
+    dispatch(fetchSellers({ page: 1, limit: 6 }));
+    dispatch(fetchHarvestUpdates({ page: 1, limit: 10 }));
+    dispatch(fetchMarketplaceStats());
+    dispatch(fetchCart());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array - only run once on mount
+
+  // Fetch products when filters change (debounced to avoid too many API calls)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      const updatedFilters = {
+        search: searchQuery || undefined,
+        category:
+          selectedCategory !== "All Categories" ? selectedCategory : undefined,
+        in_stock: selectedAvailability.includes("Available Now")
+          ? true
+          : undefined,
+        tags:
+          selectedCertifications.length > 0
+            ? selectedCertifications
+            : undefined,
+        min_price: priceRange[0] !== 0 ? priceRange[0] : undefined,
+        max_price: priceRange[1] !== 100 ? priceRange[1] : undefined,
+      };
+
+      // Only fetch if filters have changed
+      dispatch(fetchProducts(updatedFilters));
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [
+    searchQuery,
+    selectedCategory,
+    selectedAvailability,
+    selectedCertifications,
+    priceRange,
+    dispatch,
+  ]); // Removed 'filters' and 'selectedCountries' (not used)
+
+  // Mock data removed - now using Redux state (products, harvestUpdates, sellers)
+  const mockDataPlaceholder = [
     {
       id: 1,
       farmName: "Caribbean Farms Co.",
@@ -380,16 +449,16 @@ export default function BuyerClient() {
     },
   ];
 
-  const toggleSave = (id: number) => {
-    setSavedItems((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(id)) {
-        newSet.delete(id);
-      } else {
-        newSet.add(id);
-      }
-      return newSet;
-    });
+  const toggleSave = (id: string, isFavorited: boolean) => {
+    dispatch(toggleProductFavoriteAsync({ productId: id, isFavorited }));
+  };
+
+  const handleAddToCart = (productId: string, quantity: number = 1) => {
+    dispatch(addToCartAsync({ productId, quantity }));
+  };
+
+  const handleHarvestLike = (harvestId: string, isLiked: boolean) => {
+    dispatch(toggleHarvestLikeAsync({ harvestId, isLiked }));
   };
 
   // Check if categories overflow (need scroll arrows)
@@ -434,70 +503,24 @@ export default function BuyerClient() {
     setSelectedCountries([]);
     setSelectedCertifications([]);
     setPriceRange([0, 100]);
+    setSearchQuery("");
+    dispatch(setSelectedCategoryAction("All Categories"));
+    // No need to dispatch clearFilters - the useEffect will handle fetching
   };
 
-  // Get unique countries from harvests
-  const countries = Array.from(
-    new Set(allHarvests.map((h) => h.country))
-  ).sort();
+  // Get unique countries from products (for filter options) - memoized
+  const countries = React.useMemo(() => {
+    return Array.from(
+      new Set(products.map((p) => p.seller.name.split(",").pop()?.trim() || ""))
+    )
+      .filter(Boolean)
+      .sort();
+  }, [products]);
 
-  // Get unique certifications from harvests
-  const certifications = Array.from(
-    new Set(allHarvests.flatMap((h) => h.tags))
-  ).sort();
-
-  // Filter harvests based on selected filters
-  const filteredHarvests = allHarvests.filter((harvest) => {
-    // Search query filter
-    if (
-      searchQuery &&
-      !harvest.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-      !harvest.farm.toLowerCase().includes(searchQuery.toLowerCase())
-    ) {
-      return false;
-    }
-
-    // Category filter
-    if (
-      selectedCategory !== "All Categories" &&
-      harvest.category !== selectedCategory
-    ) {
-      return false;
-    }
-
-    // Availability filter
-    if (
-      selectedAvailability.length > 0 &&
-      !selectedAvailability.includes(harvest.availability)
-    ) {
-      return false;
-    }
-
-    // Country filter
-    if (
-      selectedCountries.length > 0 &&
-      !selectedCountries.includes(harvest.country)
-    ) {
-      return false;
-    }
-
-    // Certification filter
-    if (selectedCertifications.length > 0) {
-      const hasAnyCertification = selectedCertifications.some((cert) =>
-        harvest.tags.includes(cert)
-      );
-      if (!hasAnyCertification) {
-        return false;
-      }
-    }
-
-    // Price range filter
-    if (harvest.price < priceRange[0] || harvest.price > priceRange[1]) {
-      return false;
-    }
-
-    return true;
-  });
+  // Get unique certifications from products (for filter options) - memoized
+  const certifications = React.useMemo(() => {
+    return Array.from(new Set(products.flatMap((p) => p.tags || []))).sort();
+  }, [products]);
 
   const activeFiltersCount =
     selectedAvailability.length +
@@ -568,7 +591,9 @@ export default function BuyerClient() {
                 {categories.map((category) => (
                   <button
                     key={category.name}
-                    onClick={() => setSelectedCategory(category.name)}
+                    onClick={() =>
+                      dispatch(setSelectedCategoryAction(category.name))
+                    }
                     className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full font-medium text-xs transition-all duration-200 whitespace-nowrap ${
                       selectedCategory === category.name
                         ? "bg-[var(--primary-accent2)] text-white shadow-md"
@@ -813,7 +838,7 @@ export default function BuyerClient() {
                       Available Harvests
                     </h2>
                     <p className="text-xs text-[var(--secondary-muted-edge)] mt-0.5">
-                      Showing {filteredHarvests.length} of {allHarvests.length}{" "}
+                      Showing {products.length} of {pagination.totalItems}{" "}
                       products
                     </p>
                   </div>
@@ -825,7 +850,9 @@ export default function BuyerClient() {
                   </select>
                 </div>
 
-                {filteredHarvests.length === 0 ? (
+                {status === "loading" ? (
+                  <ProcurLoader size="md" text="Loading products..." />
+                ) : products.length === 0 ? (
                   <div className="bg-white rounded-2xl p-8 text-center border border-[var(--secondary-soft-highlight)]/20">
                     <FunnelIcon className="h-12 w-12 text-[var(--secondary-muted-edge)] mx-auto mb-3 opacity-50" />
                     <h3 className="text-lg font-semibold text-[var(--secondary-black)] mb-1.5">
@@ -843,33 +870,45 @@ export default function BuyerClient() {
                   </div>
                 ) : (
                   <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                    {filteredHarvests.map((harvest) => (
+                    {products.map((product) => (
                       <Link
-                        key={harvest.id}
-                        href={`/buyer/product/${harvest.id}`}
+                        key={product.id}
+                        href={`/buyer/product/${product.id}`}
                         className="bg-white rounded-lg overflow-hidden border border-[var(--secondary-soft-highlight)]/20 hover:shadow-md transition-all duration-200 group block"
                       >
                         <div className="relative h-32">
                           <Image
-                            src={harvest.image}
-                            alt={harvest.name}
+                            src={
+                              product.image_url ||
+                              "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg"
+                            }
+                            alt={product.name}
                             fill
                             className="object-cover group-hover:scale-105 transition-transform duration-500"
                           />
-                          {harvest.discount && (
-                            <div className="absolute top-1.5 left-1.5 bg-[var(--primary-accent2)] text-white px-1.5 py-0.5 rounded text-[10px] font-bold">
-                              {harvest.discount}
-                            </div>
-                          )}
+                          {product.sale_price &&
+                            product.sale_price < product.base_price && (
+                              <div className="absolute top-1.5 left-1.5 bg-[var(--primary-accent2)] text-white px-1.5 py-0.5 rounded text-[10px] font-bold">
+                                {Math.round(
+                                  ((product.base_price - product.sale_price) /
+                                    product.base_price) *
+                                    100
+                                )}
+                                % off
+                              </div>
+                            )}
                           <button
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              toggleSave(harvest.id);
+                              toggleSave(
+                                product.id,
+                                product.is_favorited || false
+                              );
                             }}
                             className="absolute top-1.5 right-1.5 bg-white/90 backdrop-blur-sm p-1 rounded-full hover:bg-white transition-all duration-200 z-10"
                           >
-                            {savedItems.has(harvest.id) ? (
+                            {product.is_favorited ? (
                               <HeartSolidIcon className="h-3.5 w-3.5 text-[var(--primary-accent2)]" />
                             ) : (
                               <HeartIcon className="h-3.5 w-3.5 text-[var(--secondary-black)]" />
@@ -878,44 +917,47 @@ export default function BuyerClient() {
                           <div className="absolute bottom-1.5 right-1.5 flex items-center gap-0.5 bg-white/90 backdrop-blur-sm px-1.5 py-0.5 rounded-full">
                             <StarIcon className="h-2.5 w-2.5 fill-yellow-400 text-yellow-400" />
                             <span className="text-[10px] font-bold">
-                              {harvest.farmRating}
+                              {product.seller.average_rating?.toFixed(1) ||
+                                "4.5"}
                             </span>
                           </div>
                         </div>
 
                         <div className="p-3">
                           <h3 className="font-semibold text-sm text-[var(--secondary-black)] mb-2 group-hover:text-[var(--primary-accent2)] transition-colors line-clamp-1">
-                            {harvest.name}
+                            {product.name}
                           </h3>
 
                           <div
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              window.location.href = `/buyer/supplier/${harvest.id}`;
+                              window.location.href = `/buyer/supplier/${product.seller.id}`;
                             }}
                             className="flex items-center gap-1.5 mb-2 group/supplier cursor-pointer"
                           >
                             <div className="w-5 h-5 rounded-full bg-[var(--primary-accent2)]/10 flex items-center justify-center flex-shrink-0">
                               <span className="text-[8px] font-bold text-[var(--primary-accent2)]">
-                                {harvest.farm.charAt(0)}
+                                {product.seller.name.charAt(0)}
                               </span>
                             </div>
                             <span className="text-[11px] text-[var(--secondary-muted-edge)] truncate group-hover/supplier:text-[var(--primary-accent2)] transition-colors">
-                              {harvest.farm}
+                              {product.seller.name}
                             </span>
-                            {harvest.verified && (
+                            {product.seller.is_verified && (
                               <CheckBadgeIcon className="h-2.5 w-2.5 text-[var(--primary-accent2)] flex-shrink-0" />
                             )}
                           </div>
 
                           <div className="flex items-center gap-1 text-[11px] text-[var(--secondary-muted-edge)] mb-2">
                             <MapPinIcon className="h-2.5 w-2.5 flex-shrink-0" />
-                            <span className="truncate">{harvest.location}</span>
+                            <span className="truncate">
+                              {product.seller.location || "Caribbean"}
+                            </span>
                           </div>
 
                           <div className="flex flex-wrap gap-1 mb-2">
-                            {harvest.tags.slice(0, 2).map((tag) => (
+                            {(product.tags || []).slice(0, 2).map((tag) => (
                               <span
                                 key={tag}
                                 className="px-1.5 py-0.5 bg-[var(--primary-background)] rounded text-[10px] font-medium text-[var(--secondary-black)]"
@@ -928,22 +970,25 @@ export default function BuyerClient() {
                           <div className="flex items-center justify-between pt-2 border-t border-[var(--secondary-soft-highlight)]/20">
                             <div>
                               <div className="text-lg font-bold text-[var(--secondary-black)] leading-none">
-                                ${harvest.price.toFixed(2)}
+                                ${product.current_price.toFixed(2)}
                                 <span className="text-[10px] font-normal text-[var(--secondary-muted-edge)]">
-                                  /{harvest.unit}
+                                  /{product.unit_of_measurement}
                                 </span>
                               </div>
                               <div className="text-[10px] text-[var(--secondary-muted-edge)] mt-0.5">
-                                Min: {harvest.minOrder}
+                                {product.stock_quantity > 0
+                                  ? `${product.stock_quantity} ${product.unit_of_measurement} available`
+                                  : "Out of stock"}
                               </div>
                             </div>
                             <button
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                console.log("Add to cart:", harvest.id);
+                                handleAddToCart(product.id);
                               }}
                               className="px-3 py-1.5 bg-[var(--primary-accent2)] text-white rounded-full text-xs font-semibold hover:bg-[var(--primary-accent3)] transition-all duration-200"
+                              disabled={product.stock_quantity === 0}
                             >
                               Add
                             </button>
@@ -954,11 +999,17 @@ export default function BuyerClient() {
                   </div>
                 )}
 
-                {filteredHarvests.length > 0 &&
-                  filteredHarvests.length < allHarvests.length && (
+                {products.length > 0 &&
+                  products.length < pagination.totalItems && (
                     <div className="text-center mt-5">
-                      <button className="px-5 py-2 bg-white border-2 border-[var(--primary-accent2)] text-[var(--primary-accent2)] rounded-full text-sm font-medium hover:bg-[var(--primary-accent2)] hover:text-white transition-all duration-200">
-                        Load More Harvests
+                      <button
+                        onClick={() => {
+                          // TODO: Implement pagination
+                          console.log("Load more products");
+                        }}
+                        className="px-5 py-2 bg-white border-2 border-[var(--primary-accent2)] text-[var(--primary-accent2)] rounded-full text-sm font-medium hover:bg-[var(--primary-accent2)] hover:text-white transition-all duration-200"
+                      >
+                        Load More Products
                       </button>
                     </div>
                   )}
@@ -988,76 +1039,99 @@ export default function BuyerClient() {
 
                 {showHarvestFeed && (
                   <div className="max-h-[500px] overflow-y-auto border-t border-[var(--secondary-soft-highlight)]/20">
-                    <div className="p-3 space-y-3">
-                      {harvestUpdates.map((update) => (
-                        <div
-                          key={update.id}
-                          className="pb-3 border-b border-[var(--secondary-soft-highlight)]/20 last:border-0 last:pb-0"
-                        >
-                          {/* Compact Post Header */}
-                          <div className="flex items-start gap-1.5 mb-2">
-                            <div className="relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
-                              <Image
-                                src={update.farmAvatar}
-                                alt={update.farmName}
-                                fill
-                                className="object-cover"
-                              />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1">
-                                <h4 className="font-semibold text-xs text-[var(--secondary-black)] truncate">
-                                  {update.farmName}
-                                </h4>
-                                {update.verified && (
-                                  <CheckBadgeIcon className="h-3 w-3 text-[var(--primary-accent2)] flex-shrink-0" />
+                    {harvestUpdates.length === 0 ? (
+                      <div className="p-6 text-center text-sm text-[var(--secondary-muted-edge)]">
+                        No harvest updates available
+                      </div>
+                    ) : (
+                      <div className="p-3 space-y-3">
+                        {harvestUpdates.map((update) => (
+                          <div
+                            key={update.id}
+                            className="pb-3 border-b border-[var(--secondary-soft-highlight)]/20 last:border-0 last:pb-0"
+                          >
+                            {/* Compact Post Header */}
+                            <div className="flex items-start gap-1.5 mb-2">
+                              <div className="relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-[var(--primary-accent2)]/10 flex items-center justify-center">
+                                {update.farm_avatar ? (
+                                  <Image
+                                    src={update.farm_avatar}
+                                    alt={update.farm_name}
+                                    fill
+                                    className="object-cover"
+                                  />
+                                ) : (
+                                  <span className="text-xs font-bold text-[var(--primary-accent2)]">
+                                    {update.farm_name.charAt(0)}
+                                  </span>
                                 )}
                               </div>
-                              <div className="flex items-center gap-0.5 text-[10px] text-[var(--secondary-muted-edge)]">
-                                <ClockIcon className="h-2.5 w-2.5" />
-                                {update.timeAgo}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1">
+                                  <h4 className="font-semibold text-xs text-[var(--secondary-black)] truncate">
+                                    {update.farm_name}
+                                  </h4>
+                                  {update.is_verified && (
+                                    <CheckBadgeIcon className="h-3 w-3 text-[var(--primary-accent2)] flex-shrink-0" />
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-0.5 text-[10px] text-[var(--secondary-muted-edge)]">
+                                  <ClockIcon className="h-2.5 w-2.5" />
+                                  {update.time_ago}
+                                </div>
+                              </div>
+                              <div className="px-1.5 py-0.5 bg-[var(--secondary-highlight1)]/20 rounded-full text-[10px] font-medium text-[var(--secondary-black)] whitespace-nowrap">
+                                {update.expected_harvest_window}
                               </div>
                             </div>
-                            <div className="px-1.5 py-0.5 bg-[var(--secondary-highlight1)]/20 rounded-full text-[10px] font-medium text-[var(--secondary-black)] whitespace-nowrap">
-                              {update.harvestDate}
+
+                            <p className="text-xs text-[var(--secondary-black)] mb-2 leading-relaxed">
+                              {update.content}
+                            </p>
+
+                            {/* Compact Post Image */}
+                            {update.images && update.images.length > 0 && (
+                              <div className="relative h-32 rounded-lg overflow-hidden mb-2">
+                                <Image
+                                  src={update.images[0]}
+                                  alt="Harvest update"
+                                  fill
+                                  className="object-cover"
+                                />
+                              </div>
+                            )}
+
+                            {/* Compact Post Actions */}
+                            <div className="flex items-center justify-between text-[10px]">
+                              <button
+                                onClick={() =>
+                                  handleHarvestLike(update.id, update.is_liked)
+                                }
+                                className="flex items-center gap-0.5 text-[var(--secondary-muted-edge)] hover:text-[var(--primary-accent2)] transition-colors"
+                              >
+                                {update.is_liked ? (
+                                  <HeartSolidIcon className="h-3 w-3 text-[var(--primary-accent2)]" />
+                                ) : (
+                                  <HeartIcon className="h-3 w-3" />
+                                )}
+                                <span>{update.likes_count}</span>
+                              </button>
+                              <button className="flex items-center gap-0.5 text-[var(--secondary-muted-edge)] hover:text-[var(--primary-accent2)] transition-colors">
+                                <ChatBubbleLeftIcon className="h-3 w-3" />
+                                <span>{update.comments_count}</span>
+                              </button>
+                              <Link
+                                href={`/buyer/harvest/${update.id}`}
+                                className="flex items-center gap-0.5 text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)] transition-colors font-medium"
+                              >
+                                View
+                                <ArrowRightIcon className="h-2.5 w-2.5" />
+                              </Link>
                             </div>
                           </div>
-
-                          <p className="text-xs text-[var(--secondary-black)] mb-2 leading-relaxed">
-                            {update.content}
-                          </p>
-
-                          {/* Compact Post Image */}
-                          <div className="relative h-32 rounded-lg overflow-hidden mb-2">
-                            <Image
-                              src={update.images[0]}
-                              alt="Harvest update"
-                              fill
-                              className="object-cover"
-                            />
-                          </div>
-
-                          {/* Compact Post Actions */}
-                          <div className="flex items-center justify-between text-[10px]">
-                            <button className="flex items-center gap-0.5 text-[var(--secondary-muted-edge)] hover:text-[var(--primary-accent2)] transition-colors">
-                              <HeartIcon className="h-3 w-3" />
-                              <span>{update.likes}</span>
-                            </button>
-                            <button className="flex items-center gap-0.5 text-[var(--secondary-muted-edge)] hover:text-[var(--primary-accent2)] transition-colors">
-                              <ChatBubbleLeftIcon className="h-3 w-3" />
-                              <span>{update.comments}</span>
-                            </button>
-                            <Link
-                              href={`/buyer/harvest/${update.id}`}
-                              className="flex items-center gap-0.5 text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)] transition-colors font-medium"
-                            >
-                              View
-                              <ArrowRightIcon className="h-2.5 w-2.5" />
-                            </Link>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </section>
@@ -1068,58 +1142,68 @@ export default function BuyerClient() {
                   <UserGroupIcon className="h-4 w-4 text-[var(--primary-accent2)]" />
                   Featured Suppliers
                 </h3>
-                <div className="space-y-3">
-                  {featuredSuppliers.map((supplier) => (
-                    <Link
-                      key={supplier.id}
-                      href={`/seller/${supplier.name
-                        .toLowerCase()
-                        .replace(/\s+/g, "-")}`}
-                      className="block group"
-                    >
-                      <div className="flex gap-2">
-                        <div className="relative w-12 h-12 rounded-xl overflow-hidden flex-shrink-0">
-                          <Image
-                            src={supplier.image}
-                            alt={supplier.name}
-                            fill
-                            className="object-cover group-hover:scale-110 transition-transform duration-300"
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1 mb-0.5">
-                            <h4 className="font-semibold text-xs text-[var(--secondary-black)] truncate group-hover:text-[var(--primary-accent2)] transition-colors">
-                              {supplier.name}
-                            </h4>
-                            {supplier.verified && (
-                              <CheckBadgeIcon className="h-3 w-3 text-[var(--primary-accent2)] flex-shrink-0" />
+                {sellers.length === 0 ? (
+                  <div className="text-center py-4 text-sm text-[var(--secondary-muted-edge)]">
+                    No suppliers available
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {sellers.slice(0, 6).map((supplier) => (
+                      <Link
+                        key={supplier.id}
+                        href={`/buyer/supplier/${supplier.id}`}
+                        className="block group"
+                      >
+                        <div className="flex gap-2">
+                          <div className="relative w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 bg-[var(--primary-accent2)]/10 flex items-center justify-center">
+                            {supplier.logo_url ? (
+                              <Image
+                                src={supplier.logo_url}
+                                alt={supplier.name}
+                                fill
+                                className="object-cover group-hover:scale-110 transition-transform duration-300"
+                              />
+                            ) : (
+                              <span className="text-sm font-bold text-[var(--primary-accent2)]">
+                                {supplier.name.charAt(0)}
+                              </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-0.5 text-[10px] text-[var(--secondary-muted-edge)] mb-1">
-                            <MapPinIcon className="h-2.5 w-2.5" />
-                            <span className="truncate">
-                              {supplier.location}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between text-[10px]">
-                            <div className="flex items-center gap-0.5">
-                              <StarIcon className="h-2.5 w-2.5 fill-yellow-400 text-yellow-400" />
-                              <span className="font-medium">
-                                {supplier.rating}
-                              </span>
-                              <span className="text-[var(--secondary-muted-edge)]">
-                                ({supplier.totalReviews})
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1 mb-0.5">
+                              <h4 className="font-semibold text-xs text-[var(--secondary-black)] truncate group-hover:text-[var(--primary-accent2)] transition-colors">
+                                {supplier.name}
+                              </h4>
+                              {supplier.is_verified && (
+                                <CheckBadgeIcon className="h-3 w-3 text-[var(--primary-accent2)] flex-shrink-0" />
+                              )}
+                            </div>
+                            <div className="flex items-center gap-0.5 text-[10px] text-[var(--secondary-muted-edge)] mb-1">
+                              <MapPinIcon className="h-2.5 w-2.5" />
+                              <span className="truncate">
+                                {supplier.location || "Caribbean"}
                               </span>
                             </div>
-                            <span className="text-[var(--secondary-muted-edge)]">
-                              {supplier.products} products
-                            </span>
+                            <div className="flex items-center justify-between text-[10px]">
+                              <div className="flex items-center gap-0.5">
+                                <StarIcon className="h-2.5 w-2.5 fill-yellow-400 text-yellow-400" />
+                                <span className="font-medium">
+                                  {supplier.average_rating?.toFixed(1) || "4.5"}
+                                </span>
+                                <span className="text-[var(--secondary-muted-edge)]">
+                                  ({supplier.review_count || 0})
+                                </span>
+                              </div>
+                              <span className="text-[var(--secondary-muted-edge)]">
+                                {supplier.product_count || 0} products
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
                 <Link
                   href="/buyer/suppliers"
                   className="block w-full mt-3 py-2 text-xs font-medium text-[var(--primary-accent2)] hover:bg-[var(--primary-background)] rounded-lg transition-colors duration-200 text-center"

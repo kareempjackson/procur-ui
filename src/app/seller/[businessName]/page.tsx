@@ -21,6 +21,7 @@ import {
 import { StarIcon as StarIconSolid } from "@heroicons/react/24/solid";
 import TopNavigation from "@/components/navigation/TopNavigation";
 import Footer from "@/components/footer/Footer";
+import ProcurLoader from "@/components/ProcurLoader";
 
 interface SellerProfile {
   id: string;
@@ -451,12 +452,7 @@ export default function PublicSellerPage() {
       <div className="min-h-screen bg-[var(--primary-background)]">
         <TopNavigation />
         <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--primary-accent2)] mx-auto mb-4"></div>
-            <p className="text-[var(--primary-base)]">
-              Loading seller profile...
-            </p>
-          </div>
+          <ProcurLoader size="lg" text="Loading seller profile..." />
         </div>
         <Footer />
       </div>

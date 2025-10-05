@@ -410,22 +410,19 @@ export default function SellerDashboardPage() {
                             "border-t border-[color:var(--secondary-soft-highlight)]/30"
                         )}
                       >
-                        <div className="flex items-center gap-3">
+                        <Link
+                          href={`/seller/orders/${order.id.replace("#", "")}`}
+                          className="flex items-center gap-3 hover:opacity-75 transition-opacity"
+                        >
                           {/* Avatar placeholder */}
                           <div className="h-8 w-8 rounded-full bg-[var(--primary-accent1)]/20 flex items-center justify-center text-xs font-medium text-[color:var(--primary-accent3)]">
                             {order.buyer.charAt(0)}
                           </div>
                           <div>
                             <div className="text-sm text-[color:var(--secondary-black)] font-medium">
-                              <Link
-                                href={`/seller/orders/${order.id.replace(
-                                  "#",
-                                  ""
-                                )}`}
-                                className="hover:underline"
-                              >
+                              <span className="hover:text-[var(--primary-accent2)]">
                                 {order.id}
-                              </Link>
+                              </span>
                               {" · "}
                               <span className="font-normal text-[color:var(--secondary-muted-edge)]">
                                 {order.buyer}
@@ -435,7 +432,7 @@ export default function SellerDashboardPage() {
                               {order.items} items · {order.total}
                             </div>
                           </div>
-                        </div>
+                        </Link>
                         <div className="flex items-center gap-3">
                           <div className="text-xs text-[color:var(--secondary-muted-edge)] hidden sm:block">
                             {new Date(order.eta).toLocaleDateString("en-US", {

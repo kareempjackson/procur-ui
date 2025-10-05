@@ -2,93 +2,56 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { getApiClient } from "@/lib/apiClient";
-
-type BuyerOrder = {
-  id: string;
-  order_number?: string;
-  status?: string;
-  payment_status?: string;
-  total_amount?: number;
-  currency?: string;
-  created_at?: string;
-  items?: Array<{ product_name?: string; quantity?: number }>;
-};
-
-type OrdersResponse = {
-  orders?: BuyerOrder[];
-  total?: number;
-  page?: number;
-  limit?: number;
-};
+import { useAppDispatch, useAppSelector } from "@/store";
+import { fetchOrders } from "@/store/slices/buyerOrdersSlice";
+import ProcurLoader from "@/components/ProcurLoader";
+import {
+  CheckCircleIcon,
+  ClockIcon,
+  BanknotesIcon,
+  ShoppingCartIcon,
+} from "@heroicons/react/24/outline";
 
 function classNames(...classes: (string | false | null | undefined)[]) {
   return classes.filter(Boolean).join(" ");
 }
 
-function getClient() {
-  return getApiClient(() => {
-    if (typeof window === "undefined") return null;
-    try {
-      const raw = localStorage.getItem("auth");
-      if (!raw) return null;
-      const parsed = JSON.parse(raw) as { accessToken?: string };
-      return parsed.accessToken ?? null;
-    } catch {
-      return null;
-    }
-  });
-}
-
 export default function BuyerOrdersPage() {
-  const [orders, setOrders] = useState<BuyerOrder[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [limit] = useState(20);
-  const [total, setTotal] = useState(0);
-
-  const totalPages = useMemo(
-    () => Math.max(1, Math.ceil(total / limit)),
-    [total, limit]
+  const dispatch = useAppDispatch();
+  const { orders, status, error, pagination } = useAppSelector(
+    (state) => state.buyerOrders
   );
 
-  async function fetchOrders(p: number) {
-    setLoading(true);
-    setError(null);
-    try {
-      const client = getClient();
-      const { data } = await client.get<OrdersResponse>("/buyers/orders", {
-        params: { page: p, limit, sort_by: "created_at", sort_order: "desc" },
-      });
-      setOrders(data.orders || []);
-      setTotal(data.total || 0);
-    } catch (e: unknown) {
-      setError((e as any)?.response?.data?.message || "Failed to load orders");
-      setOrders([]);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  }
+  const [page, setPage] = useState(1);
+  const limit = 20;
+
+  // Ensure orders is always an array
+  const ordersList = Array.isArray(orders) ? orders : [];
+
+  const totalPages = useMemo(
+    () => Math.max(1, pagination?.totalPages || 0),
+    [pagination]
+  );
 
   useEffect(() => {
-    fetchOrders(page);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+    dispatch(fetchOrders({ page, limit }));
+  }, [page, dispatch]);
 
   const summary = useMemo(() => {
-    const completed = orders.filter((o) =>
+    const completed = ordersList.filter((o) =>
       (o.status || "").toLowerCase().includes("delivered")
     ).length;
-    const pending = orders.filter((o) =>
+    const pending = ordersList.filter((o) =>
       (o.status || "").toLowerCase().includes("pending")
     ).length;
-    const totalPaid = orders
-      .filter((o) => (o.payment_status || "").toLowerCase() === "paid")
+    const totalPaid = ordersList
+      .filter((o) => o.status?.toLowerCase() === "completed")
       .reduce((sum, o) => sum + (o.total_amount || 0), 0);
     return { completed, pending, totalPaid };
-  }, [orders]);
+  }, [ordersList]);
+
+  const loading = status === "loading";
+  const total = pagination?.totalItems || 0;
 
   return (
     <div className="min-h-screen bg-[var(--primary-background)]">
@@ -112,76 +75,93 @@ export default function BuyerOrdersPage() {
 
         {/* Summary */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {[
-            { label: "Completed", value: String(summary.completed) },
-            { label: "Pending", value: String(summary.pending) },
-            {
-              label: "Paid (this page)",
-              value: new Intl.NumberFormat("en-US", {
-                style: "currency",
-                currency: "USD",
-              }).format(summary.totalPaid),
-            },
-            { label: "Total Orders", value: String(total) },
-          ].map((k) => (
-            <div
-              key={k.label}
-              className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6 hover:shadow-sm transition-shadow"
-            >
-              <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)]">
-                {k.label}
-              </div>
-              <div className="mt-1 text-2xl font-semibold text-[color:var(--secondary-black)]">
-                {k.value}
+          {/* Completed Orders */}
+          <div className="bg-gradient-to-br from-[#C0D1C7] to-[#407178] rounded-2xl p-6 text-white shadow-lg">
+            <div className="flex items-center justify-between mb-2">
+              <CheckCircleIcon className="h-8 w-8 opacity-80" />
+              <div className="text-xs bg-white/20 px-2 py-1 rounded-full">
+                Completed
               </div>
             </div>
-          ))}
+            <div className="text-3xl font-bold mb-1">{summary.completed}</div>
+            <div className="text-xs opacity-80">Orders delivered</div>
+          </div>
+
+          {/* Pending Orders */}
+          <div className="bg-gradient-to-br from-[#E0A374] to-[#CB5927] rounded-2xl p-6 text-white shadow-lg">
+            <div className="flex items-center justify-between mb-2">
+              <ClockIcon className="h-8 w-8 opacity-80" />
+              <div className="text-xs bg-white/20 px-2 py-1 rounded-full">
+                Pending
+              </div>
+            </div>
+            <div className="text-3xl font-bold mb-1">{summary.pending}</div>
+            <div className="text-xs opacity-80">In progress</div>
+          </div>
+
+          {/* Total Paid */}
+          <div className="bg-gradient-to-br from-[#CB5927] to-[#653011] rounded-2xl p-6 text-white shadow-lg">
+            <div className="flex items-center justify-between mb-2">
+              <BanknotesIcon className="h-8 w-8 opacity-80" />
+              <div className="text-xs bg-white/20 px-2 py-1 rounded-full">
+                Paid
+              </div>
+            </div>
+            <div className="text-3xl font-bold mb-1">
+              {new Intl.NumberFormat("en-US", {
+                style: "currency",
+                currency: "USD",
+              }).format(summary.totalPaid)}
+            </div>
+            <div className="text-xs opacity-80">This page</div>
+          </div>
+
+          {/* Total Orders */}
+          <div className="bg-gradient-to-br from-[#A6B1E7] to-[#8091D5] rounded-2xl p-6 text-white shadow-lg">
+            <div className="flex items-center justify-between mb-2">
+              <ShoppingCartIcon className="h-8 w-8 opacity-80" />
+              <div className="text-xs bg-white/20 px-2 py-1 rounded-full">
+                Total
+              </div>
+            </div>
+            <div className="text-3xl font-bold mb-1">{total}</div>
+            <div className="text-xs opacity-80">All orders</div>
+          </div>
         </div>
 
         {/* Error */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
-            <p className="text-red-800">{error}</p>
+          <div className="bg-[#CB5927]/10 border border-[#CB5927]/30 rounded-xl p-4 mb-6">
+            <p className="text-[#653011] font-medium">{error}</p>
           </div>
         )}
 
         {/* Orders List */}
         {loading ? (
-          <div className="text-center py-12 text-sm text-[color:var(--secondary-muted-edge)]">
-            Loading orders…
-          </div>
-        ) : orders.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-              <svg
-                className="w-8 h-8 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-                />
-              </svg>
+          <ProcurLoader size="md" text="Loading orders..." />
+        ) : ordersList.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/30 p-12 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 bg-[var(--primary-background)] rounded-full flex items-center justify-center">
+              <ShoppingCartIcon className="w-8 h-8 text-[var(--secondary-muted-edge)] opacity-50" />
             </div>
-            <h3 className="text-lg font-medium text-[var(--secondary-black)] mb-2">
+            <h3 className="text-xl font-semibold text-[var(--secondary-black)] mb-2">
               No orders found
             </h3>
-            <p className="text-[var(--primary-base)] mb-6">
+            <p className="text-[var(--secondary-muted-edge)] mb-6">
               Your orders will appear here after you purchase from sellers
             </p>
-            <Link href="/buyer" className="btn btn-primary">
+            <Link
+              href="/buyer"
+              className="inline-block px-6 py-3 bg-[var(--primary-accent2)] text-white rounded-full font-medium hover:bg-[var(--primary-accent3)] transition-all duration-200"
+            >
               Explore Products
             </Link>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)] overflow-hidden">
+          <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/30 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-[var(--secondary-soft-highlight)]">
+                <thead className="bg-[var(--primary-background)] border-b border-[var(--secondary-soft-highlight)]">
                   <tr>
                     <th className="text-left py-2 px-3 font-medium text-[var(--secondary-black)] min-w-[110px]">
                       Order
@@ -204,10 +184,10 @@ export default function BuyerOrdersPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {orders.map((order) => (
+                  {ordersList.map((order) => (
                     <tr
                       key={order.id}
-                      className="border-b border-[var(--secondary-soft-highlight)] last:border-0 hover:bg-gray-25"
+                      className="border-b border-[var(--secondary-soft-highlight)]/20 last:border-0 hover:bg-[var(--primary-background)]/50 transition-colors"
                     >
                       <td className="py-2 px-3">
                         <div className="font-medium text-[var(--secondary-black)] text-xs">
@@ -229,7 +209,7 @@ export default function BuyerOrdersPage() {
                         <div className="font-semibold text-[var(--secondary-black)] text-xs">
                           {new Intl.NumberFormat("en-US", {
                             style: "currency",
-                            currency: order.currency || "USD",
+                            currency: "USD",
                           }).format(order.total_amount || 0)}
                         </div>
                       </td>
@@ -237,29 +217,27 @@ export default function BuyerOrdersPage() {
                         <span
                           className={classNames(
                             "px-1.5 py-0.5 text-xs rounded-full font-medium",
-                            "bg-gray-100 text-gray-800"
+                            (order.status || "")
+                              .toLowerCase()
+                              .includes("delivered")
+                              ? "bg-[#C0D1C7]/20 text-[#407178]"
+                              : (order.status || "")
+                                  .toLowerCase()
+                                  .includes("pending")
+                              ? "bg-[#E0A374]/20 text-[#CB5927]"
+                              : (order.status || "")
+                                  .toLowerCase()
+                                  .includes("cancelled")
+                              ? "bg-[#6C715D]/20 text-[#6C715D]"
+                              : "bg-[#A6B1E7]/20 text-[#8091D5]"
                           )}
                         >
                           {(order.status || "").replace(/_/g, " ") || "—"}
                         </span>
                       </td>
                       <td className="py-2 px-3">
-                        <span
-                          className={classNames(
-                            "px-1.5 py-0.5 text-xs rounded-full font-medium",
-                            (order.payment_status || "").toLowerCase() ===
-                              "paid"
-                              ? "bg-green-100 text-green-800"
-                              : (order.payment_status || "").toLowerCase() ===
-                                "pending"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : (order.payment_status || "").toLowerCase() ===
-                                "failed"
-                              ? "bg-red-100 text-red-800"
-                              : "bg-gray-100 text-gray-800"
-                          )}
-                        >
-                          {order.payment_status || "—"}
+                        <span className="px-1.5 py-0.5 text-xs rounded-full font-medium bg-[#6C715D]/20 text-[#6C715D]">
+                          —
                         </span>
                       </td>
                       <td className="py-2 px-3 text-xs text-[var(--primary-base)]">
@@ -280,24 +258,26 @@ export default function BuyerOrdersPage() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-2 mt-6 text-sm">
-            <button
-              onClick={() => setPage((p) => Math.max(p - 1, 1))}
-              disabled={page === 1}
-              className="px-3 py-1 rounded-full border text-[var(--primary-base)] disabled:opacity-50"
-            >
-              Prev
-            </button>
-            <span className="text-[var(--primary-base)]">
-              {page}/{totalPages}
-            </span>
-            <button
-              onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
-              disabled={page === totalPages}
-              className="px-3 py-1 rounded-full border text-[var(--primary-base)] disabled:opacity-50"
-            >
-              Next
-            </button>
+          <div className="flex items-center justify-between mt-6">
+            <div className="text-sm text-[var(--secondary-muted-edge)]">
+              Page {page} of {totalPages}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(p - 1, 1))}
+                disabled={page === 1}
+                className="px-4 py-2 bg-white border border-[var(--secondary-soft-highlight)] text-[var(--secondary-black)] rounded-full text-sm font-medium hover:bg-[var(--primary-background)] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+                disabled={page === totalPages}
+                className="px-4 py-2 bg-white border border-[var(--secondary-soft-highlight)] text-[var(--secondary-black)] rounded-full text-sm font-medium hover:bg-[var(--primary-background)] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </main>

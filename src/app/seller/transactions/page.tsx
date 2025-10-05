@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAppDispatch, useAppSelector } from "@/store";
+import ProcurLoader from "@/components/ProcurLoader";
 import {
   fetchSellerTransactions,
   fetchTransactionsSummary,
@@ -111,36 +112,36 @@ export default function SellerTransactionsPage() {
   const getTransactionTypeColor = (type: TransactionType) => {
     switch (type) {
       case TransactionType.SALE:
-        return "bg-green-100 text-green-800";
+        return "bg-[#C0D1C7]/20 text-[#407178]";
       case TransactionType.REFUND:
-        return "bg-red-100 text-red-800";
+        return "bg-[#CB5927]/20 text-[#653011]";
       case TransactionType.PAYOUT:
-        return "bg-blue-100 text-blue-800";
+        return "bg-[#A6B1E7]/20 text-[#8091D5]";
       case TransactionType.FEE:
-        return "bg-purple-100 text-purple-800";
+        return "bg-[#E0A374]/20 text-[#CB5927]";
       case TransactionType.ADJUSTMENT:
-        return "bg-yellow-100 text-yellow-800";
+        return "bg-[#E0A374]/20 text-[#CB5927]";
       case TransactionType.CHARGEBACK:
-        return "bg-red-100 text-red-800";
+        return "bg-[#CB5927]/20 text-[#653011]";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-[#6C715D]/20 text-[#6C715D]";
     }
   };
 
   const getStatusColor = (status: TransactionStatus) => {
     switch (status) {
       case TransactionStatus.COMPLETED:
-        return "bg-green-100 text-green-800";
+        return "bg-[#C0D1C7]/20 text-[#407178]";
       case TransactionStatus.PENDING:
-        return "bg-yellow-100 text-yellow-800";
+        return "bg-[#E0A374]/20 text-[#CB5927]";
       case TransactionStatus.PROCESSING:
-        return "bg-blue-100 text-blue-800";
+        return "bg-[#A6B1E7]/20 text-[#8091D5]";
       case TransactionStatus.FAILED:
-        return "bg-red-100 text-red-800";
+        return "bg-[#CB5927]/20 text-[#653011]";
       case TransactionStatus.CANCELLED:
-        return "bg-gray-100 text-gray-800";
+        return "bg-[#6C715D]/20 text-[#6C715D]";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-[#6C715D]/20 text-[#6C715D]";
     }
   };
 
@@ -298,13 +299,6 @@ export default function SellerTransactionsPage() {
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setShowExportModal(true)}
-              className="btn btn-ghost h-8 px-3 text-sm"
-            >
-              Export
-            </button>
-
-            <button
               onClick={() => setShowFilters(!showFilters)}
               className="btn btn-ghost h-8 px-3 text-sm"
             >
@@ -313,7 +307,7 @@ export default function SellerTransactionsPage() {
 
             <Link
               href="/seller/analytics"
-              className="btn btn-primary h-8 px-3 text-sm"
+              className="btn btn-ghost h-8 px-3 text-sm"
             >
               Analytics
             </Link>
@@ -322,36 +316,109 @@ export default function SellerTransactionsPage() {
 
         {/* Summary Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {[
-            {
-              label: "Total Sales",
-              value: formatAmount(txState.summary?.total_sales ?? 0),
-            },
-            {
-              label: "Total Refunds",
-              value: formatAmount(txState.summary?.total_refunds ?? 0),
-            },
-            {
-              label: "Total Fees",
-              value: formatAmount(txState.summary?.total_fees ?? 0),
-            },
-            {
-              label: "Net Revenue",
-              value: formatAmount(txState.summary?.net_earnings ?? 0),
-            },
-          ].map((card) => (
-            <div
-              key={card.label}
-              className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6 hover:shadow-sm transition-shadow"
-            >
-              <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)]">
-                {card.label}
-              </div>
-              <div className="mt-1 text-2xl font-semibold text-[color:var(--secondary-black)]">
-                {card.value}
+          {/* Total Sales */}
+          <div className="bg-gradient-to-br from-[#C0D1C7] to-[#407178] rounded-2xl p-6 text-white shadow-lg">
+            <div className="flex items-center justify-between mb-2">
+              <svg
+                className="h-8 w-8 opacity-80"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <div className="text-xs bg-white/20 px-2 py-1 rounded-full">
+                Sales
               </div>
             </div>
-          ))}
+            <div className="text-3xl font-bold mb-1">
+              {formatAmount(txState.summary?.total_sales ?? 0)}
+            </div>
+            <div className="text-xs opacity-80">Total sales</div>
+          </div>
+
+          {/* Total Refunds */}
+          <div className="bg-gradient-to-br from-[#E0A374] to-[#CB5927] rounded-2xl p-6 text-white shadow-lg">
+            <div className="flex items-center justify-between mb-2">
+              <svg
+                className="h-8 w-8 opacity-80"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z"
+                />
+              </svg>
+              <div className="text-xs bg-white/20 px-2 py-1 rounded-full">
+                Refunds
+              </div>
+            </div>
+            <div className="text-3xl font-bold mb-1">
+              {formatAmount(txState.summary?.total_refunds ?? 0)}
+            </div>
+            <div className="text-xs opacity-80">Total refunds</div>
+          </div>
+
+          {/* Total Fees */}
+          <div className="bg-gradient-to-br from-[#CB5927] to-[#653011] rounded-2xl p-6 text-white shadow-lg">
+            <div className="flex items-center justify-between mb-2">
+              <svg
+                className="h-8 w-8 opacity-80"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                />
+              </svg>
+              <div className="text-xs bg-white/20 px-2 py-1 rounded-full">
+                Fees
+              </div>
+            </div>
+            <div className="text-3xl font-bold mb-1">
+              {formatAmount(txState.summary?.total_fees ?? 0)}
+            </div>
+            <div className="text-xs opacity-80">Platform fees</div>
+          </div>
+
+          {/* Net Revenue */}
+          <div className="bg-gradient-to-br from-[#A6B1E7] to-[#8091D5] rounded-2xl p-6 text-white shadow-lg">
+            <div className="flex items-center justify-between mb-2">
+              <svg
+                className="h-8 w-8 opacity-80"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                />
+              </svg>
+              <div className="text-xs bg-white/20 px-2 py-1 rounded-full">
+                Net
+              </div>
+            </div>
+            <div className="text-3xl font-bold mb-1">
+              {formatAmount(txState.summary?.net_earnings ?? 0)}
+            </div>
+            <div className="text-xs opacity-80">Net revenue</div>
+          </div>
         </div>
 
         {/* Filters Panel */}
@@ -508,25 +575,22 @@ export default function SellerTransactionsPage() {
             )}
           </div>
           {totalPages > 1 && (
-            <div className="flex items-center gap-1 text-sm">
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
-                className="px-2 py-1 text-[var(--primary-base)] hover:text-[var(--primary-accent2)] disabled:opacity-50"
+                className="px-4 py-2 bg-white border border-[var(--secondary-soft-highlight)] text-[var(--secondary-black)] rounded-full text-sm font-medium hover:bg-[var(--primary-background)] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                ←
+                Previous
               </button>
-              <span className="px-2 text-[var(--primary-base)]">
-                {currentPage}/{totalPages}
-              </span>
               <button
                 onClick={() =>
                   setCurrentPage((prev) => Math.min(prev + 1, totalPages))
                 }
                 disabled={currentPage === totalPages}
-                className="px-2 py-1 text-[var(--primary-base)] hover:text-[var(--primary-accent2)] disabled:opacity-50"
+                className="px-4 py-2 bg-white border border-[var(--secondary-soft-highlight)] text-[var(--secondary-black)] rounded-full text-sm font-medium hover:bg-[var(--primary-background)] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                →
+                Next
               </button>
             </div>
           )}
@@ -534,21 +598,19 @@ export default function SellerTransactionsPage() {
 
         {/* Error State */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
-            <p className="text-red-800">{error}</p>
+          <div className="bg-[#CB5927]/10 border border-[#CB5927]/30 rounded-xl p-4 mb-6">
+            <p className="text-[#653011] font-medium">{error}</p>
           </div>
         )}
 
         {/* Transactions Table */}
         {loading ? (
-          <div className="text-center py-12 text-sm text-[color:var(--secondary-muted-edge)]">
-            Loading transactions…
-          </div>
+          <ProcurLoader size="md" text="Loading transactions..." />
         ) : paginatedTransactions.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+          <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/30 p-12 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 bg-[var(--primary-background)] rounded-full flex items-center justify-center">
               <svg
-                className="w-8 h-8 text-gray-400"
+                className="w-8 h-8 text-[var(--secondary-muted-edge)] opacity-50"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -561,23 +623,26 @@ export default function SellerTransactionsPage() {
                 />
               </svg>
             </div>
-            <h3 className="text-lg font-medium text-[var(--secondary-black)] mb-2">
+            <h3 className="text-xl font-semibold text-[var(--secondary-black)] mb-2">
               No transactions found
             </h3>
-            <p className="text-[var(--primary-base)] mb-6">
+            <p className="text-[var(--secondary-muted-edge)] mb-6">
               {filters.search || filters.type || filters.status
                 ? "Try adjusting your filters or search terms"
                 : "Your transactions will appear here once you start selling"}
             </p>
-            <Link href="/seller" className="btn btn-primary">
+            <Link
+              href="/seller"
+              className="inline-block px-6 py-3 bg-[var(--primary-accent2)] text-white rounded-full font-medium hover:bg-[var(--primary-accent3)] transition-all duration-200"
+            >
               Go to Dashboard
             </Link>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)] overflow-hidden">
+          <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/30 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-[var(--secondary-soft-highlight)]">
+                <thead className="bg-[var(--primary-background)] border-b border-[var(--secondary-soft-highlight)]">
                   <tr>
                     <th className="text-left py-2 px-3 w-8">
                       <input
@@ -623,7 +688,7 @@ export default function SellerTransactionsPage() {
                   {paginatedTransactions.map((transaction) => (
                     <tr
                       key={transaction.id}
-                      className="border-b border-[var(--secondary-soft-highlight)] last:border-0 hover:bg-gray-25"
+                      className="border-b border-[var(--secondary-soft-highlight)]/20 last:border-0 hover:bg-[var(--primary-background)]/50 transition-colors"
                     >
                       <td className="py-2 px-3">
                         <input
@@ -638,13 +703,20 @@ export default function SellerTransactionsPage() {
                         />
                       </td>
                       <td className="py-2 px-3">
-                        <div className="font-medium text-[var(--secondary-black)] text-xs">
-                          {transaction.id}
-                        </div>
+                        <Link
+                          href={`/seller/transactions/${transaction.id}`}
+                          className="font-medium text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)] text-xs"
+                        >
+                          {transaction.transaction_number ||
+                            transaction.id.slice(0, 12) + "..."}
+                        </Link>
                         {transaction.order_id && (
-                          <div className="text-xs text-[var(--primary-base)]">
-                            {transaction.order_id}
-                          </div>
+                          <Link
+                            href={`/seller/orders/${transaction.order_id}`}
+                            className="text-xs text-[var(--secondary-muted-edge)] hover:text-[var(--primary-accent2)] block mt-0.5"
+                          >
+                            Order: {transaction.order_id.slice(0, 8)}...
+                          </Link>
                         )}
                       </td>
                       <td className="py-2 px-3">

@@ -19,7 +19,7 @@ const FAQS: FaqItem[] = [
   },
   {
     q: "How do I set up payouts?",
-    a: "Open Seller → Billing & Payments and connect your payout account. Once verified, funds will be settled automatically per your payout schedule.",
+    a: "Open Seller → Business Settings → Payment Settings and connect your bank account. Once verified, funds will be settled automatically per your payout schedule.",
   },
   {
     q: "Can I update my business profile?",
@@ -83,14 +83,14 @@ export default function SellerHelpPage() {
                 </div>
               </Link>
               <Link
-                href="/seller/payments"
+                href="/seller/business"
                 className="rounded-2xl border border-[var(--secondary-soft-highlight)] bg-[var(--primary-background)] p-5 hover:bg-white transition-colors"
               >
                 <div className="font-medium text-[color:var(--secondary-black)]">
-                  Billing & payouts
+                  Business Settings
                 </div>
                 <div className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
-                  Manage your payment settings
+                  Manage your organization & payments
                 </div>
               </Link>
               <Link

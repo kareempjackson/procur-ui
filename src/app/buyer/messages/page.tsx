@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   MagnifyingGlassIcon,
   PaperClipIcon,
@@ -43,6 +44,9 @@ type ApiMessage = {
 };
 
 export default function BuyerMessagesPage() {
+  const searchParams = useSearchParams();
+  const conversationIdParam = searchParams.get("conversationId");
+
   const authToken = useSelector(selectAuthToken);
   const authUser = useSelector(selectAuthUser);
 
@@ -51,11 +55,12 @@ export default function BuyerMessagesPage() {
   const [loadingConversations, setLoadingConversations] = useState(true);
   const [activeConversationId, setActiveConversationId] = useState<
     string | null
-  >(null);
+  >(conversationIdParam);
   const [messages, setMessages] = useState<ApiMessage[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [messageInput, setMessageInput] = useState("");
   const [showDetails, setShowDetails] = useState(false);
+  const [participants, setParticipants] = useState<any[]>([]);
   const listEndRef = useRef<HTMLDivElement | null>(null);
 
   const client = useMemo(
@@ -63,6 +68,13 @@ export default function BuyerMessagesPage() {
     [authToken]
   );
   const supabase = useMemo(() => getSupabaseClient(), []);
+
+  // Handle conversation ID from URL params
+  useEffect(() => {
+    if (conversationIdParam) {
+      setActiveConversationId(conversationIdParam);
+    }
+  }, [conversationIdParam]);
 
   const fetchConversations = useCallback(async () => {
     setLoadingConversations(true);
@@ -112,12 +124,31 @@ export default function BuyerMessagesPage() {
   useEffect(() => {
     if (!activeConversationId) return;
     fetchMessages(activeConversationId);
-  }, [activeConversationId, fetchMessages]);
+    // Fetch participants
+    client
+      .get(`/conversations/${activeConversationId}/participants`)
+      .then(({ data }) => setParticipants(data || []))
+      .catch(() => setParticipants([]));
+  }, [activeConversationId, fetchMessages, client]);
 
   useEffect(() => {
-    if (!supabase || !activeConversationId) return;
+    if (!supabase || !activeConversationId) {
+      console.log(
+        "Real-time not available - Supabase or conversation ID missing"
+      );
+      return;
+    }
+
+    console.log(
+      `Setting up real-time subscription for conversation: ${activeConversationId}`
+    );
+
     const channel = supabase
-      .channel(`conversation:${activeConversationId}`)
+      .channel(`conversation:${activeConversationId}`, {
+        config: {
+          broadcast: { self: true },
+        },
+      })
       .on(
         "postgres_changes",
         {
@@ -127,11 +158,18 @@ export default function BuyerMessagesPage() {
           filter: `conversation_id=eq.${activeConversationId}`,
         },
         (payload) => {
+          console.log("Real-time: New message received", payload);
           const m = payload.new as ApiMessage;
-          setMessages((prev) => [...prev, m]);
+          setMessages((prev) => {
+            // Avoid duplicates
+            if (prev.some((msg) => msg.id === m.id)) {
+              return prev;
+            }
+            return [...prev, m];
+          });
           setTimeout(
             () => listEndRef.current?.scrollIntoView({ behavior: "smooth" }),
-            0
+            100
           );
         }
       )
@@ -144,13 +182,19 @@ export default function BuyerMessagesPage() {
           filter: `conversation_id=eq.${activeConversationId}`,
         },
         (payload) => {
+          console.log("Real-time: Message updated", payload);
           const m = payload.new as ApiMessage;
           setMessages((prev) => prev.map((x) => (x.id === m.id ? m : x)));
         }
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        console.log(`Real-time subscription status: ${status}`, err);
+      });
 
     return () => {
+      console.log(
+        `Cleaning up real-time subscription for: ${activeConversationId}`
+      );
       supabase.removeChannel(channel);
     };
   }, [supabase, activeConversationId]);
@@ -178,16 +222,37 @@ export default function BuyerMessagesPage() {
     if (!messageInput.trim() || !activeConversationId || !authUser) return;
     const text = messageInput.trim();
     setMessageInput("");
+
     try {
-      await client.post(`/conversations/${activeConversationId}/messages`, {
-        senderUserId: authUser.id,
-        senderOrgId: authUser.organizationId ?? undefined,
-        content_type: "text",
-        text,
-      });
-      // Realtime will append; fallback if not configured
-      if (!supabase) fetchMessages(activeConversationId);
-    } catch {
+      const response = await client.post(
+        `/conversations/${activeConversationId}/messages`,
+        {
+          senderUserId: authUser.id,
+          senderOrgId: authUser.organizationId ?? undefined,
+          content_type: "text",
+          text,
+        }
+      );
+
+      console.log("Message sent successfully", response);
+
+      // If real-time is not available or takes too long, manually add the message
+      if (!supabase) {
+        console.log("Real-time not available, manually fetching messages");
+        fetchMessages(activeConversationId);
+      } else {
+        // Set a timeout to manually fetch if real-time doesn't update in 2 seconds
+        const timeoutId = setTimeout(() => {
+          console.log("Real-time didn't update in time, manually fetching");
+          fetchMessages(activeConversationId);
+        }, 2000);
+
+        // Clear the timeout if the message appears via real-time
+        // (This would need to be tracked in a more sophisticated way in production)
+        return () => clearTimeout(timeoutId);
+      }
+    } catch (error) {
+      console.error("Failed to send message:", error);
       setMessageInput(text);
     }
   };

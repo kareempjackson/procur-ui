@@ -1,4 +1,5 @@
 import AuthGuard from "@/components/AuthGuard";
+import GovernmentTopNavigation from "@/components/navigation/GovernmentTopNavigation";
 import Footer from "@/components/footer/Footer";
 import type { Metadata } from "next";
 
@@ -15,7 +16,10 @@ export default function GovernmentLayout({
 }) {
   return (
     <>
-      <AuthGuard allowAccountTypes={["government"]}>{children}</AuthGuard>
+      <AuthGuard allowAccountTypes={["government"]}>
+        <GovernmentTopNavigation />
+        {children}
+      </AuthGuard>
       <Footer />
     </>
   );

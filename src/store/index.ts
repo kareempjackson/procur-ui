@@ -9,6 +9,14 @@ import sellerProductsReducer from "./slices/sellerProductsSlice";
 import harvestFeedReducer from "./slices/harvestFeedSlice";
 import sellerReducer from "./slices/sellerSlice";
 import notificationsReducer from "./slices/notificationsSlice";
+import buyerMarketplaceReducer from "./slices/buyerMarketplaceSlice";
+import buyerCartReducer from "./slices/buyerCartSlice";
+import buyerOrdersReducer from "./slices/buyerOrdersSlice";
+import buyerRequestsReducer from "./slices/buyerRequestsSlice";
+import buyerTransactionsReducer from "./slices/buyerTransactionsSlice";
+import profileReducer from "./slices/profileSlice";
+import sellerProductRequestsReducer from "./slices/sellerProductRequestsSlice";
+import sellerAnalyticsReducer from "./slices/sellerAnalyticsSlice";
 
 export const store = configureStore({
   reducer: {
@@ -21,6 +29,14 @@ export const store = configureStore({
     harvestFeed: harvestFeedReducer,
     seller: sellerReducer,
     notifications: notificationsReducer,
+    buyerMarketplace: buyerMarketplaceReducer,
+    buyerCart: buyerCartReducer,
+    buyerOrders: buyerOrdersReducer,
+    buyerRequests: buyerRequestsReducer,
+    buyerTransactions: buyerTransactionsReducer,
+    profile: profileReducer,
+    sellerProductRequests: sellerProductRequestsReducer,
+    sellerAnalytics: sellerAnalyticsReducer,
   },
   devTools: process.env.NODE_ENV !== "production",
 });

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useAppDispatch, useAppSelector } from "@/store";
 import { getApiClient } from "@/lib/apiClient";
 import { fetchSellerOrders } from "@/store/slices/sellerOrdersSlice";
+import ProcurLoader from "@/components/ProcurLoader";
 
 // Enums for order statuses and types
 enum OrderStatus {
@@ -595,53 +596,53 @@ export default function SellerOrdersPage() {
   const getStatusColor = (status: OrderStatus) => {
     switch (status) {
       case OrderStatus.PENDING:
-        return "bg-yellow-100 text-yellow-800";
+        return "bg-[#E0A374]/20 text-[#CB5927]";
       case OrderStatus.CONFIRMED:
-        return "bg-blue-100 text-blue-800";
+        return "bg-[#A6B1E7]/20 text-[#8091D5]";
       case OrderStatus.PREPARING:
-        return "bg-orange-100 text-orange-800";
+        return "bg-[#E0A374]/20 text-[#CB5927]";
       case OrderStatus.READY:
-        return "bg-purple-100 text-purple-800";
+        return "bg-[#A6B1E7]/20 text-[#8091D5]";
       case OrderStatus.IN_TRANSIT:
-        return "bg-indigo-100 text-indigo-800";
+        return "bg-[#A6B1E7]/20 text-[#8091D5]";
       case OrderStatus.DELIVERED:
-        return "bg-green-100 text-green-800";
+        return "bg-[#C0D1C7]/20 text-[#407178]";
       case OrderStatus.CANCELLED:
-        return "bg-red-100 text-red-800";
+        return "bg-[#6C715D]/20 text-[#6C715D]";
       case OrderStatus.REFUNDED:
-        return "bg-gray-100 text-gray-800";
+        return "bg-[#6C715D]/20 text-[#6C715D]";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-[#6C715D]/20 text-[#6C715D]";
     }
   };
 
   const getPriorityColor = (priority: OrderPriority) => {
     switch (priority) {
       case OrderPriority.LOW:
-        return "bg-gray-100 text-gray-600";
+        return "bg-[#6C715D]/20 text-[#6C715D]";
       case OrderPriority.NORMAL:
-        return "bg-blue-100 text-blue-600";
+        return "bg-[#A6B1E7]/20 text-[#8091D5]";
       case OrderPriority.HIGH:
-        return "bg-orange-100 text-orange-600";
+        return "bg-[#E0A374]/20 text-[#CB5927]";
       case OrderPriority.URGENT:
-        return "bg-red-100 text-red-600";
+        return "bg-[#CB5927]/20 text-[#653011]";
       default:
-        return "bg-gray-100 text-gray-600";
+        return "bg-[#6C715D]/20 text-[#6C715D]";
     }
   };
 
   const getPaymentStatusColor = (status: PaymentStatus) => {
     switch (status) {
       case PaymentStatus.PAID:
-        return "bg-green-100 text-green-800";
+        return "bg-[#C0D1C7]/20 text-[#407178]";
       case PaymentStatus.PENDING:
-        return "bg-yellow-100 text-yellow-800";
+        return "bg-[#E0A374]/20 text-[#CB5927]";
       case PaymentStatus.FAILED:
-        return "bg-red-100 text-red-800";
+        return "bg-[#CB5927]/20 text-[#653011]";
       case PaymentStatus.REFUNDED:
-        return "bg-gray-100 text-gray-800";
+        return "bg-[#6C715D]/20 text-[#6C715D]";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-[#6C715D]/20 text-[#6C715D]";
     }
   };
 
@@ -775,7 +776,6 @@ export default function SellerOrdersPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <button className="btn btn-ghost h-8 px-3 text-sm">Export</button>
             <button
               onClick={() => setShowFilters(!showFilters)}
               className="btn btn-ghost h-8 px-3 text-sm"
@@ -783,8 +783,27 @@ export default function SellerOrdersPage() {
               Filters
             </button>
             <Link
+              href="/seller/orders/shipping"
+              className="btn btn-ghost h-8 px-3 text-sm flex items-center gap-1"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                />
+              </svg>
+              Shipping
+            </Link>
+            <Link
               href="/seller/analytics"
-              className="btn btn-primary h-8 px-3 text-sm"
+              className="btn btn-ghost h-8 px-3 text-sm"
             >
               Analytics
             </Link>
@@ -793,36 +812,109 @@ export default function SellerOrdersPage() {
 
         {/* Summary Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {[
-            {
-              label: "Total Revenue",
-              value: formatAmount(summaryStats.totalRevenue),
-            },
-            {
-              label: "Pending Orders",
-              value: String(summaryStats.pendingOrders),
-            },
-            {
-              label: "In Progress",
-              value: String(summaryStats.inProgressOrders),
-            },
-            {
-              label: "Completed",
-              value: String(summaryStats.completedOrders),
-            },
-          ].map((k) => (
-            <div
-              key={k.label}
-              className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6 hover:shadow-sm transition-shadow"
-            >
-              <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)]">
-                {k.label}
-              </div>
-              <div className="mt-1 text-2xl font-semibold text-[color:var(--secondary-black)]">
-                {k.value}
+          {/* Total Revenue */}
+          <div className="bg-gradient-to-br from-[#C0D1C7] to-[#407178] rounded-2xl p-6 text-white shadow-lg">
+            <div className="flex items-center justify-between mb-2">
+              <svg
+                className="h-8 w-8 opacity-80"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <div className="text-xs bg-white/20 px-2 py-1 rounded-full">
+                Revenue
               </div>
             </div>
-          ))}
+            <div className="text-3xl font-bold mb-1">
+              {formatAmount(summaryStats.totalRevenue)}
+            </div>
+            <div className="text-xs opacity-80">Total revenue</div>
+          </div>
+
+          {/* Pending Orders */}
+          <div className="bg-gradient-to-br from-[#E0A374] to-[#CB5927] rounded-2xl p-6 text-white shadow-lg">
+            <div className="flex items-center justify-between mb-2">
+              <svg
+                className="h-8 w-8 opacity-80"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <div className="text-xs bg-white/20 px-2 py-1 rounded-full">
+                Pending
+              </div>
+            </div>
+            <div className="text-3xl font-bold mb-1">
+              {summaryStats.pendingOrders}
+            </div>
+            <div className="text-xs opacity-80">Awaiting action</div>
+          </div>
+
+          {/* In Progress */}
+          <div className="bg-gradient-to-br from-[#A6B1E7] to-[#8091D5] rounded-2xl p-6 text-white shadow-lg">
+            <div className="flex items-center justify-between mb-2">
+              <svg
+                className="h-8 w-8 opacity-80"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                />
+              </svg>
+              <div className="text-xs bg-white/20 px-2 py-1 rounded-full">
+                Active
+              </div>
+            </div>
+            <div className="text-3xl font-bold mb-1">
+              {summaryStats.inProgressOrders}
+            </div>
+            <div className="text-xs opacity-80">Being processed</div>
+          </div>
+
+          {/* Completed */}
+          <div className="bg-gradient-to-br from-[#CB5927] to-[#653011] rounded-2xl p-6 text-white shadow-lg">
+            <div className="flex items-center justify-between mb-2">
+              <svg
+                className="h-8 w-8 opacity-80"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <div className="text-xs bg-white/20 px-2 py-1 rounded-full">
+                Done
+              </div>
+            </div>
+            <div className="text-3xl font-bold mb-1">
+              {summaryStats.completedOrders}
+            </div>
+            <div className="text-xs opacity-80">Delivered</div>
+          </div>
         </div>
 
         {/* Filters Panel */}
@@ -955,25 +1047,22 @@ export default function SellerOrdersPage() {
             )}
           </div>
           {totalPages > 1 && (
-            <div className="flex items-center gap-1 text-sm">
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
-                className="px-2 py-1 text-[var(--primary-base)] hover:text-[var(--primary-accent2)] disabled:opacity-50"
+                className="px-4 py-2 bg-white border border-[var(--secondary-soft-highlight)] text-[var(--secondary-black)] rounded-full text-sm font-medium hover:bg-[var(--primary-background)] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                ←
+                Previous
               </button>
-              <span className="px-2 text-[var(--primary-base)]">
-                {currentPage}/{totalPages}
-              </span>
               <button
                 onClick={() =>
                   setCurrentPage((prev) => Math.min(prev + 1, totalPages))
                 }
                 disabled={currentPage === totalPages}
-                className="px-2 py-1 text-[var(--primary-base)] hover:text-[var(--primary-accent2)] disabled:opacity-50"
+                className="px-4 py-2 bg-white border border-[var(--secondary-soft-highlight)] text-[var(--secondary-black)] rounded-full text-sm font-medium hover:bg-[var(--primary-background)] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                →
+                Next
               </button>
             </div>
           )}
@@ -981,21 +1070,19 @@ export default function SellerOrdersPage() {
 
         {/* Error State */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
-            <p className="text-red-800">{error}</p>
+          <div className="bg-[#CB5927]/10 border border-[#CB5927]/30 rounded-xl p-4 mb-6">
+            <p className="text-[#653011] font-medium">{error}</p>
           </div>
         )}
 
         {/* Orders Table */}
         {loading ? (
-          <div className="text-center py-12 text-sm text-[color:var(--secondary-muted-edge)]">
-            Loading orders…
-          </div>
+          <ProcurLoader size="md" text="Loading orders..." />
         ) : paginatedOrders.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+          <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/30 p-12 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 bg-[var(--primary-background)] rounded-full flex items-center justify-center">
               <svg
-                className="w-8 h-8 text-gray-400"
+                className="w-8 h-8 text-[var(--secondary-muted-edge)] opacity-50"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -1008,23 +1095,26 @@ export default function SellerOrdersPage() {
                 />
               </svg>
             </div>
-            <h3 className="text-lg font-medium text-[var(--secondary-black)] mb-2">
+            <h3 className="text-xl font-semibold text-[var(--secondary-black)] mb-2">
               No orders found
             </h3>
-            <p className="text-[var(--primary-base)] mb-6">
+            <p className="text-[var(--secondary-muted-edge)] mb-6">
               {filters.search || filters.status || filters.priority
                 ? "Try adjusting your filters or search terms"
                 : "Your orders will appear here once customers start purchasing"}
             </p>
-            <Link href="/seller" className="btn btn-primary">
+            <Link
+              href="/seller"
+              className="inline-block px-6 py-3 bg-[var(--primary-accent2)] text-white rounded-full font-medium hover:bg-[var(--primary-accent3)] transition-all duration-200"
+            >
               Go to Dashboard
             </Link>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)] overflow-hidden">
+          <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/30 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-[var(--secondary-soft-highlight)]">
+                <thead className="bg-[var(--primary-background)] border-b border-[var(--secondary-soft-highlight)]">
                   <tr>
                     <th className="text-left py-2 px-3 w-8">
                       <input
@@ -1069,7 +1159,7 @@ export default function SellerOrdersPage() {
                   {paginatedOrders.map((order) => (
                     <tr
                       key={order.id}
-                      className="border-b border-[var(--secondary-soft-highlight)] last:border-0 hover:bg-gray-25"
+                      className="border-b border-[var(--secondary-soft-highlight)]/20 last:border-0 hover:bg-[var(--primary-background)]/50 transition-colors"
                     >
                       <td className="py-2 px-3">
                         <input
@@ -1080,17 +1170,23 @@ export default function SellerOrdersPage() {
                         />
                       </td>
                       <td className="py-2 px-3">
-                        <div className="font-medium text-[var(--secondary-black)] text-xs">
-                          {order.order_number}
-                        </div>
-                        <div className="text-xs text-[var(--primary-base)]">
-                          {order.fulfillment_method === FulfillmentMethod.PICKUP
-                            ? "Pickup"
-                            : order.fulfillment_method ===
-                              FulfillmentMethod.DELIVERY
-                            ? "Delivery"
-                            : "Shipping"}
-                        </div>
+                        <Link
+                          href={`/seller/orders/${order.id}`}
+                          className="block hover:opacity-75 transition-opacity"
+                        >
+                          <div className="font-medium text-[var(--secondary-black)] text-xs hover:text-[var(--primary-accent2)]">
+                            {order.order_number}
+                          </div>
+                          <div className="text-xs text-[var(--primary-base)]">
+                            {order.fulfillment_method ===
+                            FulfillmentMethod.PICKUP
+                              ? "Pickup"
+                              : order.fulfillment_method ===
+                                FulfillmentMethod.DELIVERY
+                              ? "Delivery"
+                              : "Shipping"}
+                          </div>
+                        </Link>
                       </td>
                       <td className="py-2 px-3">
                         <div className="font-medium text-[var(--secondary-black)] text-xs truncate max-w-[140px]">
@@ -1255,7 +1351,8 @@ export default function SellerOrdersPage() {
                       </td>
                       <td className="py-2 px-3">
                         <div className="flex items-center gap-1">
-                          <button
+                          <Link
+                            href={`/seller/orders/${order.id}`}
                             className="text-[var(--primary-base)] hover:text-[var(--primary-accent2)] p-1"
                             title="View Details"
                           >
@@ -1278,7 +1375,7 @@ export default function SellerOrdersPage() {
                                 d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
                               />
                             </svg>
-                          </button>
+                          </Link>
                           <button
                             className="text-[var(--primary-base)] hover:text-[var(--primary-accent2)] p-1"
                             title="Print Label"

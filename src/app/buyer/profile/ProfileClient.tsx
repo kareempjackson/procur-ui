@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   UserCircleIcon,
   BuildingOfficeIcon,
@@ -15,26 +15,60 @@ import {
   XMarkIcon,
   PlusIcon,
 } from "@heroicons/react/24/outline";
+import { useAppDispatch, useAppSelector } from "@/store";
+import {
+  fetchProfile,
+  updateProfile,
+  fetchPreferences,
+  updatePreferences,
+  fetchOrganizationMembers,
+  inviteOrganizationMember,
+  removeOrganizationMember,
+  type UpdateProfileDto,
+} from "@/store/slices/profileSlice";
+import ProcurLoader from "@/components/ProcurLoader";
 
 export default function ProfileClient() {
+  const dispatch = useAppDispatch();
+  const {
+    profile,
+    preferences,
+    organizationMembers,
+    status,
+    preferencesStatus,
+    membersStatus,
+    error,
+  } = useAppSelector((state) => state.profile);
+
+  // Fetch profile data on mount
+  useEffect(() => {
+    dispatch(fetchProfile());
+    dispatch(fetchPreferences()).catch(() => {
+      // Silently fail if preferences endpoint doesn't exist yet
+    });
+    dispatch(fetchOrganizationMembers()).catch(() => {
+      // Silently fail if members endpoint doesn't exist yet
+    });
+  }, [dispatch]);
+
   const [formData, setFormData] = useState({
     // Personal Information
-    firstName: "John",
-    lastName: "Doe",
-    email: "john.doe@example.com",
-    phone: "+1 (555) 123-4567",
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
 
     // Organization Information
-    organizationName: "Fresh Foods Inc.",
-    businessType: "Restaurant",
-    taxId: "12-3456789",
+    organizationName: "",
+    businessType: "",
+    taxId: "",
 
     // Address
-    street: "123 Main Street",
-    city: "Kingston",
-    state: "Jamaica",
-    postalCode: "00000",
-    country: "Jamaica",
+    street: "",
+    city: "",
+    state: "",
+    postalCode: "",
+    country: "",
 
     // Preferences
     emailNotifications: true,
@@ -42,36 +76,42 @@ export default function ProfileClient() {
     marketingEmails: true,
   });
 
+  // Update form data when profile loads
+  useEffect(() => {
+    if (profile) {
+      setFormData((prev) => ({
+        ...prev,
+        firstName: profile.firstName || "",
+        lastName: profile.lastName || "",
+        email: profile.email || "",
+        phone: profile.phone || "",
+        organizationName: profile.organization?.name || "",
+        businessType: profile.organization?.businessType || "",
+        taxId: profile.organization?.taxId || "",
+        street: profile.organization?.address || "",
+        city: profile.organization?.city || "",
+        state: profile.organization?.state || "",
+        postalCode: profile.organization?.postalCode || "",
+        country: profile.organization?.country || "",
+      }));
+    }
+  }, [profile]);
+
+  // Update preferences when they load
+  useEffect(() => {
+    if (preferences) {
+      setFormData((prev) => ({
+        ...prev,
+        emailNotifications: preferences.emailNotifications,
+        smsNotifications: preferences.smsNotifications,
+        marketingEmails: preferences.marketingEmails,
+      }));
+    }
+  }, [preferences]);
+
   const [activeTab, setActiveTab] = useState<
     "profile" | "security" | "notifications" | "users"
   >("profile");
-
-  const [users, setUsers] = useState([
-    {
-      id: 1,
-      name: "John Doe",
-      email: "john.doe@example.com",
-      role: "admin",
-      status: "active",
-      addedDate: "Jan 15, 2024",
-    },
-    {
-      id: 2,
-      name: "Jane Smith",
-      email: "jane.smith@example.com",
-      role: "purchaser",
-      status: "active",
-      addedDate: "Feb 3, 2024",
-    },
-    {
-      id: 3,
-      name: "Mike Johnson",
-      email: "mike.j@example.com",
-      role: "viewer",
-      status: "pending",
-      addedDate: "Mar 10, 2024",
-    },
-  ]);
 
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [newUser, setNewUser] = useState({
@@ -92,41 +132,84 @@ export default function ProfileClient() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Profile updated:", formData);
-    alert("Profile updated successfully!");
+
+    // Handle profile update
+    if (activeTab === "profile") {
+      const updateData: UpdateProfileDto = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phone: formData.phone,
+      };
+
+      try {
+        await dispatch(updateProfile(updateData)).unwrap();
+        alert("Profile updated successfully!");
+      } catch (err) {
+        alert(`Failed to update profile: ${err}`);
+      }
+    }
+
+    // Handle notification preferences update
+    if (activeTab === "notifications") {
+      const preferencesData = {
+        emailNotifications: formData.emailNotifications,
+        smsNotifications: formData.smsNotifications,
+        marketingEmails: formData.marketingEmails,
+      };
+
+      try {
+        await dispatch(updatePreferences(preferencesData)).unwrap();
+        alert("Preferences updated successfully!");
+      } catch (err) {
+        // Silently fail if endpoint doesn't exist yet
+        console.log("Preferences update not available:", err);
+        alert("Preferences saved locally (API integration pending)");
+      }
+    }
   };
 
-  const handleAddUser = () => {
+  const handleAddUser = async () => {
     if (!newUser.email || !newUser.name) {
       alert("Please fill in all required fields");
       return;
     }
-    const user = {
-      id: users.length + 1,
-      ...newUser,
-      status: "pending",
-      addedDate: new Date().toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      }),
-    };
-    setUsers([...users, user]);
-    setShowAddUserModal(false);
-    setNewUser({ name: "", email: "", role: "purchaser" });
-    alert(`Invitation sent to ${newUser.email}`);
-  };
 
-  const handleRemoveUser = (userId: number) => {
-    if (confirm("Are you sure you want to remove this user?")) {
-      setUsers(users.filter((u) => u.id !== userId));
+    try {
+      await dispatch(inviteOrganizationMember(newUser)).unwrap();
+      setShowAddUserModal(false);
+      setNewUser({ name: "", email: "", role: "purchaser" });
+      alert(`Invitation sent to ${newUser.email}`);
+    } catch (err) {
+      // Fallback to local state if endpoint doesn't exist
+      console.log("Member invite not available:", err);
+      alert(
+        `Invitation feature pending API integration. User: ${newUser.email}`
+      );
+      setShowAddUserModal(false);
+      setNewUser({ name: "", email: "", role: "purchaser" });
     }
   };
 
-  const handleChangeRole = (userId: number, newRole: string) => {
-    setUsers(users.map((u) => (u.id === userId ? { ...u, role: newRole } : u)));
+  const handleRemoveUser = async (userId: string) => {
+    if (!confirm("Are you sure you want to remove this user?")) {
+      return;
+    }
+
+    try {
+      await dispatch(removeOrganizationMember(userId)).unwrap();
+      alert("User removed successfully");
+    } catch (err) {
+      console.log("Member removal not available:", err);
+      alert("User removal feature pending API integration");
+    }
+  };
+
+  const handleChangeRole = (userId: string, newRole: string) => {
+    // This would require a new API endpoint to change user roles
+    console.log("Change role not yet implemented:", userId, newRole);
+    alert("Role change feature pending API integration");
   };
 
   return (
@@ -577,7 +660,24 @@ export default function ProfileClient() {
               </p>
 
               <div className="space-y-3">
-                {users.map((user) => (
+                {membersStatus === "loading" && (
+                  <ProcurLoader size="sm" text="Loading team members..." />
+                )}
+
+                {membersStatus === "succeeded" &&
+                  organizationMembers.length === 0 && (
+                    <div className="text-center py-8 text-[var(--secondary-muted-edge)]">
+                      <UserGroupIcon className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">
+                        No team members yet. Invite someone to get started!
+                      </p>
+                    </div>
+                  )}
+
+                {(organizationMembers.length > 0
+                  ? organizationMembers
+                  : []
+                ).map((user) => (
                   <div
                     key={user.id}
                     className="flex items-center justify-between p-4 border border-[var(--secondary-soft-highlight)]/30 rounded-xl hover:bg-[var(--primary-background)] transition-colors duration-200"

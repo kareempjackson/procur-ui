@@ -8,7 +8,14 @@ export function getSupabaseClient(): SupabaseClient | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  if (!url || !anon) return null;
+  if (!url || !anon) {
+    console.warn(
+      "Supabase environment variables not configured - real-time features will be disabled"
+    );
+    return null;
+  }
+
+  console.log("Initializing Supabase client with real-time enabled");
 
   client = createClient(url, anon, {
     auth: {
@@ -17,7 +24,7 @@ export function getSupabaseClient(): SupabaseClient | null {
     },
     realtime: {
       params: {
-        eventsPerSecond: 5,
+        eventsPerSecond: 10,
       },
     },
   });

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -16,6 +16,13 @@ import {
   ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartSolidIcon } from "@heroicons/react/24/solid";
+import { useAppDispatch, useAppSelector } from "@/store";
+import {
+  fetchCart,
+  updateCartItemAsync,
+  removeCartItemAsync,
+} from "@/store/slices/buyerCartSlice";
+import ProcurLoader from "@/components/ProcurLoader";
 
 // Demo cart data grouped by seller
 const demoCartData = {
@@ -140,115 +147,24 @@ const demoCartData = {
 };
 
 export default function BuyerCartPage() {
-  const [cartData, setCartData] = useState(demoCartData);
-  const [savedItems, setSavedItems] = useState<Set<string>>(new Set());
+  const dispatch = useAppDispatch();
+  const { cart, status, error } = useAppSelector((state) => state.buyerCart);
+
   const [promoCode, setPromoCode] = useState("");
   const [promoApplied, setPromoApplied] = useState(false);
 
-  const updateQuantity = (
-    sellerId: string,
-    itemId: string,
-    newQuantity: number
-  ) => {
-    setCartData((prev) => ({
-      ...prev,
-      sellers: prev.sellers.map((seller) =>
-        seller.id === sellerId
-          ? {
-              ...seller,
-              items: seller.items.map((item) =>
-                item.id === itemId
-                  ? {
-                      ...item,
-                      quantity: Math.max(
-                        item.minOrder,
-                        Math.min(newQuantity, item.maxStock)
-                      ),
-                    }
-                  : item
-              ),
-            }
-          : seller
-      ),
-    }));
+  // Fetch cart on mount
+  useEffect(() => {
+    dispatch(fetchCart());
+  }, [dispatch]);
+
+  const updateQuantity = (itemId: string, newQuantity: number) => {
+    dispatch(updateCartItemAsync({ itemId, quantity: newQuantity }));
   };
 
-  const removeItem = (sellerId: string, itemId: string) => {
-    setCartData((prev) => ({
-      ...prev,
-      sellers: prev.sellers
-        .map((seller) =>
-          seller.id === sellerId
-            ? {
-                ...seller,
-                items: seller.items.filter((item) => item.id !== itemId),
-              }
-            : seller
-        )
-        .filter((seller) => seller.items.length > 0), // Remove seller if no items left
-    }));
+  const removeItem = (itemId: string) => {
+    dispatch(removeCartItemAsync(itemId));
   };
-
-  const saveForLater = (sellerId: string, itemId: string) => {
-    const seller = cartData.sellers.find((s) => s.id === sellerId);
-    const item = seller?.items.find((i) => i.id === itemId);
-    if (item && seller) {
-      setCartData((prev) => ({
-        ...prev,
-        savedForLater: [
-          ...prev.savedForLater,
-          {
-            id: item.id,
-            productId: item.productId,
-            name: item.name,
-            sellerName: seller.name,
-            image: item.image,
-            price: item.price,
-            unit: item.unit,
-            minOrder: item.minOrder,
-            inStock: item.inStock,
-          },
-        ],
-      }));
-      removeItem(sellerId, itemId);
-    }
-  };
-
-  const moveToCart = (savedItemId: string) => {
-    // In a real app, this would add the item back to the cart
-    setCartData((prev) => ({
-      ...prev,
-      savedForLater: prev.savedForLater.filter(
-        (item) => item.id !== savedItemId
-      ),
-    }));
-  };
-
-  const calculateSellerSubtotal = (items: any[]) => {
-    return items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  };
-
-  const calculateCartTotals = () => {
-    const subtotal = cartData.sellers.reduce(
-      (sum, seller) => sum + calculateSellerSubtotal(seller.items),
-      0
-    );
-    const shipping = cartData.sellers.reduce(
-      (sum, seller) => sum + seller.shippingCost,
-      0
-    );
-    const discount = promoApplied ? subtotal * 0.1 : 0;
-    const tax = (subtotal - discount) * 0.08;
-    const total = subtotal + shipping + tax - discount;
-
-    return { subtotal, shipping, tax, discount, total };
-  };
-
-  const totals = calculateCartTotals();
-  const totalItems = cartData.sellers.reduce(
-    (sum, seller) => sum + seller.items.length,
-    0
-  );
 
   const applyPromo = () => {
     if (promoCode.toLowerCase() === "save10") {
@@ -256,12 +172,94 @@ export default function BuyerCartPage() {
     }
   };
 
-  const hasMinOrderIssues = cartData.sellers.some(
-    (seller) => !seller.minOrderMet
-  );
+  const moveToCart = (itemId: string) => {
+    // TODO: Implement move to cart functionality
+    console.log("Moving item to cart:", itemId);
+  };
+
+  // Transform Redux cart to UI format
+  const cartData = cart
+    ? {
+        sellers: cart.seller_groups.map((group) => ({
+          id: group.seller_org_id,
+          name: group.seller_name,
+          location: "Caribbean", // TODO: Get from API when available
+          verified: false, // TODO: Get from API when available
+          estimatedDelivery: "Oct 15-20, 2025", // TODO: Calculate from API
+          shippingCost: group.estimated_shipping,
+          minOrderMet: true, // TODO: Get from API
+          minOrderAmount: 50.0, // TODO: Get from API
+          items: group.items.map((item) => ({
+            id: item.id,
+            productId: item.product_id,
+            name: item.product_name,
+            image:
+              item.image_url ||
+              "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+            price: item.unit_price,
+            unit: item.unit_of_measurement,
+            quantity: item.quantity,
+            minOrder: 1, // TODO: Get from product API
+            maxStock: item.stock_quantity,
+            inStock: item.stock_quantity > 0,
+            subtotal: item.total_price,
+          })),
+        })),
+        savedForLater: [] as any[], // TODO: Implement saved for later
+      }
+    : { sellers: [], savedForLater: [] as any[] };
+
+  const calculateSellerSubtotal = (items: any[]) => {
+    return items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  };
+
+  const totals = cart
+    ? {
+        subtotal: cart.subtotal || 0,
+        shipping: cart.estimated_shipping || 0,
+        tax: cart.estimated_tax || 0,
+        discount: promoApplied ? (cart.subtotal || 0) * 0.1 : 0,
+        total: promoApplied
+          ? (cart.total || 0) - (cart.subtotal || 0) * 0.1
+          : cart.total || 0,
+      }
+    : { subtotal: 0, shipping: 0, tax: 0, discount: 0, total: 0 };
+
+  const totalItems = cart?.total_items || 0;
   const hasStockIssues = cartData.sellers.some((seller) =>
     seller.items.some((item) => !item.inStock)
   );
+  const hasMinOrderIssues = false; // TODO: Implement min order logic
+
+  // Loading state
+  if (status === "loading" && !cart) {
+    return (
+      <div className="min-h-screen bg-[var(--primary-background)] flex items-center justify-center">
+        <ProcurLoader size="lg" text="Loading cart..." />
+      </div>
+    );
+  }
+
+  // Error state
+  if (status === "failed" && error) {
+    return (
+      <div className="min-h-screen bg-[var(--primary-background)] flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <ShoppingBagIcon className="h-16 w-16 text-[var(--secondary-muted-edge)] mx-auto mb-4 opacity-50" />
+          <h2 className="text-xl font-bold text-[var(--secondary-black)] mb-2">
+            Failed to Load Cart
+          </h2>
+          <p className="text-[var(--secondary-muted-edge)] mb-4">{error}</p>
+          <button
+            onClick={() => dispatch(fetchCart())}
+            className="px-6 py-3 bg-[var(--primary-accent2)] text-white rounded-full font-semibold hover:bg-[var(--primary-accent3)] transition-all duration-200"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[var(--primary-background)]">
@@ -343,13 +341,13 @@ export default function BuyerCartPage() {
               )}
 
               {/* Items Grouped by Seller */}
-              {cartData.sellers.map((seller) => {
+              {cartData.sellers.map((seller, index) => {
                 const sellerSubtotal = calculateSellerSubtotal(seller.items);
                 const meetsMinOrder = sellerSubtotal >= seller.minOrderAmount;
 
                 return (
                   <div
-                    key={seller.id}
+                    key={seller.id || `seller-${index}`}
                     className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/30 overflow-hidden"
                   >
                     {/* Seller Header */}
@@ -407,8 +405,11 @@ export default function BuyerCartPage() {
 
                     {/* Seller Items */}
                     <div className="divide-y divide-[var(--secondary-soft-highlight)]/20">
-                      {seller.items.map((item) => (
-                        <div key={item.id} className="p-6">
+                      {seller.items.map((item, itemIndex) => (
+                        <div
+                          key={item.id || `item-${itemIndex}`}
+                          className="p-6"
+                        >
                           <div className="flex gap-4">
                             {/* Product Image */}
                             <Link
@@ -440,11 +441,6 @@ export default function BuyerCartPage() {
                                   >
                                     {item.name}
                                   </Link>
-                                  {item.discount && (
-                                    <span className="inline-block mt-1 px-2 py-0.5 bg-[var(--primary-accent2)]/10 text-[var(--primary-accent2)] text-xs font-semibold rounded">
-                                      {item.discount}
-                                    </span>
-                                  )}
                                   <p className="text-sm text-[var(--secondary-muted-edge)] mt-1">
                                     Min order: {item.minOrder} {item.unit}
                                   </p>
@@ -458,11 +454,6 @@ export default function BuyerCartPage() {
                                       /{item.unit}
                                     </span>
                                   </div>
-                                  {item.originalPrice && (
-                                    <div className="text-sm text-[var(--secondary-muted-edge)] line-through">
-                                      ${item.originalPrice.toFixed(2)}
-                                    </div>
-                                  )}
                                   <div className="text-sm font-semibold text-[var(--secondary-black)] mt-1">
                                     ${(item.price * item.quantity).toFixed(2)}{" "}
                                     total
@@ -476,11 +467,7 @@ export default function BuyerCartPage() {
                                 <div className="flex items-center gap-3">
                                   <button
                                     onClick={() =>
-                                      updateQuantity(
-                                        seller.id,
-                                        item.id,
-                                        item.quantity - 1
-                                      )
+                                      updateQuantity(item.id, item.quantity - 1)
                                     }
                                     disabled={
                                       !item.inStock ||
@@ -495,11 +482,7 @@ export default function BuyerCartPage() {
                                   </span>
                                   <button
                                     onClick={() =>
-                                      updateQuantity(
-                                        seller.id,
-                                        item.id,
-                                        item.quantity + 1
-                                      )
+                                      updateQuantity(item.id, item.quantity + 1)
                                     }
                                     disabled={
                                       !item.inStock ||
@@ -514,10 +497,8 @@ export default function BuyerCartPage() {
                                 {/* Item Actions */}
                                 <div className="flex items-center gap-2">
                                   <button
-                                    onClick={() =>
-                                      saveForLater(seller.id, item.id)
-                                    }
-                                    className="text-sm text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)] font-medium transition-colors"
+                                    disabled
+                                    className="text-sm text-[var(--secondary-muted-edge)] font-medium opacity-50 cursor-not-allowed"
                                   >
                                     Save for later
                                   </button>
@@ -525,9 +506,7 @@ export default function BuyerCartPage() {
                                     •
                                   </span>
                                   <button
-                                    onClick={() =>
-                                      removeItem(seller.id, item.id)
-                                    }
+                                    onClick={() => removeItem(item.id)}
                                     className="text-sm text-red-600 hover:text-red-700 font-medium transition-colors flex items-center gap-1"
                                   >
                                     <TrashIcon className="h-4 w-4" />
@@ -553,9 +532,9 @@ export default function BuyerCartPage() {
                     </h3>
                   </div>
                   <div className="p-6 grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {cartData.savedForLater.map((item) => (
+                    {cartData.savedForLater.map((item, savedIndex) => (
                       <div
-                        key={item.id}
+                        key={item.id || `saved-${savedIndex}`}
                         className="border border-[var(--secondary-soft-highlight)]/30 rounded-lg p-3 hover:shadow-md transition-shadow"
                       >
                         <div className="relative w-full h-32 rounded-lg overflow-hidden bg-gray-100 mb-3">

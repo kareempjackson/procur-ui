@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   MagnifyingGlassIcon,
   FunnelIcon,
@@ -13,22 +14,133 @@ import {
   ClockIcon,
   ChatBubbleLeftIcon,
   TruckIcon,
+  HeartIcon,
 } from "@heroicons/react/24/outline";
+import { useAppDispatch, useAppSelector } from "@/store";
+import {
+  fetchSellers,
+  toggleSellerFavoriteAsync,
+} from "@/store/slices/buyerMarketplaceSlice";
+import ProcurLoader from "@/components/ProcurLoader";
+import { HeartIcon as HeartSolidIcon } from "@heroicons/react/24/solid";
+import { getApiClient } from "@/lib/apiClient";
+import { useSelector } from "react-redux";
+import { selectAuthToken } from "@/store/slices/authSlice";
 
 export default function SuppliersClient() {
+  const router = useRouter();
+  const dispatch = useAppDispatch();
+  const { sellers, status, error } = useAppSelector(
+    (state) => state.buyerMarketplace
+  );
+  const authToken = useSelector(selectAuthToken);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedCountries, setSelectedCountries] = useState<string[]>([
-    "Jamaica",
-  ]); // Default to user's country
+  const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
   const [selectedProduce, setSelectedProduce] = useState<string[]>([]);
   const [selectedCertifications, setSelectedCertifications] = useState<
     string[]
   >([]);
   const [minRating, setMinRating] = useState(0);
 
-  // Mock suppliers data
-  const allSuppliers = [
+  // Fetch sellers on mount
+  useEffect(() => {
+    dispatch(fetchSellers({ page: 1, limit: 50 }));
+  }, [dispatch]);
+
+  // Fetch sellers when search changes (debounced)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      dispatch(
+        fetchSellers({
+          page: 1,
+          limit: 50,
+          search: searchQuery || undefined,
+        })
+      );
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, dispatch]);
+
+  // Handle toggle favorite
+  const handleToggleFavorite = async (
+    e: React.MouseEvent,
+    supplierId: string,
+    isFavorited: boolean
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    try {
+      await dispatch(
+        toggleSellerFavoriteAsync({ sellerId: supplierId, isFavorited })
+      ).unwrap();
+
+      // Refresh the list to show updated state
+      dispatch(
+        fetchSellers({ page: 1, limit: 50, search: searchQuery || undefined })
+      );
+    } catch (error) {
+      console.error("Failed to toggle favorite:", error);
+    }
+  };
+
+  // Handle message supplier
+  const handleMessageSupplier = async (
+    e: React.MouseEvent,
+    supplierId: string,
+    supplierName: string
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!authToken) {
+      router.push("/login");
+      return;
+    }
+
+    try {
+      const client = getApiClient(() => authToken);
+      const { data } = await client.post("/conversations/start", {
+        contextType: "supplier",
+        contextId: supplierId,
+        title: `Chat with ${supplierName}`,
+      });
+
+      if (data?.id) {
+        router.push(`/buyer/messages?conversationId=${data.id}`);
+      }
+    } catch (error) {
+      console.error("Failed to start conversation:", error);
+    }
+  };
+
+  // Use sellers from Redux instead of mock data
+  const allSuppliers = sellers.map((seller) => ({
+    id: seller.id,
+    name: seller.name,
+    location: seller.location || "Caribbean",
+    country: seller.location?.split(",").pop()?.trim() || "Caribbean",
+    rating: seller.average_rating || 4.5,
+    totalReviews: seller.review_count || 0,
+    products: seller.product_count || 0,
+    responseTime: "< 2 hours",
+    verified: seller.is_verified,
+    is_favorited: seller.is_favorited || false,
+    certifications: seller.specialties || [],
+    specialties: seller.specialties || [],
+    image:
+      seller.logo_url ||
+      "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+    description: seller.description || "Quality produce supplier",
+    totalOrders: 0, // Not in API yet
+    onTimeDelivery: 95, // Default value
+  }));
+
+  // Keep original mock data as fallback
+  const mockSuppliers = [
     {
       id: 1,
       name: "Caribbean Farms Co.",
@@ -287,6 +399,36 @@ export default function SuppliersClient() {
     selectedProduce.length +
     selectedCertifications.length +
     (minRating > 0 ? 1 : 0);
+
+  // Loading state
+  if (status === "loading" && sellers.length === 0) {
+    return (
+      <div className="min-h-screen bg-[var(--primary-background)] flex items-center justify-center">
+        <ProcurLoader size="lg" text="Loading suppliers..." />
+      </div>
+    );
+  }
+
+  // Error state
+  if (status === "failed" && error) {
+    return (
+      <div className="min-h-screen bg-[var(--primary-background)] flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <BuildingStorefrontIcon className="h-16 w-16 text-[var(--secondary-muted-edge)] mx-auto mb-4 opacity-50" />
+          <h2 className="text-xl font-bold text-[var(--secondary-black)] mb-2">
+            Failed to Load Suppliers
+          </h2>
+          <p className="text-[var(--secondary-muted-edge)] mb-4">{error}</p>
+          <button
+            onClick={() => dispatch(fetchSellers({ page: 1, limit: 50 }))}
+            className="px-6 py-3 bg-[var(--primary-accent2)] text-white rounded-full font-semibold hover:bg-[var(--primary-accent3)] transition-all duration-200"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[var(--primary-background)]">
@@ -576,9 +718,7 @@ export default function SuppliersClient() {
               {filteredSuppliers.map((supplier) => (
                 <Link
                   key={supplier.id}
-                  href={`/seller/${supplier.name
-                    .toLowerCase()
-                    .replace(/\s+/g, "-")}`}
+                  href={`/buyer/supplier/${supplier.id}`}
                   className="block group"
                 >
                   <div className="bg-white rounded-xl overflow-hidden border border-[var(--secondary-soft-highlight)]/20 hover:shadow-lg transition-all duration-200">
@@ -591,6 +731,25 @@ export default function SuppliersClient() {
                         className="object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+
+                      {/* Favorite Button */}
+                      <button
+                        onClick={(e) =>
+                          handleToggleFavorite(
+                            e,
+                            supplier.id,
+                            supplier.is_favorited
+                          )
+                        }
+                        className="absolute top-2 left-2 p-1.5 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-all duration-200 shadow-lg z-10"
+                      >
+                        {supplier.is_favorited ? (
+                          <HeartSolidIcon className="h-4 w-4 text-[var(--primary-accent2)]" />
+                        ) : (
+                          <HeartIcon className="h-4 w-4 text-[var(--secondary-black)]" />
+                        )}
+                      </button>
+
                       {supplier.verified && (
                         <div className="absolute top-2 right-2 bg-[var(--primary-accent2)] text-white px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
                           <CheckBadgeIcon className="h-3 w-3" />
@@ -694,7 +853,12 @@ export default function SuppliersClient() {
                           <BuildingStorefrontIcon className="h-3 w-3" />
                           View
                         </button>
-                        <button className="px-2.5 py-1.5 border border-[var(--secondary-soft-highlight)] text-[var(--secondary-black)] rounded-full text-xs font-medium hover:bg-[var(--primary-background)] transition-all duration-200 flex items-center justify-center gap-1">
+                        <button
+                          onClick={(e) =>
+                            handleMessageSupplier(e, supplier.id, supplier.name)
+                          }
+                          className="px-2.5 py-1.5 border border-[var(--secondary-soft-highlight)] text-[var(--secondary-black)] rounded-full text-xs font-medium hover:bg-[var(--primary-background)] transition-all duration-200 flex items-center justify-center gap-1"
+                        >
                           <ChatBubbleLeftIcon className="h-3 w-3" />
                           Message
                         </button>
