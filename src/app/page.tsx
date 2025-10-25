@@ -36,8 +36,15 @@ export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [openSearchDropdown, setOpenSearchDropdown] = useState<
+    "sticky" | "global" | null
+  >(null);
+  const [activeSearchBar, setActiveSearchBar] = useState<
+    "sticky" | "global" | null
+  >(null);
   const [showStickySearch, setShowStickySearch] = useState(false);
+  const [isHeroHover, setIsHeroHover] = useState(false);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
 
   // Hero carousel data
   const heroSlides = [
@@ -180,6 +187,37 @@ export default function Home() {
     },
   ];
 
+  // From the Blog (demo data)
+  const homeBlogPosts = [
+    {
+      title: "Introducing Procur Insights: Market trends in global produce",
+      category: "Announcements",
+      date: "Sep 28, 2025",
+      excerpt:
+        "A new resource hub for procurement leaders, covering logistics, compliance, and fresh market data.",
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+      href: "/blog/procur-insights-market-trends",
+    },
+    {
+      title: "Real-time logistics visibility with Procur Tracking",
+      category: "Product",
+      date: "Sep 24, 2025",
+      excerpt:
+        "We’re rolling out shipment telemetry and automated ETAs for time-sensitive goods.",
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+      href: "/blog/realtime-logistics-visibility",
+    },
+    {
+      title: "Sustainability metrics that actually matter",
+      category: "Research",
+      date: "Sep 20, 2025",
+      excerpt:
+        "From farm inputs to cold chain efficiency — measuring sustainability with outcomes instead of labels.",
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+      href: "/blog/sustainability-metrics-that-matter",
+    },
+  ];
+
   // Editorial service blocks
   const serviceBlocks = [
     {
@@ -221,13 +259,14 @@ export default function Home() {
     "supply chain insights",
   ];
 
-  // Auto-advance carousel
+  // Auto-advance carousel (pauses on hover)
   useEffect(() => {
+    if (isHeroHover) return;
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
     }, 6000);
     return () => clearInterval(timer);
-  }, [heroSlides.length]);
+  }, [heroSlides.length, isHeroHover]);
 
   // Keyboard navigation for carousel
   useEffect(() => {
@@ -237,7 +276,8 @@ export default function Home() {
       } else if (event.key === "ArrowRight") {
         nextSlide();
       } else if (event.key === "Escape") {
-        setShowSearchDropdown(false);
+        setOpenSearchDropdown(null);
+        setActiveSearchBar(null);
       }
     };
 
@@ -250,7 +290,8 @@ export default function Home() {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Element;
       if (!target.closest('[role="search"]')) {
-        setShowSearchDropdown(false);
+        setOpenSearchDropdown(null);
+        setActiveSearchBar(null);
       }
     };
 
@@ -281,113 +322,124 @@ export default function Home() {
   };
 
   // Reusable search bar component
-  const renderSearchBar = (isSticky = false) => (
-    <form
-      role="search"
-      aria-label="Search marketplace"
-      onSubmit={(e) => {
-        e.preventDefault();
-        console.log("Search:", searchQuery, "Category:", selectedCategory);
-      }}
-    >
-      <div
-        className={`flex items-center bg-white rounded-full overflow-hidden transition-all duration-300 ${
-          isSticky
-            ? "border border-[var(--secondary-soft-highlight)]/30"
-            : "border border-[var(--secondary-soft-highlight)]/20"
-        }`}
+  const renderSearchBar = (isSticky = false) => {
+    const instance: "sticky" | "global" = isSticky ? "sticky" : "global";
+
+    return (
+      <form
+        role="search"
+        aria-label="Search marketplace"
+        onSubmit={(e) => {
+          e.preventDefault();
+          console.log("Search:", searchQuery, "Category:", selectedCategory);
+        }}
       >
-        <div className="relative">
-          <button
-            type="button"
-            className="flex items-center px-6 py-4 text-base font-medium text-[var(--secondary-black)] hover:bg-[var(--primary-background)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)] focus:ring-inset rounded-l-full transition-colors duration-200"
-            onClick={() => setShowSearchDropdown(!showSearchDropdown)}
-            aria-expanded={showSearchDropdown}
-            aria-haspopup="listbox"
-            aria-label={`Category: ${selectedCategory}`}
-          >
-            {selectedCategory}
-            <ChevronDownIcon className="ml-3 h-5 w-5 text-[var(--secondary-muted-edge)]" />
-          </button>
-          {showSearchDropdown && (
-            <div
-              className="absolute top-full left-0 w-40 bg-white border border-[var(--secondary-soft-highlight)]/30 rounded-xl z-20 mt-2 backdrop-blur-sm"
-              role="listbox"
-              aria-label="Search categories"
+        <div
+          className={`flex items-center bg-white rounded-full transition-all duration-300 ${
+            isSticky
+              ? "border border-[var(--secondary-soft-highlight)]/30"
+              : "border border-[var(--secondary-soft-highlight)]/20"
+          }`}
+        >
+          <div className="relative">
+            <button
+              type="button"
+              className="flex items-center px-6 py-4 text-base font-medium text-[var(--secondary-black)] hover:bg-[var(--primary-background)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)] focus:ring-inset rounded-l-full transition-colors duration-200"
+              onClick={() => {
+                setActiveSearchBar(instance);
+                setOpenSearchDropdown((prev) =>
+                  prev === instance ? null : instance
+                );
+              }}
+              onFocus={() => setActiveSearchBar(instance)}
+              aria-expanded={openSearchDropdown === instance}
+              aria-haspopup="listbox"
+              aria-label={`Category: ${selectedCategory}`}
             >
-              <div className="py-2">
-                {searchCategories.map((cat) => (
-                  <button
-                    key={cat}
-                    type="button"
-                    role="option"
-                    aria-selected={selectedCategory === cat}
-                    className={`block w-full text-left px-4 py-3 text-sm font-medium transition-colors duration-200 focus:outline-none ${
-                      selectedCategory === cat
-                        ? "bg-[var(--primary-accent2)] text-white"
-                        : "text-[var(--secondary-black)] hover:bg-[var(--primary-background)] hover:text-[var(--primary-accent2)]"
-                    }`}
-                    onClick={() => {
-                      setSelectedCategory(cat);
-                      setShowSearchDropdown(false);
-                    }}
-                  >
-                    {cat}
-                  </button>
-                ))}
+              {selectedCategory}
+              <ChevronDownIcon className="ml-3 h-5 w-5 text-[var(--secondary-muted-edge)]" />
+            </button>
+            {openSearchDropdown === instance && (
+              <div
+                className="absolute top-full left-0 w-40 bg-white border border-[var(--secondary-soft-highlight)]/30 rounded-xl z-20 mt-2 backdrop-blur-sm"
+                role="listbox"
+                aria-label="Search categories"
+              >
+                <div className="py-2">
+                  {searchCategories.map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      role="option"
+                      aria-selected={selectedCategory === cat}
+                      className={`block w-full text-left px-4 py-3 text-sm font-medium transition-colors duration-200 focus:outline-none ${
+                        selectedCategory === cat
+                          ? "bg-[var(--primary-accent2)] text-white"
+                          : "text-[var(--secondary-black)] hover:bg-[var(--primary-background)] hover:text-[var(--primary-accent2)]"
+                      }`}
+                      onClick={() => {
+                        setSelectedCategory(cat);
+                        setOpenSearchDropdown(null);
+                      }}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="w-px h-8 bg-[var(--secondary-soft-highlight)]/30"></div>
+          <input
+            type="text"
+            placeholder="Search produce, farms, or insights…"
+            className="flex-1 px-6 py-4 text-base outline-none bg-transparent placeholder:text-[var(--secondary-muted-edge)] text-[var(--secondary-black)] focus:ring-0"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onFocus={() => setActiveSearchBar(instance)}
+            aria-label="Search query"
+          />
+          <button
+            type="submit"
+            className="p-4 m-1 bg-[var(--primary-accent2)] text-white rounded-full hover:bg-[var(--primary-accent3)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent1)] focus:ring-offset-2 transition-all duration-200 group"
+            aria-label="Submit search"
+          >
+            <MagnifyingGlassIcon className="h-6 w-6 group-hover:scale-110 transition-transform duration-200" />
+          </button>
+        </div>
+        {activeSearchBar === instance && searchQuery && (
+          <div
+            className="absolute top-full left-0 right-0 bg-white/95 backdrop-blur-md border border-[var(--secondary-soft-highlight)]/30 rounded-xl z-20 mt-3"
+            role="listbox"
+            aria-label="Search suggestions"
+          >
+            <div className="p-6">
+              <p className="text-sm font-medium text-[var(--secondary-muted-edge)] mb-4">
+                Suggestions:
+              </p>
+              <div className="space-y-1">
+                {searchSuggestions
+                  .filter((s) =>
+                    s.toLowerCase().includes(searchQuery.toLowerCase())
+                  )
+                  .map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      role="option"
+                      className="block w-full text-left px-4 py-3 text-base text-[var(--secondary-black)] hover:bg-[var(--primary-background)] hover:text-[var(--primary-accent2)] rounded-lg focus:outline-none focus:bg-[var(--primary-background)] transition-colors duration-200 font-medium"
+                      onClick={() => setSearchQuery(suggestion)}
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
               </div>
             </div>
-          )}
-        </div>
-        <div className="w-px h-8 bg-[var(--secondary-soft-highlight)]/30"></div>
-        <input
-          type="text"
-          placeholder="Search produce, farms, or insights…"
-          className="flex-1 px-6 py-4 text-base outline-none bg-transparent placeholder:text-[var(--secondary-muted-edge)] text-[var(--secondary-black)] focus:ring-0"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          aria-label="Search query"
-        />
-        <button
-          type="submit"
-          className="p-4 m-1 bg-[var(--primary-accent2)] text-white rounded-full hover:bg-[var(--primary-accent3)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent1)] focus:ring-offset-2 transition-all duration-200 group"
-          aria-label="Submit search"
-        >
-          <MagnifyingGlassIcon className="h-6 w-6 group-hover:scale-110 transition-transform duration-200" />
-        </button>
-      </div>
-      {searchQuery && (
-        <div
-          className="absolute top-full left-0 right-0 bg-white/95 backdrop-blur-md border border-[var(--secondary-soft-highlight)]/30 rounded-xl z-20 mt-3"
-          role="listbox"
-          aria-label="Search suggestions"
-        >
-          <div className="p-6">
-            <p className="text-sm font-medium text-[var(--secondary-muted-edge)] mb-4">
-              Suggestions:
-            </p>
-            <div className="space-y-1">
-              {searchSuggestions
-                .filter((s) =>
-                  s.toLowerCase().includes(searchQuery.toLowerCase())
-                )
-                .map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    type="button"
-                    role="option"
-                    className="block w-full text-left px-4 py-3 text-base text-[var(--secondary-black)] hover:bg-[var(--primary-background)] hover:text-[var(--primary-accent2)] rounded-lg focus:outline-none focus:bg-[var(--primary-background)] transition-colors duration-200 font-medium"
-                    onClick={() => setSearchQuery(suggestion)}
-                  >
-                    {suggestion}
-                  </button>
-                ))}
-            </div>
           </div>
-        </div>
-      )}
-    </form>
-  );
+        )}
+      </form>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-[var(--primary-background)]">
@@ -430,17 +482,37 @@ export default function Home() {
       <main>
         {/* Hero Carousel */}
         <section
-          className="py-6 px-6 relative"
+          className="py-6 px-4 sm:px-6 relative"
           role="region"
           aria-label="Featured content carousel"
           aria-live="polite"
         >
-          <div className="relative h-[60vh] overflow-hidden rounded-2xl">
+          <div
+            className="relative h-[60vh] md:h-[70vh] overflow-hidden rounded-2xl group"
+            onMouseEnter={() => setIsHeroHover(true)}
+            onMouseLeave={() => setIsHeroHover(false)}
+            onTouchStart={(e) => setTouchStartX(e.touches[0]?.clientX ?? null)}
+            onTouchEnd={(e) => {
+              if (touchStartX == null) return;
+              const endX = e.changedTouches[0]?.clientX ?? touchStartX;
+              const delta = endX - touchStartX;
+              if (Math.abs(delta) > 40) {
+                if (delta > 0) {
+                  prevSlide();
+                } else {
+                  nextSlide();
+                }
+              }
+              setTouchStartX(null);
+            }}
+          >
             {heroSlides.map((slide, index) => (
               <div
                 key={index}
-                className={`absolute inset-0 transition-opacity duration-1000 ${
-                  index === currentSlide ? "opacity-100" : "opacity-0"
+                className={`absolute inset-0 transition-opacity duration-700 ease-in-out transform-gpu backface-hidden ${
+                  index === currentSlide
+                    ? "opacity-100 pointer-events-auto"
+                    : "opacity-0 pointer-events-none"
                 }`}
                 aria-hidden={index !== currentSlide}
               >
@@ -449,22 +521,24 @@ export default function Home() {
                     src={slide.image}
                     alt=""
                     fill
-                    className="object-cover rounded-2xl"
+                    className={`object-cover rounded-2xl transition-transform duration-[1200ms] ease-out will-change-transform transform-gpu motion-reduce:transition-none motion-reduce:transform-none ${
+                      index === currentSlide ? "scale-[1.05]" : "scale-[1.00]"
+                    }`}
                     priority={index === 0}
                   />
                   <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/40 to-transparent rounded-2xl" />
                   <div className="absolute inset-0 flex items-center">
-                    <div className="max-w-[1280px] mx-auto px-12 w-full">
-                      <div className="max-w-3xl text-white">
-                        <h1 className="text-4xl md:text-6xl lg:text-7xl font-light mb-6 leading-[1.1] tracking-tight">
+                    <div className="max-w-[1280px] mx-auto px-6 sm:px-12 w-full">
+                      <div className="text-white text-center sm:text-left max-w-[22rem] sm:max-w-3xl mx-auto sm:mx-0">
+                        <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-light mb-4 sm:mb-6 leading-[1.1] tracking-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.35)]">
                           {slide.headline}
                         </h1>
-                        <p className="text-xl md:text-2xl mb-10 opacity-90 font-light leading-relaxed max-w-2xl">
+                        <p className="text-lg sm:text-xl md:text-2xl mb-6 sm:mb-10 opacity-90 font-light leading-relaxed max-w-[22rem] sm:max-w-2xl mx-auto sm:mx-0 drop-shadow-[0_2px_6px_rgba(0,0,0,0.25)]">
                           {slide.subcopy}
                         </p>
                         <Link
                           href={slide.cta.href}
-                          className="inline-flex items-center bg-[var(--primary-accent2)] text-white px-8 py-4 rounded-full font-medium hover:bg-[var(--primary-accent3)] transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent1)] focus:ring-offset-2 focus:ring-offset-black/50 group"
+                          className="inline-flex items-center bg-[var(--primary-accent2)]/90 hover:bg-[var(--primary-accent2)] text-white px-6 py-3 sm:px-8 sm:py-4 rounded-full font-medium text-base sm:text-lg transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent1)] focus:ring-offset-2 focus:ring-offset-black/50 mx-auto sm:mx-0 mt-3 sm:mt-0"
                         >
                           {slide.cta.label}
                           <ArrowRightIcon className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
@@ -479,22 +553,22 @@ export default function Home() {
             {/* Brand-styled Carousel Controls */}
             <button
               onClick={prevSlide}
-              className="absolute left-6 top-1/2 -translate-y-1/2 bg-[var(--primary-accent2)]/90 hover:bg-[var(--primary-accent2)] text-white p-3 rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent1)] focus:ring-offset-2 focus:ring-offset-black/50 backdrop-blur-sm"
+              className="absolute left-3 sm:left-5 top-1/2 -translate-y-1/2 bg-[var(--primary-accent2)] hover:bg-[var(--primary-accent3)] text-white p-2.5 sm:p-3 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent1)]/60 backdrop-blur-sm shadow-lg"
               aria-label="Previous slide"
             >
-              <ChevronLeftIcon className="h-6 w-6 stroke-2" />
+              <ChevronLeftIcon className="h-5 w-5 stroke-2" />
             </button>
             <button
               onClick={nextSlide}
-              className="absolute right-6 top-1/2 -translate-y-1/2 bg-[var(--primary-accent2)]/90 hover:bg-[var(--primary-accent2)] text-white p-3 rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent1)] focus:ring-offset-2 focus:ring-offset-black/50 backdrop-blur-sm"
+              className="absolute right-3 sm:right-5 top-1/2 -translate-y-1/2 bg-[var(--primary-accent2)] hover:bg-[var(--primary-accent3)] text-white p-2.5 sm:p-3 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent1)]/60 backdrop-blur-sm shadow-lg"
               aria-label="Next slide"
             >
-              <ChevronRightIcon className="h-6 w-6 stroke-2" />
+              <ChevronRightIcon className="h-5 w-5 stroke-2" />
             </button>
 
             {/* Brand-styled Carousel Dots */}
             <div
-              className="absolute bottom-8 left-1/2 -translate-x-1/2 flex space-x-3"
+              className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 flex space-x-2"
               role="tablist"
               aria-label="Carousel navigation"
             >
@@ -502,10 +576,10 @@ export default function Home() {
                 <button
                   key={index}
                   onClick={() => setCurrentSlide(index)}
-                  className={`w-8 h-2 rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent1)] focus:ring-offset-2 focus:ring-offset-black/50 ${
+                  className={`h-2 w-2 rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-white/40 border border-white/30 ${
                     index === currentSlide
-                      ? "bg-[var(--primary-accent2)]"
-                      : "bg-[var(--primary-accent2)]/40 hover:bg-[var(--primary-accent2)]/60"
+                      ? "bg-white w-5 sm:w-6"
+                      : "bg-white/30 hover:bg-white/50"
                   }`}
                   role="tab"
                   aria-selected={index === currentSlide}
@@ -712,6 +786,70 @@ export default function Home() {
                   <div className="absolute inset-0 bg-gradient-to-t from-[var(--primary-accent2)]/20 via-transparent to-transparent" />
                 </div>
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* From the Blog */}
+        <section
+          className="py-20 bg-white"
+          aria-labelledby="from-the-blog-heading"
+        >
+          <div className="max-w-[1280px] mx-auto px-6">
+            <div className="text-center mb-16">
+              <h2
+                id="from-the-blog-heading"
+                className="text-3xl md:text-4xl font-light text-[var(--secondary-black)] mb-4 tracking-tight"
+              >
+                From the Blog
+              </h2>
+              <p className="text-lg text-[var(--secondary-muted-edge)] font-light">
+                Insights from the Procur team
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {homeBlogPosts.map((post) => (
+                <Link
+                  key={post.href}
+                  href={post.href}
+                  className="group bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-md transition-shadow"
+                >
+                  <div className="relative h-52">
+                    <Image
+                      src={post.image}
+                      alt={post.title}
+                      fill
+                      sizes="(max-width: 768px) 100vw, 33vw"
+                      className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                    />
+                    <span className="absolute left-3 top-3 text-[11px] font-semibold uppercase tracking-wider bg-white/90 text-gray-800 px-2.5 py-1 rounded-full border border-white">
+                      {post.category}
+                    </span>
+                  </div>
+                  <div className="p-5">
+                    <h3 className="text-lg font-semibold text-[var(--secondary-black)] group-hover:underline">
+                      {post.title}
+                    </h3>
+                    {post.excerpt ? (
+                      <p className="mt-2 text-gray-600 text-sm line-clamp-3">
+                        {post.excerpt}
+                      </p>
+                    ) : null}
+                    <div className="mt-4 text-sm text-gray-500">
+                      {post.date}
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+            <div className="mt-10 text-center">
+              <Link
+                href="/blog"
+                className="inline-flex items-center bg-[var(--secondary-black)] text-white px-6 py-3 rounded-full font-medium hover:bg-black transition-colors"
+              >
+                Read all posts
+                <ArrowRightIcon className="ml-2 h-4 w-4" />
+              </Link>
             </div>
           </div>
         </section>

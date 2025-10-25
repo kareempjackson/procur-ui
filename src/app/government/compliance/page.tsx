@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
   ShieldCheckIcon,
@@ -9,43 +9,172 @@ import {
   ClockIcon,
   DocumentTextIcon,
   MagnifyingGlassIcon,
+  ArrowPathIcon,
 } from "@heroicons/react/24/outline";
+import { useAppDispatch, useAppSelector } from "@/store";
+import {
+  fetchComplianceAlerts,
+  fetchComplianceRecords,
+  fetchComplianceStats,
+  resolveAlert,
+  updateComplianceStatus,
+  selectAlerts,
+  selectAlertsStatus,
+  selectComplianceRecords,
+  selectRecordsStatus,
+  selectComplianceStats,
+  selectStatsStatus,
+  setFilters,
+} from "@/store/slices/governmentComplianceSlice";
 
 export default function CompliancePage() {
+  const dispatch = useAppDispatch();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [selectedVendor, setSelectedVendor] = useState<string | null>(null);
 
-  // Mock compliance data
-  const complianceStats = [
-    {
-      label: "Compliant Vendors",
-      value: "1,156",
-      percentage: "94%",
-      trend: "up",
-      color: "text-[color:var(--primary-base)]",
-    },
-    {
-      label: "Pending Reviews",
-      value: "23",
-      trend: "neutral",
-      color: "text-yellow-600",
-    },
-    {
-      label: "Active Alerts",
-      value: "7",
-      trend: "down",
-      color: "text-[color:var(--secondary-highlight2)]",
-    },
-    {
-      label: "Inspections Due",
-      value: "12",
-      trend: "up",
-      color: "text-orange-600",
-    },
-  ];
+  // Redux state
+  const alerts = useAppSelector(selectAlerts);
+  const alertsStatus = useAppSelector(selectAlertsStatus);
+  const records = useAppSelector(selectComplianceRecords);
+  const recordsStatus = useAppSelector(selectRecordsStatus);
+  const stats = useAppSelector(selectComplianceStats);
+  const statsStatus = useAppSelector(selectStatsStatus);
 
-  const vendors = [
+  // Fetch data on mount
+  useEffect(() => {
+    if (alertsStatus === "idle") {
+      dispatch(fetchComplianceAlerts());
+    }
+    if (recordsStatus === "idle") {
+      dispatch(fetchComplianceRecords({ page: 1, limit: 100 }));
+    }
+    if (statsStatus === "idle") {
+      dispatch(fetchComplianceStats());
+    }
+  }, [alertsStatus, recordsStatus, statsStatus, dispatch]);
+
+  // Refresh handler
+  const handleRefresh = () => {
+    dispatch(fetchComplianceAlerts());
+    dispatch(fetchComplianceRecords({ page: 1, limit: 100 }));
+    dispatch(fetchComplianceStats());
+  };
+
+  // Update filters
+  useEffect(() => {
+    if (filterStatus !== "all") {
+      dispatch(setFilters({ status: filterStatus }));
+    }
+  }, [filterStatus, dispatch]);
+
+  // Handle resolve alert
+  const handleResolveAlert = async (alertId: string) => {
+    try {
+      await dispatch(resolveAlert({ alertId })).unwrap();
+      dispatch(fetchComplianceAlerts());
+      dispatch(fetchComplianceStats());
+    } catch (error) {
+      console.error("Failed to resolve alert:", error);
+    }
+  };
+
+  // Compliance stats with fallback to mock data
+  const complianceStatsData = useMemo(() => {
+    if (stats) {
+      return [
+        {
+          label: "Compliant Vendors",
+          value: stats.compliantVendors?.toString() || "0",
+          percentage: `${Math.round(stats.complianceRate || 0)}%`,
+          trend: "up",
+          color: "text-[color:var(--primary-base)]",
+        },
+        {
+          label: "Pending Reviews",
+          value: stats.pendingReviews?.toString() || "0",
+          trend: "neutral",
+          color: "text-yellow-600",
+        },
+        {
+          label: "Active Alerts",
+          value: stats.activeAlerts?.toString() || "0",
+          trend: "down",
+          color: "text-[color:var(--secondary-highlight2)]",
+        },
+        {
+          label: "Inspections Due",
+          value: stats.inspectionsDue?.toString() || "0",
+          trend: "up",
+          color: "text-orange-600",
+        },
+      ];
+    }
+    // Mock compliance data (fallback)
+    return [
+      {
+        label: "Compliant Vendors",
+        value: "1,156",
+        percentage: "94%",
+        trend: "up",
+        color: "text-[color:var(--primary-base)]",
+      },
+      {
+        label: "Pending Reviews",
+        value: "23",
+        trend: "neutral",
+        color: "text-yellow-600",
+      },
+      {
+        label: "Active Alerts",
+        value: "7",
+        trend: "down",
+        color: "text-[color:var(--secondary-highlight2)]",
+      },
+      {
+        label: "Inspections Due",
+        value: "12",
+        trend: "up",
+        color: "text-orange-600",
+      },
+    ];
+  }, [stats]);
+
+  // Vendors from compliance records with search and filter
+  const vendors = useMemo(() => {
+    let filteredRecords = records || [];
+
+    // Apply status filter
+    if (filterStatus !== "all") {
+      filteredRecords = filteredRecords.filter(
+        (r) => r.status === filterStatus
+      );
+    }
+
+    // Apply search
+    if (searchQuery) {
+      filteredRecords = filteredRecords.filter((r) =>
+        r.vendor_name?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    return filteredRecords.map((record) => ({
+      id: record.id,
+      name: record.vendor_name,
+      status: record.status,
+      lastInspection: record.last_inspection || "N/A",
+      nextInspection: record.next_inspection || "N/A",
+      issues: record.status === "non_compliant" ? 1 : 0,
+      documents: {
+        chemicalReports: "up-to-date",
+        certifications: "up-to-date",
+        inspectionReports: "up-to-date",
+      },
+    }));
+  }, [records, filterStatus, searchQuery]);
+
+  // Mock vendors as fallback (used when no real data)
+  const mockVendors = [
     {
       id: "1",
       name: "Green Valley Farms",
@@ -113,34 +242,52 @@ export default function CompliancePage() {
     },
   ];
 
-  const recentAlerts = [
-    {
-      id: "1",
-      vendor: "Mountain Fresh Produce",
-      type: "Chemical Report Overdue",
-      severity: "high",
-      date: "2024-10-01",
-      description: "Quarterly chemical usage report not submitted",
-    },
-    {
-      id: "2",
-      vendor: "Highland Produce Ltd.",
-      type: "Certification Expiring",
-      severity: "medium",
-      date: "2024-10-02",
-      description: "Organic certification expires in 30 days",
-    },
-    {
-      id: "3",
-      vendor: "Green Valley Farms",
-      type: "Inspection Scheduled",
-      severity: "low",
-      date: "2024-10-04",
-      description: "Routine inspection scheduled for next week",
-    },
-  ];
+  // Use real vendors or fall back to mock
+  const displayVendors = vendors.length > 0 ? vendors : mockVendors;
 
-  const filteredVendors = vendors.filter((vendor) => {
+  // Format alerts for display
+  const recentAlerts = useMemo(() => {
+    if (alerts && alerts.length > 0) {
+      return alerts.slice(0, 10).map((alert) => ({
+        id: alert.id,
+        vendor: alert.vendor_name,
+        type: alert.title,
+        severity: alert.severity,
+        date: alert.created_at,
+        description: alert.description,
+        status: alert.status,
+      }));
+    }
+    // Mock alerts as fallback
+    return [
+      {
+        id: "1",
+        vendor: "Mountain Fresh Produce",
+        type: "Chemical Report Overdue",
+        severity: "high",
+        date: "2024-10-01",
+        description: "Quarterly chemical usage report not submitted",
+      },
+      {
+        id: "2",
+        vendor: "Highland Produce Ltd.",
+        type: "Certification Expiring",
+        severity: "medium",
+        date: "2024-10-02",
+        description: "Organic certification expires in 30 days",
+      },
+      {
+        id: "3",
+        vendor: "Green Valley Farms",
+        type: "Inspection Scheduled",
+        severity: "low",
+        date: "2024-10-04",
+        description: "Routine inspection scheduled for next week",
+      },
+    ];
+  }, [alerts]);
+
+  const filteredVendors = displayVendors.filter((vendor) => {
     const matchesSearch =
       searchQuery === "" ||
       vendor.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -209,19 +356,35 @@ export default function CompliancePage() {
     <div className="min-h-screen bg-[var(--primary-background)]">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-semibold text-[color:var(--secondary-black)]">
-            Compliance Monitoring
-          </h1>
-          <p className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
-            Track vendor compliance status, inspections, and regulatory
-            requirements
-          </p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-semibold text-[color:var(--secondary-black)]">
+              Compliance Monitoring
+            </h1>
+            <p className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
+              Track vendor compliance status, inspections, and regulatory
+              requirements
+            </p>
+          </div>
+          <button
+            onClick={handleRefresh}
+            disabled={recordsStatus === "loading" || alertsStatus === "loading"}
+            className="p-2 rounded-full hover:bg-gray-100 transition-colors disabled:opacity-50"
+            title="Refresh data"
+          >
+            <ArrowPathIcon
+              className={`h-5 w-5 text-gray-600 ${
+                recordsStatus === "loading" || alertsStatus === "loading"
+                  ? "animate-spin"
+                  : ""
+              }`}
+            />
+          </button>
         </div>
 
         {/* Stats Overview */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {complianceStats.map((stat) => (
+          {complianceStatsData.map((stat) => (
             <div
               key={stat.label}
               className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6"

@@ -127,7 +127,11 @@ export const fetchRequests = createAsyncThunk(
   "buyerRequests/fetchRequests",
   async (filters: RequestsFilters = {}, { rejectWithValue }) => {
     try {
-      const apiClient = getApiClient();
+      const apiClient = getApiClient(() =>
+        typeof window !== "undefined"
+          ? localStorage.getItem("access_token")
+          : null
+      );
       const params = new URLSearchParams();
 
       if (filters.status) params.append("status", filters.status);
@@ -154,7 +158,11 @@ export const fetchRequestDetail = createAsyncThunk(
   "buyerRequests/fetchRequestDetail",
   async (requestId: string, { rejectWithValue }) => {
     try {
-      const apiClient = getApiClient();
+      const apiClient = getApiClient(() =>
+        typeof window !== "undefined"
+          ? localStorage.getItem("access_token")
+          : null
+      );
       const response = await apiClient.get(`/buyers/requests/${requestId}`);
       return response.data;
     } catch (error) {
@@ -170,7 +178,11 @@ export const createRequest = createAsyncThunk(
   "buyerRequests/createRequest",
   async (requestDto: CreateRequestDto, { rejectWithValue }) => {
     try {
-      const apiClient = getApiClient();
+      const apiClient = getApiClient(() =>
+        typeof window !== "undefined"
+          ? localStorage.getItem("access_token")
+          : null
+      );
       const response = await apiClient.post("/buyers/requests", requestDto);
       return response.data;
     } catch (error) {
@@ -189,7 +201,11 @@ export const acceptQuote = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      const apiClient = getApiClient();
+      const apiClient = getApiClient(() =>
+        typeof window !== "undefined"
+          ? localStorage.getItem("access_token")
+          : null
+      );
       const response = await apiClient.post(
         `/buyers/requests/${requestId}/quotes/${quoteId}/accept`
       );
@@ -214,7 +230,11 @@ export const rejectQuote = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      const apiClient = getApiClient();
+      const apiClient = getApiClient(() =>
+        typeof window !== "undefined"
+          ? localStorage.getItem("access_token")
+          : null
+      );
       const response = await apiClient.post(
         `/buyers/requests/${requestId}/quotes/${quoteId}/reject`,
         { reason }
@@ -236,7 +256,11 @@ export const cancelRequest = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      const apiClient = getApiClient();
+      const apiClient = getApiClient(() =>
+        typeof window !== "undefined"
+          ? localStorage.getItem("access_token")
+          : null
+      );
       const response = await apiClient.post(
         `/buyers/requests/${requestId}/cancel`,
         { reason }

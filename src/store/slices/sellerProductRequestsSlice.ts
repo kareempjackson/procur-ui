@@ -6,6 +6,7 @@ interface ProductRequest {
   id: string;
   request_number: string;
   buyer_org_id: string;
+  buyer_user_id?: string;
   buyer_name: string;
   product_name: string;
   description?: string;

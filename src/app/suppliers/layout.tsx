@@ -8,7 +8,7 @@ export default function SuppliersLayout({
 }) {
   return (
     <>
-      <AuthGuard allowAccountTypes={["seller"]}>{children}</AuthGuard>
+      <>{children}</>
       <Footer />
     </>
   );

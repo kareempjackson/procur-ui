@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { getApiClient } from "@/lib/apiClient";
 import {
   ArrowLeftIcon,
   TagIcon,
@@ -25,36 +27,40 @@ type RequestDetailClientProps = {
 export default function RequestDetailClient({
   requestId,
 }: RequestDetailClientProps) {
+  const router = useRouter();
+  const client = useMemo(() => getApiClient(), []);
+
   const [showBidModal, setShowBidModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [request, setRequest] = useState<any | null>(null);
   const [bidForm, setBidForm] = useState({
     price: "",
     deliveryDate: "",
     notes: "",
   });
 
-  // Mock request data
-  const request = {
-    id: requestId,
-    buyerName: "Kingston Restaurant Group",
-    buyerRating: 4.8,
-    buyerReviews: 145,
-    buyerLocation: "Kingston, Jamaica",
-    productName: "Organic Hass Avocados",
-    status: "new",
-    orderType: "one-off",
-    quantity: "500 kg",
-    unit: "kg",
-    qualityGrade: "Grade A",
-    deliveryLocation: "Kingston, Jamaica",
-    deliveryDate: "2024-11-15",
-    budgetMin: 2.0,
-    budgetMax: 3.0,
-    urgency: "medium",
-    additionalNotes:
-      "Looking for consistent supply. Packaging in crates preferred. Please specify origin. We need certified organic produce with proper documentation.",
-    createdAt: "2024-10-01",
-    totalBids: 3,
-  };
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const { data } = await client.get(
+          `/sellers/product-requests/${requestId}`
+        );
+        if (isMounted) setRequest(data);
+      } catch (e: any) {
+        if (isMounted)
+          setError(e?.response?.data?.message || "Failed to load request");
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, [client, requestId]);
 
   const handleBidSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,6 +82,63 @@ export default function RequestDetailClient({
     }
   };
 
+  const handleMessageBuyer = async () => {
+    if (!request) return;
+    try {
+      const payload: any = {
+        contextType: "product_request",
+        contextId: request.id,
+        title: request.request_number
+          ? `RFQ ${request.request_number} • ${request.buyer_name || "Buyer"}`
+          : request.product_name,
+      };
+      if (request.buyer_user_id) {
+        payload.withUserId = request.buyer_user_id;
+      }
+      const { data } = await client.post("/conversations/start", payload);
+      if (data?.id) {
+        router.push(`/seller/messages?conversationId=${data.id}`);
+      }
+    } catch (e) {
+      // no-op; you could show a toast here
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[var(--primary-background)]">
+        <main className="max-w-[1400px] mx-auto px-6 py-8">
+          <div className="text-[var(--secondary-muted-edge)]">Loading…</div>
+        </main>
+      </div>
+    );
+  }
+
+  if (error || !request) {
+    return (
+      <div className="min-h-screen bg-[var(--primary-background)]">
+        <main className="max-w-[1400px] mx-auto px-6 py-8">
+          <div className="text-red-600">{error || "Request not found"}</div>
+        </main>
+      </div>
+    );
+  }
+
+  const buyerName = request.buyer_name || "Buyer";
+  const productName = request.product_name || "Purchase Request";
+  const deliveryDate = request.date_needed || "—";
+  const deliveryLocation = request.delivery_location || "—";
+  const unit = request.unit_of_measurement || "unit";
+  const quantity =
+    request.quantity != null ? `${request.quantity} ${unit}` : "—";
+  const budgetMin = request.budget_range?.min_price;
+  const budgetMax = request.budget_range?.max_price;
+  const budgetCurrency = request.budget_range?.currency || "";
+  const mapQuery = request.delivery_location || request.buyer_country || "";
+  const mapEmbedUrl = mapQuery
+    ? `https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}&output=embed`
+    : null;
+
   return (
     <div className="min-h-screen bg-[var(--primary-background)]">
       <main className="max-w-[1400px] mx-auto px-6 py-8">
@@ -96,7 +159,7 @@ export default function RequestDetailClient({
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
                   <h1 className="text-2xl font-bold text-[var(--secondary-black)] mb-2">
-                    {request.productName}
+                    {productName}
                   </h1>
                   <div className="flex flex-wrap items-center gap-3">
                     <span
@@ -116,7 +179,10 @@ export default function RequestDetailClient({
                     </div>
                     <div className="flex items-center gap-1 text-sm text-[var(--secondary-muted-edge)]">
                       <ClockIcon className="h-4 w-4" />
-                      <span>Posted {request.createdAt}</span>
+                      <span>
+                        Posted{" "}
+                        {new Date(request.created_at).toLocaleDateString()}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -130,7 +196,7 @@ export default function RequestDetailClient({
                   </div>
                   <div>
                     <h3 className="font-semibold text-[var(--secondary-black)]">
-                      {request.buyerName}
+                      {buyerName}
                     </h3>
                     <div className="flex items-center gap-2 text-sm">
                       <div className="flex items-center gap-1">
@@ -148,7 +214,10 @@ export default function RequestDetailClient({
                     </div>
                   </div>
                 </div>
-                <button className="flex items-center gap-2 px-4 py-2 bg-white border border-[var(--secondary-soft-highlight)] text-[var(--secondary-black)] rounded-full text-sm font-medium hover:bg-[var(--primary-background)] transition-all duration-200">
+                <button
+                  onClick={handleMessageBuyer}
+                  className="flex items-center gap-2 px-4 py-2 bg-white border border-[var(--secondary-soft-highlight)] text-[var(--secondary-black)] rounded-full text-sm font-medium hover:bg-[var(--primary-background)] transition-all duration-200"
+                >
                   <ChatBubbleLeftIcon className="h-4 w-4" />
                   Message
                 </button>
@@ -167,15 +236,7 @@ export default function RequestDetailClient({
                     Quantity
                   </p>
                   <p className="text-base font-semibold text-[var(--secondary-black)]">
-                    {request.quantity}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-[var(--secondary-muted-edge)] mb-1">
-                    Quality Grade
-                  </p>
-                  <p className="text-base font-semibold text-[var(--secondary-black)]">
-                    {request.qualityGrade}
+                    {quantity}
                   </p>
                 </div>
                 <div>
@@ -183,29 +244,21 @@ export default function RequestDetailClient({
                     Budget Range
                   </p>
                   <p className="text-base font-semibold text-[var(--secondary-black)]">
-                    ${request.budgetMin.toFixed(2)} - $
-                    {request.budgetMax.toFixed(2)} / {request.unit}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-[var(--secondary-muted-edge)] mb-1">
-                    Order Type
-                  </p>
-                  <p className="text-base font-semibold text-[var(--secondary-black)]">
-                    {request.orderType === "recurring"
-                      ? "Recurring"
-                      : "One-Off"}
+                    {typeof budgetMin === "number" &&
+                    typeof budgetMax === "number"
+                      ? `${budgetCurrency} ${budgetMin.toFixed(2)} - ${budgetCurrency} ${budgetMax.toFixed(2)} / ${unit}`
+                      : "—"}
                   </p>
                 </div>
               </div>
 
-              {request.additionalNotes && (
+              {request.description && (
                 <div className="mt-4 pt-4 border-t border-[var(--secondary-soft-highlight)]/20">
                   <p className="text-sm text-[var(--secondary-muted-edge)] mb-2">
                     Additional Notes
                   </p>
                   <p className="text-sm text-[var(--secondary-black)]">
-                    {request.additionalNotes}
+                    {request.description}
                   </p>
                 </div>
               )}
@@ -225,7 +278,7 @@ export default function RequestDetailClient({
                       Delivery Date
                     </p>
                     <p className="text-base font-semibold text-[var(--secondary-black)]">
-                      {request.deliveryDate}
+                      {deliveryDate}
                     </p>
                   </div>
                 </div>
@@ -236,7 +289,7 @@ export default function RequestDetailClient({
                       Delivery Location
                     </p>
                     <p className="text-base font-semibold text-[var(--secondary-black)]">
-                      {request.deliveryLocation}
+                      {deliveryLocation}
                     </p>
                   </div>
                 </div>
@@ -251,6 +304,33 @@ export default function RequestDetailClient({
                     </p>
                   </div>
                 </div>
+                {mapEmbedUrl && (
+                  <div className="pt-3">
+                    <div
+                      className="relative w-full overflow-hidden rounded-xl border border-[var(--secondary-soft-highlight)]/30 bg-[var(--primary-background)]"
+                      style={{ paddingBottom: "56.25%" }}
+                    >
+                      <iframe
+                        title="Delivery Location Map"
+                        src={mapEmbedUrl}
+                        className="absolute top-0 left-0 w-full h-full"
+                        loading="lazy"
+                        referrerPolicy="no-referrer-when-downgrade"
+                        allowFullScreen
+                      />
+                    </div>
+                    <div className="mt-2">
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-[var(--primary-accent2)] hover:underline"
+                      >
+                        Open in Google Maps
+                      </a>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -269,22 +349,17 @@ export default function RequestDetailClient({
                     Budget Range
                   </p>
                   <p className="text-xl font-bold text-[var(--primary-accent2)]">
-                    ${request.budgetMin.toFixed(2)} - $
-                    {request.budgetMax.toFixed(2)}
+                    {typeof budgetMin === "number" &&
+                    typeof budgetMax === "number"
+                      ? `${budgetCurrency} ${budgetMin.toFixed(2)} - ${budgetCurrency} ${budgetMax.toFixed(2)}`
+                      : "—"}
                   </p>
                   <p className="text-xs text-[var(--secondary-muted-edge)] mt-1">
-                    per {request.unit}
+                    per {unit}
                   </p>
                 </div>
 
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-[var(--secondary-muted-edge)]">
-                    Total Bids
-                  </span>
-                  <span className="font-semibold text-[var(--secondary-black)]">
-                    {request.totalBids} bids
-                  </span>
-                </div>
+                {/* Optionally add quote count here if exposed */}
               </div>
 
               <button
@@ -332,7 +407,7 @@ export default function RequestDetailClient({
               {/* Price */}
               <div>
                 <label className="block text-sm font-medium text-[var(--secondary-black)] mb-2">
-                  Your Price (per {request.unit})
+                  Your Price (per {unit})
                 </label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--secondary-muted-edge)]">
@@ -350,10 +425,13 @@ export default function RequestDetailClient({
                     }
                   />
                 </div>
-                <p className="text-xs text-[var(--secondary-muted-edge)] mt-1">
-                  Budget range: ${request.budgetMin.toFixed(2)} - $
-                  {request.budgetMax.toFixed(2)}
-                </p>
+                {typeof budgetMin === "number" &&
+                  typeof budgetMax === "number" && (
+                    <p className="text-xs text-[var(--secondary-muted-edge)] mt-1">
+                      Budget range: {budgetCurrency} {budgetMin.toFixed(2)} -{" "}
+                      {budgetCurrency} {budgetMax.toFixed(2)}
+                    </p>
+                  )}
               </div>
 
               {/* Delivery Date */}
@@ -371,7 +449,7 @@ export default function RequestDetailClient({
                   }
                 />
                 <p className="text-xs text-[var(--secondary-muted-edge)] mt-1">
-                  Requested by: {request.deliveryDate}
+                  Requested by: {deliveryDate}
                 </p>
               </div>
 

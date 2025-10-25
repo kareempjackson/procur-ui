@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
   UserGroupIcon,
@@ -10,56 +11,140 @@ import {
   DocumentTextIcon,
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon,
+  ArrowPathIcon,
 } from "@heroicons/react/24/outline";
+import { useAppDispatch, useAppSelector } from "@/store";
+import {
+  fetchVendors,
+  selectVendors,
+  selectVendorsStatus,
+  selectVendorStats,
+} from "@/store/slices/governmentVendorsSlice";
+import {
+  fetchPrograms,
+  selectPrograms,
+  selectProgramsStatus,
+  selectProgramStats,
+} from "@/store/slices/governmentProgramsSlice";
 
 export default function GovernmentPage() {
-  // Mock data - will be replaced with real data from API
-  const kpis = [
-    {
-      label: "Registered Vendors",
-      value: "1,234",
-      change: "+12%",
-      trend: "up" as const,
-      icon: UserGroupIcon,
-    },
-    {
-      label: "Total Acreage",
-      value: "45,678",
-      subtext: "acres under cultivation",
-      change: "+5%",
-      trend: "up" as const,
-      icon: MapIcon,
-    },
-    {
-      label: "Available Acreage",
-      value: "8,432",
-      subtext: "acres not planted",
-      change: "-3%",
-      trend: "down" as const,
-      icon: MapIcon,
-    },
-    {
-      label: "Active Crops",
-      value: "42",
-      subtext: "varieties in season",
-      icon: ShoppingBagIcon,
-    },
-    {
-      label: "Market Transactions",
-      value: "$2.4M",
-      subtext: "this quarter",
-      change: "+18%",
-      trend: "up" as const,
-      icon: ChartBarIcon,
-    },
-    {
-      label: "Compliance Alerts",
-      value: "7",
-      subtext: "requires attention",
-      urgent: true,
-      icon: ExclamationTriangleIcon,
-    },
-  ];
+  const dispatch = useAppDispatch();
+
+  // Redux state
+  const vendors = useAppSelector(selectVendors);
+  const vendorsStatus = useAppSelector(selectVendorsStatus);
+  const vendorStats = useAppSelector(selectVendorStats);
+
+  const programs = useAppSelector(selectPrograms);
+  const programsStatus = useAppSelector(selectProgramsStatus);
+  const programStats = useAppSelector(selectProgramStats);
+
+  // Fetch data on mount
+  useEffect(() => {
+    if (vendorsStatus === "idle") {
+      dispatch(fetchVendors({ page: 1, limit: 100 }));
+    }
+  }, [vendorsStatus, dispatch]);
+
+  useEffect(() => {
+    if (programsStatus === "idle") {
+      dispatch(fetchPrograms({ page: 1, limit: 20 }));
+    }
+  }, [programsStatus, dispatch]);
+
+  // Calculate active crops from vendor data
+  const activeCrops = useMemo(() => {
+    if (vendors.length === 0) return 0;
+    const uniqueCrops = new Set<string>();
+    vendors.forEach((vendor) => {
+      // Safety check: ensure crops exists and is an array
+      if (vendor.crops && Array.isArray(vendor.crops)) {
+        vendor.crops.forEach((crop) => uniqueCrops.add(crop));
+      }
+    });
+    return uniqueCrops.size;
+  }, [vendors]);
+
+  // Calculate available acreage
+  const availableAcreage = useMemo(() => {
+    if (!vendorStats) return 0;
+    return vendorStats.totalAcreage - vendorStats.utilizedAcreage;
+  }, [vendorStats]);
+
+  // Build KPIs from real data
+  const kpis = useMemo(
+    () => [
+      {
+        label: "Registered Vendors",
+        value:
+          vendorsStatus === "loading"
+            ? "..."
+            : (vendorStats?.total || 0).toString(),
+        change: "+12%",
+        trend: "up" as const,
+        icon: UserGroupIcon,
+      },
+      {
+        label: "Total Acreage",
+        value:
+          vendorsStatus === "loading"
+            ? "..."
+            : (vendorStats?.totalAcreage || 0).toLocaleString(),
+        subtext: "acres under cultivation",
+        change: "+5%",
+        trend: "up" as const,
+        icon: MapIcon,
+      },
+      {
+        label: "Available Acreage",
+        value:
+          vendorsStatus === "loading"
+            ? "..."
+            : availableAcreage.toLocaleString(),
+        subtext: "acres not planted",
+        change: availableAcreage > 0 ? "-3%" : "0%",
+        trend: "down" as const,
+        icon: MapIcon,
+      },
+      {
+        label: "Active Crops",
+        value: vendorsStatus === "loading" ? "..." : activeCrops.toString(),
+        subtext: "varieties in season",
+        icon: ShoppingBagIcon,
+      },
+      {
+        label: "Active Programs",
+        value:
+          programsStatus === "loading"
+            ? "..."
+            : (programStats?.active || 0).toString(),
+        subtext: `${programStats?.total || 0} total`,
+        change: "+18%",
+        trend: "up" as const,
+        icon: ChartBarIcon,
+      },
+      {
+        label: "Compliance Alerts",
+        value:
+          vendorsStatus === "loading"
+            ? "..."
+            : (
+                (vendorStats?.warning || 0) + (vendorStats?.alert || 0)
+              ).toString(),
+        subtext: "requires attention",
+        urgent: (vendorStats?.warning || 0) + (vendorStats?.alert || 0) > 0,
+        icon: ExclamationTriangleIcon,
+      },
+    ],
+    [
+      vendorsStatus,
+      vendorStats,
+      programsStatus,
+      programStats,
+      activeCrops,
+      availableAcreage,
+    ]
+  );
 
   const quickActions = [
     {
@@ -109,42 +194,89 @@ export default function GovernmentPage() {
     },
   ];
 
-  const programStats = [
-    {
-      name: "Irrigation Support Program",
-      participants: 234,
-      budget: "85%",
-      status: "active",
-    },
-    {
-      name: "Organic Certification",
-      participants: 156,
-      budget: "62%",
-      status: "active",
-    },
-    {
-      name: "Youth Farmer Initiative",
-      participants: 89,
-      budget: "45%",
-      status: "active",
-    },
-  ];
+  // Get top 3 programs by participants
+  const topPrograms = useMemo(() => {
+    if (programs.length === 0) {
+      // Fallback mock data
+      return [
+        {
+          name: "Irrigation Support Program",
+          participants: 234,
+          budget: "85%",
+          status: "active",
+        },
+        {
+          name: "Organic Certification",
+          participants: 156,
+          budget: "62%",
+          status: "active",
+        },
+        {
+          name: "Youth Farmer Initiative",
+          participants: 89,
+          budget: "45%",
+          status: "active",
+        },
+      ];
+    }
+
+    return programs
+      .filter((p) => p.status === "active")
+      .sort((a, b) => b.participants - a.participants)
+      .slice(0, 3)
+      .map((p) => ({
+        name: p.name,
+        participants: p.participants,
+        budget: `${p.budget_percentage}%`,
+        status: p.status,
+      }));
+  }, [programs]);
+
+  // Refresh handler
+  const handleRefresh = () => {
+    dispatch(fetchVendors({ page: 1, limit: 100 }));
+    dispatch(fetchPrograms({ page: 1, limit: 20 }));
+  };
 
   return (
     <div className="min-h-screen bg-[var(--primary-background)]">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16">
         {/* Hero Section */}
         <section className="rounded-3xl bg-[var(--primary-accent1)]/14 border border-[color:var(--secondary-soft-highlight)] px-6 sm:px-10 py-10 sm:py-14">
-          <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)] mb-3">
-            Government Portal
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)] mb-3">
+                Government Portal
+                {(vendorsStatus === "loading" ||
+                  programsStatus === "loading") &&
+                  " • Loading..."}
+              </div>
+              <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight text-[color:var(--secondary-black)]">
+                Agricultural Oversight Dashboard
+              </h1>
+              <p className="mt-2 text-sm text-[color:var(--secondary-muted-edge)] max-w-prose">
+                Monitor agricultural data, track compliance, and access
+                reporting tools.
+              </p>
+            </div>
+
+            <button
+              onClick={handleRefresh}
+              disabled={
+                vendorsStatus === "loading" || programsStatus === "loading"
+              }
+              className="flex-shrink-0 inline-flex items-center gap-2 rounded-full bg-white border border-[color:var(--secondary-soft-highlight)] text-[color:var(--secondary-black)] px-4 py-2.5 text-sm font-medium hover:bg-gray-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ArrowPathIcon
+                className={`h-5 w-5 ${
+                  vendorsStatus === "loading" || programsStatus === "loading"
+                    ? "animate-spin"
+                    : ""
+                }`}
+              />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
           </div>
-          <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight text-[color:var(--secondary-black)]">
-            Agricultural Oversight Dashboard
-          </h1>
-          <p className="mt-2 text-sm text-[color:var(--secondary-muted-edge)] max-w-prose">
-            Monitor agricultural data, track compliance, and access reporting
-            tools.
-          </p>
 
           {/* Quick Actions */}
           <div className="mt-6 flex flex-wrap gap-3">
@@ -276,7 +408,7 @@ export default function GovernmentPage() {
               </div>
             </section>
 
-            {/* Supply vs Demand Chart Placeholder */}
+            {/* Supply vs Demand Chart */}
             <section className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -284,7 +416,7 @@ export default function GovernmentPage() {
                     Supply vs Demand
                   </h2>
                   <p className="text-xs text-[color:var(--secondary-muted-edge)] mt-0.5">
-                    Market balance overview
+                    Market balance overview (kg per week)
                   </p>
                 </div>
                 <Link
@@ -294,11 +426,398 @@ export default function GovernmentPage() {
                   View details →
                 </Link>
               </div>
-              <div className="h-64 rounded-xl bg-gradient-to-br from-[var(--primary-background)] to-white border border-[color:var(--secondary-soft-highlight)]/50 flex items-center justify-center">
-                <div className="text-center">
-                  <ChartBarIcon className="h-12 w-12 mx-auto text-[color:var(--secondary-muted-edge)] mb-2" />
-                  <div className="text-sm text-[color:var(--secondary-muted-edge)]">
-                    Chart visualization
+              <div className="flex items-center justify-end gap-4 mb-4 text-xs">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded bg-[var(--primary-base)]"></div>
+                  <span className="text-[color:var(--secondary-muted-edge)]">
+                    Supply
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded bg-[var(--secondary-highlight2)]"></div>
+                  <span className="text-[color:var(--secondary-muted-edge)]">
+                    Demand
+                  </span>
+                </div>
+              </div>
+              <div className="h-80 relative">
+                <svg viewBox="0 0 800 300" className="w-full h-full">
+                  {/* Grid lines */}
+                  <line
+                    x1="60"
+                    y1="0"
+                    x2="60"
+                    y2="240"
+                    stroke="#e5e7eb"
+                    strokeWidth="1"
+                  />
+                  <line
+                    x1="60"
+                    y1="240"
+                    x2="780"
+                    y2="240"
+                    stroke="#e5e7eb"
+                    strokeWidth="2"
+                  />
+
+                  {/* Horizontal grid lines */}
+                  <line
+                    x1="60"
+                    y1="0"
+                    x2="780"
+                    y2="0"
+                    stroke="#f3f4f6"
+                    strokeWidth="1"
+                    strokeDasharray="4"
+                  />
+                  <line
+                    x1="60"
+                    y1="60"
+                    x2="780"
+                    y2="60"
+                    stroke="#f3f4f6"
+                    strokeWidth="1"
+                    strokeDasharray="4"
+                  />
+                  <line
+                    x1="60"
+                    y1="120"
+                    x2="780"
+                    y2="120"
+                    stroke="#f3f4f6"
+                    strokeWidth="1"
+                    strokeDasharray="4"
+                  />
+                  <line
+                    x1="60"
+                    y1="180"
+                    x2="780"
+                    y2="180"
+                    stroke="#f3f4f6"
+                    strokeWidth="1"
+                    strokeDasharray="4"
+                  />
+
+                  {/* Y-axis labels */}
+                  <text
+                    x="50"
+                    y="245"
+                    textAnchor="end"
+                    className="text-[10px] fill-[var(--secondary-muted-edge)]"
+                  >
+                    0
+                  </text>
+                  <text
+                    x="50"
+                    y="185"
+                    textAnchor="end"
+                    className="text-[10px] fill-[var(--secondary-muted-edge)]"
+                  >
+                    2,500
+                  </text>
+                  <text
+                    x="50"
+                    y="125"
+                    textAnchor="end"
+                    className="text-[10px] fill-[var(--secondary-muted-edge)]"
+                  >
+                    5,000
+                  </text>
+                  <text
+                    x="50"
+                    y="65"
+                    textAnchor="end"
+                    className="text-[10px] fill-[var(--secondary-muted-edge)]"
+                  >
+                    7,500
+                  </text>
+                  <text
+                    x="50"
+                    y="5"
+                    textAnchor="end"
+                    className="text-[10px] fill-[var(--secondary-muted-edge)]"
+                  >
+                    10,000
+                  </text>
+
+                  {/* Tomatoes */}
+                  <rect
+                    x="80"
+                    y="72"
+                    width="35"
+                    height="168"
+                    fill="#2D7A3E"
+                    rx="4"
+                  />
+                  <rect
+                    x="120"
+                    y="96"
+                    width="35"
+                    height="144"
+                    fill="#DC2626"
+                    rx="4"
+                  />
+                  <text
+                    x="117.5"
+                    y="270"
+                    textAnchor="middle"
+                    className="text-[11px] fill-[var(--secondary-black)]"
+                  >
+                    Tomatoes
+                  </text>
+
+                  {/* Lettuce */}
+                  <rect
+                    x="200"
+                    y="120"
+                    width="35"
+                    height="120"
+                    fill="#2D7A3E"
+                    rx="4"
+                  />
+                  <rect
+                    x="240"
+                    y="144"
+                    width="35"
+                    height="96"
+                    fill="#DC2626"
+                    rx="4"
+                  />
+                  <text
+                    x="237.5"
+                    y="270"
+                    textAnchor="middle"
+                    className="text-[11px] fill-[var(--secondary-black)]"
+                  >
+                    Lettuce
+                  </text>
+
+                  {/* Carrots */}
+                  <rect
+                    x="320"
+                    y="144"
+                    width="35"
+                    height="96"
+                    fill="#2D7A3E"
+                    rx="4"
+                  />
+                  <rect
+                    x="360"
+                    y="120"
+                    width="35"
+                    height="120"
+                    fill="#DC2626"
+                    rx="4"
+                  />
+                  <text
+                    x="357.5"
+                    y="270"
+                    textAnchor="middle"
+                    className="text-[11px] fill-[var(--secondary-black)]"
+                  >
+                    Carrots
+                  </text>
+
+                  {/* Peppers */}
+                  <rect
+                    x="440"
+                    y="168"
+                    width="35"
+                    height="72"
+                    fill="#2D7A3E"
+                    rx="4"
+                  />
+                  <rect
+                    x="480"
+                    y="192"
+                    width="35"
+                    height="48"
+                    fill="#DC2626"
+                    rx="4"
+                  />
+                  <text
+                    x="477.5"
+                    y="270"
+                    textAnchor="middle"
+                    className="text-[11px] fill-[var(--secondary-black)]"
+                  >
+                    Peppers
+                  </text>
+
+                  {/* Cucumbers */}
+                  <rect
+                    x="560"
+                    y="96"
+                    width="35"
+                    height="144"
+                    fill="#2D7A3E"
+                    rx="4"
+                  />
+                  <rect
+                    x="600"
+                    y="108"
+                    width="35"
+                    height="132"
+                    fill="#DC2626"
+                    rx="4"
+                  />
+                  <text
+                    x="597.5"
+                    y="270"
+                    textAnchor="middle"
+                    className="text-[11px] fill-[var(--secondary-black)]"
+                  >
+                    Cucumbers
+                  </text>
+
+                  {/* Cabbage */}
+                  <rect
+                    x="680"
+                    y="180"
+                    width="35"
+                    height="60"
+                    fill="#2D7A3E"
+                    rx="4"
+                  />
+                  <rect
+                    x="720"
+                    y="204"
+                    width="35"
+                    height="36"
+                    fill="#DC2626"
+                    rx="4"
+                  />
+                  <text
+                    x="717.5"
+                    y="270"
+                    textAnchor="middle"
+                    className="text-[11px] fill-[var(--secondary-black)]"
+                  >
+                    Cabbage
+                  </text>
+
+                  {/* Value labels */}
+                  <text
+                    x="97.5"
+                    y="67"
+                    textAnchor="middle"
+                    className="text-[10px] fill-[var(--secondary-black)] font-medium"
+                  >
+                    7,000
+                  </text>
+                  <text
+                    x="137.5"
+                    y="91"
+                    textAnchor="middle"
+                    className="text-[10px] fill-white font-medium"
+                  >
+                    6,000
+                  </text>
+                  <text
+                    x="217.5"
+                    y="115"
+                    textAnchor="middle"
+                    className="text-[10px] fill-white font-medium"
+                  >
+                    5,000
+                  </text>
+                  <text
+                    x="257.5"
+                    y="139"
+                    textAnchor="middle"
+                    className="text-[10px] fill-white font-medium"
+                  >
+                    4,000
+                  </text>
+                  <text
+                    x="337.5"
+                    y="139"
+                    textAnchor="middle"
+                    className="text-[10px] fill-white font-medium"
+                  >
+                    4,000
+                  </text>
+                  <text
+                    x="377.5"
+                    y="115"
+                    textAnchor="middle"
+                    className="text-[10px] fill-white font-medium"
+                  >
+                    5,000
+                  </text>
+                  <text
+                    x="457.5"
+                    y="163"
+                    textAnchor="middle"
+                    className="text-[10px] fill-white font-medium"
+                  >
+                    3,000
+                  </text>
+                  <text
+                    x="497.5"
+                    y="187"
+                    textAnchor="middle"
+                    className="text-[10px] fill-white font-medium"
+                  >
+                    2,000
+                  </text>
+                  <text
+                    x="577.5"
+                    y="91"
+                    textAnchor="middle"
+                    className="text-[10px] fill-white font-medium"
+                  >
+                    6,000
+                  </text>
+                  <text
+                    x="617.5"
+                    y="103"
+                    textAnchor="middle"
+                    className="text-[10px] fill-white font-medium"
+                  >
+                    5,500
+                  </text>
+                  <text
+                    x="697.5"
+                    y="175"
+                    textAnchor="middle"
+                    className="text-[10px] fill-white font-medium"
+                  >
+                    2,500
+                  </text>
+                  <text
+                    x="737.5"
+                    y="199"
+                    textAnchor="middle"
+                    className="text-[10px] fill-white font-medium"
+                  >
+                    1,500
+                  </text>
+                </svg>
+              </div>
+              <div className="mt-4 pt-4 border-t border-[color:var(--secondary-soft-highlight)] grid grid-cols-3 gap-4 text-xs">
+                <div>
+                  <div className="text-[color:var(--secondary-muted-edge)]">
+                    Highest Supply
+                  </div>
+                  <div className="font-medium text-[color:var(--secondary-black)] mt-1">
+                    Tomatoes (7,000 kg)
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[color:var(--secondary-muted-edge)]">
+                    Highest Demand
+                  </div>
+                  <div className="font-medium text-[color:var(--secondary-black)] mt-1">
+                    Tomatoes (6,000 kg)
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[color:var(--secondary-muted-edge)]">
+                    Supply Gap
+                  </div>
+                  <div className="font-medium text-[color:var(--primary-base)] mt-1">
+                    +1,000 kg surplus
                   </div>
                 </div>
               </div>
@@ -310,15 +829,24 @@ export default function GovernmentPage() {
             {/* Government Programs */}
             <section className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white overflow-hidden">
               <div className="p-5 border-b border-[color:var(--secondary-soft-highlight)]">
-                <h2 className="text-base font-semibold text-[color:var(--secondary-black)]">
-                  Active Programs
-                </h2>
-                <p className="text-xs text-[color:var(--secondary-muted-edge)] mt-0.5">
-                  Government incentive programs
-                </p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-base font-semibold text-[color:var(--secondary-black)]">
+                      Active Programs
+                    </h2>
+                    <p className="text-xs text-[color:var(--secondary-muted-edge)] mt-0.5">
+                      Government incentive programs
+                    </p>
+                  </div>
+                  {programsStatus === "loading" && (
+                    <span className="text-xs text-[color:var(--secondary-muted-edge)]">
+                      Loading...
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="p-4 space-y-4">
-                {programStats.map((program) => (
+                {topPrograms.map((program) => (
                   <div
                     key={program.name}
                     className="rounded-xl border border-[color:var(--secondary-soft-highlight)] p-4 bg-gray-50/50"

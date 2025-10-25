@@ -148,9 +148,35 @@ export default function SellerProductsPage() {
     setCurrentPage(1); // Reset to first page when filtering
   };
 
-  const handleDeleteProduct = (productId: string) => {
+  const handleDeleteProduct = async (productId: string) => {
     if (!confirm("Are you sure you want to delete this product?")) return;
-    dispatch(deleteSellerProduct(productId));
+
+    const result = await dispatch(deleteSellerProduct(productId));
+
+    if (deleteSellerProduct.rejected.match(result)) {
+      const msg = (result.payload as string) || "Failed to delete product";
+
+      const isFkError =
+        msg.includes("foreign key") ||
+        msg.includes("order_items") ||
+        msg.toLowerCase().includes("violates foreign key");
+
+      if (isFkError) {
+        const archive = confirm(
+          "This product has existing orders and cannot be deleted. Would you like to mark it as Discontinued instead?"
+        );
+        if (archive) {
+          await dispatch(
+            updateSellerProduct({
+              id: productId,
+              update: { status: "discontinued" },
+            })
+          );
+        }
+      } else {
+        alert(msg);
+      }
+    }
   };
 
   const handleStatusChange = (productId: string, newStatus: ProductStatus) => {

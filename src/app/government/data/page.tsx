@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ArrowDownTrayIcon,
   ChartBarIcon,
@@ -8,9 +8,35 @@ import {
   DocumentArrowDownIcon,
   FunnelIcon,
   CalendarIcon,
+  ArrowPathIcon,
 } from "@heroicons/react/24/outline";
+import { useAppDispatch, useAppSelector } from "@/store";
+import {
+  fetchTables,
+  fetchTableData,
+  selectTables,
+  selectTablesStatus,
+  selectCurrentTableData,
+  setCurrentTable,
+} from "@/store/slices/governmentTablesSlice";
+import {
+  fetchCharts,
+  selectCharts,
+  selectChartsStatus,
+} from "@/store/slices/governmentChartsSlice";
 
 export default function DataPage() {
+  const dispatch = useAppDispatch();
+
+  // Redux state - Tables
+  const tables = useAppSelector(selectTables);
+  const tablesStatus = useAppSelector(selectTablesStatus);
+  const currentTableData = useAppSelector(selectCurrentTableData);
+
+  // Redux state - Charts
+  const charts = useAppSelector(selectCharts);
+  const chartsStatus = useAppSelector(selectChartsStatus);
+
   const [selectedDataset, setSelectedDataset] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState({
     startDate: "",
@@ -20,14 +46,42 @@ export default function DataPage() {
     "csv"
   );
 
-  const datasets = [
+  // Fetch tables and charts on mount
+  useEffect(() => {
+    if (tablesStatus === "idle") {
+      dispatch(fetchTables({ page: 1, limit: 50 }));
+    }
+    if (chartsStatus === "idle") {
+      dispatch(fetchCharts({ page: 1, limit: 50 }));
+    }
+  }, [tablesStatus, chartsStatus, dispatch]);
+
+  // Fetch table data when dataset is selected
+  useEffect(() => {
+    if (selectedDataset && tables.length > 0) {
+      const table = tables.find((t) => t.id === selectedDataset);
+      if (table) {
+        dispatch(setCurrentTable(table));
+        dispatch(fetchTableData({ tableId: selectedDataset }));
+      }
+    }
+  }, [selectedDataset, tables, dispatch]);
+
+  // Refresh handler
+  const handleRefresh = () => {
+    dispatch(fetchTables({ page: 1, limit: 50 }));
+    dispatch(fetchCharts({ page: 1, limit: 50 }));
+  };
+
+  // Mock datasets for fallback
+  const mockDatasets = [
     {
       id: "vendor-data",
       name: "Vendor Information",
       description:
         "Complete vendor profiles including contact and farm details",
-      recordCount: "1,234",
-      lastUpdated: "2024-10-04",
+      record_count: 1234,
+      last_updated: "2024-10-04",
       category: "Vendors",
     },
     {
@@ -35,16 +89,16 @@ export default function DataPage() {
       name: "Production Records",
       description:
         "Planting dates, crop types, expected harvests, and actual yields",
-      recordCount: "5,678",
-      lastUpdated: "2024-10-04",
+      record_count: 5678,
+      last_updated: "2024-10-04",
       category: "Production",
     },
     {
       id: "acreage-data",
       name: "Land Acreage Data",
       description: "Total, utilized, and available acreage per vendor",
-      recordCount: "1,234",
-      lastUpdated: "2024-10-04",
+      record_count: 1234,
+      last_updated: "2024-10-04",
       category: "Land",
     },
     {
@@ -52,45 +106,49 @@ export default function DataPage() {
       name: "Chemical Usage Records",
       description:
         "Agricultural chemicals used, dosages, and application dates",
-      recordCount: "3,456",
-      lastUpdated: "2024-10-03",
+      record_count: 3456,
+      last_updated: "2024-10-03",
       category: "Compliance",
     },
     {
       id: "market-transactions",
       name: "Market Transactions",
       description: "Sales data, quantities, and transaction values",
-      recordCount: "8,901",
-      lastUpdated: "2024-10-04",
+      record_count: 8901,
+      last_updated: "2024-10-04",
       category: "Market",
     },
     {
       id: "infrastructure",
       name: "Infrastructure Inventory",
       description: "Irrigation systems, greenhouses, storage facilities",
-      recordCount: "1,234",
-      lastUpdated: "2024-10-02",
+      record_count: 1234,
+      last_updated: "2024-10-02",
       category: "Infrastructure",
     },
     {
       id: "program-participation",
       name: "Program Participation",
       description: "Government program enrollment and performance metrics",
-      recordCount: "2,345",
-      lastUpdated: "2024-10-01",
+      record_count: 2345,
+      last_updated: "2024-10-01",
       category: "Programs",
     },
     {
       id: "compliance-records",
       name: "Compliance Records",
       description: "Inspection reports, certifications, and compliance status",
-      recordCount: "4,567",
-      lastUpdated: "2024-10-04",
+      record_count: 4567,
+      last_updated: "2024-10-04",
       category: "Compliance",
     },
   ];
 
-  const visualizations = [
+  // Use real tables or fallback to mock
+  const displayDatasets = tables.length > 0 ? tables : mockDatasets;
+
+  // Mock visualizations for fallback
+  const mockVisualizations = [
     {
       id: "crop-distribution",
       name: "Crop Distribution Map",
@@ -117,24 +175,51 @@ export default function DataPage() {
     },
   ];
 
+  // Use real charts or fallback to mock
+  const displayVisualizations = charts.length > 0 ? charts : mockVisualizations;
+
   const handleExport = (datasetId: string) => {
     console.log(`Exporting ${datasetId} as ${exportFormat}`);
-    // TODO: Implement actual export functionality
+    // TODO: Implement actual export functionality with table data
+    if (currentTableData) {
+      console.log("Exporting table data:", currentTableData);
+    }
   };
 
-  const categories = [...new Set(datasets.map((dataset) => dataset.category))];
+  const categories = [
+    ...new Set(displayDatasets.map((dataset) => (dataset as any).category)),
+  ];
 
   return (
     <div className="min-h-screen bg-[var(--primary-background)]">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-semibold text-[color:var(--secondary-black)]">
-            Data & Analytics
-          </h1>
-          <p className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
-            Access, visualize, and export agricultural data across all vendors
-          </p>
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-semibold text-[color:var(--secondary-black)]">
+              Data & Analytics
+            </h1>
+            <p className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
+              Access, visualize, and export agricultural data across all vendors
+              {tablesStatus === "loading" && " • Loading displayDatasets..."}
+              {chartsStatus === "loading" &&
+                " • Loading displayVisualizations..."}
+            </p>
+          </div>
+          <button
+            onClick={handleRefresh}
+            disabled={tablesStatus === "loading" || chartsStatus === "loading"}
+            className="inline-flex items-center gap-2 rounded-full bg-white border border-[color:var(--secondary-soft-highlight)] text-[color:var(--secondary-black)] px-4 py-2.5 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ArrowPathIcon
+              className={`h-5 w-5 ${
+                tablesStatus === "loading" || chartsStatus === "loading"
+                  ? "animate-spin"
+                  : ""
+              }`}
+            />
+            Refresh
+          </button>
         </div>
 
         {/* Quick Stats */}
@@ -144,7 +229,7 @@ export default function DataPage() {
               Total Datasets
             </div>
             <div className="mt-2 text-3xl font-semibold text-[color:var(--secondary-black)]">
-              {datasets.length}
+              {tablesStatus === "loading" ? "..." : displayDatasets.length}
             </div>
           </div>
           <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
@@ -168,7 +253,7 @@ export default function DataPage() {
               Visualizations
             </div>
             <div className="mt-2 text-3xl font-semibold text-[color:var(--secondary-black)]">
-              {visualizations.length}
+              {displayVisualizations.length}
             </div>
           </div>
         </div>
@@ -260,8 +345,10 @@ export default function DataPage() {
                       {category}
                     </div>
                     <div className="space-y-3">
-                      {datasets
-                        .filter((dataset) => dataset.category === category)
+                      {displayDatasets
+                        .filter(
+                          (dataset) => (dataset as any).category === category
+                        )
                         .map((dataset) => (
                           <div
                             key={dataset.id}
@@ -284,13 +371,18 @@ export default function DataPage() {
                                   {dataset.description}
                                 </p>
                                 <div className="flex items-center gap-4 mt-2 text-xs text-[color:var(--secondary-muted-edge)]">
-                                  <span>{dataset.recordCount} records</span>
+                                  <span>
+                                    {(dataset as any).record_count || "N/A"}{" "}
+                                    records
+                                  </span>
                                   <span>•</span>
                                   <span>
                                     Updated{" "}
-                                    {new Date(
-                                      dataset.lastUpdated
-                                    ).toLocaleDateString()}
+                                    {(dataset as any).last_updated
+                                      ? new Date(
+                                          (dataset as any).last_updated
+                                        ).toLocaleDateString()
+                                      : "N/A"}
                                   </span>
                                 </div>
                               </div>
@@ -327,7 +419,7 @@ export default function DataPage() {
                 </p>
               </div>
               <div className="p-4 space-y-3">
-                {visualizations.map((viz) => (
+                {displayVisualizations.map((viz) => (
                   <button
                     key={viz.id}
                     className="w-full p-4 rounded-2xl border border-[color:var(--secondary-soft-highlight)] hover:border-[var(--secondary-highlight2)] hover:bg-gray-50 transition-all duration-200 text-left shadow-sm hover:shadow-md"
@@ -342,7 +434,9 @@ export default function DataPage() {
                           {viz.description}
                         </div>
                         <div className="inline-flex items-center rounded-full bg-[var(--primary-accent1)]/15 text-[color:var(--primary-accent3)] px-2 py-0.5 text-xs mt-2">
-                          {viz.type}
+                          {(viz as any).type ||
+                            (viz as any).chart_type ||
+                            "Chart"}
                         </div>
                       </div>
                     </div>

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   MagnifyingGlassIcon,
   TagIcon,
@@ -28,6 +29,7 @@ import {
 import ProcurLoader from "@/components/ProcurLoader";
 
 export default function PurchaseRequestsClient() {
+  const router = useRouter();
   const dispatch = useAppDispatch();
   const { requests, status, error, pagination, filters } = useAppSelector(
     (state) => state.sellerProductRequests
@@ -42,8 +44,8 @@ export default function PurchaseRequestsClient() {
       activeTab === "all"
         ? undefined
         : activeTab === "new"
-        ? "open"
-        : activeTab;
+          ? "open"
+          : activeTab;
 
     dispatch(
       fetchProductRequests({
@@ -220,7 +222,18 @@ export default function PurchaseRequestsClient() {
               return (
                 <div
                   key={request.id}
-                  className="bg-white rounded-2xl overflow-hidden border border-[var(--secondary-soft-highlight)]/20 hover:shadow-lg transition-shadow duration-200"
+                  className="bg-white rounded-2xl overflow-hidden border border-[var(--secondary-soft-highlight)]/20 hover:shadow-lg transition-shadow duration-200 cursor-pointer"
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      router.push(`/seller/purchase-requests/${request.id}`);
+                    }
+                  }}
+                  onClick={() =>
+                    router.push(`/seller/purchase-requests/${request.id}`)
+                  }
                 >
                   <div className="p-5">
                     {/* Header */}
@@ -319,6 +332,7 @@ export default function PurchaseRequestsClient() {
                       {!hasQuote && request.status === "open" && (
                         <Link
                           href={`/seller/purchase-requests/${request.id}`}
+                          onClick={(e) => e.stopPropagation()}
                           className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-[var(--primary-accent2)] text-white rounded-full text-sm font-medium hover:bg-[var(--primary-accent3)] transition-all duration-200"
                         >
                           Submit Bid
@@ -329,11 +343,17 @@ export default function PurchaseRequestsClient() {
                         <div className="flex gap-2">
                           <Link
                             href={`/seller/purchase-requests/${request.id}`}
+                            onClick={(e) => e.stopPropagation()}
                             className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-[var(--primary-background)] text-[var(--secondary-black)] rounded-full text-sm font-medium hover:bg-[var(--secondary-soft-highlight)]/20 transition-all duration-200"
                           >
                             View Details
                           </Link>
-                          <button className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 border border-[var(--secondary-soft-highlight)] text-[var(--secondary-black)] rounded-full text-sm font-medium hover:bg-[var(--primary-background)] transition-all duration-200">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                            }}
+                            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 border border-[var(--secondary-soft-highlight)] text-[var(--secondary-black)] rounded-full text-sm font-medium hover:bg-[var(--primary-background)] transition-all duration-200"
+                          >
                             <ChatBubbleLeftIcon className="h-4 w-4" />
                             Message
                           </button>

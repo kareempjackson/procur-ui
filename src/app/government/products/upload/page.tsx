@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -9,11 +9,22 @@ import {
   PlusIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
+import { useAppDispatch, useAppSelector } from "@/store";
+import { governmentApi } from "@/lib/api/governmentApi";
+import {
+  fetchVendors,
+  selectVendors,
+  selectVendorsStatus,
+} from "@/store/slices/governmentVendorsSlice";
 
 export default function ProductUploadPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const preselectedVendorId = searchParams.get("vendorId");
+
+  const dispatch = useAppDispatch();
+  const vendorsFromStore = useAppSelector(selectVendors);
+  const vendorsStatus = useAppSelector(selectVendorsStatus);
 
   const [formData, setFormData] = useState({
     vendorId: preselectedVendorId || "",
@@ -31,14 +42,27 @@ export default function ProductUploadPage() {
     images: [] as File[],
   });
 
-  // Mock vendor data
-  const vendors = [
-    { id: "1", name: "Green Valley Farms" },
-    { id: "2", name: "Sunrise Agricultural Co." },
-    { id: "3", name: "Highland Produce Ltd." },
-    { id: "4", name: "Coastal Farms Group" },
-    { id: "5", name: "Mountain Fresh Produce" },
-  ];
+  // Fetch vendors on mount if not already loaded
+  useEffect(() => {
+    if (vendorsStatus === "idle") {
+      dispatch(fetchVendors({ page: 1, limit: 100 }));
+    }
+  }, [vendorsStatus, dispatch]);
+
+  // Fallback mock list only when store is empty and still loading/failed
+  const fallbackVendors = useMemo(
+    () => [
+      { id: "1", name: "Green Valley Farms" },
+      { id: "2", name: "Sunrise Agricultural Co." },
+      { id: "3", name: "Highland Produce Ltd." },
+      { id: "4", name: "Coastal Farms Group" },
+      { id: "5", name: "Mountain Fresh Produce" },
+    ],
+    []
+  );
+
+  const vendors =
+    vendorsFromStore.length > 0 ? vendorsFromStore : fallbackVendors;
 
   const handleInputChange = (
     e: React.ChangeEvent<
@@ -64,15 +88,33 @@ export default function ProductUploadPage() {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Submit to API
-    console.log("Upload data:", formData);
-    // Redirect back to vendor detail or products page
-    if (formData.vendorId) {
+    try {
+      if (!formData.vendorId) return;
+
+      // Map form fields to backend payload
+      const payload = {
+        name: formData.cropType || undefined,
+        description: formData.notes || undefined,
+        category: "Agriculture",
+        base_price:
+          formData.pricing && !isNaN(Number(formData.pricing))
+            ? Number(formData.pricing)
+            : undefined,
+        stock_quantity:
+          formData.quantity && !isNaN(Number(formData.quantity))
+            ? Number(formData.quantity)
+            : undefined,
+        unit_of_measurement: formData.unit,
+        certifications: formData.certifications,
+      } as any;
+
+      await governmentApi.createFarmerProduct(formData.vendorId, payload);
+
       router.push(`/government/vendors/${formData.vendorId}?tab=products`);
-    } else {
-      router.push("/government/products");
+    } catch (err) {
+      console.error("Failed to upload product:", err);
     }
   };
 

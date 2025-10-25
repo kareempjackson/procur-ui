@@ -35,6 +35,14 @@ export default function MarketplacePage() {
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [currentDealSlide, setCurrentDealSlide] = useState(0);
   const [favorites, setFavorites] = useState<Set<number>>(new Set());
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 100]);
+  const [minRating, setMinRating] = useState<number>(0);
+  const [sortBy, setSortBy] = useState<
+    "relevance" | "price_asc" | "price_desc" | "rating_desc"
+  >("relevance");
 
   // Featured deals carousel
   const featuredDeals = [
@@ -235,6 +243,100 @@ export default function MarketplacePage() {
       href: "/marketplace?category=herbs",
     },
   ];
+
+  // Mock all products dataset (subset for demo)
+  const allProducts = [
+    {
+      id: 101,
+      name: "Organic Tomatoes",
+      category: "Vegetables",
+      tags: ["Organic"],
+      price: 3.5,
+      location: "Jamaica",
+      rating: 4.7,
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+    },
+    {
+      id: 102,
+      name: "Premium Avocados",
+      category: "Fresh Fruits",
+      tags: ["Tropical"],
+      price: 4.25,
+      location: "Dominican Republic",
+      rating: 4.9,
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+    },
+    {
+      id: 103,
+      name: "Sweet Bell Peppers",
+      category: "Vegetables",
+      tags: ["Bulk"],
+      price: 3.75,
+      location: "Barbados",
+      rating: 4.6,
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+    },
+    {
+      id: 104,
+      name: "Dragon Fruit",
+      category: "Fresh Fruits",
+      tags: ["Exotic"],
+      price: 8.99,
+      location: "Panama",
+      rating: 4.7,
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+    },
+    {
+      id: 105,
+      name: "Coconuts",
+      category: "Tropical Fruits",
+      tags: ["Tropical"],
+      price: 2.5,
+      location: "Jamaica",
+      rating: 4.8,
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+    },
+  ];
+
+  const allLocations = Array.from(
+    new Set(allProducts.map((p) => p.location))
+  ).sort();
+  const allTags = Array.from(
+    new Set(allProducts.flatMap((p) => p.tags))
+  ).sort();
+
+  const filteredResults = allProducts
+    .filter((p) => {
+      const q = searchQuery.trim().toLowerCase();
+      const matchesQuery =
+        q === "" ||
+        `${p.name} ${p.category} ${p.location}`.toLowerCase().includes(q);
+      const matchesCategory =
+        selectedCategory === "All Categories" ||
+        p.category === selectedCategory;
+      const matchesTags =
+        selectedTags.length === 0 ||
+        selectedTags.every((t) => p.tags.includes(t));
+      const matchesLocation =
+        selectedLocations.length === 0 ||
+        selectedLocations.includes(p.location);
+      const matchesPrice = p.price >= priceRange[0] && p.price <= priceRange[1];
+      const matchesRating = p.rating >= minRating;
+      return (
+        matchesQuery &&
+        matchesCategory &&
+        matchesTags &&
+        matchesLocation &&
+        matchesPrice &&
+        matchesRating
+      );
+    })
+    .sort((a, b) => {
+      if (sortBy === "price_asc") return a.price - b.price;
+      if (sortBy === "price_desc") return b.price - a.price;
+      if (sortBy === "rating_desc") return b.rating - a.rating;
+      return 0; // relevance default (no-op for demo)
+    });
 
   // Auto-advance deals carousel
   useEffect(() => {
@@ -525,6 +627,365 @@ export default function MarketplacePage() {
               ))}
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Filters + Results */}
+      <section className="py-10 bg-white">
+        <div className="max-w-7xl mx-auto px-6">
+          {/* Header with sort + mobile filter toggle */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <button
+                className="lg:hidden border border-[var(--secondary-soft-highlight)] px-3 py-2 rounded-lg text-sm"
+                onClick={() => setFilterDrawerOpen(true)}
+              >
+                Filters
+              </button>
+              <div className="text-sm text-[var(--secondary-muted-edge)]">
+                {filteredResults.length} results
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-[var(--secondary-muted-edge)]">
+                Sort by:
+              </span>
+              <select
+                className="text-sm border border-[var(--secondary-soft-highlight)] rounded-lg px-3 py-2 bg-white"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+              >
+                <option value="relevance">Relevance</option>
+                <option value="price_asc">Price: Low to High</option>
+                <option value="price_desc">Price: High to Low</option>
+                <option value="rating_desc">Rating</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
+            {/* Sidebar Filters */}
+            <aside className="hidden lg:block border border-[var(--secondary-soft-highlight)] rounded-xl p-4 h-max sticky top-24">
+              <h3 className="font-semibold mb-3 text-[var(--secondary-black)]">
+                Categories
+              </h3>
+              <div className="space-y-2 mb-4">
+                {categories.map((c) => (
+                  <label
+                    key={c.name}
+                    className="flex items-center gap-2 text-sm"
+                  >
+                    <input
+                      type="radio"
+                      name="category"
+                      checked={selectedCategory === c.name}
+                      onChange={() => setSelectedCategory(c.name)}
+                    />
+                    <span>{c.name}</span>
+                    <span className="ml-auto text-[var(--secondary-muted-edge)]">
+                      {c.count}
+                    </span>
+                  </label>
+                ))}
+              </div>
+
+              <h3 className="font-semibold mb-3 text-[var(--secondary-black)]">
+                Tags
+              </h3>
+              <div className="flex flex-wrap gap-2 mb-4">
+                {allTags.map((t) => {
+                  const active = selectedTags.includes(t);
+                  return (
+                    <button
+                      key={t}
+                      className={`text-xs px-2.5 py-1 rounded-full border ${
+                        active
+                          ? "border-[var(--primary-accent2)] text-[var(--primary-accent2)] bg-[var(--primary-background)]"
+                          : "border-[var(--secondary-soft-highlight)] text-[var(--secondary-black)]"
+                      }`}
+                      onClick={() =>
+                        setSelectedTags((prev) =>
+                          prev.includes(t)
+                            ? prev.filter((x) => x !== t)
+                            : [...prev, t]
+                        )
+                      }
+                    >
+                      {t}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <h3 className="font-semibold mb-3 text-[var(--secondary-black)]">
+                Location
+              </h3>
+              <div className="space-y-2 mb-4">
+                {allLocations.map((loc) => (
+                  <label key={loc} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={selectedLocations.includes(loc)}
+                      onChange={(e) =>
+                        setSelectedLocations((prev) =>
+                          e.target.checked
+                            ? [...prev, loc]
+                            : prev.filter((x) => x !== loc)
+                        )
+                      }
+                    />
+                    <span>{loc}</span>
+                  </label>
+                ))}
+              </div>
+
+              <h3 className="font-semibold mb-3 text-[var(--secondary-black)]">
+                Price
+              </h3>
+              <div className="flex items-center gap-2 mb-4">
+                <input
+                  type="number"
+                  className="w-20 border border-[var(--secondary-soft-highlight)] rounded-lg px-2 py-1 text-sm"
+                  value={priceRange[0]}
+                  onChange={(e) =>
+                    setPriceRange([Number(e.target.value || 0), priceRange[1]])
+                  }
+                />
+                <span className="text-[var(--secondary-muted-edge)]">to</span>
+                <input
+                  type="number"
+                  className="w-20 border border-[var(--secondary-soft-highlight)] rounded-lg px-2 py-1 text-sm"
+                  value={priceRange[1]}
+                  onChange={(e) =>
+                    setPriceRange([priceRange[0], Number(e.target.value || 0)])
+                  }
+                />
+              </div>
+
+              <h3 className="font-semibold mb-3 text-[var(--secondary-black)]">
+                Rating
+              </h3>
+              <select
+                className="w-full border border-[var(--secondary-soft-highlight)] rounded-lg px-2 py-2 text-sm"
+                value={minRating}
+                onChange={(e) => setMinRating(Number(e.target.value))}
+              >
+                <option value={0}>Any</option>
+                <option value={4.0}>4.0 & up</option>
+                <option value={4.5}>4.5 & up</option>
+              </select>
+            </aside>
+
+            {/* Results */}
+            <div>
+              {/* Active filters chips */}
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                {selectedCategory !== "All Categories" && (
+                  <span className="text-xs px-2.5 py-1 rounded-full bg-[var(--primary-background)] text-[var(--primary-accent2)] border border-[var(--primary-accent2)]">
+                    {selectedCategory}
+                  </span>
+                )}
+                {selectedTags.map((t) => (
+                  <button
+                    key={t}
+                    className="text-xs px-2.5 py-1 rounded-full bg-[var(--primary-background)] text-[var(--primary-accent2)] border border-[var(--primary-accent2)]"
+                    onClick={() =>
+                      setSelectedTags((prev) => prev.filter((x) => x !== t))
+                    }
+                  >
+                    {t} ×
+                  </button>
+                ))}
+                {selectedLocations.map((loc) => (
+                  <button
+                    key={loc}
+                    className="text-xs px-2.5 py-1 rounded-full bg-[var(--primary-background)] text-[var(--primary-accent2)] border border-[var(--primary-accent2)]"
+                    onClick={() =>
+                      setSelectedLocations((prev) =>
+                        prev.filter((x) => x !== loc)
+                      )
+                    }
+                  >
+                    {loc} ×
+                  </button>
+                ))}
+                {(selectedTags.length > 0 ||
+                  selectedLocations.length > 0 ||
+                  selectedCategory !== "All Categories") && (
+                  <button
+                    className="text-xs underline ml-2 text-[var(--secondary-muted-edge)]"
+                    onClick={() => {
+                      setSelectedTags([]);
+                      setSelectedLocations([]);
+                      setSelectedCategory("All Categories");
+                    }}
+                  >
+                    Clear all
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredResults.map((p) => (
+                  <div
+                    key={p.id}
+                    className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300 group"
+                  >
+                    <div className="relative h-44">
+                      <Image
+                        src={p.image}
+                        alt={p.name}
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                      <button
+                        onClick={() => toggleFavorite(p.id)}
+                        className="absolute top-3 right-3 p-2 bg-white/90 rounded-full hover:bg-white transition-colors"
+                      >
+                        {favorites.has(p.id) ? (
+                          <HeartIconSolid className="h-5 w-5 text-red-500" />
+                        ) : (
+                          <HeartIcon className="h-5 w-5 text-gray-600" />
+                        )}
+                      </button>
+                    </div>
+                    <div className="p-4">
+                      <h3 className="font-semibold text-[var(--secondary-black)] mb-1 group-hover:text-[var(--primary-accent2)] transition-colors">
+                        {p.name}
+                      </h3>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-lg font-bold text-[var(--secondary-black)]">
+                          ${p.price.toFixed(2)}
+                        </span>
+                        <span className="flex items-center gap-1 text-sm text-gray-500">
+                          <MapPinIcon className="h-4 w-4" />
+                          {p.location}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 mb-3">
+                        <StarIconSolid className="h-4 w-4 text-yellow-400" />
+                        <span className="text-sm font-medium">{p.rating}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1 mb-3">
+                        {p.tags.map((t) => (
+                          <span
+                            key={t}
+                            className="text-xs bg-[var(--primary-background)] text-[var(--secondary-black)] px-2 py-1 rounded-full"
+                          >
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                      <button className="w-full bg-[var(--primary-accent2)] text-white py-2 px-4 rounded-lg font-medium hover:bg-[var(--primary-accent3)] transition-colors">
+                        Add to cart
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {filteredResults.length === 0 && (
+                  <div className="col-span-full text-center text-[var(--secondary-muted-edge)] py-12">
+                    No products match your filters.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile Drawer */}
+          {filterDrawerOpen && (
+            <div className="fixed inset-0 z-50">
+              <div
+                className="absolute inset-0 bg-black/30"
+                onClick={() => setFilterDrawerOpen(false)}
+              />
+              <div className="absolute left-0 top-0 bottom-0 w-80 bg-white shadow-xl p-4 overflow-y-auto">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-[var(--secondary-black)]">
+                    Filters
+                  </h3>
+                  <button
+                    className="text-sm underline"
+                    onClick={() => setFilterDrawerOpen(false)}
+                  >
+                    Close
+                  </button>
+                </div>
+                {/* Reuse simple filter controls */}
+                <div className="space-y-6">
+                  <div>
+                    <h4 className="font-medium mb-2">Categories</h4>
+                    <div className="space-y-2">
+                      {categories.map((c) => (
+                        <label
+                          key={c.name}
+                          className="flex items-center gap-2 text-sm"
+                        >
+                          <input
+                            type="radio"
+                            name="m-category"
+                            checked={selectedCategory === c.name}
+                            onChange={() => setSelectedCategory(c.name)}
+                          />
+                          <span>{c.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-medium mb-2">Tags</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {allTags.map((t) => {
+                        const active = selectedTags.includes(t);
+                        return (
+                          <button
+                            key={t}
+                            className={`text-xs px-2.5 py-1 rounded-full border ${
+                              active
+                                ? "border-[var(--primary-accent2)] text-[var(--primary-accent2)] bg-[var(--primary-background)]"
+                                : "border-[var(--secondary-soft-highlight)] text-[var(--secondary-black)]"
+                            }`}
+                            onClick={() =>
+                              setSelectedTags((prev) =>
+                                prev.includes(t)
+                                  ? prev.filter((x) => x !== t)
+                                  : [...prev, t]
+                              )
+                            }
+                          >
+                            {t}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-medium mb-2">Location</h4>
+                    <div className="space-y-2">
+                      {allLocations.map((loc) => (
+                        <label
+                          key={loc}
+                          className="flex items-center gap-2 text-sm"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedLocations.includes(loc)}
+                            onChange={(e) =>
+                              setSelectedLocations((prev) =>
+                                e.target.checked
+                                  ? [...prev, loc]
+                                  : prev.filter((x) => x !== loc)
+                              )
+                            }
+                          />
+                          <span>{loc}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 

@@ -11,6 +11,10 @@ import { useAppDispatch, useAppSelector } from "@/store";
 import { createSellerProduct } from "@/store/slices/sellerProductsSlice";
 import type { RootState } from "@/store";
 
+// Fallback shim in case any stale code still references this symbol
+const createAuthenticatedSupabaseClient = (_accessToken: string) =>
+  getSupabaseClient();
+
 // Enums matching the API
 enum ProductStatus {
   DRAFT = "draft",

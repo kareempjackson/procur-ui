@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { use } from "react";
 import {
@@ -10,7 +10,18 @@ import {
   EnvelopeIcon,
   CheckCircleIcon,
   PlusIcon,
+  ArrowPathIcon,
 } from "@heroicons/react/24/outline";
+import { useAppDispatch, useAppSelector } from "@/store";
+import {
+  fetchVendorProducts,
+  selectVendors,
+  selectVendorsStatus,
+  selectCurrentVendor,
+  selectCurrentVendorProducts,
+  setCurrentVendor,
+  clearCurrentVendor,
+} from "@/store/slices/governmentVendorsSlice";
 
 export default function VendorDetailPage({
   params,
@@ -18,24 +29,85 @@ export default function VendorDetailPage({
   params: Promise<{ vendorId: string }>;
 }) {
   const { vendorId } = use(params);
+  const dispatch = useAppDispatch();
+
   const [activeTab, setActiveTab] = useState<
     "personal" | "farm" | "production" | "programs" | "market" | "products"
   >("personal");
 
-  // Mock vendor data - will be replaced with API
-  const vendor = {
+  // Redux state
+  const vendors = useAppSelector(selectVendors);
+  const vendorsStatus = useAppSelector(selectVendorsStatus);
+  const currentVendor = useAppSelector(selectCurrentVendor);
+  const vendorProducts = useAppSelector(selectCurrentVendorProducts);
+
+  // Find vendor from list or use currentVendor
+  const vendor =
+    currentVendor?.id === vendorId
+      ? currentVendor
+      : vendors.find((v) => v.id === vendorId);
+
+  // Fetch vendor products on mount
+  useEffect(() => {
+    if (vendorId) {
+      dispatch(fetchVendorProducts(vendorId));
+    }
+  }, [vendorId, dispatch]);
+
+  // Set current vendor when found
+  useEffect(() => {
+    if (vendor && (!currentVendor || currentVendor.id !== vendorId)) {
+      dispatch(setCurrentVendor(vendor));
+    }
+  }, [vendor, currentVendor, vendorId, dispatch]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      dispatch(clearCurrentVendor());
+    };
+  }, [dispatch]);
+
+  // Refresh handler
+  const handleRefresh = () => {
+    dispatch(fetchVendorProducts(vendorId));
+  };
+
+  // Loading state
+  if (vendorsStatus === "loading" || !vendor) {
+    return (
+      <div className="min-h-screen bg-[var(--primary-background)]">
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16">
+          <div className="flex items-center justify-center py-20">
+            <div className="text-center">
+              <ArrowPathIcon className="h-12 w-12 animate-spin text-[color:var(--secondary-muted-edge)] mx-auto mb-4" />
+              <p className="text-sm text-[color:var(--secondary-muted-edge)]">
+                Loading vendor details...
+              </p>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Mock vendor data for fallback - matches API format
+  const mockVendor = {
     id: vendorId,
     name: "Green Valley Farms",
-    contactPerson: "John Smith",
+    contact_person: "John Smith",
     email: "john@greenvalley.com",
     phone: "+1-473-555-0123",
     location: "St. George's, Grenada",
-    gps: { lat: 12.0561, lng: -61.7516 },
-    totalAcreage: 250,
-    utilizedAcreage: 180,
-    availableAcreage: 70,
-    complianceStatus: "compliant",
-    registeredDate: "2022-01-15",
+    gps_coordinates: { lat: 12.0561, lng: -61.7516 },
+    total_acreage: 250,
+    utilized_acreage: 180,
+    available_acreage: 70,
+    compliance_status: "compliant" as const,
+    created_at: "2022-01-15",
+    updated_at: "2024-10-01",
+    last_update: "2024-10-01",
+    programs_enrolled: 3,
     crops: [
       { name: "Tomatoes", variety: "Roma", acreage: 60 },
       { name: "Lettuce", variety: "Iceberg", acreage: 40 },
@@ -127,25 +199,12 @@ export default function VendorDetailPage({
         },
       ],
     },
-    products: [
-      {
-        id: "1",
-        name: "Organic Roma Tomatoes",
-        quantity: "500 kg",
-        harvestDate: "2024-09-20",
-        status: "available",
-        uploadedBy: "vendor",
-      },
-      {
-        id: "2",
-        name: "Fresh Iceberg Lettuce",
-        quantity: "200 kg",
-        harvestDate: "2024-09-22",
-        status: "sold",
-        uploadedBy: "government",
-      },
-    ],
   };
+
+  // Use real vendor data or fallback to mock
+  const displayVendor = vendor || mockVendor;
+  const displayProducts =
+    vendorProducts.length > 0 ? vendorProducts : (mockVendor.products ?? []);
 
   const tabs = [
     { id: "personal" as const, label: "Personal Details" },
@@ -174,17 +233,17 @@ export default function VendorDetailPage({
             <div className="flex-1">
               <div className="flex items-center gap-3">
                 <h1 className="text-3xl font-semibold text-[color:var(--secondary-black)]">
-                  {vendor.name}
+                  {displayVendor.name}
                 </h1>
                 <span
                   className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${
-                    vendor.complianceStatus === "compliant"
+                    displayVendor.compliance_status === "compliant"
                       ? "bg-[var(--primary-base)]/10 text-[color:var(--primary-base)]"
                       : "bg-[var(--primary-accent2)]/10 text-[color:var(--primary-accent2)]"
                   }`}
                 >
                   <CheckCircleIcon className="h-4 w-4" />
-                  {vendor.complianceStatus === "compliant"
+                  {displayVendor.compliance_status === "compliant"
                     ? "Compliant"
                     : "Alert"}
                 </span>
@@ -192,29 +251,38 @@ export default function VendorDetailPage({
               <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="flex items-center gap-2 text-sm text-[color:var(--secondary-muted-edge)]">
                   <MapPinIcon className="h-5 w-5" />
-                  {vendor.location}
+                  {displayVendor.location}
                 </div>
                 <div className="flex items-center gap-2 text-sm text-[color:var(--secondary-muted-edge)]">
                   <PhoneIcon className="h-5 w-5" />
-                  {vendor.phone}
+                  {displayVendor.phone}
                 </div>
                 <div className="flex items-center gap-2 text-sm text-[color:var(--secondary-muted-edge)]">
                   <EnvelopeIcon className="h-5 w-5" />
-                  {vendor.email}
+                  {displayVendor.email}
                 </div>
                 <div className="text-sm text-[color:var(--secondary-muted-edge)]">
                   Registered:{" "}
-                  {new Date(vendor.registeredDate).toLocaleDateString()}
+                  {new Date(displayVendor.created_at).toLocaleDateString()}
                 </div>
               </div>
             </div>
-            <Link
-              href={`/government/products/upload?vendorId=${vendorId}`}
-              className="inline-flex items-center gap-2 rounded-full bg-[var(--primary-accent2)] text-white px-5 py-2.5 text-sm font-medium hover:bg-[var(--primary-accent3)] transition-colors"
-            >
-              <PlusIcon className="h-5 w-5" />
-              Upload Product
-            </Link>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleRefresh}
+                className="inline-flex items-center gap-2 rounded-full bg-white border border-[color:var(--secondary-soft-highlight)] text-[color:var(--secondary-black)] px-4 py-2.5 text-sm font-medium hover:bg-gray-50 transition-colors"
+              >
+                <ArrowPathIcon className="h-5 w-5" />
+                <span className="hidden sm:inline">Refresh</span>
+              </button>
+              <Link
+                href={`/government/products/upload?vendorId=${vendorId}`}
+                className="inline-flex items-center gap-2 rounded-full bg-[var(--primary-accent2)] text-white px-5 py-2.5 text-sm font-medium hover:bg-[var(--primary-accent3)] transition-colors"
+              >
+                <PlusIcon className="h-5 w-5" />
+                Upload Product
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -225,7 +293,7 @@ export default function VendorDetailPage({
               Total Acreage
             </div>
             <div className="mt-2 text-2xl font-semibold text-[color:var(--secondary-black)]">
-              {vendor.totalAcreage}
+              {displayVendor.total_acreage}
             </div>
             <div className="mt-1 text-xs text-[color:var(--secondary-muted-edge)]">
               acres total
@@ -236,10 +304,13 @@ export default function VendorDetailPage({
               Utilized Acreage
             </div>
             <div className="mt-2 text-2xl font-semibold text-[color:var(--primary-base)]">
-              {vendor.utilizedAcreage}
+              {displayVendor.utilized_acreage}
             </div>
             <div className="mt-1 text-xs text-[color:var(--secondary-muted-edge)]">
-              {Math.round((vendor.utilizedAcreage / vendor.totalAcreage) * 100)}
+              {Math.round(
+                (displayVendor.utilized_acreage / displayVendor.total_acreage) *
+                  100
+              )}
               % utilized
             </div>
           </div>
@@ -248,7 +319,7 @@ export default function VendorDetailPage({
               Available Acreage
             </div>
             <div className="mt-2 text-2xl font-semibold text-[color:var(--secondary-black)]">
-              {vendor.availableAcreage}
+              {displayVendor.available_acreage}
             </div>
             <div className="mt-1 text-xs text-[color:var(--secondary-muted-edge)]">
               acres not planted
@@ -290,7 +361,7 @@ export default function VendorDetailPage({
                       Contact Person
                     </label>
                     <div className="mt-1 text-sm text-[color:var(--secondary-black)]">
-                      {vendor.contactPerson}
+                      {displayVendor.contact_person}
                     </div>
                   </div>
                   <div>
@@ -298,7 +369,7 @@ export default function VendorDetailPage({
                       Email
                     </label>
                     <div className="mt-1 text-sm text-[color:var(--secondary-black)]">
-                      {vendor.email}
+                      {displayVendor.email}
                     </div>
                   </div>
                   <div>
@@ -306,7 +377,7 @@ export default function VendorDetailPage({
                       Phone
                     </label>
                     <div className="mt-1 text-sm text-[color:var(--secondary-black)]">
-                      {vendor.phone}
+                      {displayVendor.phone}
                     </div>
                   </div>
                   <div>
@@ -314,7 +385,7 @@ export default function VendorDetailPage({
                       Registered Date
                     </label>
                     <div className="mt-1 text-sm text-[color:var(--secondary-black)]">
-                      {new Date(vendor.registeredDate).toLocaleDateString()}
+                      {new Date(displayVendor.created_at).toLocaleDateString()}
                     </div>
                   </div>
                 </div>
@@ -330,7 +401,7 @@ export default function VendorDetailPage({
                       Address
                     </label>
                     <div className="mt-1 text-sm text-[color:var(--secondary-black)]">
-                      {vendor.location}
+                      {displayVendor.location}
                     </div>
                   </div>
                   <div>
@@ -338,7 +409,12 @@ export default function VendorDetailPage({
                       GPS Coordinates
                     </label>
                     <div className="mt-1 text-sm text-[color:var(--secondary-black)]">
-                      {vendor.gps.lat}, {vendor.gps.lng}
+                      {displayVendor.gps_coordinates?.lat &&
+                      displayVendor.gps_coordinates?.lng
+                        ? `${displayVendor.gps_coordinates.lat}, ${displayVendor.gps_coordinates.lng}`
+                        : displayVendor.gps?.lat && displayVendor.gps?.lng
+                        ? `${displayVendor.gps.lat}, ${displayVendor.gps.lng}`
+                        : "Not available"}
                     </div>
                   </div>
                 </div>
@@ -363,7 +439,7 @@ export default function VendorDetailPage({
                       Total Acreage
                     </label>
                     <div className="mt-1 text-2xl font-semibold text-[color:var(--secondary-black)]">
-                      {vendor.totalAcreage}
+                      {displayVendor.total_acreage}
                     </div>
                   </div>
                   <div>
@@ -371,7 +447,7 @@ export default function VendorDetailPage({
                       Utilized
                     </label>
                     <div className="mt-1 text-2xl font-semibold text-[color:var(--primary-base)]">
-                      {vendor.utilizedAcreage}
+                      {displayVendor.utilized_acreage}
                     </div>
                   </div>
                   <div>
@@ -379,7 +455,7 @@ export default function VendorDetailPage({
                       Available
                     </label>
                     <div className="mt-1 text-2xl font-semibold text-[color:var(--secondary-black)]">
-                      {vendor.availableAcreage}
+                      {displayVendor.available_acreage}
                     </div>
                   </div>
                 </div>
@@ -395,7 +471,7 @@ export default function VendorDetailPage({
                   Crop Types
                 </h2>
                 <div className="space-y-3">
-                  {vendor.crops.map((crop, idx) => (
+                  {(displayVendor.crops ?? []).map((crop, idx) => (
                     <div
                       key={idx}
                       className="flex items-center justify-between p-4 rounded-xl bg-gray-50 border border-[color:var(--secondary-soft-highlight)]"
@@ -429,12 +505,12 @@ export default function VendorDetailPage({
                     </span>
                     <span
                       className={`text-sm font-medium ${
-                        vendor.infrastructure.irrigation
+                        displayVendor.infrastructure?.irrigation
                           ? "text-[color:var(--primary-base)]"
                           : "text-[color:var(--secondary-muted-edge)]"
                       }`}
                     >
-                      {vendor.infrastructure.irrigation ? "Yes" : "No"}
+                      {displayVendor.infrastructure?.irrigation ? "Yes" : "No"}
                     </span>
                   </div>
                   <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50 border border-[color:var(--secondary-soft-highlight)]">
@@ -443,12 +519,12 @@ export default function VendorDetailPage({
                     </span>
                     <span
                       className={`text-sm font-medium ${
-                        vendor.infrastructure.rainwaterHarvesting
+                        displayVendor.infrastructure?.rainwaterHarvesting
                           ? "text-[color:var(--primary-base)]"
                           : "text-[color:var(--secondary-muted-edge)]"
                       }`}
                     >
-                      {vendor.infrastructure.rainwaterHarvesting ? "Yes" : "No"}
+                      {displayVendor.infrastructure?.rainwaterHarvesting ? "Yes" : "No"}
                     </span>
                   </div>
                   <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50 border border-[color:var(--secondary-soft-highlight)]">
@@ -456,7 +532,7 @@ export default function VendorDetailPage({
                       Ponds
                     </span>
                     <span className="text-sm font-medium text-[color:var(--secondary-black)]">
-                      {vendor.infrastructure.ponds}
+                      {displayVendor.infrastructure?.ponds ?? "N/A"}
                     </span>
                   </div>
                   <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50 border border-[color:var(--secondary-soft-highlight)]">
@@ -464,7 +540,7 @@ export default function VendorDetailPage({
                       Greenhouses
                     </span>
                     <span className="text-sm font-medium text-[color:var(--secondary-black)]">
-                      {vendor.infrastructure.greenhouses}
+                      {displayVendor.infrastructure?.greenhouses ?? "N/A"}
                     </span>
                   </div>
                   <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50 border border-[color:var(--secondary-soft-highlight)]">
@@ -472,7 +548,7 @@ export default function VendorDetailPage({
                       Shade Houses
                     </span>
                     <span className="text-sm font-medium text-[color:var(--secondary-black)]">
-                      {vendor.infrastructure.shadeHouses}
+                      {displayVendor.infrastructure?.shadeHouses ?? "N/A"}
                     </span>
                   </div>
                   <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50 border border-[color:var(--secondary-soft-highlight)]">
@@ -480,7 +556,7 @@ export default function VendorDetailPage({
                       Transportation
                     </span>
                     <span className="text-sm font-medium text-[color:var(--secondary-black)]">
-                      {vendor.infrastructure.transportation}
+                      {displayVendor.infrastructure?.transportation ?? "N/A"}
                     </span>
                   </div>
                 </div>
@@ -494,7 +570,7 @@ export default function VendorDetailPage({
               <h2 className="text-lg font-semibold text-[color:var(--secondary-black)]">
                 Current Production Cycles
               </h2>
-              {vendor.production.map((prod) => (
+              {(displayVendor.production ?? []).map((prod) => (
                 <div
                   key={prod.id}
                   className="border border-[color:var(--secondary-soft-highlight)] rounded-xl p-6 space-y-4"
@@ -553,7 +629,7 @@ export default function VendorDetailPage({
                       Chemical Usage
                     </label>
                     <div className="space-y-2">
-                      {prod.chemicals.map((chem, idx) => (
+                      {(prod.chemicals ?? []).map((chem, idx) => (
                         <div
                           key={idx}
                           className="flex items-center justify-between p-3 rounded-lg bg-gray-50"
@@ -585,7 +661,7 @@ export default function VendorDetailPage({
                 Enrolled Programs
               </h2>
               <div className="space-y-4">
-                {vendor.programs.map((program) => (
+                {(displayVendor.programs ?? []).map((program) => (
                   <div
                     key={program.id}
                     className="flex items-center justify-between p-5 rounded-xl border border-[color:var(--secondary-soft-highlight)] bg-gray-50/50"
@@ -630,7 +706,7 @@ export default function VendorDetailPage({
                   Purchase Requirements
                 </h2>
                 <div className="space-y-3">
-                  {vendor.marketActivity.requirements.map((req, idx) => (
+                  {(displayVendor.marketActivity?.requirements ?? []).map((req, idx) => (
                     <div
                       key={idx}
                       className="p-4 rounded-xl border border-[color:var(--secondary-soft-highlight)] bg-gray-50/50"
@@ -659,7 +735,7 @@ export default function VendorDetailPage({
                   Recent Transactions
                 </h2>
                 <div className="space-y-3">
-                  {vendor.marketActivity.transactions.map((trans, idx) => (
+                  {(displayVendor.marketActivity?.transactions ?? []).map((trans, idx) => (
                     <div
                       key={idx}
                       className="flex items-center justify-between p-4 rounded-xl border border-[color:var(--secondary-soft-highlight)]"
@@ -699,7 +775,7 @@ export default function VendorDetailPage({
                 </Link>
               </div>
               <div className="space-y-3">
-                {vendor.products.map((product) => (
+                {displayProducts.map((product) => (
                   <div
                     key={product.id}
                     className="flex items-center justify-between p-5 rounded-xl border border-[color:var(--secondary-soft-highlight)] bg-gray-50/50"

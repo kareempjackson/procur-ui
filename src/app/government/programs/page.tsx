@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   AcademicCapIcon,
@@ -10,27 +10,55 @@ import {
   CheckCircleIcon,
   ClockIcon,
   PlusIcon,
+  ArrowPathIcon,
 } from "@heroicons/react/24/outline";
+import { useAppDispatch, useAppSelector } from "@/store";
+import {
+  fetchPrograms,
+  selectPrograms,
+  selectProgramsStatus,
+  selectProgramStats,
+} from "@/store/slices/governmentProgramsSlice";
 
 export default function ProgramsPage() {
+  const dispatch = useAppDispatch();
   const [selectedProgram, setSelectedProgram] = useState<string | null>(null);
 
-  // Mock program data
-  const programs = [
+  // Redux state
+  const programs = useAppSelector(selectPrograms);
+  const programsStatus = useAppSelector(selectProgramsStatus);
+  const programStats = useAppSelector(selectProgramStats);
+
+  // Fetch programs on mount
+  useEffect(() => {
+    if (programsStatus === "idle") {
+      dispatch(fetchPrograms({ page: 1, limit: 50 }));
+    }
+  }, [programsStatus, dispatch]);
+
+  // Refresh handler
+  const handleRefresh = () => {
+    dispatch(fetchPrograms({ page: 1, limit: 50 }));
+  };
+
+  // Mock program data for fallback
+  const mockPrograms = [
     {
       id: "1",
       name: "Irrigation Support Program",
       description:
         "Financial assistance for installing and maintaining irrigation systems",
-      status: "active",
+      status: "active" as const,
       category: "Infrastructure",
       budget: 500000,
-      budgetUsed: 425000,
-      budgetPercentage: 85,
+      budget_used: 425000,
+      budget_percentage: 85,
       participants: 234,
-      targetParticipants: 300,
-      startDate: "2023-01-15",
-      endDate: "2024-12-31",
+      target_participants: 300,
+      start_date: "2023-01-15",
+      end_date: "2024-12-31",
+      created_at: "2023-01-15",
+      updated_at: "2024-10-01",
       benefits: [
         "Up to $5,000 per farm",
         "Technical consultation included",
@@ -48,15 +76,17 @@ export default function ProgramsPage() {
       name: "Organic Certification",
       description:
         "Support program for obtaining organic farming certification",
-      status: "active",
+      status: "active" as const,
       category: "Certification",
       budget: 200000,
-      budgetUsed: 124000,
-      budgetPercentage: 62,
+      budget_used: 124000,
+      budget_percentage: 62,
       participants: 156,
-      targetParticipants: 200,
-      startDate: "2023-03-01",
-      endDate: "2025-02-28",
+      target_participants: 200,
+      start_date: "2023-03-01",
+      end_date: "2025-02-28",
+      created_at: "2023-03-01",
+      updated_at: "2024-10-01",
       benefits: [
         "Certification fee coverage up to 75%",
         "Organic farming training",
@@ -74,15 +104,17 @@ export default function ProgramsPage() {
       name: "Youth Farmer Initiative",
       description:
         "Mentorship and financial support for farmers under 35 years old",
-      status: "active",
+      status: "active" as const,
       category: "Development",
       budget: 150000,
-      budgetUsed: 67500,
-      budgetPercentage: 45,
+      budget_used: 67500,
+      budget_percentage: 45,
       participants: 89,
-      targetParticipants: 150,
-      startDate: "2024-01-10",
-      endDate: "2025-12-31",
+      target_participants: 150,
+      start_date: "2024-01-10",
+      end_date: "2025-12-31",
+      created_at: "2024-01-10",
+      updated_at: "2024-10-01",
       benefits: [
         "Startup grants up to $3,000",
         "Mentorship from experienced farmers",
@@ -100,15 +132,17 @@ export default function ProgramsPage() {
       name: "Climate Smart Agriculture",
       description:
         "Incentives for adopting climate-resilient farming practices",
-      status: "planning",
+      status: "planning" as const,
       category: "Sustainability",
       budget: 300000,
-      budgetUsed: 0,
-      budgetPercentage: 0,
+      budget_used: 0,
+      budget_percentage: 0,
       participants: 0,
-      targetParticipants: 250,
-      startDate: "2025-01-01",
-      endDate: "2026-12-31",
+      target_participants: 250,
+      start_date: "2025-01-01",
+      end_date: "2026-12-31",
+      created_at: "2024-09-01",
+      updated_at: "2024-10-01",
       benefits: [
         "Grants for climate-smart technology",
         "Carbon credit registration support",
@@ -123,11 +157,19 @@ export default function ProgramsPage() {
     },
   ];
 
-  const enrollmentStats = {
-    totalEnrollments: programs.reduce((sum, p) => sum + p.participants, 0),
-    activePrograms: programs.filter((p) => p.status === "active").length,
-    totalBudget: programs.reduce((sum, p) => sum + p.budget, 0),
-    totalSpent: programs.reduce((sum, p) => sum + p.budgetUsed, 0),
+  // Use real programs or fallback to mock
+  const displayPrograms = programs.length > 0 ? programs : mockPrograms;
+
+  // Calculate enrollment stats
+  const enrollmentStats = programStats || {
+    totalEnrollments: displayPrograms.reduce(
+      (sum, p) => sum + p.participants,
+      0
+    ),
+    active: displayPrograms.filter((p) => p.status === "active").length,
+    totalBudget: displayPrograms.reduce((sum, p) => sum + p.budget, 0),
+    totalSpent: displayPrograms.reduce((sum, p) => sum + p.budget_used, 0),
+    total: displayPrograms.length,
   };
 
   const topPerformers = [
@@ -161,7 +203,9 @@ export default function ProgramsPage() {
     }
   };
 
-  const selectedProgramData = programs.find((p) => p.id === selectedProgram);
+  const selectedProgramData = displayPrograms.find(
+    (p) => p.id === selectedProgram
+  );
 
   return (
     <div className="min-h-screen bg-[var(--primary-background)]">
@@ -174,12 +218,30 @@ export default function ProgramsPage() {
             </h1>
             <p className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
               Manage government incentive programs and track participation
+              {programsStatus === "loading" && " • Loading..."}
             </p>
           </div>
-          <button className="inline-flex items-center gap-2 rounded-full bg-[var(--primary-accent2)] text-white px-5 py-2.5 text-sm font-medium hover:bg-[var(--primary-accent3)] transition-colors">
-            <PlusIcon className="h-5 w-5" />
-            Create New Program
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleRefresh}
+              disabled={programsStatus === "loading"}
+              className="inline-flex items-center gap-2 rounded-full bg-white border border-[color:var(--secondary-soft-highlight)] text-[color:var(--secondary-black)] px-4 py-2.5 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ArrowPathIcon
+                className={`h-5 w-5 ${
+                  programsStatus === "loading" ? "animate-spin" : ""
+                }`}
+              />
+              Refresh
+            </button>
+            <Link
+              href="/government/programs/new"
+              className="inline-flex items-center gap-2 rounded-full bg-[var(--primary-accent2)] text-white px-5 py-2.5 text-sm font-medium hover:bg-[var(--primary-accent3)] transition-colors"
+            >
+              <PlusIcon className="h-5 w-5" />
+              Create New Program
+            </Link>
+          </div>
         </div>
 
         {/* Stats Overview */}
@@ -192,7 +254,9 @@ export default function ProgramsPage() {
               </div>
             </div>
             <div className="text-3xl font-semibold text-[color:var(--secondary-black)]">
-              {enrollmentStats.activePrograms}
+              {programsStatus === "loading"
+                ? "..."
+                : enrollmentStats.active || 0}
             </div>
           </div>
           <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
@@ -203,7 +267,9 @@ export default function ProgramsPage() {
               </div>
             </div>
             <div className="text-3xl font-semibold text-[color:var(--secondary-black)]">
-              {enrollmentStats.totalEnrollments}
+              {programsStatus === "loading"
+                ? "..."
+                : enrollmentStats.totalEnrollments || 0}
             </div>
           </div>
           <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
@@ -214,7 +280,9 @@ export default function ProgramsPage() {
               </div>
             </div>
             <div className="text-3xl font-semibold text-[color:var(--secondary-black)]">
-              ${(enrollmentStats.totalBudget / 1000000).toFixed(1)}M
+              {programsStatus === "loading"
+                ? "..."
+                : `$${(enrollmentStats.totalBudget / 1000000).toFixed(1)}M`}
             </div>
           </div>
           <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
@@ -225,10 +293,12 @@ export default function ProgramsPage() {
               </div>
             </div>
             <div className="text-3xl font-semibold text-[color:var(--primary-base)]">
-              {Math.round(
-                (enrollmentStats.totalSpent / enrollmentStats.totalBudget) * 100
-              )}
-              %
+              {programsStatus === "loading"
+                ? "..."
+                : `${Math.round(
+                    (enrollmentStats.totalSpent / enrollmentStats.totalBudget) *
+                      100
+                  )}%`}
             </div>
           </div>
         </div>
@@ -236,7 +306,7 @@ export default function ProgramsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column - Programs List */}
           <div className="lg:col-span-2 space-y-4">
-            {programs.map((program) => {
+            {displayPrograms.map((program) => {
               const statusConfig = getStatusConfig(program.status);
               return (
                 <div
@@ -278,7 +348,7 @@ export default function ProgramsPage() {
                         {program.participants}
                       </div>
                       <div className="text-xs text-[color:var(--secondary-muted-edge)]">
-                        / {program.targetParticipants} target
+                        / {program.target_participants} target
                       </div>
                     </div>
                     <div>
@@ -294,7 +364,7 @@ export default function ProgramsPage() {
                         Used
                       </div>
                       <div className="text-lg font-semibold text-[color:var(--primary-base)]">
-                        {program.budgetPercentage}%
+                        {program.budget_percentage}%
                       </div>
                     </div>
                     <div>

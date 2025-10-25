@@ -294,7 +294,7 @@ const SignUpPage: React.FC = () => {
           style={{ minHeight: "90vh" }}
         >
           <Image
-            src="/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg"
+            src="/images/backgrounds/polina-kuzovkova-0OkidWKbO2Q-unsplash.jpg"
             alt="Fresh produce market"
             fill
             className="object-cover"

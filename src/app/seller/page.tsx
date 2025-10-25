@@ -13,6 +13,7 @@ import {
   type AnalyticsTab,
 } from "@/store/slices/sellerSlice";
 import { fetchSellerHome } from "@/store/slices/sellerHomeSlice";
+import { useRouter } from "next/navigation";
 import {
   fetchHarvestFeed,
   addHarvestComment,
@@ -38,8 +39,10 @@ function classNames(...classes: (string | false | null | undefined)[]) {
 }
 
 export default function SellerDashboardPage() {
+  const router = useRouter();
   const orderTab = useAppSelector(selectOrderTab);
   const analyticsTab = useAppSelector(selectAnalyticsTab);
+  const isBuyer = useAppSelector((s) => s.auth.user?.accountType === "buyer");
 
   const dispatch = useAppDispatch();
   const sellerHome = useAppSelector((s) => s.sellerHome);
@@ -125,27 +128,25 @@ export default function SellerDashboardPage() {
   // Inventory table replaced by social timeline; keep mapping available if needed elsewhere
 
   const orders: OrderRow[] = useMemo(() => {
-    const homeData = sellerHome.data;
-    return (
-      homeData?.recent_orders?.map((o) => ({
-        id: o.order_number || o.id,
-        buyer: "Buyer",
-        items: o.items?.reduce((sum, i) => sum + (i.quantity ?? 0), 0) ?? 0,
-        total: (o.total_amount ?? 0).toLocaleString("en-US", {
-          style: "currency",
-          currency: "USD",
-        }),
-        eta: o.created_at,
-        status: ((): OrderRow["status"] => {
-          const s = (o.status || "").toLowerCase();
-          if (s === "pending") return "new";
-          if (s === "processing" || s === "accepted") return "preparing";
-          if (s === "shipped") return "in_transit";
-          if (s === "delivered") return "delivered";
-          return "issue";
-        })(),
-      })) ?? []
-    );
+    const apiOrders = sellerHome.data?.recent_orders ?? [];
+    return apiOrders.map((o) => ({
+      id: o.order_number || o.id,
+      buyer: (o as any).buyer_name || "Buyer",
+      items: o.items?.reduce((sum, i) => sum + (i.quantity ?? 0), 0) ?? 0,
+      total: (o.total_amount ?? 0).toLocaleString("en-US", {
+        style: "currency",
+        currency: (o as any).currency || "USD",
+      }),
+      eta: o.created_at,
+      status: (() => {
+        const s = (o.status || "").toLowerCase();
+        if (s === "pending") return "new";
+        if (s === "processing" || s === "accepted") return "preparing";
+        if (s === "shipped") return "in_transit";
+        if (s === "delivered") return "delivered";
+        return "issue";
+      })(),
+    }));
   }, [sellerHome]);
 
   const filteredOrders = useMemo(() => {
@@ -328,8 +329,11 @@ export default function SellerDashboardPage() {
                     Track shipments and fulfillment
                   </p>
                 </div>
-                <button className="inline-flex items-center justify-center rounded-full bg-[var(--primary-accent2)] text-white px-4 py-2 text-xs font-medium hover:bg-[var(--primary-accent3)] transition-colors focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:ring-offset-2">
-                  Create shipment
+                <button
+                  onClick={() => router.push("/seller/orders")}
+                  className="inline-flex items-center justify-center rounded-full bg-[var(--primary-accent2)] text-white px-4 py-2 text-xs font-medium hover:bg-[var(--primary-accent3)] transition-colors focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:ring-offset-2"
+                >
+                  View all orders
                 </button>
               </div>
 
@@ -681,6 +685,7 @@ export default function SellerDashboardPage() {
 function Timeline() {
   const dispatch = useAppDispatch();
   const feed = useAppSelector((s) => s.harvestFeed);
+  const isBuyer = useAppSelector((s) => s.auth.user?.accountType === "buyer");
   const [commentDraft, setCommentDraft] = useState<Record<string, string>>({});
   const [requestDraft, setRequestDraft] = useState<
     Record<
@@ -873,94 +878,99 @@ function Timeline() {
                       </div>
                     ))}
 
-                    <div className="rounded-xl border border-[color:var(--secondary-soft-highlight)] p-3">
-                      <div className="grid grid-cols-2 gap-2">
-                        <input
-                          type="number"
-                          min={0}
-                          placeholder="Quantity"
-                          value={requestDraft[item.id]?.quantity || ""}
-                          onChange={(e) =>
-                            setRequestDraft((s) => ({
-                              ...s,
-                              [item.id]: {
-                                ...(s[item.id] || { quantity: "", unit: "kg" }),
-                                quantity: e.target.value,
-                              },
-                            }))
-                          }
-                          className="rounded-full border border-[color:var(--secondary-soft-highlight)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)]"
-                        />
-                        <input
-                          placeholder="Unit (e.g. kg)"
-                          value={requestDraft[item.id]?.unit || ""}
-                          onChange={(e) =>
-                            setRequestDraft((s) => ({
-                              ...s,
-                              [item.id]: {
-                                ...(s[item.id] || { quantity: "", unit: "" }),
-                                unit: e.target.value,
-                              },
-                            }))
-                          }
-                          className="rounded-full border border-[color:var(--secondary-soft-highlight)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)]"
-                        />
-                        <input
-                          type="date"
-                          value={requestDraft[item.id]?.date || ""}
-                          onChange={(e) =>
-                            setRequestDraft((s) => ({
-                              ...s,
-                              [item.id]: {
-                                ...(s[item.id] || { quantity: "", unit: "" }),
-                                date: e.target.value,
-                              },
-                            }))
-                          }
-                          className="rounded-full border border-[color:var(--secondary-soft-highlight)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)]"
-                        />
-                        <input
-                          placeholder="Notes (optional)"
-                          value={requestDraft[item.id]?.notes || ""}
-                          onChange={(e) =>
-                            setRequestDraft((s) => ({
-                              ...s,
-                              [item.id]: {
-                                ...(s[item.id] || { quantity: "", unit: "" }),
-                                notes: e.target.value,
-                              },
-                            }))
-                          }
-                          className="rounded-full border border-[color:var(--secondary-soft-highlight)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] col-span-2"
-                        />
+                    {isBuyer && (
+                      <div className="rounded-xl border border-[color:var(--secondary-soft-highlight)] p-3">
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            type="number"
+                            min={0}
+                            placeholder="Quantity"
+                            value={requestDraft[item.id]?.quantity || ""}
+                            onChange={(e) =>
+                              setRequestDraft((s) => ({
+                                ...s,
+                                [item.id]: {
+                                  ...(s[item.id] || {
+                                    quantity: "",
+                                    unit: "kg",
+                                  }),
+                                  quantity: e.target.value,
+                                },
+                              }))
+                            }
+                            className="rounded-full border border-[color:var(--secondary-soft-highlight)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)]"
+                          />
+                          <input
+                            placeholder="Unit (e.g. kg)"
+                            value={requestDraft[item.id]?.unit || ""}
+                            onChange={(e) =>
+                              setRequestDraft((s) => ({
+                                ...s,
+                                [item.id]: {
+                                  ...(s[item.id] || { quantity: "", unit: "" }),
+                                  unit: e.target.value,
+                                },
+                              }))
+                            }
+                            className="rounded-full border border-[color:var(--secondary-soft-highlight)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)]"
+                          />
+                          <input
+                            type="date"
+                            value={requestDraft[item.id]?.date || ""}
+                            onChange={(e) =>
+                              setRequestDraft((s) => ({
+                                ...s,
+                                [item.id]: {
+                                  ...(s[item.id] || { quantity: "", unit: "" }),
+                                  date: e.target.value,
+                                },
+                              }))
+                            }
+                            className="rounded-full border border-[color:var(--secondary-soft-highlight)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)]"
+                          />
+                          <input
+                            placeholder="Notes (optional)"
+                            value={requestDraft[item.id]?.notes || ""}
+                            onChange={(e) =>
+                              setRequestDraft((s) => ({
+                                ...s,
+                                [item.id]: {
+                                  ...(s[item.id] || { quantity: "", unit: "" }),
+                                  notes: e.target.value,
+                                },
+                              }))
+                            }
+                            className="rounded-full border border-[color:var(--secondary-soft-highlight)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] col-span-2"
+                          />
+                        </div>
+                        <div className="mt-2 flex justify-end">
+                          <button
+                            onClick={() => {
+                              const draft = requestDraft[item.id];
+                              const quantity = Number(draft?.quantity || 0);
+                              const unit = (draft?.unit || "").trim();
+                              if (!quantity || !unit) return;
+                              dispatch(
+                                createHarvestBuyerRequest({
+                                  harvestId: item.id,
+                                  quantity,
+                                  unit,
+                                  requested_date: draft?.date,
+                                  notes: draft?.notes,
+                                })
+                              );
+                              setRequestDraft((s) => ({
+                                ...s,
+                                [item.id]: { quantity: "", unit: "" },
+                              }));
+                            }}
+                            className="inline-flex items-center rounded-full bg-[var(--primary-accent2)] text-white px-3 py-1.5 text-[11px] font-medium hover:bg-[var(--primary-accent3)]"
+                          >
+                            Request
+                          </button>
+                        </div>
                       </div>
-                      <div className="mt-2 flex justify-end">
-                        <button
-                          onClick={() => {
-                            const draft = requestDraft[item.id];
-                            const quantity = Number(draft?.quantity || 0);
-                            const unit = (draft?.unit || "").trim();
-                            if (!quantity || !unit) return;
-                            dispatch(
-                              createHarvestBuyerRequest({
-                                harvestId: item.id,
-                                quantity,
-                                unit,
-                                requested_date: draft?.date,
-                                notes: draft?.notes,
-                              })
-                            );
-                            setRequestDraft((s) => ({
-                              ...s,
-                              [item.id]: { quantity: "", unit: "" },
-                            }));
-                          }}
-                          className="inline-flex items-center rounded-full bg-[var(--primary-accent2)] text-white px-3 py-1.5 text-[11px] font-medium hover:bg-[var(--primary-accent3)]"
-                        >
-                          Request
-                        </button>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               </div>

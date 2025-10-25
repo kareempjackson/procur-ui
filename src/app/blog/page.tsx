@@ -1,86 +1,61 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import TopNavigation from "@/components/navigation/TopNavigation";
 import Footer from "@/components/footer/Footer";
 import Link from "next/link";
 import Image from "next/image";
+import { sanityClient } from "@/lib/sanity/client";
+import { postsQuery, type SanityPostListItem } from "@/lib/sanity/queries";
+import { urlForImage } from "@/lib/sanity/image";
 
-const categories = ["All", "Product", "Policy", "Research"];
+const FALLBACK_CATEGORIES = ["All", "Product", "Policy", "Research"];
 
-const featured = {
-  title: "Introducing Procur Insights: Market trends in global produce",
-  category: "Announcements",
-  date: "Sep 28, 2025",
-  description:
-    "A new resource hub for procurement leaders, covering logistics, compliance, and fresh market data.",
-  image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-  href: "/blog/procur-insights-market-trends",
-};
-
-const posts = [
-  {
-    title: "Building trust in cross-border produce procurement",
-    category: "Policy",
-    date: "Sep 26, 2025",
-    description:
-      "How standardized quality checks and transparent documentation reduce friction between buyers and suppliers.",
-    href: "/blog/trust-in-cross-border-procurement",
-    image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-  },
-  {
-    title: "Real-time logistics visibility with Procur Tracking",
-    category: "Product",
-    date: "Sep 24, 2025",
-    description:
-      "We’re rolling out shipment telemetry and automated ETAs for time-sensitive goods.",
-    href: "/blog/realtime-logistics-visibility",
-    image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-  },
-  {
-    title: "Sustainability metrics that actually matter",
-    category: "Research",
-    date: "Sep 20, 2025",
-    description:
-      "From farm inputs to cold chain efficiency — measuring sustainability with outcomes instead of labels.",
-    href: "/blog/sustainability-metrics-that-matter",
-    image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-  },
-  {
-    title: "How a national grocer scaled local sourcing",
-    category: "Case Study",
-    date: "Sep 18, 2025",
-    description:
-      "A look at how regional partnerships and demand planning reduced waste by 14%.",
-    href: "/blog/national-grocer-local-sourcing",
-    image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-  },
-  {
-    title: "Compliance automation for import programs",
-    category: "Product",
-    date: "Sep 15, 2025",
-    description:
-      "Automatically validate certifications, country-of-origin, and treatment requirements.",
-    href: "/blog/compliance-automation-import-programs",
-    image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-  },
-  {
-    title: "Market outlook: Q4 citrus supply dynamics",
-    category: "Societal Impacts",
-    date: "Sep 12, 2025",
-    description:
-      "Weather patterns, freight rates, and demand signals shaping the citrus market.",
-    href: "/blog/q4-citrus-supply-dynamics",
-    image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-  },
-];
+function formatDate(dateIso?: string) {
+  if (!dateIso) return "";
+  try {
+    return new Date(dateIso).toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+    });
+  } catch {
+    return "";
+  }
+}
 
 export default function BlogIndexPage() {
   const [activeCategory, setActiveCategory] = useState<string>("All");
+  const [posts, setPosts] = useState<SanityPostListItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function run() {
+      try {
+        const data = await sanityClient.fetch<SanityPostListItem[]>(postsQuery);
+        if (!cancelled) setPosts(data);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const categories = useMemo(() => {
+    const set = new Set<string>(["All"]);
+    posts.forEach((p) => p.category && set.add(p.category));
+    return set.size > 1 ? Array.from(set) : FALLBACK_CATEGORIES;
+  }, [posts]);
 
   const filteredPosts = useMemo(() => {
     if (activeCategory === "All") return posts;
     return posts.filter((p) => p.category === activeCategory);
-  }, [activeCategory]);
+  }, [activeCategory, posts]);
+
+  const featured = posts[0];
 
   return (
     <div className="min-h-screen bg-[var(--primary-background)]">
@@ -126,68 +101,105 @@ export default function BlogIndexPage() {
       </header>
 
       {/* Featured */}
-      <section className="max-w-7xl mx-auto px-6 mt-10">
-        <Link
-          href={featured.href}
-          className="group grid md:grid-cols-12 gap-8 items-stretch bg-white rounded-2xl overflow-hidden border border-gray-200"
-        >
-          <div className="md:col-span-7 relative h-72 md:h-auto">
-            <Image
-              src={featured.image}
-              alt={featured.title}
-              fill
-              className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-              sizes="(max-width: 768px) 100vw, 50vw"
-              priority
-            />
-          </div>
-          <div className="md:col-span-5 p-8 md:p-10 flex flex-col justify-center">
-            <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-              {featured.category}
+      {featured ? (
+        <section className="max-w-7xl mx-auto px-6 mt-10">
+          <Link
+            href={`/blog/${featured.slug}`}
+            className="group grid md:grid-cols-12 gap-8 items-stretch bg-white rounded-2xl overflow-hidden border border-gray-200"
+          >
+            <div className="md:col-span-7 relative h-72 md:h-auto">
+              {featured.mainImage ? (
+                <Image
+                  src={urlForImage(featured.mainImage)
+                    .width(1600)
+                    .height(900)
+                    .fit("crop")
+                    .url()}
+                  alt={featured.imageAlt || featured.title}
+                  fill
+                  className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  priority
+                />
+              ) : (
+                <div className="w-full h-full bg-gray-100" />
+              )}
             </div>
-            <h2 className="mt-2 text-2xl md:text-3xl font-semibold text-[var(--secondary-black)] group-hover:underline">
-              {featured.title}
-            </h2>
-            <p className="mt-3 text-gray-600 text-base">
-              {featured.description}
-            </p>
-            <div className="mt-4 text-sm text-gray-500">{featured.date}</div>
-          </div>
-        </Link>
-      </section>
+            <div className="md:col-span-5 p-8 md:p-10 flex flex-col justify-center">
+              <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                {featured.category || "Article"}
+              </div>
+              <h2 className="mt-2 text-2xl md:text-3xl font-semibold text-[var(--secondary-black)] group-hover:underline">
+                {featured.title}
+              </h2>
+              {featured.excerpt ? (
+                <p className="mt-3 text-gray-600 text-base">
+                  {featured.excerpt}
+                </p>
+              ) : null}
+              <div className="mt-4 text-sm text-gray-500">
+                {formatDate(featured.publishedAt)}
+              </div>
+            </div>
+          </Link>
+        </section>
+      ) : null}
 
       {/* Grid */}
       <main className="max-w-7xl mx-auto px-6 mt-14 mb-24">
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredPosts.map((post) => (
-            <Link
-              key={post.href}
-              href={post.href}
-              className="group bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-md transition-shadow"
-            >
-              <div className="relative h-44">
-                <Image
-                  src={post.image}
-                  alt={post.title}
-                  fill
-                  sizes="(max-width: 768px) 100vw, 33vw"
-                  className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                />
-                <span className="absolute left-3 top-3 text-[11px] font-semibold uppercase tracking-wider bg-white/90 text-gray-800 px-2.5 py-1 rounded-full border border-white">
-                  {post.category}
-                </span>
-              </div>
-              <div className="p-5">
-                <h3 className="text-lg font-semibold text-[var(--secondary-black)] group-hover:underline">
-                  {post.title}
-                </h3>
-                <p className="mt-2 text-gray-600 text-sm line-clamp-3">
-                  {post.description}
+          {filteredPosts.length === 0 ? (
+            <div className="col-span-full">
+              <div className="bg-white border border-dashed border-gray-300 rounded-2xl p-10 text-center">
+                <p className="text-gray-900 font-medium">No posts yet</p>
+                <p className="mt-1 text-gray-500 text-sm">
+                  Check back soon for new articles from the team.
                 </p>
-                <div className="mt-4 text-sm text-gray-500">{post.date}</div>
               </div>
-            </Link>
-          ))}
+            </div>
+          ) : (
+            filteredPosts.map((post) => (
+              <Link
+                key={post._id}
+                href={`/blog/${post.slug}`}
+                className="group bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-md transition-shadow"
+              >
+                <div className="relative h-44">
+                  {post.mainImage ? (
+                    <Image
+                      src={urlForImage(post.mainImage)
+                        .width(800)
+                        .height(500)
+                        .fit("crop")
+                        .url()}
+                      alt={post.imageAlt || post.title}
+                      fill
+                      sizes="(max-width: 768px) 100vw, 33vw"
+                      className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gray-100" />
+                  )}
+                  <span className="absolute left-3 top-3 text-[11px] font-semibold uppercase tracking-wider bg-white/90 text-gray-800 px-2.5 py-1 rounded-full border border-white">
+                    {post.category || "Article"}
+                  </span>
+                </div>
+                <div className="p-5">
+                  <h3 className="text-lg font-semibold text-[var(--secondary-black)] group-hover:underline">
+                    {post.title}
+                  </h3>
+                  {post.excerpt ? (
+                    <p className="mt-2 text-gray-600 text-sm line-clamp-3">
+                      {post.excerpt}
+                    </p>
+                  ) : null}
+                  <div className="mt-4 text-sm text-gray-500">
+                    {formatDate(post.publishedAt)}
+                  </div>
+                </div>
+              </Link>
+            ))
+          )}
         </div>
 
         {/* Pagination placeholder */}

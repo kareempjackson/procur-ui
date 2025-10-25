@@ -23,10 +23,12 @@ import {
   selectNotifications,
 } from "@/store/slices/notificationsSlice";
 import { useNotificationsSocket } from "@/hooks/useNotificationsSocket";
+import { useI18n } from "@/lib/i18n/I18nProvider";
 
 const SellerTopNavigation: React.FC = () => {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [showCountryModal, setShowCountryModal] = useState(false);
+  const { t, locale, setLocale } = useI18n();
   const [selectedLanguage, setSelectedLanguage] = useState("EN");
   const [selectedCountry, setSelectedCountry] = useState({
     code: "GD",
@@ -48,7 +50,15 @@ const SellerTopNavigation: React.FC = () => {
     { code: "CO", flag: "🇨🇴", name: "Colombia" },
   ];
 
-  const languages = ["EN", "ES", "FR", "DE", "PT", "ZH"];
+  const languages = ["EN", "ES", "FR"];
+
+  useEffect(() => {
+    const label = locale === "es" ? "ES" : locale === "fr" ? "FR" : "EN";
+    setSelectedLanguage(label);
+  }, [locale]);
+
+  const toLocale = (label: string) =>
+    label === "ES" ? "es" : label === "FR" ? "fr" : "en";
 
   // Notifications state
   const dispatch = useAppDispatch();
@@ -94,8 +104,8 @@ const SellerTopNavigation: React.FC = () => {
   const safeItems = Array.isArray(items)
     ? items
     : Array.isArray((items as unknown as { data?: unknown })?.data)
-    ? ((items as unknown as { data: unknown[] }).data as any[])
-    : [];
+      ? ((items as unknown as { data: unknown[] }).data as any[])
+      : [];
   const unreadCount = safeItems.filter((n: any) => !n.read_at).length;
 
   return (
@@ -327,7 +337,7 @@ const SellerTopNavigation: React.FC = () => {
                     : "bg-black text-white hover:bg-gray-800"
                 }`}
               >
-                Add Product
+                {t("seller.addProduct")}
               </Link>
 
               {/* User Profile Dropdown */}
@@ -380,7 +390,7 @@ const SellerTopNavigation: React.FC = () => {
                         {/* Language Selector */}
                         <div className="px-4 py-2">
                           <label className="text-xs text-gray-500 uppercase tracking-wide mb-1 block">
-                            Language
+                            {t("settings.language")}
                           </label>
                           <div className="flex flex-wrap gap-1.5">
                             {languages.map((lang) => (
@@ -388,6 +398,7 @@ const SellerTopNavigation: React.FC = () => {
                                 key={lang}
                                 onClick={() => {
                                   setSelectedLanguage(lang);
+                                  setLocale(toLocale(lang));
                                 }}
                                 className={`px-3 py-1.5 text-sm rounded-md transition-all duration-200 ${
                                   selectedLanguage === lang
@@ -404,7 +415,7 @@ const SellerTopNavigation: React.FC = () => {
                         {/* Country Selector */}
                         <div className="px-4 py-2">
                           <label className="text-xs text-gray-500 uppercase tracking-wide mb-1 block">
-                            Country
+                            {t("settings.country")}
                           </label>
                           <button
                             onClick={() => {
@@ -431,7 +442,7 @@ const SellerTopNavigation: React.FC = () => {
                             router.replace("/login");
                           }}
                         >
-                          Sign Out
+                          {t("auth.signOut")}
                         </button>
                       </div>
                     </div>

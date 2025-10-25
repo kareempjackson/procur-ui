@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
   CalendarIcon,
@@ -10,16 +10,88 @@ import {
   ArrowTrendingUpIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  ArrowPathIcon,
 } from "@heroicons/react/24/outline";
+import { useAppDispatch, useAppSelector } from "@/store";
+import {
+  fetchProductionStats,
+  fetchVendorProduction,
+  fetchHarvestSchedule,
+  fetchProductionSummary,
+  selectProductionStats,
+  selectStatsStatus,
+  selectVendorProduction,
+  selectVendorProductionStatus,
+  selectHarvestSchedule,
+  selectHarvestScheduleStatus,
+  selectProductionSummary,
+  selectSummaryStatus,
+  selectSelectedPeriod,
+  selectSelectedCrop,
+  setSelectedPeriod,
+  setSelectedCrop,
+} from "@/store/slices/governmentProductionSlice";
 
 type ViewMode = "calendar" | "analytics";
 
 export default function ProductionPage() {
+  const dispatch = useAppDispatch();
   const [viewMode, setViewMode] = useState<ViewMode>("calendar");
   const [selectedMonth, setSelectedMonth] = useState(new Date());
-  const [selectedCrop, setSelectedCrop] = useState<string>("all");
 
-  // Mock production data
+  // Redux state
+  const stats = useAppSelector(selectProductionStats);
+  const statsStatus = useAppSelector(selectStatsStatus);
+  const vendorProduction = useAppSelector(selectVendorProduction);
+  const vendorProductionStatus = useAppSelector(selectVendorProductionStatus);
+  const harvestSchedule = useAppSelector(selectHarvestSchedule);
+  const harvestScheduleStatus = useAppSelector(selectHarvestScheduleStatus);
+  const summary = useAppSelector(selectProductionSummary);
+  const summaryStatus = useAppSelector(selectSummaryStatus);
+  const selectedPeriod = useAppSelector(selectSelectedPeriod);
+  const selectedCrop = useAppSelector(selectSelectedCrop) || "all";
+
+  // Fetch data on mount
+  useEffect(() => {
+    if (statsStatus === "idle") {
+      dispatch(fetchProductionStats({ period: selectedPeriod }));
+    }
+    if (vendorProductionStatus === "idle") {
+      dispatch(fetchVendorProduction({ page: 1, limit: 50 }));
+    }
+    if (harvestScheduleStatus === "idle") {
+      dispatch(fetchHarvestSchedule());
+    }
+    if (summaryStatus === "idle") {
+      dispatch(fetchProductionSummary({ period: selectedPeriod }));
+    }
+  }, [
+    statsStatus,
+    vendorProductionStatus,
+    harvestScheduleStatus,
+    summaryStatus,
+    selectedPeriod,
+    dispatch,
+  ]);
+
+  // Refresh handler
+  const handleRefresh = () => {
+    dispatch(fetchProductionStats({ period: selectedPeriod }));
+    dispatch(fetchVendorProduction({ page: 1, limit: 50 }));
+    dispatch(fetchHarvestSchedule());
+    dispatch(fetchProductionSummary({ period: selectedPeriod }));
+  };
+
+  // Handle period change
+  const handlePeriodChange = (
+    period: "week" | "month" | "quarter" | "year"
+  ) => {
+    dispatch(setSelectedPeriod(period));
+    dispatch(fetchProductionStats({ period }));
+    dispatch(fetchProductionSummary({ period }));
+  };
+
+  // Mock production data (fallback)
   const productionCycles = [
     {
       id: "1",
@@ -232,30 +304,52 @@ export default function ProductionPage() {
             </p>
           </div>
 
-          {/* View Mode Toggle */}
-          <div className="flex rounded-full border border-[color:var(--secondary-soft-highlight)] bg-white p-1 shadow-sm">
+          <div className="flex items-center gap-4">
+            {/* Refresh Button */}
             <button
-              onClick={() => setViewMode("calendar")}
-              className={`flex items-center gap-2 px-5 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                viewMode === "calendar"
-                  ? "bg-[var(--secondary-highlight2)] text-white shadow-md"
-                  : "text-[color:var(--secondary-muted-edge)] hover:text-[color:var(--secondary-black)] hover:bg-gray-50"
-              }`}
+              onClick={handleRefresh}
+              disabled={
+                statsStatus === "loading" ||
+                vendorProductionStatus === "loading"
+              }
+              className="p-2 rounded-full hover:bg-gray-100 transition-colors disabled:opacity-50"
+              title="Refresh data"
             >
-              <CalendarIcon className="h-4 w-4" />
-              Calendar
+              <ArrowPathIcon
+                className={`h-5 w-5 text-gray-600 ${
+                  statsStatus === "loading" ||
+                  vendorProductionStatus === "loading"
+                    ? "animate-spin"
+                    : ""
+                }`}
+              />
             </button>
-            <button
-              onClick={() => setViewMode("analytics")}
-              className={`flex items-center gap-2 px-5 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                viewMode === "analytics"
-                  ? "bg-[var(--secondary-highlight2)] text-white shadow-md"
-                  : "text-[color:var(--secondary-muted-edge)] hover:text-[color:var(--secondary-black)] hover:bg-gray-50"
-              }`}
-            >
-              <ChartBarIcon className="h-4 w-4" />
-              Analytics
-            </button>
+
+            {/* View Mode Toggle */}
+            <div className="flex rounded-full border border-[color:var(--secondary-soft-highlight)] bg-white p-1 shadow-sm">
+              <button
+                onClick={() => setViewMode("calendar")}
+                className={`flex items-center gap-2 px-5 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                  viewMode === "calendar"
+                    ? "bg-[var(--secondary-highlight2)] text-white shadow-md"
+                    : "text-[color:var(--secondary-muted-edge)] hover:text-[color:var(--secondary-black)] hover:bg-gray-50"
+                }`}
+              >
+                <CalendarIcon className="h-4 w-4" />
+                Calendar
+              </button>
+              <button
+                onClick={() => setViewMode("analytics")}
+                className={`flex items-center gap-2 px-5 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                  viewMode === "analytics"
+                    ? "bg-[var(--secondary-highlight2)] text-white shadow-md"
+                    : "text-[color:var(--secondary-muted-edge)] hover:text-[color:var(--secondary-black)] hover:bg-gray-50"
+                }`}
+              >
+                <ChartBarIcon className="h-4 w-4" />
+                Analytics
+              </button>
+            </div>
           </div>
         </div>
 
@@ -292,7 +386,7 @@ export default function ProductionPage() {
                 </label>
                 <select
                   value={selectedCrop}
-                  onChange={(e) => setSelectedCrop(e.target.value)}
+                  onChange={(e) => dispatch(setSelectedCrop(e.target.value))}
                   className="px-5 py-2 rounded-full border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm transition-all duration-200 shadow-sm focus:shadow-md bg-white"
                 >
                   <option value="all">All Crops</option>

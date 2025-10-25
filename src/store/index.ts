@@ -18,6 +18,17 @@ import profileReducer from "./slices/profileSlice";
 import sellerProductRequestsReducer from "./slices/sellerProductRequestsSlice";
 import sellerAnalyticsReducer from "./slices/sellerAnalyticsSlice";
 
+// Government slices
+import governmentVendorsReducer from "./slices/governmentVendorsSlice";
+import governmentProgramsReducer from "./slices/governmentProgramsSlice";
+import governmentReportsReducer from "./slices/governmentReportsSlice";
+import governmentTablesReducer from "./slices/governmentTablesSlice";
+import governmentChartsReducer from "./slices/governmentChartsSlice";
+import governmentPermissionsReducer from "./slices/governmentPermissionsSlice";
+import governmentMarketReducer from "./slices/governmentMarketSlice";
+import governmentComplianceReducer from "./slices/governmentComplianceSlice";
+import governmentProductionReducer from "./slices/governmentProductionSlice";
+
 export const store = configureStore({
   reducer: {
     auth: authReducer,
@@ -37,6 +48,16 @@ export const store = configureStore({
     profile: profileReducer,
     sellerProductRequests: sellerProductRequestsReducer,
     sellerAnalytics: sellerAnalyticsReducer,
+    // Government reducers
+    governmentVendors: governmentVendorsReducer,
+    governmentPrograms: governmentProgramsReducer,
+    governmentReports: governmentReportsReducer,
+    governmentTables: governmentTablesReducer,
+    governmentCharts: governmentChartsReducer,
+    governmentPermissions: governmentPermissionsReducer,
+    governmentMarket: governmentMarketReducer,
+    governmentCompliance: governmentComplianceReducer,
+    governmentProduction: governmentProductionReducer,
   },
   devTools: process.env.NODE_ENV !== "production",
 });

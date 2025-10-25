@@ -250,7 +250,7 @@ const LoginPage: React.FC = () => {
             style={{ minHeight: "90vh" }}
           >
             <Image
-              src="/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg"
+              src="/images/backgrounds/taylor-siebert-XuGmpWwt3xc-unsplash.jpg"
               alt="Fresh produce market"
               fill
               className="object-cover"

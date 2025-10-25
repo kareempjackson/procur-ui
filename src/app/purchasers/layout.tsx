@@ -8,7 +8,7 @@ export default function BuyersLayout({
 }) {
   return (
     <>
-      <AuthGuard allowAccountTypes={["buyer"]}>{children}</AuthGuard>
+      <>{children}</>
       <Footer />
     </>
   );

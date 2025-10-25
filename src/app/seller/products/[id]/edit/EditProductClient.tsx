@@ -14,6 +14,10 @@ import {
 } from "@/store/slices/sellerProductsSlice";
 import ProcurLoader from "@/components/ProcurLoader";
 
+// Fallback shim in case any stale code still references this symbol
+const createAuthenticatedSupabaseClient = (_accessToken: string) =>
+  getSupabaseClient();
+
 // Enums matching the API
 enum ProductStatus {
   DRAFT = "draft",
@@ -70,6 +74,20 @@ interface UpdateProductData {
   status?: ProductStatus;
   is_featured?: boolean;
   is_organic?: boolean;
+}
+
+// Remove empty-string and empty-array fields to satisfy backend validators
+function buildCleanUpdatePayload(
+  update: UpdateProductData
+): Partial<UpdateProductData> {
+  const cleaned: Partial<UpdateProductData> = {};
+  Object.entries(update).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+    if (typeof value === "string" && value.trim() === "") return;
+    if (Array.isArray(value) && value.length === 0) return;
+    (cleaned as any)[key] = value;
+  });
+  return cleaned;
 }
 
 function classNames(...classes: (string | false | null | undefined)[]) {
@@ -293,8 +311,9 @@ export default function EditProductClient({
 
     try {
       // Update product using Redux thunk
+      const cleanedUpdate = buildCleanUpdatePayload(formData);
       const result = await dispatch(
-        updateSellerProduct({ id: productId, update: formData })
+        updateSellerProduct({ id: productId, update: cleanedUpdate })
       );
 
       // Check if update was successful

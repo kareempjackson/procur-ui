@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
   ChartBarIcon,
@@ -9,15 +9,71 @@ import {
   ScaleIcon,
   BanknotesIcon,
   ShoppingBagIcon,
+  ArrowPathIcon,
 } from "@heroicons/react/24/outline";
+import { useAppDispatch, useAppSelector } from "@/store";
+import {
+  fetchSupplyDemand,
+  fetchTransactions,
+  fetchMarketStats,
+  selectSupplyDemand,
+  selectSupplyDemandStatus,
+  selectTransactions,
+  selectTransactionsStatus,
+  selectMarketStats,
+  selectMarketStatsStatus,
+  selectSelectedPeriod,
+  setSelectedPeriod as setReduxSelectedPeriod,
+} from "@/store/slices/governmentMarketSlice";
 
 export default function MarketPage() {
+  const dispatch = useAppDispatch();
+
+  // Redux state
+  const supplyDemandData = useAppSelector(selectSupplyDemand);
+  const supplyDemandStatus = useAppSelector(selectSupplyDemandStatus);
+  const transactions = useAppSelector(selectTransactions);
+  const transactionsStatus = useAppSelector(selectTransactionsStatus);
+  const marketStats = useAppSelector(selectMarketStats);
+  const marketStatsStatus = useAppSelector(selectMarketStatsStatus);
+  const reduxSelectedPeriod = useAppSelector(selectSelectedPeriod);
+
   const [selectedPeriod, setSelectedPeriod] = useState<
     "week" | "month" | "quarter" | "year"
-  >("month");
+  >(reduxSelectedPeriod);
 
-  // Mock market data
-  const supplyDemandData = [
+  // Fetch data on mount and when period changes
+  useEffect(() => {
+    if (
+      supplyDemandStatus === "idle" ||
+      selectedPeriod !== reduxSelectedPeriod
+    ) {
+      dispatch(setReduxSelectedPeriod(selectedPeriod));
+      dispatch(fetchSupplyDemand({ period: selectedPeriod }));
+    }
+  }, [supplyDemandStatus, selectedPeriod, reduxSelectedPeriod, dispatch]);
+
+  useEffect(() => {
+    if (transactionsStatus === "idle") {
+      dispatch(fetchTransactions({ page: 1, limit: 10 }));
+    }
+  }, [transactionsStatus, dispatch]);
+
+  useEffect(() => {
+    if (marketStatsStatus === "idle") {
+      dispatch(fetchMarketStats({ period: selectedPeriod }));
+    }
+  }, [marketStatsStatus, selectedPeriod, dispatch]);
+
+  // Refresh handler
+  const handleRefresh = () => {
+    dispatch(fetchSupplyDemand({ period: selectedPeriod }));
+    dispatch(fetchTransactions({ page: 1, limit: 10 }));
+    dispatch(fetchMarketStats({ period: selectedPeriod }));
+  };
+
+  // Mock market data (fallback)
+  const mockSupplyDemandData = [
     {
       crop: "Tomatoes",
       supply: 45000,
@@ -65,7 +121,7 @@ export default function MarketPage() {
     },
   ];
 
-  const transactions = [
+  const mockTransactions = [
     {
       id: "1",
       date: "2024-10-03",
@@ -76,7 +132,7 @@ export default function MarketPage() {
       quantity: "1,000 kg",
       pricePerUnit: "$2.50/kg",
       totalValue: "$2,500",
-      status: "completed",
+      status: "completed" as const,
     },
     {
       id: "2",
@@ -116,15 +172,16 @@ export default function MarketPage() {
     },
   ];
 
-  const marketStats = {
+  const mockMarketStats = {
     totalTransactions: 234,
-    totalValue: "$548,900",
-    avgTransactionSize: "$2,345",
+    totalValue: 548900,
+    averageTransactionValue: 2345,
     topCrop: "Tomatoes",
-    marketGrowth: "+12.5%",
+    supplyDeficit: -10000,
+    supplyDeficitCount: 2,
   };
 
-  const priceHistory = [
+  const mockPriceHistory = [
     {
       crop: "Tomatoes",
       lastMonth: "$2.30/kg",
@@ -151,6 +208,19 @@ export default function MarketPage() {
     },
   ];
 
+  // Use API data with fallback to mock data
+  const displaySupplyDemand =
+    supplyDemandData.length > 0 ? supplyDemandData : mockSupplyDemandData;
+  const displayTransactions =
+    transactions.length > 0 ? transactions : mockTransactions;
+  const displayMarketStats = marketStats || mockMarketStats;
+
+  // Loading states
+  const isLoading =
+    supplyDemandStatus === "loading" ||
+    transactionsStatus === "loading" ||
+    marketStatsStatus === "loading";
+
   return (
     <div className="min-h-screen bg-[var(--primary-background)]">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16">
@@ -165,21 +235,37 @@ export default function MarketPage() {
             </p>
           </div>
 
-          {/* Period Selector */}
-          <select
-            value={selectedPeriod}
-            onChange={(e) =>
-              setSelectedPeriod(
-                e.target.value as "week" | "month" | "quarter" | "year"
-              )
-            }
-            className="px-4 py-2 rounded-lg border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
-          >
-            <option value="week">This Week</option>
-            <option value="month">This Month</option>
-            <option value="quarter">This Quarter</option>
-            <option value="year">This Year</option>
-          </select>
+          <div className="flex items-center gap-3">
+            {/* Refresh Button */}
+            <button
+              onClick={handleRefresh}
+              disabled={isLoading}
+              className="p-2 rounded-lg border border-[color:var(--secondary-soft-highlight)] hover:bg-gray-50 transition-colors disabled:opacity-50"
+              title="Refresh data"
+            >
+              <ArrowPathIcon
+                className={`h-5 w-5 text-[color:var(--secondary-muted-edge)] ${
+                  isLoading ? "animate-spin" : ""
+                }`}
+              />
+            </button>
+
+            {/* Period Selector */}
+            <select
+              value={selectedPeriod}
+              onChange={(e) =>
+                setSelectedPeriod(
+                  e.target.value as "week" | "month" | "quarter" | "year"
+                )
+              }
+              className="px-4 py-2 rounded-lg border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
+            >
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
+              <option value="quarter">This Quarter</option>
+              <option value="year">This Year</option>
+            </select>
+          </div>
         </div>
 
         {/* Market Stats */}
@@ -192,7 +278,7 @@ export default function MarketPage() {
               </div>
             </div>
             <div className="text-2xl font-semibold text-[color:var(--secondary-black)]">
-              {marketStats.totalTransactions}
+              {displayMarketStats.totalTransactions}
             </div>
           </div>
           <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
@@ -203,7 +289,7 @@ export default function MarketPage() {
               </div>
             </div>
             <div className="text-2xl font-semibold text-[color:var(--secondary-black)]">
-              {marketStats.totalValue}
+              ${((displayMarketStats.totalValue ?? 0) / 1000).toFixed(0)}K
             </div>
           </div>
           <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
@@ -214,7 +300,10 @@ export default function MarketPage() {
               </div>
             </div>
             <div className="text-2xl font-semibold text-[color:var(--secondary-black)]">
-              {marketStats.avgTransactionSize}
+              $
+              {(
+                displayMarketStats.averageTransactionValue ?? 0
+              ).toLocaleString()}
             </div>
           </div>
           <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
@@ -222,18 +311,28 @@ export default function MarketPage() {
               Top Crop
             </div>
             <div className="text-2xl font-semibold text-[color:var(--secondary-black)]">
-              {marketStats.topCrop}
+              {displayMarketStats.topCrop}
             </div>
           </div>
           <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
             <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)] mb-2">
-              Market Growth
+              Supply Deficit
             </div>
             <div className="flex items-center gap-2">
-              <div className="text-2xl font-semibold text-[color:var(--primary-base)]">
-                {marketStats.marketGrowth}
+              <div
+                className={`text-2xl font-semibold ${
+                  displayMarketStats.supplyDeficit < 0
+                    ? "text-red-600"
+                    : "text-green-600"
+                }`}
+              >
+                {displayMarketStats.supplyDeficitCount} crops
               </div>
-              <ArrowTrendingUpIcon className="h-5 w-5 text-[color:var(--primary-base)]" />
+              {displayMarketStats.supplyDeficit < 0 ? (
+                <ArrowTrendingDownIcon className="h-5 w-5 text-red-600" />
+              ) : (
+                <ArrowTrendingUpIcon className="h-5 w-5 text-green-600" />
+              )}
             </div>
           </div>
         </div>
@@ -263,7 +362,7 @@ export default function MarketPage() {
               </div>
 
               <div className="divide-y divide-[color:var(--secondary-soft-highlight)]/30">
-                {supplyDemandData.map((item) => (
+                {displaySupplyDemand.map((item) => (
                   <div key={item.crop} className="p-6">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
@@ -403,7 +502,7 @@ export default function MarketPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[color:var(--secondary-soft-highlight)]/30">
-                    {transactions.map((transaction) => (
+                    {displayTransactions.map((transaction) => (
                       <tr key={transaction.id} className="hover:bg-gray-50/50">
                         <td className="px-6 py-4 text-sm text-[color:var(--secondary-black)]">
                           {new Date(transaction.date).toLocaleDateString()}
@@ -460,7 +559,7 @@ export default function MarketPage() {
                 </p>
               </div>
               <div className="p-4 space-y-4">
-                {priceHistory.map((item) => {
+                {mockPriceHistory.map((item) => {
                   const isIncrease = item.change.startsWith("+");
                   return (
                     <div

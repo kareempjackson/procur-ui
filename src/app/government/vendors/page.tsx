@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
   MagnifyingGlassIcon,
@@ -9,104 +9,170 @@ import {
   CheckCircleIcon,
   ExclamationCircleIcon,
   PlusIcon,
+  ArrowPathIcon,
 } from "@heroicons/react/24/outline";
+import { useAppDispatch, useAppSelector } from "@/store";
+import {
+  fetchVendors,
+  selectVendors,
+  selectVendorsStatus,
+  selectVendorsError,
+  selectVendorStats,
+} from "@/store/slices/governmentVendorsSlice";
 
 export default function VendorsPage() {
+  const dispatch = useAppDispatch();
+
+  // Redux state
+  const vendors = useAppSelector(selectVendors);
+  const status = useAppSelector(selectVendorsStatus);
+  const error = useAppSelector(selectVendorsError);
+  const stats = useAppSelector(selectVendorStats);
+
+  // Local filter state
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterLocation, setFilterLocation] = useState<string>("all");
   const [filterCropType, setFilterCropType] = useState<string>("all");
 
-  // Mock vendor data - will be replaced with API data
-  const vendors = [
+  // Fetch vendors on mount
+  useEffect(() => {
+    if (status === "idle") {
+      dispatch(fetchVendors({ page: 1, limit: 100 }));
+    }
+  }, [status, dispatch]);
+
+  // Mock vendor data for fallback - matches API format (snake_case)
+  const mockVendors = [
     {
       id: "1",
       name: "Green Valley Farms",
-      contactPerson: "John Smith",
+      contact_person: "John Smith",
+      email: "john@greenvalley.gd",
+      phone: "+1-473-555-0101",
       location: "St. George's, Grenada",
-      gps: { lat: 12.0561, lng: -61.7516 },
-      totalAcreage: 250,
-      utilizedAcreage: 180,
+      gps_coordinates: { lat: 12.0561, lng: -61.7516 },
+      total_acreage: 250,
+      utilized_acreage: 180,
+      available_acreage: 70,
       crops: ["Tomatoes", "Lettuce", "Peppers"],
-      complianceStatus: "compliant",
-      programsEnrolled: 3,
-      lastUpdate: "2024-10-01",
+      compliance_status: "compliant" as const,
+      programs_enrolled: 3,
+      last_update: "2024-10-01",
+      created_at: "2023-01-15",
+      updated_at: "2024-10-01",
     },
     {
       id: "2",
       name: "Sunrise Agricultural Co.",
-      contactPerson: "Mary Johnson",
+      contact_person: "Mary Johnson",
+      email: "mary@sunrise.gd",
+      phone: "+1-473-555-0102",
       location: "Grenville, Grenada",
-      gps: { lat: 12.1167, lng: -61.6167 },
-      totalAcreage: 420,
-      utilizedAcreage: 350,
+      gps_coordinates: { lat: 12.1167, lng: -61.6167 },
+      total_acreage: 420,
+      utilized_acreage: 350,
+      available_acreage: 70,
       crops: ["Coffee", "Plantains", "Yams"],
-      complianceStatus: "compliant",
-      programsEnrolled: 2,
-      lastUpdate: "2024-09-28",
+      compliance_status: "compliant" as const,
+      programs_enrolled: 2,
+      last_update: "2024-09-28",
+      created_at: "2022-11-20",
+      updated_at: "2024-09-28",
     },
     {
       id: "3",
       name: "Highland Produce Ltd.",
-      contactPerson: "David Brown",
+      contact_person: "David Brown",
+      email: "david@highland.gd",
+      phone: "+1-473-555-0103",
       location: "Gouyave, Grenada",
-      gps: { lat: 12.1667, lng: -61.7333 },
-      totalAcreage: 180,
-      utilizedAcreage: 180,
+      gps_coordinates: { lat: 12.1667, lng: -61.7333 },
+      total_acreage: 180,
+      utilized_acreage: 180,
+      available_acreage: 0,
       crops: ["Carrots", "Cabbage", "Scallions"],
-      complianceStatus: "warning",
-      programsEnrolled: 1,
-      lastUpdate: "2024-10-03",
+      compliance_status: "warning" as const,
+      programs_enrolled: 1,
+      last_update: "2024-10-03",
+      created_at: "2023-03-10",
+      updated_at: "2024-10-03",
     },
     {
       id: "4",
       name: "Coastal Farms Group",
-      contactPerson: "Sarah Williams",
+      contact_person: "Sarah Williams",
+      email: "sarah@coastal.gd",
+      phone: "+1-473-555-0104",
       location: "Sauteurs, Grenada",
-      gps: { lat: 12.2167, lng: -61.6333 },
-      totalAcreage: 520,
-      utilizedAcreage: 380,
+      gps_coordinates: { lat: 12.2167, lng: -61.6333 },
+      total_acreage: 520,
+      utilized_acreage: 380,
+      available_acreage: 140,
       crops: ["Sweet Potato", "Pumpkin", "Watermelon"],
-      complianceStatus: "compliant",
-      programsEnrolled: 4,
-      lastUpdate: "2024-10-02",
+      compliance_status: "compliant" as const,
+      programs_enrolled: 4,
+      last_update: "2024-10-02",
+      created_at: "2022-08-05",
+      updated_at: "2024-10-02",
     },
     {
       id: "5",
       name: "Mountain Fresh Produce",
-      contactPerson: "Robert Davis",
+      contact_person: "Robert Davis",
+      email: "robert@mountainfresh.gd",
+      phone: "+1-473-555-0105",
       location: "Victoria, Grenada",
-      gps: { lat: 12.1833, lng: -61.7 },
-      totalAcreage: 95,
-      utilizedAcreage: 70,
+      gps_coordinates: { lat: 12.1833, lng: -61.7 },
+      total_acreage: 95,
+      utilized_acreage: 70,
+      available_acreage: 25,
       crops: ["Bananas", "Breadfruit", "Nutmeg"],
-      complianceStatus: "alert",
-      programsEnrolled: 1,
-      lastUpdate: "2024-09-25",
+      compliance_status: "alert" as const,
+      programs_enrolled: 1,
+      last_update: "2024-09-25",
+      created_at: "2023-06-18",
+      updated_at: "2024-09-25",
     },
   ];
 
-  const filteredVendors = vendors.filter((vendor) => {
-    const matchesSearch =
-      searchQuery === "" ||
-      vendor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      vendor.contactPerson.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      vendor.location.toLowerCase().includes(searchQuery.toLowerCase());
+  // Use API data if available, otherwise use mock data
+  const displayVendors = vendors.length > 0 ? vendors : mockVendors;
 
-    const matchesStatus =
-      filterStatus === "all" || vendor.complianceStatus === filterStatus;
+  // Filter vendors based on search and filters
+  const filteredVendors = useMemo(() => {
+    return displayVendors.filter((vendor) => {
+      const matchesSearch =
+        searchQuery === "" ||
+        vendor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        vendor.contact_person
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase()) ||
+        vendor.location.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesLocation =
-      filterLocation === "all" || vendor.location.includes(filterLocation);
+      const matchesStatus =
+        filterStatus === "all" || vendor.compliance_status === filterStatus;
 
-    const matchesCropType =
-      filterCropType === "all" ||
-      vendor.crops.some((crop) =>
-        crop.toLowerCase().includes(filterCropType.toLowerCase())
+      const matchesLocation =
+        filterLocation === "all" || vendor.location.includes(filterLocation);
+
+      const matchesCropType =
+        filterCropType === "all" ||
+        vendor.crops.some((crop) =>
+          crop.toLowerCase().includes(filterCropType.toLowerCase())
+        );
+
+      return (
+        matchesSearch && matchesStatus && matchesLocation && matchesCropType
       );
-
-    return matchesSearch && matchesStatus && matchesLocation && matchesCropType;
-  });
+    });
+  }, [
+    displayVendors,
+    searchQuery,
+    filterStatus,
+    filterLocation,
+    filterCropType,
+  ]);
 
   const getStatusConfig = (status: string) => {
     switch (status) {
@@ -138,13 +204,24 @@ export default function VendorsPage() {
     }
   };
 
-  const stats = {
-    total: vendors.length,
-    compliant: vendors.filter((v) => v.complianceStatus === "compliant").length,
-    warning: vendors.filter((v) => v.complianceStatus === "warning").length,
-    alert: vendors.filter((v) => v.complianceStatus === "alert").length,
-    totalAcreage: vendors.reduce((sum, v) => sum + v.totalAcreage, 0),
-    utilizedAcreage: vendors.reduce((sum, v) => sum + v.utilizedAcreage, 0),
+  // Use Redux stats if available, otherwise calculate from display data
+  const displayStats = stats || {
+    total: displayVendors.length,
+    compliant: displayVendors.filter((v) => v.compliance_status === "compliant")
+      .length,
+    warning: displayVendors.filter((v) => v.compliance_status === "warning")
+      .length,
+    alert: displayVendors.filter((v) => v.compliance_status === "alert").length,
+    totalAcreage: displayVendors.reduce((sum, v) => sum + v.total_acreage, 0),
+    utilizedAcreage: displayVendors.reduce(
+      (sum, v) => sum + v.utilized_acreage,
+      0
+    ),
+  };
+
+  // Refresh handler
+  const handleRefresh = () => {
+    dispatch(fetchVendors({ page: 1, limit: 100 }));
   };
 
   return (
@@ -158,16 +235,41 @@ export default function VendorsPage() {
             </h1>
             <p className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
               Monitor and manage registered agricultural vendors
+              {status === "loading" && " • Loading..."}
+              {error && " • Error loading data"}
             </p>
           </div>
-          <Link
-            href="/government/vendors/new"
-            className="inline-flex items-center gap-2 rounded-full bg-[var(--secondary-highlight2)] text-white px-5 py-2.5 text-sm font-medium hover:bg-[var(--primary-accent3)] transition-all duration-200 shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:ring-offset-2"
-          >
-            <PlusIcon className="h-5 w-5" />
-            Register New Vendor
-          </Link>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleRefresh}
+              disabled={status === "loading"}
+              className="inline-flex items-center gap-2 rounded-full bg-white border border-[color:var(--secondary-soft-highlight)] text-[color:var(--secondary-black)] px-4 py-2.5 text-sm font-medium hover:bg-gray-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ArrowPathIcon
+                className={`h-5 w-5 ${
+                  status === "loading" ? "animate-spin" : ""
+                }`}
+              />
+              Refresh
+            </button>
+            <Link
+              href="/government/vendors/new"
+              className="inline-flex items-center gap-2 rounded-full bg-[var(--secondary-highlight2)] text-white px-5 py-2.5 text-sm font-medium hover:bg-[var(--primary-accent3)] transition-all duration-200 shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:ring-offset-2"
+            >
+              <PlusIcon className="h-5 w-5" />
+              Register New Vendor
+            </Link>
+          </div>
         </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 mb-6">
+            <p className="text-sm text-red-800">
+              Error loading vendors: {error}
+            </p>
+          </div>
+        )}
 
         {/* Stats Overview */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -176,7 +278,7 @@ export default function VendorsPage() {
               Total Vendors
             </div>
             <div className="mt-2 text-2xl font-semibold text-[color:var(--secondary-black)]">
-              {stats.total}
+              {status === "loading" ? "..." : displayStats.total}
             </div>
           </div>
           <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-5">
@@ -184,7 +286,7 @@ export default function VendorsPage() {
               Compliant
             </div>
             <div className="mt-2 text-2xl font-semibold text-[color:var(--primary-base)]">
-              {stats.compliant}
+              {status === "loading" ? "..." : displayStats.compliant}
             </div>
           </div>
           <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-5">
@@ -192,7 +294,9 @@ export default function VendorsPage() {
               Total Acreage
             </div>
             <div className="mt-2 text-2xl font-semibold text-[color:var(--secondary-black)]">
-              {stats.totalAcreage.toLocaleString()}
+              {status === "loading"
+                ? "..."
+                : displayStats.totalAcreage.toLocaleString()}
             </div>
           </div>
           <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-5">
@@ -200,7 +304,9 @@ export default function VendorsPage() {
               Utilized Acreage
             </div>
             <div className="mt-2 text-2xl font-semibold text-[color:var(--secondary-black)]">
-              {stats.utilizedAcreage.toLocaleString()}
+              {status === "loading"
+                ? "..."
+                : displayStats.utilizedAcreage.toLocaleString()}
             </div>
           </div>
         </div>
@@ -284,8 +390,16 @@ export default function VendorsPage() {
               </thead>
               <tbody className="divide-y divide-[color:var(--secondary-soft-highlight)]/30">
                 {filteredVendors.map((vendor) => {
-                  const statusConfig = getStatusConfig(vendor.complianceStatus);
+                  const statusConfig = getStatusConfig(
+                    vendor.compliance_status
+                  );
                   const StatusIcon = statusConfig.icon;
+                  const utilizedAcreage = vendor.utilized_acreage;
+                  const totalAcreage = vendor.total_acreage;
+                  const utilizationPercent =
+                    totalAcreage > 0
+                      ? Math.round((utilizedAcreage / totalAcreage) * 100)
+                      : 0;
 
                   return (
                     <tr
@@ -301,7 +415,7 @@ export default function VendorsPage() {
                             {vendor.name}
                           </div>
                           <div className="text-xs text-[color:var(--secondary-muted-edge)] mt-0.5">
-                            {vendor.contactPerson}
+                            {vendor.contact_person}
                           </div>
                         </Link>
                       </td>
@@ -313,26 +427,23 @@ export default function VendorsPage() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm text-[color:var(--secondary-black)]">
-                          {vendor.utilizedAcreage} / {vendor.totalAcreage}
+                          {utilizedAcreage} / {totalAcreage}
                         </div>
                         <div className="text-xs text-[color:var(--secondary-muted-edge)]">
-                          {Math.round(
-                            (vendor.utilizedAcreage / vendor.totalAcreage) * 100
-                          )}
-                          % utilized
+                          {utilizationPercent}% utilized
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-wrap gap-1">
-                          {vendor.crops.slice(0, 2).map((crop) => (
+                          {vendor.crops?.slice(0, 2).map((crop, idx) => (
                             <span
-                              key={crop}
+                              key={`${crop}-${idx}`}
                               className="inline-flex items-center rounded-full bg-[var(--primary-accent1)]/15 text-[color:var(--primary-accent3)] px-2 py-0.5 text-xs"
                             >
                               {crop}
                             </span>
                           ))}
-                          {vendor.crops.length > 2 && (
+                          {vendor.crops && vendor.crops.length > 2 && (
                             <span className="inline-flex items-center text-xs text-[color:var(--secondary-muted-edge)]">
                               +{vendor.crops.length - 2}
                             </span>
@@ -341,7 +452,7 @@ export default function VendorsPage() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm text-[color:var(--secondary-black)]">
-                          {vendor.programsEnrolled} active
+                          {vendor.programs_enrolled} active
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -353,7 +464,7 @@ export default function VendorsPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-[color:var(--secondary-muted-edge)]">
-                        {new Date(vendor.lastUpdate).toLocaleDateString()}
+                        {new Date(vendor.last_update).toLocaleDateString()}
                       </td>
                     </tr>
                   );

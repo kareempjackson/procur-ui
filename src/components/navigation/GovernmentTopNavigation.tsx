@@ -15,7 +15,13 @@ import {
 } from "@/store/slices/notificationsSlice";
 import { useNotificationsSocket } from "@/hooks/useNotificationsSocket";
 
-const GovernmentTopNavigation: React.FC = () => {
+interface GovernmentTopNavigationProps {
+  onMobileMenuToggle?: () => void;
+}
+
+const GovernmentTopNavigation: React.FC<GovernmentTopNavigationProps> = ({
+  onMobileMenuToggle,
+}) => {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navRef = useRef<HTMLDivElement>(null);
@@ -74,9 +80,9 @@ const GovernmentTopNavigation: React.FC = () => {
     <>
       <nav className={`${navBgClass} sticky top-0 z-40`} ref={navRef}>
         <div className="max-w-7xl mx-auto px-6">
-          <div className="flex items-center h-20">
+          <div className="flex items-center justify-between h-20">
             {/* Logo - Left Section */}
-            <div className="flex-1 flex items-center">
+            <div className="flex items-center">
               <Link
                 href="/government"
                 className="flex items-center relative group"
@@ -100,131 +106,22 @@ const GovernmentTopNavigation: React.FC = () => {
               </Link>
             </div>
 
-            {/* Main Navigation - Center Section */}
-            <div className="hidden lg:flex items-center justify-center space-x-6 flex-1 ml-20">
-              {/* Overview Link */}
-              <Link
-                href="/government"
-                className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
-                  pathname === "/government"
-                    ? "text-[var(--secondary-highlight2)] border-[var(--secondary-highlight2)]"
-                    : "text-gray-800 hover:text-black border-transparent"
-                }`}
-              >
-                <span className="relative">Overview</span>
-              </Link>
-
-              {/* Vendors Link */}
-              <Link
-                href="/government/vendors"
-                className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
-                  pathname?.startsWith("/government/vendors")
-                    ? "text-[var(--secondary-highlight2)] border-[var(--secondary-highlight2)]"
-                    : "text-gray-800 hover:text-black border-transparent"
-                }`}
-              >
-                <span className="relative">Vendors</span>
-              </Link>
-
-              {/* Production Link */}
-              <Link
-                href="/government/production"
-                className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
-                  pathname?.startsWith("/government/production")
-                    ? "text-[var(--secondary-highlight2)] border-[var(--secondary-highlight2)]"
-                    : "text-gray-800 hover:text-black border-transparent"
-                }`}
-              >
-                <span className="relative">Production</span>
-              </Link>
-
-              {/* Market Link */}
-              <Link
-                href="/government/market"
-                className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
-                  pathname?.startsWith("/government/market")
-                    ? "text-[var(--secondary-highlight2)] border-[var(--secondary-highlight2)]"
-                    : "text-gray-800 hover:text-black border-transparent"
-                }`}
-              >
-                <span className="relative">Market</span>
-              </Link>
-
-              {/* Land Link */}
-              <Link
-                href="/government/land"
-                className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
-                  pathname?.startsWith("/government/land")
-                    ? "text-[var(--secondary-highlight2)] border-[var(--secondary-highlight2)]"
-                    : "text-gray-800 hover:text-black border-transparent"
-                }`}
-              >
-                <span className="relative">Land</span>
-              </Link>
-
-              {/* Products Link */}
-              <Link
-                href="/government/products"
-                className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
-                  pathname?.startsWith("/government/products")
-                    ? "text-[var(--secondary-highlight2)] border-[var(--secondary-highlight2)]"
-                    : "text-gray-800 hover:text-black border-transparent"
-                }`}
-              >
-                <span className="relative">Products</span>
-              </Link>
-
-              {/* Reporting Link */}
-              <Link
-                href="/government/reporting"
-                className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
-                  pathname?.startsWith("/government/reporting")
-                    ? "text-[var(--secondary-highlight2)] border-[var(--secondary-highlight2)]"
-                    : "text-gray-800 hover:text-black border-transparent"
-                }`}
-              >
-                <span className="relative">Reporting</span>
-              </Link>
-
-              {/* Compliance Link */}
-              <Link
-                href="/government/compliance"
-                className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
-                  pathname?.startsWith("/government/compliance")
-                    ? "text-[var(--secondary-highlight2)] border-[var(--secondary-highlight2)]"
-                    : "text-gray-800 hover:text-black border-transparent"
-                }`}
-              >
-                <span className="relative">Compliance</span>
-              </Link>
-
-              {/* Data Link */}
-              <Link
-                href="/government/data"
-                className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
-                  pathname?.startsWith("/government/data")
-                    ? "text-[var(--secondary-highlight2)] border-[var(--secondary-highlight2)]"
-                    : "text-gray-800 hover:text-black border-transparent"
-                }`}
-              >
-                <span className="relative">Data</span>
-              </Link>
-            </div>
-
             {/* Mobile menu button */}
             <button
               className="lg:hidden ml-auto text-gray-800 hover:text-black transition-colors duration-200"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              onClick={() => {
+                if (onMobileMenuToggle) {
+                  onMobileMenuToggle();
+                } else {
+                  setMobileMenuOpen(!mobileMenuOpen);
+                }
+              }}
             >
-              {mobileMenuOpen ? (
-                <XMarkIcon className="h-6 w-6" />
-              ) : (
-                <Bars3Icon className="h-6 w-6" />
-              )}
+              <Bars3Icon className="h-6 w-6" />
             </button>
 
             {/* Right Side Actions - Right Section */}
-            <div className="hidden lg:flex items-center justify-end space-x-5 flex-1">
+            <div className="hidden lg:flex items-center justify-end space-x-5">
               {/* Notifications */}
               <div className="relative flex items-center">
                 <button
@@ -397,69 +294,22 @@ const GovernmentTopNavigation: React.FC = () => {
           </div>
         </div>
 
-        {/* Mobile Navigation Menu */}
+        {/* Mobile Navigation Menu - Side nav handles this on mobile too */}
         {mobileMenuOpen && (
           <div className="lg:hidden bg-white border-t border-gray-100">
-            <div className="px-6 py-4 space-y-4">
-              <Link
-                href="/government"
-                className="block text-gray-800 font-medium py-2"
-              >
-                Overview
-              </Link>
-              <Link
-                href="/government/vendors"
-                className="block text-gray-800 font-medium py-2"
-              >
-                Vendors
-              </Link>
-              <Link
-                href="/government/production"
-                className="block text-gray-800 font-medium py-2"
-              >
-                Production
-              </Link>
-              <Link
-                href="/government/market"
-                className="block text-gray-800 font-medium py-2"
-              >
-                Market
-              </Link>
-              <Link
-                href="/government/land"
-                className="block text-gray-800 font-medium py-2"
-              >
-                Land
-              </Link>
-              <Link
-                href="/government/products"
-                className="block text-gray-800 font-medium py-2"
-              >
-                Products
-              </Link>
-              <Link
-                href="/government/reporting"
-                className="block text-gray-800 font-medium py-2"
-              >
-                Reporting
-              </Link>
-              <Link
-                href="/government/compliance"
-                className="block text-gray-800 font-medium py-2"
-              >
-                Compliance
-              </Link>
-              <Link
-                href="/government/data"
-                className="block text-gray-800 font-medium py-2"
-              >
-                Data
-              </Link>
+            <div className="px-6 py-4 space-y-3">
+              <div className="text-xs uppercase tracking-wider text-[color:var(--secondary-muted-edge)] mb-3">
+                Navigation
+              </div>
+              <p className="text-sm text-[color:var(--secondary-muted-edge)] py-2">
+                Use the sidebar menu to navigate
+              </p>
               <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                 <div className="flex items-center space-x-4">
                   <Link
                     href="/government/notifications"
                     className="relative text-gray-700"
+                    onClick={() => setMobileMenuOpen(false)}
                   >
                     <BellIcon className="h-6 w-6" />
                     {unreadCount > 0 && (
@@ -469,7 +319,10 @@ const GovernmentTopNavigation: React.FC = () => {
                     )}
                   </Link>
                 </div>
-                <Link href="/government/profile">
+                <Link
+                  href="/government/profile"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
                   <img
                     src={avatarUrl}
                     alt={displayName}

@@ -9,6 +9,7 @@ export default function NewVendorPage() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 4;
+  const progressPercent = ((currentStep - 1) / (totalSteps - 1)) * 100;
 
   // Form state
   const [formData, setFormData] = useState({
@@ -85,54 +86,51 @@ export default function NewVendorPage() {
         </Link>
 
         {/* Header */}
-        <div className="mb-8">
+        <div className="rounded-3xl bg-[var(--secondary-highlight2)]/14 border border-[color:var(--secondary-soft-highlight)] px-6 sm:px-10 py-8 mb-8">
           <h1 className="text-3xl font-semibold text-[color:var(--secondary-black)]">
             Register New Vendor
           </h1>
           <p className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
             Complete the following steps to register a new agricultural vendor
           </p>
-        </div>
-
-        {/* Progress Indicator */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            {[1, 2, 3, 4].map((step) => (
-              <div key={step} className="flex items-center flex-1">
-                <div
-                  className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors ${
-                    currentStep >= step
-                      ? "border-[var(--primary-accent2)] bg-[var(--primary-accent2)] text-white"
-                      : "border-[color:var(--secondary-soft-highlight)] text-[color:var(--secondary-muted-edge)]"
-                  }`}
-                >
-                  {step}
-                </div>
-                {step < totalSteps && (
-                  <div
-                    className={`flex-1 h-1 mx-2 transition-colors ${
-                      currentStep > step
-                        ? "bg-[var(--primary-accent2)]"
-                        : "bg-[color:var(--secondary-soft-highlight)]"
-                    }`}
-                  />
-                )}
+          {/* Sleek Progress Bar */}
+          <div className="mt-6">
+            <div className="relative h-2 rounded-full bg-[color:var(--secondary-soft-highlight)]/60 overflow-hidden">
+              <div
+                className="absolute inset-y-0 left-0 bg-[var(--secondary-highlight2)] transition-all duration-300"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+            <div className="mt-3 grid grid-cols-4 text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)]">
+              <div
+                className={`text-left ${
+                  currentStep >= 1 ? "text-[var(--secondary-highlight2)]" : ""
+                }`}
+              >
+                Personal
               </div>
-            ))}
-          </div>
-          <div className="flex justify-between mt-2">
-            <span className="text-xs text-[color:var(--secondary-muted-edge)]">
-              Personal
-            </span>
-            <span className="text-xs text-[color:var(--secondary-muted-edge)]">
-              Land
-            </span>
-            <span className="text-xs text-[color:var(--secondary-muted-edge)]">
-              Farm
-            </span>
-            <span className="text-xs text-[color:var(--secondary-muted-edge)]">
-              Programs
-            </span>
+              <div
+                className={`text-center ${
+                  currentStep >= 2 ? "text-[var(--secondary-highlight2)]" : ""
+                }`}
+              >
+                Land
+              </div>
+              <div
+                className={`text-center ${
+                  currentStep >= 3 ? "text-[var(--secondary-highlight2)]" : ""
+                }`}
+              >
+                Farm
+              </div>
+              <div
+                className={`text-right ${
+                  currentStep >= 4 ? "text-[var(--secondary-highlight2)]" : ""
+                }`}
+              >
+                Programs
+              </div>
+            </div>
           </div>
         </div>
 
@@ -161,7 +159,7 @@ export default function NewVendorPage() {
                       required
                       value={formData.vendorName}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2.5 rounded-lg border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
+                      className="input w-full"
                     />
                   </div>
 
@@ -179,7 +177,7 @@ export default function NewVendorPage() {
                       required
                       value={formData.contactPerson}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2.5 rounded-lg border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
+                      className="input w-full"
                     />
                   </div>
 
@@ -197,7 +195,7 @@ export default function NewVendorPage() {
                       required
                       value={formData.email}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2.5 rounded-lg border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
+                      className="input w-full"
                     />
                   </div>
 
@@ -215,7 +213,7 @@ export default function NewVendorPage() {
                       required
                       value={formData.phone}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2.5 rounded-lg border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
+                      className="input w-full"
                     />
                   </div>
                 </div>
@@ -234,7 +232,7 @@ export default function NewVendorPage() {
                     rows={3}
                     value={formData.address}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2.5 rounded-lg border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
+                    className="input w-full"
                   />
                 </div>
 
@@ -254,7 +252,7 @@ export default function NewVendorPage() {
                       placeholder="e.g., 18.0179"
                       value={formData.gpsLat}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2.5 rounded-lg border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
+                      className="input w-full"
                     />
                   </div>
 
@@ -273,7 +271,7 @@ export default function NewVendorPage() {
                       placeholder="e.g., -76.8099"
                       value={formData.gpsLng}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2.5 rounded-lg border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
+                      className="input w-full"
                     />
                   </div>
                 </div>
@@ -304,7 +302,7 @@ export default function NewVendorPage() {
                       step="0.1"
                       value={formData.totalAcreage}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2.5 rounded-lg border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
+                      className="input w-full"
                     />
                   </div>
 
@@ -324,13 +322,13 @@ export default function NewVendorPage() {
                       step="0.1"
                       value={formData.utilizedAcreage}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2.5 rounded-lg border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
+                      className="input w-full"
                     />
                   </div>
                 </div>
 
                 {formData.totalAcreage && formData.utilizedAcreage && (
-                  <div className="p-4 rounded-lg bg-[var(--primary-accent1)]/10 border border-[color:var(--secondary-soft-highlight)]">
+                  <div className="p-4 rounded-2xl bg-[var(--secondary-highlight2)]/10 border border-[color:var(--secondary-soft-highlight)]">
                     <div className="text-sm text-[color:var(--secondary-black)]">
                       Available acreage:{" "}
                       <span className="font-semibold">
@@ -372,7 +370,7 @@ export default function NewVendorPage() {
                         name="irrigation"
                         checked={formData.irrigation}
                         onChange={handleInputChange}
-                        className="h-4 w-4 text-[var(--primary-accent2)] focus:ring-[color:var(--primary-base)] rounded"
+                        className="h-4 w-4 text-[var(--secondary-highlight2)] focus:ring-[color:var(--primary-base)] rounded"
                       />
                       <span className="text-sm text-[color:var(--secondary-black)]">
                         Irrigation System
@@ -385,7 +383,7 @@ export default function NewVendorPage() {
                         name="rainwaterHarvesting"
                         checked={formData.rainwaterHarvesting}
                         onChange={handleInputChange}
-                        className="h-4 w-4 text-[var(--primary-accent2)] focus:ring-[color:var(--primary-base)] rounded"
+                        className="h-4 w-4 text-[var(--secondary-highlight2)] focus:ring-[color:var(--primary-base)] rounded"
                       />
                       <span className="text-sm text-[color:var(--secondary-black)]">
                         Rainwater Harvesting System
@@ -409,7 +407,7 @@ export default function NewVendorPage() {
                       min="0"
                       value={formData.ponds}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2.5 rounded-lg border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
+                      className="input w-full"
                     />
                   </div>
 
@@ -427,7 +425,7 @@ export default function NewVendorPage() {
                       min="0"
                       value={formData.greenhouses}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2.5 rounded-lg border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
+                      className="input w-full"
                     />
                   </div>
 
@@ -445,7 +443,7 @@ export default function NewVendorPage() {
                       min="0"
                       value={formData.shadeHouses}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2.5 rounded-lg border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
+                      className="input w-full"
                     />
                   </div>
                 </div>
@@ -464,7 +462,7 @@ export default function NewVendorPage() {
                     placeholder="e.g., 2 trucks, 1 van"
                     value={formData.transportation}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2.5 rounded-lg border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
+                    className="input w-full"
                   />
                 </div>
               </div>
@@ -512,7 +510,7 @@ export default function NewVendorPage() {
                             }));
                           }
                         }}
-                        className="mt-0.5 h-4 w-4 text-[var(--primary-accent2)] focus:ring-[color:var(--primary-base)] rounded"
+                        className="mt-0.5 h-4 w-4 text-[var(--secondary-highlight2)] focus:ring-[color:var(--primary-base)] rounded"
                       />
                       <div className="flex-1">
                         <div className="text-sm font-medium text-[color:var(--secondary-black)]">
@@ -534,7 +532,7 @@ export default function NewVendorPage() {
                 type="button"
                 onClick={prevStep}
                 disabled={currentStep === 1}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full border border-[color:var(--secondary-soft-highlight)] text-[color:var(--secondary-black)] text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Previous
               </button>
@@ -543,14 +541,14 @@ export default function NewVendorPage() {
                 <button
                   type="button"
                   onClick={nextStep}
-                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-[var(--primary-accent2)] text-white text-sm font-medium hover:bg-[var(--primary-accent3)] transition-colors"
+                  className="btn bg-[var(--secondary-highlight2)] text-white hover:brightness-95"
                 >
                   Next
                 </button>
               ) : (
                 <button
                   type="submit"
-                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-[var(--primary-accent2)] text-white text-sm font-medium hover:bg-[var(--primary-accent3)] transition-colors"
+                  className="btn bg-[var(--secondary-highlight2)] text-white hover:brightness-95"
                 >
                   Register Vendor
                 </button>

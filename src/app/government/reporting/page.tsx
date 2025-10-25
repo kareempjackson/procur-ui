@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   DocumentTextIcon,
@@ -8,7 +8,17 @@ import {
   CalendarIcon,
   FunnelIcon,
   CheckCircleIcon,
+  ArrowPathIcon,
 } from "@heroicons/react/24/outline";
+import { useAppDispatch, useAppSelector } from "@/store";
+import {
+  fetchReports,
+  createAndGenerateReport,
+  selectReports,
+  selectReportsStatus,
+  selectGenerateStatus,
+  selectGenerateError,
+} from "@/store/slices/governmentReportsSlice";
 
 type ReportType =
   | "market-requirements"
@@ -21,8 +31,15 @@ type ReportType =
   | "custom";
 
 export default function ReportingPage() {
+  const dispatch = useAppDispatch();
   const searchParams = useSearchParams();
   const preselectedType = searchParams.get("type") as ReportType | null;
+
+  // Redux state
+  const reports = useAppSelector(selectReports);
+  const reportsStatus = useAppSelector(selectReportsStatus);
+  const generateStatus = useAppSelector(selectGenerateStatus);
+  const generateError = useAppSelector(selectGenerateError);
 
   const [selectedReport, setSelectedReport] = useState<ReportType | null>(
     preselectedType
@@ -37,6 +54,18 @@ export default function ReportingPage() {
     complianceStatus: "all",
   });
   const [generatedReport, setGeneratedReport] = useState<any>(null);
+
+  // Fetch reports on mount
+  useEffect(() => {
+    if (reportsStatus === "idle") {
+      dispatch(fetchReports({ page: 1, limit: 20 }));
+    }
+  }, [reportsStatus, dispatch]);
+
+  // Refresh handler
+  const handleRefresh = () => {
+    dispatch(fetchReports({ page: 1, limit: 20 }));
+  };
 
   const reportTypes = [
     {
@@ -83,15 +112,45 @@ export default function ReportingPage() {
     },
   ];
 
-  const handleGenerateReport = () => {
-    // Mock report generation
-    const mockData = generateMockReport(selectedReport!);
-    setGeneratedReport(mockData);
+  const handleGenerateReport = async () => {
+    if (!selectedReport) return;
+
+    try {
+      const result = await dispatch(
+        createAndGenerateReport({
+          report_type: selectedReport,
+          start_date: dateRange.startDate || undefined,
+          end_date: dateRange.endDate || undefined,
+          filters:
+            filters.location !== "all"
+              ? { location: filters.location }
+              : undefined,
+        })
+      ).unwrap();
+
+      // The API returns a report_id, but we need to generate the actual report data
+      // Since the backend doesn't return formatted report data yet, use mock data
+      const mockData = generateMockReport(selectedReport);
+      setGeneratedReport({
+        ...mockData,
+        report_id: result.report_id,
+        generated_at: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Failed to generate report:", error);
+      // Fallback to mock data if API fails
+      const mockData = generateMockReport(selectedReport);
+      setGeneratedReport(mockData);
+    }
   };
 
   const handleExport = (format: "pdf" | "excel" | "csv") => {
     console.log(`Exporting report as ${format}`);
-    // TODO: Implement export functionality
+    // TODO: Implement export functionality with actual report data
+    if (generatedReport) {
+      // Future: Download report in requested format
+      console.log("Report data:", generatedReport);
+    }
   };
 
   // Mock data generator
@@ -207,14 +266,30 @@ export default function ReportingPage() {
     <div className="min-h-screen bg-[var(--primary-background)]">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-semibold text-[color:var(--secondary-black)]">
-            Reporting & Analytics
-          </h1>
-          <p className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
-            Generate comprehensive reports on vendors, production, and market
-            activity
-          </p>
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-semibold text-[color:var(--secondary-black)]">
+              Reporting & Analytics
+            </h1>
+            <p className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
+              Generate comprehensive reports on vendors, production, and market
+              activity
+              {reportsStatus === "loading" && " • Loading..."}
+              {generateStatus === "loading" && " • Generating report..."}
+            </p>
+          </div>
+          <button
+            onClick={handleRefresh}
+            disabled={reportsStatus === "loading"}
+            className="inline-flex items-center gap-2 rounded-full bg-white border border-[color:var(--secondary-soft-highlight)] text-[color:var(--secondary-black)] px-4 py-2.5 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ArrowPathIcon
+              className={`h-5 w-5 ${
+                reportsStatus === "loading" ? "animate-spin" : ""
+              }`}
+            />
+            Refresh
+          </button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -361,10 +436,25 @@ export default function ReportingPage() {
                   {/* Generate Button */}
                   <button
                     onClick={handleGenerateReport}
-                    className="w-full px-4 py-2.5 rounded-full bg-[var(--primary-accent2)] text-white text-sm font-medium hover:bg-[var(--primary-accent3)] transition-colors"
+                    disabled={generateStatus === "loading"}
+                    className="w-full px-4 py-2.5 rounded-full bg-[var(--primary-accent2)] text-white text-sm font-medium hover:bg-[var(--primary-accent3)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
                   >
-                    Generate Report
+                    {generateStatus === "loading" && (
+                      <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                    )}
+                    {generateStatus === "loading"
+                      ? "Generating..."
+                      : "Generate Report"}
                   </button>
+
+                  {/* Generation Error */}
+                  {generateError && (
+                    <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+                      <p className="text-xs text-red-800">
+                        Error: {generateError}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

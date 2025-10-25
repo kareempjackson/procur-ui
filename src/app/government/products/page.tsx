@@ -1,21 +1,50 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
   PlusIcon,
   MagnifyingGlassIcon,
   FunnelIcon,
   CalendarIcon,
+  ArrowPathIcon,
 } from "@heroicons/react/24/outline";
+import { useAppDispatch, useAppSelector } from "@/store";
+import {
+  fetchAllProducts,
+  selectAllProducts,
+  selectAllProductsStatus,
+  selectAllProductsError,
+  selectVendors,
+} from "@/store/slices/governmentVendorsSlice";
+import { safeNumber } from "@/lib/utils/dataHelpers";
 
 export default function ProductsPage() {
+  const dispatch = useAppDispatch();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterUploadedBy, setFilterUploadedBy] = useState<string>("all");
 
-  // Mock products data
-  const products = [
+  // Redux state
+  const products = useAppSelector(selectAllProducts);
+  const productsStatus = useAppSelector(selectAllProductsStatus);
+  const productsError = useAppSelector(selectAllProductsError);
+  const vendors = useAppSelector(selectVendors);
+
+  // Fetch products on mount
+  useEffect(() => {
+    if (productsStatus === "idle") {
+      dispatch(fetchAllProducts({ page: 1, limit: 100 }));
+    }
+  }, [productsStatus, dispatch]);
+
+  // Refresh handler
+  const handleRefresh = () => {
+    dispatch(fetchAllProducts({ page: 1, limit: 100 }));
+  };
+
+  // Mock products data for fallback
+  const mockProducts = [
     {
       id: "1",
       name: "Organic Roma Tomatoes",
@@ -88,32 +117,63 @@ export default function ProductsPage() {
     },
   ];
 
-  const stats = {
-    total: products.length,
-    available: products.filter((p) => p.status === "available").length,
-    governmentUploaded: products.filter((p) => p.uploadedBy === "government")
-      .length,
-    totalValue: products.reduce((sum, p) => {
-      const qty = parseFloat(p.quantity.replace(/[^\d.]/g, ""));
-      const price = parseFloat(p.pricePerUnit.replace(/[^\d.]/g, ""));
-      return sum + qty * price;
-    }, 0),
-  };
+  // Use API data or fallback to mock
+  const displayProducts = products.length > 0 ? products : mockProducts;
 
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch =
-      searchQuery === "" ||
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.vendor.toLowerCase().includes(searchQuery.toLowerCase());
+  // Create a map of vendor names for quick lookup
+  const vendorMap = useMemo(() => {
+    const map = new Map();
+    vendors.forEach((v) => map.set(v.id, v.name));
+    return map;
+  }, [vendors]);
 
-    const matchesStatus =
-      filterStatus === "all" || product.status === filterStatus;
+  // Calculate stats
+  const stats = useMemo(() => {
+    return {
+      total: displayProducts.length,
+      available: displayProducts.filter(
+        (p) => !p.harvest_date || new Date(p.harvest_date) <= new Date()
+      ).length,
+      totalQuantity: displayProducts.reduce(
+        (sum, p) => sum + safeNumber(p.quantity_available),
+        0
+      ),
+      totalValue: displayProducts.reduce((sum, p) => {
+        const qty = safeNumber(p.quantity_available);
+        const price = safeNumber(p.price_per_unit);
+        return sum + qty * price;
+      }, 0),
+    };
+  }, [displayProducts]);
 
-    const matchesUploadedBy =
-      filterUploadedBy === "all" || product.uploadedBy === filterUploadedBy;
+  // Filter products
+  const filteredProducts = useMemo(() => {
+    return displayProducts.filter((product) => {
+      const vendorName =
+        vendorMap.get(product.vendor_id) || product.vendor || "";
+      const matchesSearch =
+        searchQuery === "" ||
+        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        vendorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (product.category &&
+          product.category.toLowerCase().includes(searchQuery.toLowerCase()));
 
-    return matchesSearch && matchesStatus && matchesUploadedBy;
-  });
+      // For status filter: check if product is available (has harvest date that's passed)
+      const isAvailable = product.harvest_date
+        ? new Date(product.harvest_date) <= new Date()
+        : true;
+      const matchesStatus =
+        filterStatus === "all" ||
+        (filterStatus === "available" && isAvailable) ||
+        (filterStatus === "reserved" && !isAvailable);
+
+      // Note: API doesn't have uploadedBy field, so we'll skip that filter for now
+      // const matchesUploadedBy =
+      //   filterUploadedBy === "all" || product.uploadedBy === filterUploadedBy;
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [displayProducts, searchQuery, filterStatus, vendorMap]);
 
   const getStatusConfig = (status: string) => {
     switch (status) {
@@ -151,16 +211,41 @@ export default function ProductsPage() {
             </h1>
             <p className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
               Monitor and manage product listings across all vendors
+              {productsStatus === "loading" && " • Loading..."}
+              {productsError && " • Error loading data"}
             </p>
           </div>
-          <Link
-            href="/government/products/upload"
-            className="inline-flex items-center gap-2 rounded-full bg-[var(--primary-accent2)] text-white px-5 py-2.5 text-sm font-medium hover:bg-[var(--primary-accent3)] transition-colors focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:ring-offset-2"
-          >
-            <PlusIcon className="h-5 w-5" />
-            Upload Product
-          </Link>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleRefresh}
+              disabled={productsStatus === "loading"}
+              className="inline-flex items-center gap-2 rounded-full bg-white border border-[color:var(--secondary-soft-highlight)] text-[color:var(--secondary-black)] px-4 py-2.5 text-sm font-medium hover:bg-gray-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ArrowPathIcon
+                className={`h-5 w-5 ${
+                  productsStatus === "loading" ? "animate-spin" : ""
+                }`}
+              />
+              Refresh
+            </button>
+            <Link
+              href="/government/products/upload"
+              className="inline-flex items-center gap-2 rounded-full bg-[var(--primary-accent2)] text-white px-5 py-2.5 text-sm font-medium hover:bg-[var(--primary-accent3)] transition-colors focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:ring-offset-2"
+            >
+              <PlusIcon className="h-5 w-5" />
+              Upload Product
+            </Link>
+          </div>
         </div>
+
+        {/* Error Message */}
+        {productsError && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 mb-6">
+            <p className="text-sm text-red-800">
+              Error loading products: {productsError}
+            </p>
+          </div>
+        )}
 
         {/* Stats Overview */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -169,7 +254,7 @@ export default function ProductsPage() {
               Total Products
             </div>
             <div className="text-3xl font-semibold text-[color:var(--secondary-black)]">
-              {stats.total}
+              {productsStatus === "loading" ? "..." : stats.total}
             </div>
           </div>
           <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
@@ -177,15 +262,17 @@ export default function ProductsPage() {
               Available
             </div>
             <div className="text-3xl font-semibold text-[color:var(--primary-base)]">
-              {stats.available}
+              {productsStatus === "loading" ? "..." : stats.available}
             </div>
           </div>
           <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
             <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)] mb-2">
-              Gov. Uploaded
+              Total Quantity
             </div>
             <div className="text-3xl font-semibold text-[color:var(--secondary-black)]">
-              {stats.governmentUploaded}
+              {productsStatus === "loading"
+                ? "..."
+                : stats.totalQuantity.toLocaleString()}
             </div>
           </div>
           <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
@@ -193,7 +280,13 @@ export default function ProductsPage() {
               Total Value
             </div>
             <div className="text-3xl font-semibold text-[color:var(--secondary-black)]">
-              ${stats.totalValue.toLocaleString()}
+              $
+              {productsStatus === "loading"
+                ? "..."
+                : stats.totalValue.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
             </div>
           </div>
         </div>
@@ -226,19 +319,9 @@ export default function ProductsPage() {
                 >
                   <option value="all">All Status</option>
                   <option value="available">Available</option>
-                  <option value="reserved">Reserved</option>
-                  <option value="sold">Sold</option>
+                  <option value="reserved">Expected Soon</option>
                 </select>
               </div>
-              <select
-                value={filterUploadedBy}
-                onChange={(e) => setFilterUploadedBy(e.target.value)}
-                className="rounded-full border border-[color:var(--secondary-soft-highlight)] px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)]"
-              >
-                <option value="all">All Sources</option>
-                <option value="vendor">Vendor Uploaded</option>
-                <option value="government">Government Uploaded</option>
-              </select>
             </div>
           </div>
         </div>
@@ -246,78 +329,172 @@ export default function ProductsPage() {
         {/* Products Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredProducts.map((product) => {
-            const statusConfig = getStatusConfig(product.status);
+            // Compute status from harvest date
+            const isAvailable = product.harvest_date
+              ? new Date(product.harvest_date) <= new Date()
+              : true;
+            const productStatus = isAvailable ? "available" : "reserved";
+            const statusConfig = getStatusConfig(productStatus);
+
+            // Get vendor name
+            const vendorName =
+              vendorMap.get(product.vendor_id) ||
+              product.vendor ||
+              "Unknown Vendor";
+
             return (
               <div
                 key={product.id}
-                className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white overflow-hidden hover:shadow-md transition-shadow"
+                className="group rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white overflow-hidden transition-all duration-300 hover:shadow-2xl hover:scale-[1.02] hover:-translate-y-1"
               >
-                {/* Product Image Placeholder */}
-                <div className="h-48 bg-gradient-to-br from-[var(--primary-accent1)]/20 to-[var(--primary-background)] flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="text-4xl mb-2">🌾</div>
-                    <div className="text-xs text-[color:var(--secondary-muted-edge)]">
-                      Product Image
+                {/* Product Image Placeholder - Sleeker */}
+                <div className="relative h-48 bg-gradient-to-br from-[var(--primary-accent1)]/30 via-[var(--primary-accent2)]/20 to-[var(--primary-background)] overflow-hidden">
+                  {/* Decorative pattern overlay */}
+                  <div className="absolute inset-0 opacity-5">
+                    <div
+                      className="absolute inset-0"
+                      style={{
+                        backgroundImage:
+                          "radial-gradient(circle at 2px 2px, currentColor 1px, transparent 0)",
+                        backgroundSize: "20px 20px",
+                      }}
+                    ></div>
+                  </div>
+
+                  <div className="relative h-full flex items-center justify-center">
+                    <div className="text-center transform transition-transform duration-300 group-hover:scale-110">
+                      <div className="text-5xl mb-3 filter drop-shadow-lg">
+                        {product.organic_certified ? "🌱" : "🌾"}
+                      </div>
+                      <div className="text-xs font-semibold uppercase tracking-wider text-[color:var(--secondary-black)] bg-white/80 backdrop-blur-sm px-3 py-1 rounded-full inline-block">
+                        {product.category || "Product"}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Product Details */}
-                <div className="p-5">
-                  <div className="flex items-start justify-between mb-2">
-                    <h3 className="text-base font-semibold text-[color:var(--secondary-black)]">
-                      {product.name}
-                    </h3>
+                  {/* Status Badge - Absolute positioned */}
+                  <div className="absolute top-3 right-3">
                     <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${statusConfig.color}`}
+                      className={`inline-flex items-center rounded-xl px-3 py-1.5 text-xs font-semibold backdrop-blur-md ${statusConfig.color} shadow-lg`}
                     >
                       {statusConfig.label}
                     </span>
                   </div>
+                </div>
 
-                  <Link
-                    href={`/government/vendors/${product.vendorId}`}
-                    className="text-sm text-[color:var(--secondary-muted-edge)] hover:text-[var(--primary-accent2)] mb-3 block"
-                  >
-                    {product.vendor} · {product.location}
-                  </Link>
-
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-[color:var(--secondary-muted-edge)]">
-                        Quantity
-                      </span>
-                      <span className="font-medium text-[color:var(--secondary-black)]">
-                        {product.quantity}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-[color:var(--secondary-muted-edge)]">
-                        Price
-                      </span>
-                      <span className="font-medium text-[color:var(--secondary-black)]">
-                        {product.pricePerUnit}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-[color:var(--secondary-muted-edge)]">
-                        Quality
-                      </span>
-                      <span className="font-medium text-[color:var(--secondary-black)]">
-                        {product.qualityGrade}
-                      </span>
-                    </div>
+                {/* Product Details - Sleeker */}
+                <div className="p-6">
+                  <div className="mb-3">
+                    <h3 className="text-lg font-bold text-[color:var(--secondary-black)] mb-1 line-clamp-2 leading-tight">
+                      {product.name}
+                      {product.variety && (
+                        <span className="block text-xs font-normal text-[color:var(--secondary-muted-edge)] mt-1">
+                          Variety: {product.variety}
+                        </span>
+                      )}
+                    </h3>
                   </div>
 
-                  <div className="pt-3 border-t border-[color:var(--secondary-soft-highlight)] space-y-2">
-                    <div className="flex items-center gap-2 text-xs text-[color:var(--secondary-muted-edge)]">
-                      <CalendarIcon className="h-4 w-4" />
-                      Harvested:{" "}
-                      {new Date(product.harvestDate).toLocaleDateString()}
+                  <Link
+                    href={`/government/vendors/${
+                      product.vendor_id || product.vendorId
+                    }`}
+                    className="inline-flex items-center gap-1.5 text-sm text-[color:var(--primary-accent2)] hover:text-[var(--primary-accent3)] font-medium mb-4 group/link transition-colors"
+                  >
+                    <span className="group-hover/link:underline">
+                      {vendorName}
+                    </span>
+                    <svg
+                      className="w-3 h-3 transition-transform group-hover/link:translate-x-0.5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                      />
+                    </svg>
+                  </Link>
+
+                  {/* Stats Grid - Sleeker */}
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-xl p-3 border border-gray-100">
+                      <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)] mb-1 font-semibold">
+                        Quantity
+                      </div>
+                      <div className="text-sm font-bold text-[color:var(--secondary-black)]">
+                        {product.quantity_available || product.quantity}
+                      </div>
+                      <div className="text-[10px] text-[color:var(--secondary-muted-edge)]">
+                        {product.unit_of_measurement || "units"}
+                      </div>
                     </div>
-                    {product.uploadedBy === "government" && (
-                      <span className="inline-flex items-center rounded-full bg-blue-100 text-blue-800 px-2.5 py-1 text-xs font-medium">
-                        Government Upload
+
+                    {product.price_per_unit !== undefined &&
+                      product.price_per_unit !== null && (
+                        <div className="bg-gradient-to-br from-green-50 to-emerald-100/50 rounded-xl p-3 border border-green-100">
+                          <div className="text-[10px] uppercase tracking-wider text-green-700 mb-1 font-semibold">
+                            Price
+                          </div>
+                          <div className="text-sm font-bold text-green-900">
+                            ${safeNumber(product.price_per_unit).toFixed(2)}
+                          </div>
+                          <div className="text-[10px] text-green-600">
+                            per {product.unit_of_measurement || "unit"}
+                          </div>
+                        </div>
+                      )}
+
+                    {product.quality_grade && !product.price_per_unit && (
+                      <div className="bg-gradient-to-br from-blue-50 to-indigo-100/50 rounded-xl p-3 border border-blue-100">
+                        <div className="text-[10px] uppercase tracking-wider text-blue-700 mb-1 font-semibold">
+                          Quality
+                        </div>
+                        <div className="text-sm font-bold text-blue-900">
+                          {product.quality_grade || product.qualityGrade}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Footer Section - Sleeker */}
+                  <div className="pt-4 border-t border-gray-100 flex flex-wrap items-center gap-2">
+                    {product.harvest_date && (
+                      <div className="inline-flex items-center gap-1.5 text-xs text-[color:var(--secondary-muted-edge)] bg-gray-50 px-2.5 py-1.5 rounded-lg">
+                        <CalendarIcon className="h-3.5 w-3.5" />
+                        <span>
+                          {new Date(
+                            product.harvest_date || product.harvestDate
+                          ).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
+                        </span>
+                      </div>
+                    )}
+                    {product.organic_certified && (
+                      <span className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 px-2.5 py-1.5 text-xs font-semibold border border-green-200 shadow-sm">
+                        <svg
+                          className="w-3 h-3"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                        Organic
+                      </span>
+                    )}
+                    {product.quality_grade && product.price_per_unit && (
+                      <span className="inline-flex items-center rounded-lg bg-gradient-to-r from-purple-50 to-pink-50 text-purple-700 px-2.5 py-1.5 text-xs font-semibold border border-purple-100">
+                        {product.quality_grade}
                       </span>
                     )}
                   </div>

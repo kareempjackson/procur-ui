@@ -9,6 +9,9 @@ import {
   Bars3Icon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
+import { useI18n } from "@/lib/i18n/I18nProvider";
+import { useAppSelector } from "@/store";
+import { selectAuthUser } from "@/store/slices/authSlice";
 
 interface DropdownItem {
   title: string;
@@ -25,6 +28,7 @@ interface MegaMenuSection {
 const TopNavigation: React.FC = () => {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [showCountryModal, setShowCountryModal] = useState(false);
+  const { t, locale, setLocale } = useI18n();
   const [selectedLanguage, setSelectedLanguage] = useState("EN");
   const [selectedCountry, setSelectedCountry] = useState({
     code: "GD",
@@ -33,6 +37,7 @@ const TopNavigation: React.FC = () => {
   });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navRef = useRef<HTMLDivElement>(null);
+  const authUser = useAppSelector(selectAuthUser);
 
   // Dropdown menu data
 
@@ -125,7 +130,15 @@ const TopNavigation: React.FC = () => {
     { code: "CO", flag: "🇨🇴", name: "Colombia" },
   ];
 
-  const languages = ["EN", "ES", "FR", "DE", "PT", "ZH"];
+  const languages = ["EN", "ES", "FR"];
+
+  useEffect(() => {
+    const label = locale === "es" ? "ES" : locale === "fr" ? "FR" : "EN";
+    setSelectedLanguage(label);
+  }, [locale]);
+
+  const toLocale = (label: string) =>
+    label === "ES" ? "es" : label === "FR" ? "fr" : "en";
 
   // Click outside to close dropdowns
   useEffect(() => {
@@ -224,7 +237,7 @@ const TopNavigation: React.FC = () => {
     <>
       <nav className={`${navBgClass} sticky top-0 z-40`} ref={navRef}>
         <div className="max-w-7xl mx-auto px-6">
-          <div className="relative flex items-center h-20 pr-56">
+          <div className="relative flex items-center h-20 justify-between pr-0 lg:pr-56">
             {/* Logo */}
             <div className="flex-shrink-0">
               <Link href="/" className="flex items-center">
@@ -245,7 +258,7 @@ const TopNavigation: React.FC = () => {
                 href="/marketplace"
                 className="text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)] font-semibold text-[15px] transition-all duration-200 whitespace-nowrap"
               >
-                <span className="relative">Marketplace</span>
+                <span className="relative">{t("nav.marketplace")}</span>
               </Link>
 
               {/* For Purchasers Dropdown */}
@@ -257,7 +270,7 @@ const TopNavigation: React.FC = () => {
                   className="flex items-center space-x-1 text-gray-800 hover:text-black font-medium text-[15px] transition-all duration-200 whitespace-nowrap"
                   onClick={() => handleDropdownToggle("for-purchasers")}
                 >
-                  <span className="relative">For Purchasers</span>
+                  <span className="relative">{t("nav.forPurchasers")}</span>
                   <ChevronDownIcon
                     className={`h-4 w-4 transition-transform duration-200 ${
                       activeDropdown === "for-purchasers" ? "rotate-180" : ""
@@ -277,7 +290,7 @@ const TopNavigation: React.FC = () => {
                   className="flex items-center space-x-1 text-gray-800 hover:text-black font-medium text-[15px] transition-all duration-200 whitespace-nowrap"
                   onClick={() => handleDropdownToggle("for-suppliers")}
                 >
-                  <span className="relative">For Suppliers</span>
+                  <span className="relative">{t("nav.forSuppliers")}</span>
                   <ChevronDownIcon
                     className={`h-4 w-4 transition-transform duration-200 ${
                       activeDropdown === "for-suppliers" ? "rotate-180" : ""
@@ -297,7 +310,7 @@ const TopNavigation: React.FC = () => {
                   className="flex items-center space-x-1 text-gray-800 hover:text-black font-medium text-[15px] transition-all duration-200 whitespace-nowrap"
                   onClick={() => handleDropdownToggle("for-government")}
                 >
-                  <span className="relative">For Government</span>
+                  <span className="relative">{t("nav.forGovernment")}</span>
                   <ChevronDownIcon
                     className={`h-4 w-4 transition-transform duration-200 ${
                       activeDropdown === "for-government" ? "rotate-180" : ""
@@ -313,13 +326,13 @@ const TopNavigation: React.FC = () => {
                 href="/blog"
                 className="text-gray-800 hover:text-black font-medium text-[15px] transition-all duration-200 whitespace-nowrap"
               >
-                <span className="relative">Blog</span>
+                <span className="relative">{t("nav.blog")}</span>
               </a>
             </div>
 
             {/* Mobile menu button (kept in row) */}
             <button
-              className="lg:hidden text-gray-800 hover:text-black transition-colors duration-200"
+              className="lg:hidden ml-auto text-gray-800 hover:text-black transition-colors duration-200"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
               {mobileMenuOpen ? (
@@ -351,6 +364,7 @@ const TopNavigation: React.FC = () => {
                       className="block w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50/80 hover:text-gray-900 transition-all duration-200 font-medium"
                       onClick={() => {
                         setSelectedLanguage(lang);
+                        setLocale(toLocale(lang));
                         setActiveDropdown(null);
                       }}
                     >
@@ -370,6 +384,16 @@ const TopNavigation: React.FC = () => {
             <span className="text-lg">{selectedCountry.flag}</span>
           </button>
 
+          {/* Login (only when logged out) */}
+          {!authUser && (
+            <Link
+              href="/login"
+              className="text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)] font-semibold text-[15px] transition-colors duration-200"
+            >
+              Login
+            </Link>
+          )}
+
           {/* Cart hidden */}
 
           {/* Try Procur Button */}
@@ -377,7 +401,7 @@ const TopNavigation: React.FC = () => {
             href="/signup"
             className="bg-black text-white px-8 py-2.5 rounded-full font-medium text-[15px] hover:bg-gray-800 transition-colors duration-200"
           >
-            Try Procur
+            {t("action.tryProcur")}
           </Link>
         </div>
 
@@ -389,28 +413,28 @@ const TopNavigation: React.FC = () => {
                 href="/marketplace"
                 className="block text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)] font-semibold py-2"
               >
-                Marketplace
+                {t("nav.marketplace")}
               </a>
               <a
                 href="/purchasers"
                 className="block text-gray-800 font-medium py-2"
               >
-                For Purchasers
+                {t("nav.forPurchasers")}
               </a>
               <a
                 href="/suppliers"
                 className="block text-gray-800 font-medium py-2"
               >
-                For Suppliers
+                {t("nav.forSuppliers")}
               </a>
               <a
                 href="/government"
                 className="block text-gray-800 font-medium py-2"
               >
-                For Government
+                {t("nav.forGovernment")}
               </a>
               <a href="/blog" className="block text-gray-800 font-medium py-2">
-                Blog
+                {t("nav.blog")}
               </a>
               <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                 <div className="flex items-center space-x-4">
@@ -422,7 +446,7 @@ const TopNavigation: React.FC = () => {
                   {/* Cart hidden on mobile */}
                 </div>
                 <button className="bg-black text-white px-4 py-2 rounded-full font-medium text-sm">
-                  Try Procur
+                  {t("action.tryProcur")}
                 </button>
               </div>
             </div>

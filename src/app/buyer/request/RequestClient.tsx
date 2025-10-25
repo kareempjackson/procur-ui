@@ -1,6 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
+import { useAppDispatch } from "@/store";
+import { createRequest } from "@/store/slices/buyerRequestsSlice";
+import { useRouter } from "next/navigation";
 import {
   ShoppingBagIcon,
   MapPinIcon,
@@ -11,11 +14,13 @@ import {
 } from "@heroicons/react/24/outline";
 
 export default function RequestClient() {
+  const dispatch = useAppDispatch();
+  const router = useRouter();
   const [formData, setFormData] = useState({
     produceName: "",
     category: "",
     quantity: "",
-    unit: "lbs",
+    unit: "lb",
     qualityGrade: "first-grade",
     deliveryLocation: "",
     deliveryDate: "",
@@ -46,11 +51,39 @@ export default function RequestClient() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Request submitted:", formData);
-    // TODO: API integration
-    alert("Request submitted successfully! Suppliers will be notified.");
+    const quantityNumber = Number(formData.quantity);
+
+    const payload: any = {
+      product_name: formData.produceName,
+      category: formData.category || undefined,
+      quantity: isNaN(quantityNumber) ? 0 : quantityNumber,
+      unit_of_measurement: formData.unit as any,
+      date_needed: formData.deliveryDate || undefined,
+      description: formData.additionalNotes || undefined,
+      budget_range:
+        formData.budgetMin || formData.budgetMax
+          ? {
+              min: Number(formData.budgetMin || 0),
+              max: Number(formData.budgetMax || 0),
+              currency: "USD",
+            }
+          : undefined,
+    };
+
+    try {
+      const action = await dispatch(createRequest(payload) as any);
+      if (action.meta.requestStatus === "fulfilled") {
+        alert("Request submitted successfully! Suppliers will be notified.");
+        router.push("/buyer/requests");
+      } else {
+        const err = action.payload || "Failed to submit request";
+        alert(String(err));
+      }
+    } catch (err) {
+      alert("Failed to submit request");
+    }
   };
 
   return (
@@ -136,10 +169,15 @@ export default function RequestClient() {
                     onChange={handleInputChange}
                     className="px-4 py-2.5 text-sm rounded-full border border-[var(--secondary-soft-highlight)]/30 bg-[var(--primary-background)] outline-none focus:border-[var(--primary-accent2)] transition-colors text-[var(--secondary-black)]"
                   >
-                    <option value="lbs">lbs</option>
+                    <option value="lb">lb</option>
                     <option value="kg">kg</option>
-                    <option value="tons">tons</option>
-                    <option value="crates">crates</option>
+                    <option value="g">g</option>
+                    <option value="oz">oz</option>
+                    <option value="piece">piece</option>
+                    <option value="dozen">dozen</option>
+                    <option value="liter">liter</option>
+                    <option value="ml">ml</option>
+                    <option value="gallon">gallon</option>
                   </select>
                 </div>
               </div>
