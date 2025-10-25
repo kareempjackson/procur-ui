@@ -109,10 +109,12 @@ const initialState: GovernmentMarketState = {
 export const fetchSupplyDemand = createAsyncThunk(
   "governmentMarket/fetchSupplyDemand",
   async (
-    params?: {
-      period?: "week" | "month" | "quarter" | "year";
-      crop?: string;
-    },
+    params:
+      | {
+          period?: "week" | "month" | "quarter" | "year";
+          crop?: string;
+        }
+      | undefined,
     { rejectWithValue }
   ) => {
     try {
@@ -133,13 +135,15 @@ export const fetchSupplyDemand = createAsyncThunk(
 export const fetchTransactions = createAsyncThunk(
   "governmentMarket/fetchTransactions",
   async (
-    params?: {
-      page?: number;
-      limit?: number;
-      status?: string;
-      start_date?: string;
-      end_date?: string;
-    },
+    params:
+      | {
+          page?: number;
+          limit?: number;
+          status?: string;
+          start_date?: string;
+          end_date?: string;
+        }
+      | undefined,
     { rejectWithValue }
   ) => {
     try {
@@ -166,9 +170,11 @@ export const fetchTransactions = createAsyncThunk(
 export const fetchMarketStats = createAsyncThunk(
   "governmentMarket/fetchMarketStats",
   async (
-    params?: {
-      period?: "week" | "month" | "quarter" | "year";
-    },
+    params:
+      | {
+          period?: "week" | "month" | "quarter" | "year";
+        }
+      | undefined,
     { rejectWithValue }
   ) => {
     try {
@@ -188,10 +194,12 @@ export const fetchMarketStats = createAsyncThunk(
 export const fetchPriceTrends = createAsyncThunk(
   "governmentMarket/fetchPriceTrends",
   async (
-    params?: {
-      crop?: string;
-      period?: "week" | "month" | "quarter" | "year";
-    },
+    params:
+      | {
+          crop?: string;
+          period?: "week" | "month" | "quarter" | "year";
+        }
+      | undefined,
     { rejectWithValue }
   ) => {
     try {

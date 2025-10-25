@@ -52,7 +52,7 @@ const initialState: GovernmentChartsState = {
  */
 export const fetchCharts = createAsyncThunk(
   "governmentCharts/fetchCharts",
-  async (params?: TableQueryParams, { rejectWithValue }) => {
+  async (params: TableQueryParams | undefined, { rejectWithValue }) => {
     try {
       const response = await governmentApi.getCharts(params);
       return response.data;

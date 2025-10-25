@@ -52,7 +52,7 @@ const initialState: GovernmentReportsState = {
  */
 export const fetchReports = createAsyncThunk(
   "governmentReports/fetchReports",
-  async (params?: ReportQueryParams, { rejectWithValue }) => {
+  async (params: ReportQueryParams | undefined, { rejectWithValue }) => {
     try {
       const response = await governmentApi.getReports(params);
       return response.data; // Extract data from PaginatedResponse

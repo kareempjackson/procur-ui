@@ -61,7 +61,7 @@ const initialState: GovernmentTablesState = {
  */
 export const fetchTables = createAsyncThunk(
   "governmentTables/fetchTables",
-  async (params?: TableQueryParams, { rejectWithValue }) => {
+  async (params: TableQueryParams | undefined, { rejectWithValue }) => {
     try {
       const response = await governmentApi.getTables(params);
       return response.data;

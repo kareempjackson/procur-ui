@@ -97,11 +97,13 @@ const initialState: GovernmentComplianceState = {
 export const fetchComplianceAlerts = createAsyncThunk(
   "governmentCompliance/fetchAlerts",
   async (
-    params?: {
-      status?: string;
-      severity?: string;
-      type?: string;
-    },
+    params:
+      | {
+          status?: string;
+          severity?: string;
+          type?: string;
+        }
+      | undefined,
     { rejectWithValue }
   ) => {
     try {
@@ -121,11 +123,13 @@ export const fetchComplianceAlerts = createAsyncThunk(
 export const fetchComplianceRecords = createAsyncThunk(
   "governmentCompliance/fetchRecords",
   async (
-    params?: {
-      status?: string;
-      page?: number;
-      limit?: number;
-    },
+    params:
+      | {
+          status?: string;
+          page?: number;
+          limit?: number;
+        }
+      | undefined,
     { rejectWithValue }
   ) => {
     try {

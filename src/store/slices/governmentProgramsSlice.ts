@@ -63,7 +63,7 @@ const initialState: GovernmentProgramsState = {
  */
 export const fetchPrograms = createAsyncThunk(
   "governmentPrograms/fetchPrograms",
-  async (params?: ProgramQueryParams, { rejectWithValue }) => {
+  async (params: ProgramQueryParams | undefined, { rejectWithValue }) => {
     try {
       const data = await governmentApi.getPrograms(params);
       return data;

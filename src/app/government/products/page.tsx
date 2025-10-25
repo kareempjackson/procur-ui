@@ -18,6 +18,7 @@ import {
   selectVendors,
 } from "@/store/slices/governmentVendorsSlice";
 import { safeNumber } from "@/lib/utils/dataHelpers";
+import { VendorProduct } from "@/types";
 
 export default function ProductsPage() {
   const dispatch = useAppDispatch();
@@ -43,77 +44,82 @@ export default function ProductsPage() {
     dispatch(fetchAllProducts({ page: 1, limit: 100 }));
   };
 
-  // Mock products data for fallback
-  const mockProducts = [
+  // Mock products data for fallback (aligned to VendorProduct type)
+  const mockProducts: VendorProduct[] = [
     {
       id: "1",
+      vendor_id: "1",
       name: "Organic Roma Tomatoes",
-      vendor: "Green Valley Farms",
-      vendorId: "1",
-      quantity: "500 kg",
-      pricePerUnit: "$2.50/kg",
-      harvestDate: "2024-09-20",
-      uploadDate: "2024-09-21",
-      status: "available",
-      uploadedBy: "vendor",
-      qualityGrade: "Premium",
-      location: "Kingston",
+      category: "Vegetables",
+      variety: "Roma",
+      quantity_available: 500,
+      unit_of_measurement: "kg",
+      price_per_unit: 2.5,
+      harvest_date: "2024-09-20",
+      quality_grade: "Premium",
+      organic_certified: true,
+      created_at: "2024-09-21T00:00:00Z",
+      updated_at: "2024-09-21T00:00:00Z",
     },
     {
       id: "2",
+      vendor_id: "1",
       name: "Fresh Iceberg Lettuce",
-      vendor: "Green Valley Farms",
-      vendorId: "1",
-      quantity: "200 kg",
-      pricePerUnit: "$3.20/kg",
-      harvestDate: "2024-09-22",
-      uploadDate: "2024-09-22",
-      status: "sold",
-      uploadedBy: "government",
-      qualityGrade: "Grade A",
-      location: "Kingston",
+      category: "Vegetables",
+      variety: "Iceberg",
+      quantity_available: 200,
+      unit_of_measurement: "kg",
+      price_per_unit: 3.2,
+      harvest_date: "2024-09-22",
+      quality_grade: "Grade A",
+      organic_certified: false,
+      created_at: "2024-09-22T00:00:00Z",
+      updated_at: "2024-09-22T00:00:00Z",
     },
     {
       id: "3",
+      vendor_id: "3",
       name: "Sweet Bell Peppers",
-      vendor: "Highland Produce Ltd.",
-      vendorId: "3",
-      quantity: "300 kg",
-      pricePerUnit: "$2.80/kg",
-      harvestDate: "2024-09-18",
-      uploadDate: "2024-09-18",
-      status: "available",
-      uploadedBy: "vendor",
-      qualityGrade: "Grade A",
-      location: "Christiana",
+      category: "Vegetables",
+      variety: "Bell",
+      quantity_available: 300,
+      unit_of_measurement: "kg",
+      price_per_unit: 2.8,
+      harvest_date: "2024-09-18",
+      quality_grade: "Grade A",
+      organic_certified: true,
+      created_at: "2024-09-18T00:00:00Z",
+      updated_at: "2024-09-18T00:00:00Z",
     },
     {
       id: "4",
+      vendor_id: "4",
       name: "Orange Sweet Potatoes",
-      vendor: "Coastal Farms Group",
-      vendorId: "4",
-      quantity: "1,000 kg",
-      pricePerUnit: "$1.80/kg",
-      harvestDate: "2024-09-15",
-      uploadDate: "2024-09-15",
-      status: "available",
-      uploadedBy: "government",
-      qualityGrade: "Grade B",
-      location: "St. Elizabeth",
+      category: "Root",
+      variety: "Sweet",
+      quantity_available: 1000,
+      unit_of_measurement: "kg",
+      price_per_unit: 1.8,
+      harvest_date: "2024-09-15",
+      quality_grade: "Grade B",
+      organic_certified: false,
+      created_at: "2024-09-15T00:00:00Z",
+      updated_at: "2024-09-15T00:00:00Z",
     },
     {
       id: "5",
+      vendor_id: "5",
       name: "Cavendish Bananas",
-      vendor: "Mountain Fresh Produce",
-      vendorId: "5",
-      quantity: "750 kg",
-      pricePerUnit: "$1.50/kg",
-      harvestDate: "2024-09-25",
-      uploadDate: "2024-09-26",
-      status: "reserved",
-      uploadedBy: "vendor",
-      qualityGrade: "Premium",
-      location: "Portland",
+      category: "Fruit",
+      variety: "Cavendish",
+      quantity_available: 750,
+      unit_of_measurement: "kg",
+      price_per_unit: 1.5,
+      harvest_date: "2024-09-25",
+      quality_grade: "Premium",
+      organic_certified: true,
+      created_at: "2024-09-26T00:00:00Z",
+      updated_at: "2024-09-26T00:00:00Z",
     },
   ];
 
@@ -149,8 +155,7 @@ export default function ProductsPage() {
   // Filter products
   const filteredProducts = useMemo(() => {
     return displayProducts.filter((product) => {
-      const vendorName =
-        vendorMap.get(product.vendor_id) || product.vendor || "";
+      const vendorName = vendorMap.get(product.vendor_id) || "Unknown Vendor";
       const matchesSearch =
         searchQuery === "" ||
         product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -338,9 +343,7 @@ export default function ProductsPage() {
 
             // Get vendor name
             const vendorName =
-              vendorMap.get(product.vendor_id) ||
-              product.vendor ||
-              "Unknown Vendor";
+              vendorMap.get(product.vendor_id) || "Unknown Vendor";
 
             return (
               <div
@@ -396,9 +399,7 @@ export default function ProductsPage() {
                   </div>
 
                   <Link
-                    href={`/government/vendors/${
-                      product.vendor_id || product.vendorId
-                    }`}
+                    href={`/government/vendors/${product.vendor_id}`}
                     className="inline-flex items-center gap-1.5 text-sm text-[color:var(--primary-accent2)] hover:text-[var(--primary-accent3)] font-medium mb-4 group/link transition-colors"
                   >
                     <span className="group-hover/link:underline">
@@ -426,7 +427,7 @@ export default function ProductsPage() {
                         Quantity
                       </div>
                       <div className="text-sm font-bold text-[color:var(--secondary-black)]">
-                        {product.quantity_available || product.quantity}
+                        {product.quantity_available}
                       </div>
                       <div className="text-[10px] text-[color:var(--secondary-muted-edge)]">
                         {product.unit_of_measurement || "units"}
@@ -454,7 +455,7 @@ export default function ProductsPage() {
                           Quality
                         </div>
                         <div className="text-sm font-bold text-blue-900">
-                          {product.quality_grade || product.qualityGrade}
+                          {product.quality_grade}
                         </div>
                       </div>
                     )}
@@ -466,13 +467,14 @@ export default function ProductsPage() {
                       <div className="inline-flex items-center gap-1.5 text-xs text-[color:var(--secondary-muted-edge)] bg-gray-50 px-2.5 py-1.5 rounded-lg">
                         <CalendarIcon className="h-3.5 w-3.5" />
                         <span>
-                          {new Date(
-                            product.harvest_date || product.harvestDate
-                          ).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })}
+                          {new Date(product.harvest_date).toLocaleDateString(
+                            "en-US",
+                            {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            }
+                          )}
                         </span>
                       </div>
                     )}

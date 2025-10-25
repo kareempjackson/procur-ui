@@ -73,7 +73,7 @@ const initialState: GovernmentVendorsState = {
  */
 export const fetchVendors = createAsyncThunk(
   "governmentVendors/fetchVendors",
-  async (params?: VendorQueryParams, { rejectWithValue }) => {
+  async (params: VendorQueryParams | undefined, { rejectWithValue }) => {
     try {
       const data = await governmentApi.getFarmers(params);
       return data;

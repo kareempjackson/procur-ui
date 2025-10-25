@@ -203,8 +203,11 @@ export default function VendorDetailPage({
 
   // Use real vendor data or fallback to mock
   const displayVendor = vendor || mockVendor;
-  const displayProducts =
-    vendorProducts.length > 0 ? vendorProducts : (mockVendor.products ?? []);
+  const displayProducts = vendorProducts.length > 0 ? vendorProducts : [];
+  const vendorInfra = (displayVendor as any).infrastructure;
+  const vendorProduction = ((displayVendor as any).production ?? []) as any[];
+  const vendorPrograms = ((displayVendor as any).programs ?? []) as any[];
+  const vendorMarket = (displayVendor as any).marketActivity ?? {};
 
   const tabs = [
     { id: "personal" as const, label: "Personal Details" },
@@ -412,8 +415,6 @@ export default function VendorDetailPage({
                       {displayVendor.gps_coordinates?.lat &&
                       displayVendor.gps_coordinates?.lng
                         ? `${displayVendor.gps_coordinates.lat}, ${displayVendor.gps_coordinates.lng}`
-                        : displayVendor.gps?.lat && displayVendor.gps?.lng
-                        ? `${displayVendor.gps.lat}, ${displayVendor.gps.lng}`
                         : "Not available"}
                     </div>
                   </div>
@@ -471,26 +472,40 @@ export default function VendorDetailPage({
                   Crop Types
                 </h2>
                 <div className="space-y-3">
-                  {(displayVendor.crops ?? []).map((crop, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center justify-between p-4 rounded-xl bg-gray-50 border border-[color:var(--secondary-soft-highlight)]"
-                    >
-                      <div>
-                        <div className="font-medium text-sm text-[color:var(--secondary-black)]">
-                          {crop.name}
+                  {(displayVendor.crops ?? []).map((crop: any, idx) => {
+                    const name =
+                      typeof crop === "string"
+                        ? crop
+                        : (crop?.name ?? String(crop));
+                    const variety =
+                      typeof crop === "string" ? undefined : crop?.variety;
+                    const acreage =
+                      typeof crop === "string" ? undefined : crop?.acreage;
+                    return (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between p-4 rounded-xl bg-gray-50 border border-[color:var(--secondary-soft-highlight)]"
+                      >
+                        <div>
+                          <div className="font-medium text-sm text-[color:var(--secondary-black)]">
+                            {name}
+                          </div>
+                          {variety && (
+                            <div className="text-xs text-[color:var(--secondary-muted-edge)] mt-0.5">
+                              Variety: {variety}
+                            </div>
+                          )}
                         </div>
-                        <div className="text-xs text-[color:var(--secondary-muted-edge)] mt-0.5">
-                          Variety: {crop.variety}
-                        </div>
+                        {acreage !== undefined && (
+                          <div className="text-right">
+                            <div className="font-semibold text-sm text-[color:var(--secondary-black)]">
+                              {acreage} acres
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <div className="text-right">
-                        <div className="font-semibold text-sm text-[color:var(--secondary-black)]">
-                          {crop.acreage} acres
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
@@ -505,12 +520,12 @@ export default function VendorDetailPage({
                     </span>
                     <span
                       className={`text-sm font-medium ${
-                        displayVendor.infrastructure?.irrigation
+                        vendorInfra?.irrigation
                           ? "text-[color:var(--primary-base)]"
                           : "text-[color:var(--secondary-muted-edge)]"
                       }`}
                     >
-                      {displayVendor.infrastructure?.irrigation ? "Yes" : "No"}
+                      {vendorInfra?.irrigation ? "Yes" : "No"}
                     </span>
                   </div>
                   <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50 border border-[color:var(--secondary-soft-highlight)]">
@@ -519,12 +534,12 @@ export default function VendorDetailPage({
                     </span>
                     <span
                       className={`text-sm font-medium ${
-                        displayVendor.infrastructure?.rainwaterHarvesting
+                        vendorInfra?.rainwaterHarvesting
                           ? "text-[color:var(--primary-base)]"
                           : "text-[color:var(--secondary-muted-edge)]"
                       }`}
                     >
-                      {displayVendor.infrastructure?.rainwaterHarvesting ? "Yes" : "No"}
+                      {vendorInfra?.rainwaterHarvesting ? "Yes" : "No"}
                     </span>
                   </div>
                   <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50 border border-[color:var(--secondary-soft-highlight)]">
@@ -532,7 +547,7 @@ export default function VendorDetailPage({
                       Ponds
                     </span>
                     <span className="text-sm font-medium text-[color:var(--secondary-black)]">
-                      {displayVendor.infrastructure?.ponds ?? "N/A"}
+                      {vendorInfra?.ponds ?? "N/A"}
                     </span>
                   </div>
                   <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50 border border-[color:var(--secondary-soft-highlight)]">
@@ -540,7 +555,7 @@ export default function VendorDetailPage({
                       Greenhouses
                     </span>
                     <span className="text-sm font-medium text-[color:var(--secondary-black)]">
-                      {displayVendor.infrastructure?.greenhouses ?? "N/A"}
+                      {vendorInfra?.greenhouses ?? "N/A"}
                     </span>
                   </div>
                   <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50 border border-[color:var(--secondary-soft-highlight)]">
@@ -548,7 +563,7 @@ export default function VendorDetailPage({
                       Shade Houses
                     </span>
                     <span className="text-sm font-medium text-[color:var(--secondary-black)]">
-                      {displayVendor.infrastructure?.shadeHouses ?? "N/A"}
+                      {vendorInfra?.shadeHouses ?? "N/A"}
                     </span>
                   </div>
                   <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50 border border-[color:var(--secondary-soft-highlight)]">
@@ -556,7 +571,7 @@ export default function VendorDetailPage({
                       Transportation
                     </span>
                     <span className="text-sm font-medium text-[color:var(--secondary-black)]">
-                      {displayVendor.infrastructure?.transportation ?? "N/A"}
+                      {vendorInfra?.transportation ?? "N/A"}
                     </span>
                   </div>
                 </div>
@@ -570,7 +585,7 @@ export default function VendorDetailPage({
               <h2 className="text-lg font-semibold text-[color:var(--secondary-black)]">
                 Current Production Cycles
               </h2>
-              {(displayVendor.production ?? []).map((prod) => (
+              {vendorProduction.map((prod) => (
                 <div
                   key={prod.id}
                   className="border border-[color:var(--secondary-soft-highlight)] rounded-xl p-6 space-y-4"
@@ -629,7 +644,7 @@ export default function VendorDetailPage({
                       Chemical Usage
                     </label>
                     <div className="space-y-2">
-                      {(prod.chemicals ?? []).map((chem, idx) => (
+                      {(prod.chemicals ?? []).map((chem: any, idx: number) => (
                         <div
                           key={idx}
                           className="flex items-center justify-between p-3 rounded-lg bg-gray-50"
@@ -661,7 +676,7 @@ export default function VendorDetailPage({
                 Enrolled Programs
               </h2>
               <div className="space-y-4">
-                {(displayVendor.programs ?? []).map((program) => (
+                {vendorPrograms.map((program) => (
                   <div
                     key={program.id}
                     className="flex items-center justify-between p-5 rounded-xl border border-[color:var(--secondary-soft-highlight)] bg-gray-50/50"
@@ -706,27 +721,29 @@ export default function VendorDetailPage({
                   Purchase Requirements
                 </h2>
                 <div className="space-y-3">
-                  {(displayVendor.marketActivity?.requirements ?? []).map((req, idx) => (
-                    <div
-                      key={idx}
-                      className="p-4 rounded-xl border border-[color:var(--secondary-soft-highlight)] bg-gray-50/50"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <div className="font-medium text-[color:var(--secondary-black)]">
-                            {req.crop}
-                          </div>
-                          <div className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
-                            Quantity: {req.quantity} · Frequency:{" "}
-                            {req.frequency}
-                          </div>
-                          <div className="text-xs text-[color:var(--secondary-muted-edge)] mt-1">
-                            Preferred: {req.preferredVariety}
+                  {(vendorMarket.requirements ?? []).map(
+                    (req: any, idx: number) => (
+                      <div
+                        key={idx}
+                        className="p-4 rounded-xl border border-[color:var(--secondary-soft-highlight)] bg-gray-50/50"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <div className="font-medium text-[color:var(--secondary-black)]">
+                              {req.crop}
+                            </div>
+                            <div className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
+                              Quantity: {req.quantity} · Frequency:{" "}
+                              {req.frequency}
+                            </div>
+                            <div className="text-xs text-[color:var(--secondary-muted-edge)] mt-1">
+                              Preferred: {req.preferredVariety}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  )}
                 </div>
               </div>
 
@@ -735,25 +752,27 @@ export default function VendorDetailPage({
                   Recent Transactions
                 </h2>
                 <div className="space-y-3">
-                  {(displayVendor.marketActivity?.transactions ?? []).map((trans, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center justify-between p-4 rounded-xl border border-[color:var(--secondary-soft-highlight)]"
-                    >
-                      <div>
-                        <div className="font-medium text-[color:var(--secondary-black)]">
-                          {trans.crop} - {trans.quantity}
+                  {(vendorMarket.transactions ?? []).map(
+                    (trans: any, idx: number) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between p-4 rounded-xl border border-[color:var(--secondary-soft-highlight)]"
+                      >
+                        <div>
+                          <div className="font-medium text-[color:var(--secondary-black)]">
+                            {trans.crop} - {trans.quantity}
+                          </div>
+                          <div className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
+                            {trans.buyer} ·{" "}
+                            {new Date(trans.date).toLocaleDateString()}
+                          </div>
                         </div>
-                        <div className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
-                          {trans.buyer} ·{" "}
-                          {new Date(trans.date).toLocaleDateString()}
+                        <div className="font-semibold text-[color:var(--primary-base)]">
+                          {trans.amount}
                         </div>
                       </div>
-                      <div className="font-semibold text-[color:var(--primary-base)]">
-                        {trans.amount}
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  )}
                 </div>
               </div>
             </div>
@@ -775,38 +794,50 @@ export default function VendorDetailPage({
                 </Link>
               </div>
               <div className="space-y-3">
-                {displayProducts.map((product) => (
-                  <div
-                    key={product.id}
-                    className="flex items-center justify-between p-5 rounded-xl border border-[color:var(--secondary-soft-highlight)] bg-gray-50/50"
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3">
-                        <h3 className="font-medium text-[color:var(--secondary-black)]">
-                          {product.name}
-                        </h3>
-                        <span
-                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                            product.status === "available"
-                              ? "bg-[var(--primary-base)]/10 text-[color:var(--primary-base)]"
-                              : "bg-gray-200 text-gray-700"
-                          }`}
-                        >
-                          {product.status}
-                        </span>
-                        {product.uploadedBy === "government" && (
-                          <span className="inline-flex items-center rounded-full bg-blue-100 text-blue-800 px-2 py-0.5 text-xs font-medium">
-                            Gov. Upload
+                {displayProducts.map((product) => {
+                  const isAvailable = product.harvest_date
+                    ? new Date(product.harvest_date) <= new Date()
+                    : true;
+                  const statusLabel = isAvailable ? "available" : "reserved";
+                  return (
+                    <div
+                      key={product.id}
+                      className="flex items-center justify-between p-5 rounded-xl border border-[color:var(--secondary-soft-highlight)] bg-gray-50/50"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3">
+                          <h3 className="font-medium text-[color:var(--secondary-black)]">
+                            {product.name}
+                          </h3>
+                          <span
+                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                              statusLabel === "available"
+                                ? "bg-[var(--primary-base)]/10 text-[color:var(--primary-base)]"
+                                : "bg-gray-200 text-gray-700"
+                            }`}
+                          >
+                            {statusLabel}
                           </span>
+                        </div>
+                        <div className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
+                          {product.quantity_available}{" "}
+                          {product.unit_of_measurement} · Harvest:{" "}
+                          {product.harvest_date
+                            ? new Date(
+                                product.harvest_date
+                              ).toLocaleDateString()
+                            : "TBD"}
+                        </div>
+                        {product.price_per_unit !== undefined && (
+                          <div className="text-xs text-[color:var(--secondary-black)] mt-1">
+                            Price: ${product.price_per_unit?.toFixed(2)} per{" "}
+                            {product.unit_of_measurement}
+                          </div>
                         )}
                       </div>
-                      <div className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
-                        {product.quantity} · Harvested:{" "}
-                        {new Date(product.harvestDate).toLocaleDateString()}
-                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

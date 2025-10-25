@@ -684,28 +684,7 @@ export const governmentApi = {
   },
 
   // ==================== DASHBOARD / OVERVIEW ====================
-
-  /**
-   * Get dashboard KPIs
-   * NOTE: This will likely need a dedicated endpoint
-   */
-  getDashboardStats: async (): Promise<any> => {
-    const api = getApiClient(getToken);
-    // This might be a combination of multiple endpoints
-    // For now, we'll create a placeholder
-    const response = await api.get("/government/dashboard/stats");
-    return response.data;
-  },
-
-  /**
-   * Get recent activity feed
-   * NOTE: This endpoint doesn't exist yet on the backend
-   */
-  getRecentActivity: async (params?: { limit?: number }): Promise<any[]> => {
-    const api = getApiClient(getToken);
-    const response = await api.get("/government/activity", { params });
-    return response.data;
-  },
+  // Duplicate section removed (methods already defined above)
 };
 
 export default governmentApi;

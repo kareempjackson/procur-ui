@@ -118,13 +118,34 @@ export default function ReportingPage() {
     try {
       const result = await dispatch(
         createAndGenerateReport({
-          report_type: selectedReport,
-          start_date: dateRange.startDate || undefined,
-          end_date: dateRange.endDate || undefined,
-          filters:
-            filters.location !== "all"
-              ? { location: filters.location }
-              : undefined,
+          type: selectedReport,
+          parameters: {
+            ...(dateRange.startDate || dateRange.endDate
+              ? {
+                  date_range: {
+                    start_date: dateRange.startDate,
+                    end_date: dateRange.endDate,
+                  },
+                }
+              : {}),
+            ...(filters.location !== "all" ||
+            filters.cropType !== "all" ||
+            filters.complianceStatus !== "all"
+              ? {
+                  filters: {
+                    ...(filters.location !== "all"
+                      ? { location: filters.location }
+                      : {}),
+                    ...(filters.cropType !== "all"
+                      ? { crop_type: filters.cropType }
+                      : {}),
+                    ...(filters.complianceStatus !== "all"
+                      ? { compliance_status: filters.complianceStatus }
+                      : {}),
+                  },
+                }
+              : {}),
+          },
         })
       ).unwrap();
 
@@ -275,7 +296,7 @@ export default function ReportingPage() {
               Generate comprehensive reports on vendors, production, and market
               activity
               {reportsStatus === "loading" && " • Loading..."}
-              {generateStatus === "loading" && " • Generating report..."}
+              {generateStatus === "generating" && " • Generating report..."}
             </p>
           </div>
           <button
@@ -436,13 +457,13 @@ export default function ReportingPage() {
                   {/* Generate Button */}
                   <button
                     onClick={handleGenerateReport}
-                    disabled={generateStatus === "loading"}
+                    disabled={generateStatus === "generating"}
                     className="w-full px-4 py-2.5 rounded-full bg-[var(--primary-accent2)] text-white text-sm font-medium hover:bg-[var(--primary-accent3)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
                   >
-                    {generateStatus === "loading" && (
+                    {generateStatus === "generating" && (
                       <ArrowPathIcon className="h-5 w-5 animate-spin" />
                     )}
-                    {generateStatus === "loading"
+                    {generateStatus === "generating"
                       ? "Generating..."
                       : "Generate Report"}
                   </button>

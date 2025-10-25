@@ -376,8 +376,8 @@ export default function ProgramsPage() {
                           program.performance === "excellent"
                             ? "text-[color:var(--primary-base)]"
                             : program.performance === "good"
-                            ? "text-[color:var(--primary-accent3)]"
-                            : "text-[color:var(--secondary-muted-edge)]"
+                              ? "text-[color:var(--primary-accent3)]"
+                              : "text-[color:var(--secondary-muted-edge)]"
                         }`}
                       >
                         {program.performance}
@@ -392,20 +392,20 @@ export default function ProgramsPage() {
                         Budget Utilization
                       </span>
                       <span className="text-xs font-medium text-[color:var(--secondary-black)]">
-                        ${(program.budgetUsed / 1000).toFixed(1)}K / $
+                        ${(program.budget_used / 1000).toFixed(1)}K / $
                         {(program.budget / 1000).toFixed(0)}K
                       </span>
                     </div>
                     <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all ${
-                          program.budgetPercentage >= 90
+                          program.budget_percentage >= 90
                             ? "bg-[var(--primary-accent2)]"
-                            : program.budgetPercentage >= 70
-                            ? "bg-yellow-500"
-                            : "bg-[var(--primary-base)]"
+                            : program.budget_percentage >= 70
+                              ? "bg-yellow-500"
+                              : "bg-[var(--primary-base)]"
                         }`}
-                        style={{ width: `${program.budgetPercentage}%` }}
+                        style={{ width: `${program.budget_percentage}%` }}
                       />
                     </div>
                   </div>
@@ -433,11 +433,13 @@ export default function ProgramsPage() {
                       <div className="flex items-center gap-2 text-sm text-[color:var(--secondary-black)]">
                         <ClockIcon className="h-4 w-4" />
                         {new Date(
-                          selectedProgramData.startDate
+                          (selectedProgramData as any).start_date ??
+                            (selectedProgramData as any).startDate
                         ).toLocaleDateString()}{" "}
                         -{" "}
                         {new Date(
-                          selectedProgramData.endDate
+                          (selectedProgramData as any).end_date ??
+                            (selectedProgramData as any).endDate
                         ).toLocaleDateString()}
                       </div>
                     </div>

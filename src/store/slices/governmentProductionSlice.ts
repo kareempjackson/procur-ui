@@ -102,10 +102,12 @@ const initialState: GovernmentProductionState = {
 export const fetchProductionStats = createAsyncThunk(
   "governmentProduction/fetchStats",
   async (
-    params?: {
-      period?: "week" | "month" | "quarter" | "year";
-      crop?: string;
-    },
+    params:
+      | {
+          period?: "week" | "month" | "quarter" | "year";
+          crop?: string;
+        }
+      | undefined,
     { rejectWithValue }
   ) => {
     try {
@@ -125,11 +127,13 @@ export const fetchProductionStats = createAsyncThunk(
 export const fetchVendorProduction = createAsyncThunk(
   "governmentProduction/fetchVendorProduction",
   async (
-    params?: {
-      page?: number;
-      limit?: number;
-      crop?: string;
-    },
+    params:
+      | {
+          page?: number;
+          limit?: number;
+          crop?: string;
+        }
+      | undefined,
     { rejectWithValue }
   ) => {
     try {
@@ -149,11 +153,13 @@ export const fetchVendorProduction = createAsyncThunk(
 export const fetchHarvestSchedule = createAsyncThunk(
   "governmentProduction/fetchHarvestSchedule",
   async (
-    params?: {
-      start_date?: string;
-      end_date?: string;
-      status?: string;
-    },
+    params:
+      | {
+          start_date?: string;
+          end_date?: string;
+          status?: string;
+        }
+      | undefined,
     { rejectWithValue }
   ) => {
     try {
@@ -173,9 +179,11 @@ export const fetchHarvestSchedule = createAsyncThunk(
 export const fetchProductionSummary = createAsyncThunk(
   "governmentProduction/fetchSummary",
   async (
-    params?: {
-      period?: "week" | "month" | "quarter" | "year";
-    },
+    params:
+      | {
+          period?: "week" | "month" | "quarter" | "year";
+        }
+      | undefined,
     { rejectWithValue }
   ) => {
     try {
