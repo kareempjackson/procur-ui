@@ -220,10 +220,10 @@ export default function SellerProductsPage() {
   const totalPages = Math.ceil((total || 0) / itemsPerPage);
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
+    <div className="min-h-screen bg-white">
       {/* Navigation is provided by seller layout */}
 
-      <main className="max-w-7xl mx-auto px-6 py-10">
+      <main className="max-w-[1400px] mx-auto px-6 py-10">
         {/* Breadcrumbs */}
         <nav
           className="mb-6 text-sm text-[var(--primary-base)]"
@@ -537,14 +537,14 @@ export default function SellerProductsPage() {
             </Link>
           </div>
         ) : viewMode === "grid" ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
             {visibleProducts.map((product) => (
               <div
                 key={product.id}
-                className="bg-white rounded-lg overflow-hidden border border-[var(--secondary-soft-highlight)]/20 hover:shadow-md transition-all duration-200 group"
+                className="bg-white rounded-2xl overflow-hidden group transition-colors"
               >
                 {/* Product Image */}
-                <div className="relative h-48 overflow-hidden bg-gray-50">
+                <div className="relative aspect-square overflow-hidden bg-gray-50">
                   {getPrimaryImage(product) ? (
                     <img
                       src={getPrimaryImage(product)}
@@ -578,10 +578,10 @@ export default function SellerProductsPage() {
                           product.status === ProductStatus.DRAFT
                             ? "bg-gray-600"
                             : product.status === ProductStatus.INACTIVE
-                            ? "bg-yellow-600"
-                            : product.status === ProductStatus.OUT_OF_STOCK
-                            ? "bg-red-600"
-                            : "bg-red-700"
+                              ? "bg-yellow-600"
+                              : product.status === ProductStatus.OUT_OF_STOCK
+                                ? "bg-red-600"
+                                : "bg-red-700"
                         )}
                       >
                         {product.status === ProductStatus.OUT_OF_STOCK
@@ -607,7 +607,7 @@ export default function SellerProductsPage() {
                   {/* Feature Badges - Top Right */}
                   <div className="absolute top-2 right-2 flex gap-1">
                     {product.is_featured && (
-                      <div className="w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center shadow-sm">
+                      <div className="w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center">
                         <svg
                           className="w-3 h-3 text-white"
                           fill="currentColor"
@@ -618,7 +618,7 @@ export default function SellerProductsPage() {
                       </div>
                     )}
                     {product.is_organic && (
-                      <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center shadow-sm">
+                      <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
                         <svg
                           className="w-3 h-3 text-white"
                           fill="none"
@@ -635,7 +635,7 @@ export default function SellerProductsPage() {
                       </div>
                     )}
                     {product.is_local && (
-                      <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center shadow-sm">
+                      <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
                         <svg
                           className="w-3 h-3 text-white"
                           fill="none"
@@ -732,8 +732,8 @@ export default function SellerProductsPage() {
                           product.stock_quantity > 10
                             ? "bg-green-500"
                             : product.stock_quantity > 0
-                            ? "bg-yellow-500"
-                            : "bg-red-500"
+                              ? "bg-yellow-500"
+                              : "bg-red-500"
                         )}
                       ></div>
                       <span className="font-medium text-[var(--secondary-black)]">
@@ -766,7 +766,7 @@ export default function SellerProductsPage() {
                     </Link>
                     <Link
                       href={`/seller/products/${product.id}/preview`}
-                      className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-[var(--primary-border)] text-[var(--secondary-black)] rounded-full text-xs font-medium hover:bg-gray-50 transition-colors"
+                      className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white text-[var(--secondary-black)] rounded-full text-xs font-medium hover:bg-gray-50 transition-colors"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <svg

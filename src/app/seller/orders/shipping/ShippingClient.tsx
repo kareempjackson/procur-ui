@@ -125,14 +125,14 @@ export default function ShippingClient() {
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen bg-[var(--primary-background)] flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <ProcurLoader />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
+    <div className="min-h-screen bg-white">
       <main className="max-w-7xl mx-auto px-6 py-10">
         {/* Header */}
         <div className="mb-8">
@@ -146,7 +146,7 @@ export default function ShippingClient() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/20 p-5 hover:shadow-md transition-shadow">
+          <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/20 p-5">
             <p className="text-sm text-[var(--secondary-muted-edge)] mb-1">
               Ready to Ship
             </p>
@@ -155,7 +155,7 @@ export default function ShippingClient() {
             </p>
           </div>
 
-          <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/20 p-5 hover:shadow-md transition-shadow">
+          <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/20 p-5">
             <p className="text-sm text-[var(--secondary-muted-edge)] mb-1">
               In Transit
             </p>
@@ -164,7 +164,7 @@ export default function ShippingClient() {
             </p>
           </div>
 
-          <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/20 p-5 hover:shadow-md transition-shadow">
+          <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/20 p-5">
             <p className="text-sm text-[var(--secondary-muted-edge)] mb-1">
               Delivered Today
             </p>
@@ -173,7 +173,7 @@ export default function ShippingClient() {
             </p>
           </div>
 
-          <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/20 p-5 hover:shadow-md transition-shadow">
+          <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/20 p-5">
             <p className="text-sm text-[var(--secondary-muted-edge)] mb-1">
               Total Orders
             </p>
@@ -208,7 +208,7 @@ export default function ShippingClient() {
 
         {/* Bulk Actions Bar */}
         {showBulkActions && (
-          <div className="bg-[var(--primary-accent2)] text-white rounded-2xl p-4 mb-6 flex items-center justify-between shadow-lg">
+          <div className="bg-[var(--primary-accent2)] text-white rounded-2xl p-4 mb-6 flex items-center justify-between">
             <span className="font-medium">
               {selectedOrders.size} order{selectedOrders.size !== 1 ? "s" : ""}{" "}
               selected

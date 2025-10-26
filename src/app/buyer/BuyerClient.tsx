@@ -529,34 +529,36 @@ export default function BuyerClient() {
     (priceRange[0] !== 0 || priceRange[1] !== 100 ? 1 : 0);
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
+    <div className="min-h-screen bg-white">
       <main>
         {/* Search Section */}
         <section className="bg-white border-b border-[var(--secondary-soft-highlight)]/30">
-          <div className="max-w-[1400px] mx-auto px-6 py-3">
-            <div className="flex gap-2 items-center">
-              <div className="flex-1 flex items-center bg-[var(--primary-background)] rounded-full overflow-hidden border border-[var(--secondary-soft-highlight)]/30">
-                <input
-                  type="text"
-                  placeholder="Search for produce, farms, or categories..."
-                  className="flex-1 px-3 py-2 text-xs outline-none bg-transparent placeholder:text-[var(--secondary-muted-edge)] text-[var(--secondary-black)]"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                <button className="p-2 m-0.5 bg-[var(--primary-accent2)] text-white rounded-full hover:bg-[var(--primary-accent3)] transition-all duration-200">
-                  <MagnifyingGlassIcon className="h-4 w-4" />
-                </button>
+          <div className="max-w-[1400px] mx-auto px-6 py-5">
+            <div className="flex gap-3 items-center">
+              <div className="flex-1">
+                <div className="flex items-center rounded-full border border-[var(--secondary-soft-highlight)]/40 bg-white">
+                  <input
+                    type="text"
+                    placeholder="Search for produce, farms, or categories"
+                    className="flex-1 px-5 py-3 text-sm outline-none bg-transparent placeholder:text-[var(--secondary-muted-edge)] text-[var(--secondary-black)]"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  <button className="m-1 h-10 w-10 inline-flex items-center justify-center rounded-full bg-[var(--primary-accent2)] text-white hover:bg-[var(--primary-accent3)] transition-colors">
+                    <MagnifyingGlassIcon className="h-5 w-5" />
+                  </button>
+                </div>
               </div>
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="relative flex items-center gap-1.5 px-3 py-2 bg-[var(--primary-background)] border border-[var(--secondary-soft-highlight)]/30 rounded-full hover:bg-white transition-colors duration-200"
+                className="relative flex items-center gap-2 px-4 py-2.5 bg-white border border-[var(--secondary-soft-highlight)]/40 rounded-full hover:bg-[var(--primary-background)] transition-colors duration-200"
               >
-                <FunnelIcon className="h-3.5 w-3.5 text-[var(--secondary-black)]" />
-                <span className="font-medium text-xs text-[var(--secondary-black)]">
+                <FunnelIcon className="h-4 w-4 text-[var(--secondary-black)]" />
+                <span className="font-medium text-sm text-[var(--secondary-black)]">
                   Filters
                 </span>
                 {activeFiltersCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-[var(--primary-accent2)] text-white text-[9px] rounded-full h-4 w-4 flex items-center justify-center font-semibold">
+                  <span className="absolute -top-1.5 -right-1.5 bg-[var(--primary-accent2)] text-white text-[10px] rounded-full h-5 w-5 flex items-center justify-center font-semibold">
                     {activeFiltersCount}
                   </span>
                 )}
@@ -564,18 +566,18 @@ export default function BuyerClient() {
             </div>
 
             {/* Category Scroll - eBay Style */}
-            <div className="relative mt-2">
+            <div className="relative mt-4">
               {hasOverflow && (
                 <>
                   <button
                     onClick={() => scrollCategories("left")}
-                    className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white shadow-lg rounded-full p-1 hover:bg-gray-50 transition-all duration-200"
+                    className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white border border-[var(--secondary-soft-highlight)]/40 rounded-full p-1 hover:bg-gray-50 transition-all duration-200"
                   >
                     <ChevronLeftIcon className="h-3 w-3 text-[var(--secondary-black)]" />
                   </button>
                   <button
                     onClick={() => scrollCategories("right")}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white shadow-lg rounded-full p-1 hover:bg-gray-50 transition-all duration-200"
+                    className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white border border-[var(--secondary-soft-highlight)]/40 rounded-full p-1 hover:bg-gray-50 transition-all duration-200"
                   >
                     <ChevronRightIcon className="h-3 w-3 text-[var(--secondary-black)]" />
                   </button>
@@ -583,7 +585,7 @@ export default function BuyerClient() {
               )}
               <div
                 ref={categoryScrollRef}
-                className={`flex gap-1.5 overflow-x-auto scrollbar-hide scroll-smooth ${
+                className={`flex gap-2 overflow-x-auto scrollbar-hide scroll-smooth ${
                   hasOverflow ? "px-6" : "px-0"
                 }`}
                 style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
@@ -594,13 +596,12 @@ export default function BuyerClient() {
                     onClick={() =>
                       dispatch(setSelectedCategoryAction(category.name))
                     }
-                    className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full font-medium text-xs transition-all duration-200 whitespace-nowrap ${
+                    className={`flex-shrink-0 px-4 py-2 rounded-full font-medium text-sm transition-colors duration-200 whitespace-nowrap ${
                       selectedCategory === category.name
-                        ? "bg-[var(--primary-accent2)] text-white shadow-md"
-                        : "bg-white text-[var(--secondary-black)] hover:bg-[var(--primary-background)] border border-[var(--secondary-soft-highlight)]/30"
+                        ? "bg-[var(--primary-accent2)] text-white"
+                        : "bg-white text-[var(--secondary-black)] hover:bg-[var(--primary-background)] border border-[var(--secondary-soft-highlight)]/40"
                     }`}
                   >
-                    <span className="text-sm">{category.icon}</span>
                     {category.name}
                   </button>
                 ))}
@@ -826,10 +827,10 @@ export default function BuyerClient() {
           </div>
         )}
 
-        <div className="max-w-[1400px] mx-auto px-6 py-5">
+        <div className="max-w-[1400px] mx-auto px-6 py-8">
           <div className="grid gap-5 lg:grid-cols-3">
             {/* Main Content - Products */}
-            <div className="space-y-5 lg:col-span-2">
+            <div className="space-y-6 lg:col-span-2">
               {/* Available Harvests Grid */}
               <section>
                 <div className="flex items-center justify-between mb-4">
@@ -853,7 +854,7 @@ export default function BuyerClient() {
                 {status === "loading" ? (
                   <ProcurLoader size="md" text="Loading products..." />
                 ) : products.length === 0 ? (
-                  <div className="bg-white rounded-2xl p-8 text-center border border-[var(--secondary-soft-highlight)]/20">
+                  <div className="bg-white rounded-2xl p-12 text-center border border-[var(--secondary-soft-highlight)]/20">
                     <FunnelIcon className="h-12 w-12 text-[var(--secondary-muted-edge)] mx-auto mb-3 opacity-50" />
                     <h3 className="text-lg font-semibold text-[var(--secondary-black)] mb-1.5">
                       No products found
@@ -869,12 +870,12 @@ export default function BuyerClient() {
                     </button>
                   </div>
                 ) : (
-                  <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                  <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
                     {products.map((product) => (
                       <Link
                         key={product.id}
                         href={`/buyer/product/${product.id}`}
-                        className="bg-white rounded-lg overflow-hidden border border-[var(--secondary-soft-highlight)]/20 hover:shadow-md transition-all duration-200 group block"
+                        className="bg-white rounded-xl overflow-hidden border border-[var(--secondary-soft-highlight)]/20 hover:bg-[var(--primary-background)]/40 transition-colors duration-200 group block"
                       >
                         <div className="relative h-32">
                           <Image
@@ -1001,13 +1002,13 @@ export default function BuyerClient() {
 
                 {products.length > 0 &&
                   products.length < pagination.totalItems && (
-                    <div className="text-center mt-5">
+                    <div className="text-center mt-6">
                       <button
                         onClick={() => {
                           // TODO: Implement pagination
                           console.log("Load more products");
                         }}
-                        className="px-5 py-2 bg-white border-2 border-[var(--primary-accent2)] text-[var(--primary-accent2)] rounded-full text-sm font-medium hover:bg-[var(--primary-accent2)] hover:text-white transition-all duration-200"
+                        className="px-6 py-2.5 bg-white border-2 border-[var(--primary-accent2)] text-[var(--primary-accent2)] rounded-full text-sm font-medium hover:bg-[var(--primary-accent2)] hover:text-white transition-all duration-200"
                       >
                         Load More Products
                       </button>
@@ -1017,12 +1018,12 @@ export default function BuyerClient() {
             </div>
 
             {/* Sidebar - Right Side */}
-            <div className="space-y-4">
+            <div className="space-y-5">
               {/* Harvest Social Feed - Toggleable */}
               <section className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/20 overflow-hidden">
                 <button
                   onClick={() => setShowHarvestFeed(!showHarvestFeed)}
-                  className="w-full p-3 flex items-center justify-between hover:bg-[var(--primary-background)] transition-colors duration-200"
+                  className="w-full p-4 flex items-center justify-between hover:bg-[var(--primary-background)] transition-colors duration-200"
                 >
                   <div className="flex items-center gap-1.5">
                     <CalendarIcon className="h-4 w-4 text-[var(--primary-accent2)]" />

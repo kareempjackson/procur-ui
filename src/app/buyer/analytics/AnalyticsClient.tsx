@@ -65,7 +65,7 @@ export default function AnalyticsClient() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
+    <div className="min-h-screen bg-white">
       <main className="max-w-[1400px] mx-auto px-6 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -366,10 +366,10 @@ export default function AnalyticsClient() {
                               index === 0
                                 ? "bg-[#E0A374] text-white"
                                 : index === 1
-                                ? "bg-[#C0D1C7] text-[#407178]"
-                                : index === 2
-                                ? "bg-[#A6B1E7] text-white"
-                                : "bg-[var(--primary-background)] text-[var(--secondary-muted-edge)]"
+                                  ? "bg-[#C0D1C7] text-[#407178]"
+                                  : index === 2
+                                    ? "bg-[#A6B1E7] text-white"
+                                    : "bg-[var(--primary-background)] text-[var(--secondary-muted-edge)]"
                             }`}
                           >
                             #{index + 1}

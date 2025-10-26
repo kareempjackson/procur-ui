@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   BuildingOfficeIcon,
@@ -12,8 +12,10 @@ import {
   ShieldCheckIcon,
   InformationCircleIcon,
 } from "@heroicons/react/24/outline";
-import { useAppSelector } from "@/store";
+import { useAppDispatch, useAppSelector } from "@/store";
 import { selectAuthUser } from "@/store/slices/authSlice";
+import { getApiClient } from "@/lib/apiClient";
+import { fetchProfile } from "@/store/slices/profileSlice";
 
 type TeamMember = {
   id: string;
@@ -35,6 +37,9 @@ type Invitation = {
 
 export default function SellerBusinessSettingsPage() {
   const user = useAppSelector(selectAuthUser);
+  const dispatch = useAppDispatch();
+  const profile = useAppSelector((s) => s.profile.profile);
+  const profileStatus = useAppSelector((s) => s.profile.status);
   const [activeTab, setActiveTab] = useState<"general" | "team" | "payments">(
     "general"
   );
@@ -50,6 +55,33 @@ export default function SellerBusinessSettingsPage() {
   const [description, setDescription] = useState("");
   const [farmerIdFile, setFarmerIdFile] = useState<File | null>(null);
   const [farmerIdPreview, setFarmerIdPreview] = useState<string | null>(null);
+
+  // Load live profile data
+  useEffect(() => {
+    if (profileStatus === "idle") {
+      dispatch(fetchProfile());
+    }
+  }, [dispatch, profileStatus]);
+
+  useEffect(() => {
+    if (!profile) return;
+    const org = profile.organization;
+    setBusinessName(org?.businessName || org?.name || "");
+    setBusinessType(org?.businessType || "");
+    setAddress(
+      org?.address ||
+        [org?.city, org?.state, org?.postalCode, org?.country]
+          .filter(Boolean)
+          .join(", ") ||
+        ""
+    );
+    setPhone(profile.phone || "");
+    setDescription(org?.description || "");
+    // If we have an existing Farmer ID URL from profile and no new file selected, show it
+    if (!farmerIdFile) {
+      setFarmerIdPreview(org?.farmersIdUrl || null);
+    }
+  }, [profile, farmerIdFile]);
 
   // Team Management State
   const [teamMembers] = useState<TeamMember[]>([]);
@@ -87,8 +119,65 @@ export default function SellerBusinessSettingsPage() {
   };
 
   const handleSaveGeneral = async () => {
-    // TODO: Implement API call to update organization
-    console.log("Saving general settings...");
+    const client = getApiClient();
+    try {
+      let farmersIdPath: string | undefined = undefined;
+
+      if (farmerIdFile && user?.organizationId) {
+        // 1) Ask backend for signed upload URL (private storage)
+        const { data: signed } = await client.patch(
+          "/users/farmers-id/signed-upload",
+          {
+            organizationId: user.organizationId,
+            filename: farmerIdFile.name,
+          }
+        );
+
+        // 2) Upload the file directly to Supabase Storage using the signed URL
+        const uploadRes = await fetch(signed.signedUrl as string, {
+          method: "PUT",
+          headers: {
+            "Content-Type": farmerIdFile.type || "application/octet-stream",
+            "x-upsert": "false",
+          },
+          body: farmerIdFile,
+        });
+
+        if (!uploadRes.ok) {
+          throw new Error("Failed to upload Farmer ID to storage");
+        }
+
+        farmersIdPath = signed.path as string;
+      }
+
+      // 3) Save profile fields (and farmersIdPath if present)
+      await client.patch("/users/profile", {
+        businessName,
+        businessType,
+        address,
+        phone,
+        description,
+        ...(farmersIdPath ? { farmersIdPath } : {}),
+      });
+
+      // Refresh profile after save
+      dispatch(fetchProfile());
+
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("onboarding:business_profile_completed", "true");
+        }
+      } catch (_) {
+        // ignore storage errors
+      }
+
+      // Clear local file state after successful save
+      setFarmerIdFile(null);
+      // Keep preview; it will refresh from profile when fetched
+    } catch (e) {
+      console.error(e);
+      alert("Failed to save changes. Please try again.");
+    }
   };
 
   const handleConnectBank = async () => {
@@ -132,10 +221,10 @@ export default function SellerBusinessSettingsPage() {
   };
 
   const inputClassName =
-    "w-full px-4 py-2.5 text-sm rounded-full border border-[var(--secondary-soft-highlight)]/30 bg-[var(--primary-background)] outline-none focus:border-[var(--primary-accent2)] transition-colors text-[var(--secondary-black)]";
+    "w-full px-4 py-2.5 text-sm rounded-full border border-gray-200 bg-white outline-none focus:border-[var(--primary-accent2)] transition-colors text-[var(--secondary-black)]";
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
+    <div className="min-h-screen bg-white">
       <main className="max-w-5xl mx-auto px-6 py-6">
         {/* Header */}
         <div className="mb-6">
@@ -217,11 +306,10 @@ export default function SellerBusinessSettingsPage() {
                     className={inputClassName}
                   >
                     <option value="">Select type</option>
-                    <option value="farm">Farm</option>
-                    <option value="cooperative">Cooperative</option>
-                    <option value="distributor">Distributor</option>
-                    <option value="processor">Processor</option>
-                    <option value="other">Other</option>
+                    <option value="farmers">Farm</option>
+                    <option value="general">General</option>
+                    <option value="manufacturers">Manufacturers</option>
+                    <option value="fishermen">Fishermen</option>
                   </select>
                 </div>
 
@@ -260,19 +348,6 @@ export default function SellerBusinessSettingsPage() {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="+1 (555) 123-4567"
-                    className={inputClassName}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-[var(--secondary-black)] mb-1.5">
-                    Website
-                  </label>
-                  <input
-                    type="url"
-                    value={website}
-                    onChange={(e) => setWebsite(e.target.value)}
-                    placeholder="https://example.com"
                     className={inputClassName}
                   />
                 </div>
@@ -769,7 +844,7 @@ export default function SellerBusinessSettingsPage() {
                 </div>
 
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-800">
-                  An invitation email will be sent to this address. They'll need
+                  An invitation email will be sent to this address. Theyll need
                   to create an account or sign in to accept the invitation.
                 </div>
               </div>

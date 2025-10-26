@@ -86,12 +86,6 @@ const SignUpPage: React.FC = () => {
       description: "List products and manage orders",
       icon: TagIcon,
     },
-    {
-      value: "government",
-      label: "Government",
-      description: "Onboard vendors and run procurement",
-      icon: BuildingLibraryIcon,
-    },
   ];
 
   return (

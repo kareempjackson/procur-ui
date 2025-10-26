@@ -120,7 +120,7 @@ export default function PurchaseRequestsClient() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
+    <div className="min-h-screen bg-white">
       <main className="max-w-[1400px] mx-auto px-6 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -149,9 +149,9 @@ export default function PurchaseRequestsClient() {
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium capitalize transition-colors duration-200 whitespace-nowrap ${
+                  className={`px-4 py-2 rounded-full text-sm font-medium capitalize transition-colors whitespace-nowrap ${
                     activeTab === tab.key
-                      ? "bg-[var(--primary-accent2)] text-white shadow-md"
+                      ? "bg-[var(--primary-accent2)] text-white"
                       : "bg-[var(--primary-background)] text-[var(--secondary-black)] hover:bg-gray-100"
                   }`}
                 >
@@ -200,7 +200,7 @@ export default function PurchaseRequestsClient() {
 
         {/* Requests List */}
         {requests.length === 0 ? (
-          <div className="bg-white rounded-2xl p-12 text-center border border-[var(--secondary-soft-highlight)]/20">
+          <div className="bg-white rounded-2xl p-12 text-center border border-gray-200">
             <DocumentTextIcon className="h-16 w-16 text-[var(--secondary-muted-edge)] mx-auto mb-4 opacity-50" />
             <h3 className="text-xl font-semibold text-[var(--secondary-black)] mb-2">
               No {activeTab === "all" ? "" : activeTab} requests found
@@ -222,7 +222,7 @@ export default function PurchaseRequestsClient() {
               return (
                 <div
                   key={request.id}
-                  className="bg-white rounded-2xl overflow-hidden border border-[var(--secondary-soft-highlight)]/20 hover:shadow-lg transition-shadow duration-200 cursor-pointer"
+                  className="group bg-white rounded-2xl overflow-hidden border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:ring-offset-2"
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => {
@@ -239,18 +239,38 @@ export default function PurchaseRequestsClient() {
                     {/* Header */}
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-semibold text-[var(--secondary-black)] line-clamp-1 mb-1">
+                        {request.request_number && (
+                          <div className="text-[10px] uppercase tracking-wide text-gray-500 mb-1">
+                            RFQ {request.request_number}
+                          </div>
+                        )}
+                        <h3 className="text-base font-semibold text-[var(--secondary-black)] line-clamp-1">
                           {request.product_name}
                         </h3>
                         <p className="text-sm text-[var(--secondary-muted-edge)] line-clamp-1">
                           {request.buyer_name}
                         </p>
                       </div>
-                      <div
-                        className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${statusBadge.className} flex-shrink-0 ml-2`}
-                      >
-                        {statusBadge.icon}
-                        <span>{statusBadge.text}</span>
+                      <div className="flex items-center gap-2 ml-2">
+                        <div
+                          className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${statusBadge.className} flex-shrink-0`}
+                        >
+                          {statusBadge.icon}
+                          <span>{statusBadge.text}</span>
+                        </div>
+                        <svg
+                          className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5l7 7-7 7"
+                          />
+                        </svg>
                       </div>
                     </div>
 

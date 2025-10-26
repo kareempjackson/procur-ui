@@ -97,10 +97,10 @@ export default function SellerProfilePage() {
   };
 
   const inputClassName =
-    "w-full px-4 py-2.5 text-sm rounded-full border border-[var(--secondary-soft-highlight)]/30 bg-[var(--primary-background)] outline-none focus:border-[var(--primary-accent2)] transition-colors text-[var(--secondary-black)]";
+    "w-full px-4 py-2.5 text-sm rounded-full border border-gray-200 bg-white outline-none focus:border-[var(--primary-accent2)] transition-colors text-[var(--secondary-black)]";
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
+    <div className="min-h-screen bg-white">
       <main className="max-w-5xl mx-auto px-6 py-6">
         {/* Header */}
         <div className="mb-6">
@@ -340,8 +340,8 @@ export default function SellerProfilePage() {
                               ? newPassword.length < 8
                                 ? "bg-red-500"
                                 : newPassword.length < 12
-                                ? "bg-yellow-500"
-                                : "bg-green-500"
+                                  ? "bg-yellow-500"
+                                  : "bg-green-500"
                               : "bg-gray-200"
                           }`}
                         />
@@ -351,8 +351,8 @@ export default function SellerProfilePage() {
                       {newPassword.length < 8
                         ? "Weak password"
                         : newPassword.length < 12
-                        ? "Moderate password"
-                        : "Strong password"}
+                          ? "Moderate password"
+                          : "Strong password"}
                     </div>
                   </div>
                 )}

@@ -112,7 +112,7 @@ export default function ProductClient({ productId }: ProductClientProps) {
   // Loading state
   if (productDetailStatus === "loading") {
     return (
-      <div className="min-h-screen bg-[var(--primary-background)] flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <ProcurLoader size="lg" text="Loading product..." />
       </div>
     );
@@ -121,7 +121,7 @@ export default function ProductClient({ productId }: ProductClientProps) {
   // Error state
   if (productDetailStatus === "failed" || !product) {
     return (
-      <div className="min-h-screen bg-[var(--primary-background)] flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-xl font-bold text-[var(--secondary-black)] mb-2">
             Product Not Found
@@ -147,7 +147,7 @@ export default function ProductClient({ productId }: ProductClientProps) {
     : ["/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg"];
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
+    <div className="min-h-screen bg-white">
       <div className="max-w-7xl mx-auto px-6 py-4">
         {/* Breadcrumb */}
         <div className="mb-4">

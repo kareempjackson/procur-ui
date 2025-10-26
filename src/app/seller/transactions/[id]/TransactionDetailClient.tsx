@@ -153,7 +153,7 @@ export default function TransactionDetailClient({
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[var(--primary-background)] flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <ProcurLoader />
       </div>
     );
@@ -161,7 +161,7 @@ export default function TransactionDetailClient({
 
   if (error || !transaction) {
     return (
-      <div className="min-h-screen bg-[var(--primary-background)] flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
           <XCircleIcon className="w-16 h-16 text-red-600 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-[var(--secondary-black)] mb-2">
@@ -182,7 +182,7 @@ export default function TransactionDetailClient({
   }
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
+    <div className="min-h-screen bg-white">
       <main className="max-w-4xl mx-auto px-6 py-10">
         {/* Header */}
         <div className="mb-8">

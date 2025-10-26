@@ -155,7 +155,7 @@ export default function AnalyticsClient() {
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen bg-[var(--primary-background)] flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <ProcurLoader />
       </div>
     );
@@ -163,7 +163,7 @@ export default function AnalyticsClient() {
 
   if (status === "failed") {
     return (
-      <div className="min-h-screen bg-[var(--primary-background)] flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
           <div className="text-red-600 mb-4">
             <svg
@@ -198,7 +198,7 @@ export default function AnalyticsClient() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
+    <div className="min-h-screen bg-white">
       <main>
         {/* Header */}
         <section className="bg-white border-b border-[var(--secondary-soft-highlight)]/30">
@@ -239,7 +239,7 @@ export default function AnalyticsClient() {
             {stats.map((stat) => (
               <div
                 key={stat.label}
-                className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/20 p-5 hover:shadow-md transition-shadow duration-200"
+                className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/20 p-5"
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className={`p-3 rounded-xl ${stat.bgColor}`}>
@@ -251,8 +251,8 @@ export default function AnalyticsClient() {
                         stat.trend === "up"
                           ? "text-green-600"
                           : stat.trend === "down"
-                          ? "text-red-600"
-                          : "text-gray-500"
+                            ? "text-red-600"
+                            : "text-gray-500"
                       }`}
                     >
                       {stat.trend === "up" ? (

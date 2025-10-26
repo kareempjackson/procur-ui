@@ -105,7 +105,7 @@ export default function OrderConfirmationPage({
   params: { orderId: string };
 }) {
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
+    <div className="min-h-screen bg-white">
       <main className="max-w-4xl mx-auto px-6 py-10">
         {/* Success Header */}
         <div className="text-center mb-10">

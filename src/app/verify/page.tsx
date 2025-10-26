@@ -37,11 +37,11 @@ function VerifyPageInner() {
         setStatus("success");
         const type = auth.user.accountType;
         if (type === "seller") {
-          router.replace("/seller/onboarding");
+          router.replace("/seller");
         } else if (type === "buyer") {
-          router.replace("/buyer/onboarding");
+          router.replace("/buyer");
         } else if (type === "government") {
-          router.replace("/government/onboarding");
+          router.replace("/government");
         } else {
           router.replace("/");
         }
@@ -142,7 +142,7 @@ function VerifyPageInner() {
                   Email verified
                 </h1>
                 <p className="mt-3 text-sm text-neutral-600">
-                  Redirecting you to onboarding…
+                  Redirecting you to your dashboard…
                 </p>
               </>
             )}

@@ -80,13 +80,13 @@ const BuyerTopNavigation: React.FC = () => {
     setActiveDropdown(activeDropdown === dropdownName ? null : dropdownName);
   };
 
-  const navBgClass = "bg-[var(--primary-background)]";
+  const navBgClass = "bg-white";
 
   const safeItems = Array.isArray(items)
     ? items
     : Array.isArray((items as unknown as { data?: unknown })?.data)
-    ? ((items as unknown as { data: unknown[] }).data as any[])
-    : [];
+      ? ((items as unknown as { data: unknown[] }).data as any[])
+      : [];
   const unreadCount = safeItems.filter((n: any) => !n.read_at).length;
 
   // Cart item count
@@ -252,7 +252,7 @@ const BuyerTopNavigation: React.FC = () => {
                   )}
                 </button>
                 {activeDropdown === "notifications" && (
-                  <div className="absolute top-full right-0 w-80 bg-white/95 backdrop-blur-md border border-gray-200/50 rounded-xl shadow-2xl z-50 mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="absolute top-full right-0 w-80 bg-white border border-gray-200 rounded-xl z-50 mt-3">
                     <div className="py-3">
                       <div className="px-4 py-2 border-b border-gray-200">
                         <div className="flex items-center justify-between">
@@ -379,7 +379,7 @@ const BuyerTopNavigation: React.FC = () => {
                   />
                 </button>
                 {activeDropdown === "user" && (
-                  <div className="absolute top-full right-0 w-64 bg-white/95 backdrop-blur-md border border-gray-200/50 rounded-xl shadow-2xl z-50 mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="absolute top-full right-0 w-64 bg-white border border-gray-200 rounded-xl z-50 mt-3">
                     <div className="py-3">
                       <div className="px-4 py-3 border-b border-gray-200">
                         <div className="font-medium text-gray-900">

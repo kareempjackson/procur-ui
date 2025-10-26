@@ -275,7 +275,7 @@ export default function RequestsClient() {
   // Loading state
   if (status === "loading" && requests.length === 0) {
     return (
-      <div className="min-h-screen bg-[var(--primary-background)] flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <ProcurLoader size="lg" text="Loading requests..." />
       </div>
     );
@@ -284,7 +284,7 @@ export default function RequestsClient() {
   // Error state
   if (status === "failed" && error) {
     return (
-      <div className="min-h-screen bg-[var(--primary-background)] flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center max-w-md">
           <DocumentTextIcon className="h-16 w-16 text-[var(--secondary-muted-edge)] mx-auto mb-4 opacity-50" />
           <h2 className="text-xl font-bold text-[var(--secondary-black)] mb-2">
@@ -303,7 +303,7 @@ export default function RequestsClient() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
+    <div className="min-h-screen bg-white">
       <main>
         {/* Header */}
         <section className="bg-white border-b border-[var(--secondary-soft-highlight)]/30">

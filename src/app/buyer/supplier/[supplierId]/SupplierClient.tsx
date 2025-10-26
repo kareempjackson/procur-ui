@@ -151,7 +151,7 @@ export default function SupplierClient({ supplierId }: SupplierClientProps) {
   // Error state
   if (sellerProductsStatus === "failed" && sellerProductsError) {
     return (
-      <div className="min-h-screen bg-[var(--primary-background)] flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center max-w-md">
           <MapPinIcon className="h-16 w-16 text-[var(--secondary-muted-edge)] mx-auto mb-4 opacity-50" />
           <h2 className="text-xl font-bold text-[var(--secondary-black)] mb-2">
@@ -172,7 +172,7 @@ export default function SupplierClient({ supplierId }: SupplierClientProps) {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
+    <div className="min-h-screen bg-white">
       <div className="max-w-7xl mx-auto px-6 py-4">
         {/* Breadcrumb */}
         <div className="mb-4">

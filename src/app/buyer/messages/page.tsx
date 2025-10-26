@@ -275,7 +275,7 @@ export default function BuyerMessagesPage() {
   );
 
   return (
-    <div className="h-screen overflow-hidden bg-[var(--primary-background)] flex flex-col">
+    <div className="h-screen overflow-hidden bg-white flex flex-col">
       <main className="flex-1 flex overflow-hidden">
         {/* Conversations Sidebar */}
         <div className="w-full lg:w-96 border-r border-gray-200 bg-white flex flex-col">

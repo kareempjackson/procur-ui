@@ -101,7 +101,7 @@ export default function SavedSuppliersClient() {
   // Error state
   if (favoriteSellersStatus === "failed" && favoriteSellersError) {
     return (
-      <div className="min-h-screen bg-[var(--primary-background)] flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center max-w-md">
           <BuildingStorefrontIcon className="h-16 w-16 text-[var(--secondary-muted-edge)] mx-auto mb-4 opacity-50" />
           <h2 className="text-xl font-bold text-[var(--secondary-black)] mb-2">
@@ -122,7 +122,7 @@ export default function SavedSuppliersClient() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
+    <div className="min-h-screen bg-white">
       <main className="max-w-[1400px] mx-auto px-6 py-8">
         {/* Header */}
         <div className="mb-8">

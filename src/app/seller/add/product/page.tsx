@@ -348,7 +348,7 @@ export default function AddProductPage() {
   // Success screen removed; we redirect directly to /seller/products
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
+    <div className="min-h-screen bg-white">
       <main className="max-w-7xl mx-auto px-6 py-10">
         {/* Breadcrumbs */}
         <nav

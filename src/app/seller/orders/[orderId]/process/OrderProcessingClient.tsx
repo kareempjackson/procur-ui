@@ -117,7 +117,7 @@ export default function OrderProcessingClient({
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen bg-[var(--primary-background)] flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <ProcurLoader />
       </div>
     );
@@ -125,7 +125,7 @@ export default function OrderProcessingClient({
 
   if (status === "failed" || !order) {
     return (
-      <div className="min-h-screen bg-[var(--primary-background)] flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-xl font-semibold text-[var(--secondary-black)] mb-2">
             Failed to Load Order
@@ -142,7 +142,7 @@ export default function OrderProcessingClient({
   }
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
+    <div className="min-h-screen bg-white">
       <main className="max-w-5xl mx-auto px-6 py-10">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -270,7 +270,7 @@ export default function OrderProcessingClient({
                 <div className="flex items-center">
                   <button
                     onClick={() => toggleItemPacked(item.id)}
-                    className={`px-5 py-2 rounded-full font-medium transition-all shadow-sm text-sm ${
+                    className={`px-5 py-2 rounded-full font-medium transition-colors text-sm ${
                       packedItems.has(item.id)
                         ? "bg-green-500 text-white hover:bg-green-600"
                         : "bg-[var(--primary-accent2)] text-white hover:bg-[var(--primary-accent3)]"
@@ -432,7 +432,7 @@ export default function OrderProcessingClient({
             <button
               onClick={handleMarkAsProcessing}
               disabled={isProcessing}
-              className="flex-1 px-6 py-3 bg-[var(--primary-accent2)] text-white rounded-full hover:bg-[var(--primary-accent3)] disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium shadow-sm"
+              className="flex-1 px-6 py-3 bg-[var(--primary-accent2)] text-white rounded-full hover:bg-[var(--primary-accent3)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
             >
               {isProcessing ? "Processing..." : "Mark as Processing"}
             </button>
@@ -447,7 +447,7 @@ export default function OrderProcessingClient({
                 !shippingCarrier ||
                 isProcessing
               }
-              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-[var(--primary-accent2)] text-white rounded-full hover:bg-[var(--primary-accent3)] disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium shadow-sm"
+              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-[var(--primary-accent2)] text-white rounded-full hover:bg-[var(--primary-accent3)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
             >
               <TruckIcon className="h-5 w-5" />
               {isProcessing ? "Shipping..." : "Mark as Shipped"}

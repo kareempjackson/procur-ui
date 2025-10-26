@@ -234,7 +234,7 @@ export default function BuyerCartPage() {
   // Loading state
   if (status === "loading" && !cart) {
     return (
-      <div className="min-h-screen bg-[var(--primary-background)] flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <ProcurLoader size="lg" text="Loading cart..." />
       </div>
     );
@@ -243,7 +243,7 @@ export default function BuyerCartPage() {
   // Error state
   if (status === "failed" && error) {
     return (
-      <div className="min-h-screen bg-[var(--primary-background)] flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center max-w-md">
           <ShoppingBagIcon className="h-16 w-16 text-[var(--secondary-muted-edge)] mx-auto mb-4 opacity-50" />
           <h2 className="text-xl font-bold text-[var(--secondary-black)] mb-2">
@@ -262,7 +262,7 @@ export default function BuyerCartPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
+    <div className="min-h-screen bg-white">
       <main className="max-w-7xl mx-auto px-6 py-10">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">

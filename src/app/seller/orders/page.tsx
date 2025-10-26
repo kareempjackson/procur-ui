@@ -733,7 +733,7 @@ export default function SellerOrdersPage() {
   const paginatedOrders = orders; // server paginated
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
+    <div className="min-h-screen bg-white">
       <main className="max-w-7xl mx-auto px-6 py-10">
         {/* Breadcrumbs */}
         <nav
@@ -813,7 +813,7 @@ export default function SellerOrdersPage() {
         {/* Summary Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           {/* Total Revenue */}
-          <div className="bg-gradient-to-br from-[#C0D1C7] to-[#407178] rounded-2xl p-6 text-white shadow-lg">
+          <div className="bg-gradient-to-br from-[#C0D1C7] to-[#407178] rounded-2xl p-6 text-white">
             <div className="flex items-center justify-between mb-2">
               <svg
                 className="h-8 w-8 opacity-80"
@@ -839,7 +839,7 @@ export default function SellerOrdersPage() {
           </div>
 
           {/* Pending Orders */}
-          <div className="bg-gradient-to-br from-[#E0A374] to-[#CB5927] rounded-2xl p-6 text-white shadow-lg">
+          <div className="bg-gradient-to-br from-[#E0A374] to-[#CB5927] rounded-2xl p-6 text-white">
             <div className="flex items-center justify-between mb-2">
               <svg
                 className="h-8 w-8 opacity-80"
@@ -865,7 +865,7 @@ export default function SellerOrdersPage() {
           </div>
 
           {/* In Progress */}
-          <div className="bg-gradient-to-br from-[#A6B1E7] to-[#8091D5] rounded-2xl p-6 text-white shadow-lg">
+          <div className="bg-gradient-to-br from-[#A6B1E7] to-[#8091D5] rounded-2xl p-6 text-white">
             <div className="flex items-center justify-between mb-2">
               <svg
                 className="h-8 w-8 opacity-80"
@@ -891,7 +891,7 @@ export default function SellerOrdersPage() {
           </div>
 
           {/* Completed */}
-          <div className="bg-gradient-to-br from-[#CB5927] to-[#653011] rounded-2xl p-6 text-white shadow-lg">
+          <div className="bg-gradient-to-br from-[#CB5927] to-[#653011] rounded-2xl p-6 text-white">
             <div className="flex items-center justify-between mb-2">
               <svg
                 className="h-8 w-8 opacity-80"
@@ -1182,9 +1182,9 @@ export default function SellerOrdersPage() {
                             FulfillmentMethod.PICKUP
                               ? "Pickup"
                               : order.fulfillment_method ===
-                                FulfillmentMethod.DELIVERY
-                              ? "Delivery"
-                              : "Shipping"}
+                                  FulfillmentMethod.DELIVERY
+                                ? "Delivery"
+                                : "Shipping"}
                           </div>
                         </Link>
                       </td>
@@ -1261,10 +1261,10 @@ export default function SellerOrdersPage() {
                           {order.priority === OrderPriority.LOW
                             ? "L"
                             : order.priority === OrderPriority.NORMAL
-                            ? "N"
-                            : order.priority === OrderPriority.HIGH
-                            ? "H"
-                            : "U"}
+                              ? "N"
+                              : order.priority === OrderPriority.HIGH
+                                ? "H"
+                                : "U"}
                         </span>
                       </td>
                       <td className="py-2 px-3">

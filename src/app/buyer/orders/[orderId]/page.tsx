@@ -233,7 +233,7 @@ export default function OrderDetailPage({
   // Loading state
   if (orderDetailStatus === "loading" && !order) {
     return (
-      <div className="min-h-screen bg-[var(--primary-background)] flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <ProcurLoader size="lg" text="Loading order details..." />
       </div>
     );
@@ -242,7 +242,7 @@ export default function OrderDetailPage({
   // Error state
   if (orderDetailStatus === "failed" && orderDetailError) {
     return (
-      <div className="min-h-screen bg-[var(--primary-background)] flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center max-w-md">
           <ShoppingBagIcon className="h-16 w-16 text-[var(--secondary-muted-edge)] mx-auto mb-4 opacity-50" />
           <h2 className="text-xl font-bold text-[var(--secondary-black)] mb-2">
@@ -273,7 +273,7 @@ export default function OrderDetailPage({
   // No order found
   if (!order) {
     return (
-      <div className="min-h-screen bg-[var(--primary-background)] flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center max-w-md">
           <ShoppingBagIcon className="h-16 w-16 text-[var(--secondary-muted-edge)] mx-auto mb-4 opacity-50" />
           <h2 className="text-xl font-bold text-[var(--secondary-black)] mb-2">
@@ -298,7 +298,7 @@ export default function OrderDetailPage({
   const canReview = order.status === "delivered";
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
+    <div className="min-h-screen bg-white">
       <main className="max-w-7xl mx-auto px-6 py-10">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">

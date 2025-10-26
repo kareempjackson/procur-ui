@@ -1,6 +1,7 @@
 import AuthGuard from "@/components/AuthGuard";
 import BuyerTopNavigation from "@/components/navigation/BuyerTopNavigation";
 import Footer from "@/components/footer/Footer";
+import { ToastProvider } from "@/components/ui/Toast";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -15,12 +16,14 @@ export default function BuyerLayout({
   children: React.ReactNode;
 }) {
   return (
-    <>
-      <AuthGuard allowAccountTypes={["buyer"]}>
-        <BuyerTopNavigation />
-        {children}
-      </AuthGuard>
-      <Footer />
-    </>
+    <ToastProvider>
+      <div className="bg-white min-h-screen">
+        <AuthGuard allowAccountTypes={["buyer"]}>
+          <BuyerTopNavigation />
+          {children}
+        </AuthGuard>
+        <Footer />
+      </div>
+    </ToastProvider>
   );
 }

@@ -31,6 +31,9 @@ export interface UserProfile {
     name: string;
     businessName?: string;
     businessType?: string;
+    logoUrl?: string;
+    farmersIdUrl?: string;
+    farmersIdPath?: string;
     accountType: string;
     address?: string;
     city?: string;
@@ -38,6 +41,8 @@ export interface UserProfile {
     postalCode?: string;
     country?: string;
     taxId?: string;
+    website?: string;
+    description?: string;
   };
   createdAt: string;
   updatedAt: string;

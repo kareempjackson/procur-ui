@@ -87,7 +87,7 @@ export default function RequestClient() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
+    <div className="min-h-screen bg-white">
       <div className="max-w-4xl mx-auto px-6 py-6">
         {/* Header */}
         <div className="mb-6">
@@ -207,8 +207,8 @@ export default function RequestClient() {
                       {grade === "first-grade"
                         ? "First Grade"
                         : grade === "second-grade"
-                        ? "Second Grade"
-                        : "Any Grade"}
+                          ? "Second Grade"
+                          : "Any Grade"}
                     </button>
                   ))}
                 </div>

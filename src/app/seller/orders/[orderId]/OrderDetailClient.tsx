@@ -165,7 +165,7 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
 
   if (currentOrderStatus === "failed" && !currentOrder) {
     return (
-      <div className="min-h-screen bg-[var(--primary-background)] flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
           <div className="text-6xl mb-4">😞</div>
           <h2 className="text-2xl font-semibold text-[var(--secondary-black)] mb-2">
@@ -194,7 +194,7 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
     currentOrder.status !== "rejected";
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
+    <div className="min-h-screen bg-white">
       <main className="max-w-7xl mx-auto px-6 py-8">
         {/* Header */}
         <div className="mb-6">

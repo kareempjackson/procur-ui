@@ -54,7 +54,7 @@ export default function BuyerOrdersPage() {
   const total = pagination?.totalItems || 0;
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
+    <div className="min-h-screen bg-white">
       <main className="max-w-7xl mx-auto px-6 py-10">
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
@@ -222,14 +222,14 @@ export default function BuyerOrdersPage() {
                               .includes("delivered")
                               ? "bg-[#C0D1C7]/20 text-[#407178]"
                               : (order.status || "")
-                                  .toLowerCase()
-                                  .includes("pending")
-                              ? "bg-[#E0A374]/20 text-[#CB5927]"
-                              : (order.status || "")
-                                  .toLowerCase()
-                                  .includes("cancelled")
-                              ? "bg-[#6C715D]/20 text-[#6C715D]"
-                              : "bg-[#A6B1E7]/20 text-[#8091D5]"
+                                    .toLowerCase()
+                                    .includes("pending")
+                                ? "bg-[#E0A374]/20 text-[#CB5927]"
+                                : (order.status || "")
+                                      .toLowerCase()
+                                      .includes("cancelled")
+                                  ? "bg-[#6C715D]/20 text-[#6C715D]"
+                                  : "bg-[#A6B1E7]/20 text-[#8091D5]"
                           )}
                         >
                           {(order.status || "").replace(/_/g, " ") || "—"}

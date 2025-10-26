@@ -280,7 +280,7 @@ export default function CheckoutClient() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
+    <div className="min-h-screen bg-white">
       {/* Progress Header */}
       <div className="bg-white border-b border-[var(--secondary-soft-highlight)]/30">
         <div className="max-w-7xl mx-auto px-6 py-6">
@@ -317,8 +317,8 @@ export default function CheckoutClient() {
                         isActive
                           ? "bg-[var(--primary-accent2)] text-white shadow-lg scale-110"
                           : isCompleted
-                          ? "bg-green-500 text-white"
-                          : "bg-gray-200 text-gray-500"
+                            ? "bg-green-500 text-white"
+                            : "bg-gray-200 text-gray-500"
                       }`}
                     >
                       {isCompleted ? (
@@ -332,8 +332,8 @@ export default function CheckoutClient() {
                         isActive
                           ? "text-[var(--primary-accent2)]"
                           : isCompleted
-                          ? "text-green-600"
-                          : "text-gray-500"
+                            ? "text-green-600"
+                            : "text-gray-500"
                       }`}
                     >
                       {step.label}

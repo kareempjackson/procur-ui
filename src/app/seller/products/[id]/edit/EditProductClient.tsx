@@ -365,7 +365,7 @@ export default function EditProductClient({
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[var(--primary-background)] flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <ProcurLoader />
       </div>
     );
@@ -373,7 +373,7 @@ export default function EditProductClient({
 
   if (error && !product) {
     return (
-      <div className="min-h-screen bg-[var(--primary-background)]">
+      <div className="min-h-screen bg-white">
         <main className="max-w-7xl mx-auto px-6 py-10">
           <div className="bg-red-50 border border-red-200 rounded-2xl p-6">
             <h2 className="text-red-800 font-medium mb-2">
@@ -393,7 +393,7 @@ export default function EditProductClient({
   }
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
+    <div className="min-h-screen bg-white">
       <main className="max-w-7xl mx-auto px-6 py-10">
         {/* Breadcrumbs */}
         <nav

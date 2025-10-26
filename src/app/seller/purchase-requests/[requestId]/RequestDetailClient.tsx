@@ -106,7 +106,7 @@ export default function RequestDetailClient({
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[var(--primary-background)]">
+      <div className="min-h-screen bg-white">
         <main className="max-w-[1400px] mx-auto px-6 py-8">
           <div className="text-[var(--secondary-muted-edge)]">Loading…</div>
         </main>
@@ -116,7 +116,7 @@ export default function RequestDetailClient({
 
   if (error || !request) {
     return (
-      <div className="min-h-screen bg-[var(--primary-background)]">
+      <div className="min-h-screen bg-white">
         <main className="max-w-[1400px] mx-auto px-6 py-8">
           <div className="text-red-600">{error || "Request not found"}</div>
         </main>
@@ -140,7 +140,7 @@ export default function RequestDetailClient({
     : null;
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
+    <div className="min-h-screen bg-white">
       <main className="max-w-[1400px] mx-auto px-6 py-8">
         {/* Back Link */}
         <Link
@@ -395,7 +395,7 @@ export default function RequestDetailClient({
       {showBidModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div
-            className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/30"
             onClick={() => setShowBidModal(false)}
           />
           <div className="relative bg-white rounded-2xl border border-[var(--secondary-soft-highlight)] w-full max-w-md p-6 mx-4">

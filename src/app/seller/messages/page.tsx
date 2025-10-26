@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
   MagnifyingGlassIcon,
@@ -65,6 +66,8 @@ export default function SellerMessagesPage() {
   const [participants, setParticipants] = useState<any[]>([]);
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [typingUsers, setTypingUsers] = useState<Record<string, boolean>>({});
+  const [contextItem, setContextItem] = useState<any | null>(null);
+  const [contextLoading, setContextLoading] = useState<boolean>(false);
   const listEndRef = useRef<HTMLDivElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -211,6 +214,50 @@ export default function SellerMessagesPage() {
       .then(({ data }) => setParticipants(data || []))
       .catch(() => setParticipants([]));
   }, [activeConversationId, fetchMessages, client]);
+
+  // Fetch context item for right pane
+  useEffect(() => {
+    const loadContext = async () => {
+      const conv =
+        conversations.find((c) => c.id === activeConversationId) || null;
+      if (!conv || !conv.context_type || !conv.context_id) {
+        setContextItem(null);
+        return;
+      }
+      setContextLoading(true);
+      try {
+        let path = "";
+        switch ((conv.context_type || "").toLowerCase()) {
+          case "product_request":
+          case "purchase_request":
+          case "rfq":
+            path = `/sellers/product-requests/${conv.context_id}`;
+            break;
+          case "order":
+            path = `/sellers/orders/${conv.context_id}`;
+            break;
+          case "product":
+            path = `/sellers/products/${conv.context_id}`;
+            break;
+          default:
+            path = "";
+        }
+        if (!path) {
+          setContextItem(null);
+        } else {
+          const { data } = await client.get(path);
+          setContextItem(data || null);
+          // Auto-show details pane when we have a contextual item
+          setShowDetails(true);
+        }
+      } catch {
+        setContextItem(null);
+      } finally {
+        setContextLoading(false);
+      }
+    };
+    loadContext();
+  }, [client, activeConversationId, conversations]);
 
   // Supabase Realtime subscriptions (optional if env provided)
   useEffect(() => {
@@ -647,72 +694,184 @@ export default function SellerMessagesPage() {
 
         {/* Details Sidebar (Optional) */}
         {showDetails && activeConv && (
-          <div className="w-80 border-l border-gray-200 bg-white p-6 overflow-y-auto">
-            <h3 className="text-lg font-semibold text-gray-900 mb-6">
-              Details
+          <div className="w-[360px] border-l border-gray-200 bg-white p-6 overflow-y-auto">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              {activeConv.context_type ? "Item" : "Details"}
             </h3>
 
-            <div className="space-y-6">
-              {/* Buyer Info */}
-              <div className="text-center">
-                <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center mx-auto mb-3 text-gray-600 text-lg">
-                  {activeConv.title?.[0]?.toUpperCase() ||
-                    activeConv.type[0].toUpperCase()}
-                </div>
-                <h4 className="font-semibold text-gray-900">
-                  {activeConv.title ||
-                    activeConv.context_type ||
-                    "Conversation"}
-                </h4>
-                {activeConv.context_type && (
-                  <p className="text-sm text-gray-600">
-                    {activeConv.context_type}
-                    {activeConv.context_id ? ` • ${activeConv.context_id}` : ""}
-                  </p>
-                )}
+            {/* Context Loader / Empty */}
+            {contextLoading ? (
+              <div className="text-sm text-gray-500">Loading item…</div>
+            ) : !activeConv.context_type || !contextItem ? (
+              <div className="text-sm text-gray-500">
+                No linked item for this conversation.
               </div>
-
-              {/* Quick Actions */}
-              <div className="space-y-2">
-                <button className="w-full px-4 py-2.5 bg-[var(--primary-accent2)] text-white rounded-lg font-medium hover:bg-[var(--primary-accent3)] transition-colors duration-200">
-                  View Order History
-                </button>
-                <button className="w-full px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors duration-200">
-                  Create Invoice
-                </button>
-              </div>
-
-              {/* Info Sections */}
-              <div className="border-t border-gray-200 pt-6">
-                <h5 className="text-sm font-semibold text-gray-900 mb-3">
-                  Contact Information
-                </h5>
-                <div className="space-y-2 text-sm">
-                  <p className="text-gray-600">Email: buyer@greenleaf.com</p>
-                  <p className="text-gray-600">Phone: (555) 123-4567</p>
-                </div>
-              </div>
-
-              <div className="border-t border-gray-200 pt-6">
-                <h5 className="text-sm font-semibold text-gray-900 mb-3">
-                  Recent Orders
-                </h5>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Order #10234</span>
-                    <span className="text-gray-900">$1,240</span>
+            ) : (
+              <div className="space-y-6">
+                {activeConv.context_type
+                  ?.toLowerCase()
+                  .includes("product_request") ||
+                activeConv.context_type
+                  ?.toLowerCase()
+                  .includes("purchase_request") ||
+                activeConv.context_type?.toLowerCase() === "rfq" ? (
+                  <div>
+                    <div className="rounded-2xl border border-gray-200 overflow-hidden">
+                      <div className="p-4 bg-gray-50 border-b border-gray-200">
+                        <div className="text-xs font-medium text-gray-600 uppercase tracking-wide">
+                          Purchase Request
+                        </div>
+                        <div className="text-base font-semibold text-gray-900 mt-1 line-clamp-2">
+                          {contextItem.product_name || "Request"}
+                        </div>
+                      </div>
+                      <div className="p-4 space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Quantity</span>
+                          <span className="font-medium text-gray-900">
+                            {contextItem.quantity}{" "}
+                            {contextItem.unit_of_measurement}
+                          </span>
+                        </div>
+                        {contextItem.budget_range?.max_price != null && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Budget</span>
+                            <span className="font-medium text-gray-900">
+                              {contextItem.budget_range.currency || "USD"}{" "}
+                              {contextItem.budget_range.max_price}
+                            </span>
+                          </div>
+                        )}
+                        {contextItem.date_needed && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Need by</span>
+                            <span className="font-medium text-gray-900">
+                              {new Date(
+                                contextItem.date_needed
+                              ).toLocaleDateString()}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mt-3 flex gap-2">
+                      <Link
+                        href={`/seller/purchase-requests/${activeConv.context_id}`}
+                        className="flex-1 px-4 py-2.5 bg-[var(--primary-accent2)] text-white rounded-full text-sm text-center hover:bg-[var(--primary-accent3)]"
+                      >
+                        Open RFQ
+                      </Link>
+                      <Link
+                        href={`/seller/orders`}
+                        className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-full text-sm text-center hover:bg-gray-50"
+                      >
+                        Orders
+                      </Link>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Order #10198</span>
-                    <span className="text-gray-900">$980</span>
+                ) : activeConv.context_type?.toLowerCase() === "order" ? (
+                  <div>
+                    <div className="rounded-2xl border border-gray-200 overflow-hidden">
+                      <div className="p-4 bg-gray-50 border-b border-gray-200">
+                        <div className="text-xs font-medium text-gray-600 uppercase tracking-wide">
+                          Order
+                        </div>
+                        <div className="text-base font-semibold text-gray-900 mt-1">
+                          {contextItem.order_number || activeConv.context_id}
+                        </div>
+                      </div>
+                      <div className="p-4 space-y-2 text-sm">
+                        {contextItem.buyer_info?.organization_name && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Buyer</span>
+                            <span className="font-medium text-gray-900">
+                              {contextItem.buyer_info.organization_name}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Total</span>
+                          <span className="font-medium text-gray-900">
+                            {new Intl.NumberFormat("en-US", {
+                              style: "currency",
+                              currency: contextItem.currency || "USD",
+                            }).format(contextItem.total_amount || 0)}
+                          </span>
+                        </div>
+                        {contextItem.status && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Status</span>
+                            <span className="font-medium text-gray-900 capitalize">
+                              {String(contextItem.status).replaceAll("_", " ")}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mt-3 flex gap-2">
+                      <Link
+                        href={`/seller/orders/${activeConv.context_id}`}
+                        className="flex-1 px-4 py-2.5 bg-[var(--primary-accent2)] text-white rounded-full text-sm text-center hover:bg-[var(--primary-accent3)]"
+                      >
+                        Open Order
+                      </Link>
+                      <Link
+                        href={`/seller/orders`}
+                        className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-full text-sm text-center hover:bg-gray-50"
+                      >
+                        All Orders
+                      </Link>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Order #10156</span>
-                    <span className="text-gray-900">$1,450</span>
+                ) : activeConv.context_type?.toLowerCase() === "product" ? (
+                  <div>
+                    <div className="rounded-2xl border border-gray-200 overflow-hidden">
+                      {contextItem.images?.[0]?.image_url && (
+                        <div className="aspect-square bg-gray-50 overflow-hidden">
+                          <img
+                            src={contextItem.images[0].image_url}
+                            alt={contextItem.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      )}
+                      <div className="p-4">
+                        <div className="text-base font-semibold text-gray-900 line-clamp-2">
+                          {contextItem.name}
+                        </div>
+                        <div className="mt-2 text-sm text-gray-600">
+                          {contextItem.category}
+                        </div>
+                        <div className="mt-1 text-lg font-bold text-[var(--primary-accent2)]">
+                          {new Intl.NumberFormat("en-US", {
+                            style: "currency",
+                            currency: contextItem.currency || "USD",
+                          }).format(
+                            contextItem.sale_price ??
+                              contextItem.base_price ??
+                              0
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex gap-2">
+                      <Link
+                        href={`/seller/products/${activeConv.context_id}/edit`}
+                        className="flex-1 px-4 py-2.5 bg-[var(--primary-accent2)] text-white rounded-full text-sm text-center hover:bg-[var(--primary-accent3)]"
+                      >
+                        Edit Product
+                      </Link>
+                      <Link
+                        href={`/seller/products/${activeConv.context_id}/preview`}
+                        className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-full text-sm text-center hover:bg-gray-50"
+                      >
+                        Preview
+                      </Link>
+                    </div>
                   </div>
-                </div>
+                ) : null}
               </div>
-            </div>
+            )}
           </div>
         )}
       </main>

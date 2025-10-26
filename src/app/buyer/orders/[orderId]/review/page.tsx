@@ -116,7 +116,7 @@ export default function OrderReviewPage({
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-[var(--primary-background)] flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="max-w-md mx-auto px-6 text-center">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-6">
             <CheckCircleIcon className="h-12 w-12 text-green-600" />
@@ -148,7 +148,7 @@ export default function OrderReviewPage({
   }
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
+    <div className="min-h-screen bg-white">
       <main className="max-w-3xl mx-auto px-6 py-10">
         {/* Header */}
         <div className="mb-8">

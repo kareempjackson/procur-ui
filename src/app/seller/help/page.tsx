@@ -36,7 +36,7 @@ export default function SellerHelpPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
+    <div className="min-h-screen bg-white">
       <main className="max-w-7xl mx-auto px-6 py-10">
         {/* Header */}
         <div className="mb-8">
@@ -49,7 +49,7 @@ export default function SellerHelpPage() {
         </div>
 
         {/* Search */}
-        <section className="mb-8 bg-white rounded-3xl shadow-lg border border-[var(--secondary-soft-highlight)] p-6 sm:p-8">
+        <section className="mb-8 bg-white rounded-3xl border border-[var(--secondary-soft-highlight)] p-6 sm:p-8">
           <div className="flex flex-col sm:flex-row gap-3">
             <input
               type="search"
@@ -66,7 +66,7 @@ export default function SellerHelpPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Quick Actions */}
-          <section className="lg:col-span-2 bg-white rounded-3xl shadow-lg border border-[var(--secondary-soft-highlight)] p-6 sm:p-8">
+          <section className="lg:col-span-2 bg-white rounded-3xl border border-[var(--secondary-soft-highlight)] p-6 sm:p-8">
             <h2 className="text-lg font-semibold text-[color:var(--secondary-black)] mb-4">
               Quick actions
             </h2>
@@ -108,7 +108,7 @@ export default function SellerHelpPage() {
           </section>
 
           {/* Contact Support */}
-          <aside className="bg-white rounded-3xl shadow-lg border border-[var(--secondary-soft-highlight)] p-6 sm:p-8">
+          <aside className="bg-white rounded-3xl border border-[var(--secondary-soft-highlight)] p-6 sm:p-8">
             <h2 className="text-lg font-semibold text-[color:var(--secondary-black)] mb-4">
               Contact support
             </h2>
@@ -140,7 +140,7 @@ export default function SellerHelpPage() {
         </div>
 
         {/* FAQs */}
-        <section className="mt-6 bg-white rounded-3xl shadow-lg border border-[var(--secondary-soft-highlight)] p-6 sm:p-8">
+        <section className="mt-6 bg-white rounded-3xl border border-[var(--secondary-soft-highlight)] p-6 sm:p-8">
           <h2 className="text-lg font-semibold text-[color:var(--secondary-black)] mb-4">
             Frequently asked questions
           </h2>

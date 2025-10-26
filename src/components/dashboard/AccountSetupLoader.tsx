@@ -1,10 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 
 type ChecklistItem = {
   id: string;
   label: string;
+  href: string;
+  completed?: boolean;
 };
 
 type AccountSetupLoaderProps = {
@@ -18,22 +21,60 @@ export default function AccountSetupLoader({
   totalCount,
   onOpen,
 }: AccountSetupLoaderProps) {
-  const defaultItems: ChecklistItem[] = useMemo(
+  const [flags, setFlags] = useState({
+    business: false,
+    product: false,
+    payout: false,
+  });
+
+  useEffect(() => {
+    try {
+      const business =
+        typeof window !== "undefined" &&
+        !!localStorage.getItem("onboarding:business_profile_completed");
+      const payout =
+        typeof window !== "undefined" &&
+        !!localStorage.getItem("onboarding:payments_completed");
+      const product =
+        typeof window !== "undefined" &&
+        !!localStorage.getItem("onboarding:product_added");
+      setFlags({ business, product, payout });
+    } catch (_) {
+      // ignore
+    }
+  }, []);
+
+  const allItems: ChecklistItem[] = useMemo(
     () => [
-      { id: "verify", label: "Verify business info" },
-      { id: "product", label: "Add first product" },
-      { id: "payout", label: "Set up payout method" },
-      { id: "email", label: "Confirm contact email" },
-      { id: "publish", label: "Publish profile" },
+      {
+        id: "business",
+        label: "Complete business profile",
+        href: "/seller/business",
+        completed: flags.business,
+      },
+      {
+        id: "product",
+        label: "Add first product",
+        href: "/seller/add/product",
+        completed: flags.product,
+      },
+      {
+        id: "payout",
+        label: "Set up payout method",
+        href: "/seller/business",
+        completed: flags.payout,
+      },
     ],
-    []
+    [flags]
   );
+
+  const visibleItems = allItems.filter((i) => !i.completed);
 
   const [open, setOpen] = useState(false);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
 
-  const total = totalCount ?? defaultItems.length;
-  const done = completedCount ?? Object.values(checked).filter(Boolean).length;
+  const total = totalCount ?? allItems.length;
+  const done = completedCount ?? allItems.filter((i) => i.completed).length;
   const progress = Math.min(100, Math.round((done / Math.max(1, total)) * 100));
 
   return (
@@ -67,7 +108,7 @@ export default function AccountSetupLoader({
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div
-            className="absolute inset-0 bg-black/30 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-black/30"
             onClick={() => setOpen(false)}
           />
           <div className="relative bg-white rounded-2xl border border-[var(--secondary-soft-highlight)] w-full max-w-md p-6 mx-4 animate-in fade-in duration-200">
@@ -77,7 +118,7 @@ export default function AccountSetupLoader({
                   Finish onboarding
                 </h2>
                 <p className="text-xs text-[color:var(--secondary-muted-edge)] mt-1">
-                  Complete the steps below to publish your seller profile
+                  Complete the steps below to finish setup
                 </p>
               </div>
               <button
@@ -90,36 +131,38 @@ export default function AccountSetupLoader({
             </div>
 
             <div className="mt-4 space-y-3">
-              {defaultItems.map((item) => (
-                <label
-                  key={item.id}
-                  className="flex items-start gap-3 p-3 rounded-xl border border-[color:var(--secondary-soft-highlight)] hover:bg-black/[0.015] transition-colors cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={!!checked[item.id]}
-                    onChange={(e) =>
-                      setChecked((s) => ({ ...s, [item.id]: e.target.checked }))
-                    }
-                    className="mt-0.5 h-4 w-4 rounded border-gray-300 text-[var(--primary-accent2)] focus:ring-[var(--primary-accent2)]"
-                  />
-                  <span className="text-sm text-[color:var(--secondary-black)]">
-                    {item.label}
-                  </span>
-                </label>
-              ))}
+              {visibleItems.length === 0 ? (
+                <div className="text-sm text-[color:var(--secondary-muted-edge)]">
+                  All set! You’ve completed the essential setup steps.
+                </div>
+              ) : (
+                visibleItems.map((item) => (
+                  <Link
+                    key={item.id}
+                    href={item.href}
+                    className="flex items-center justify-between p-3 rounded-xl border border-[color:var(--secondary-soft-highlight)] hover:bg-black/[0.02] transition-colors"
+                    onClick={() => setOpen(false)}
+                  >
+                    <span className="text-sm text-[color:var(--secondary-black)]">
+                      {item.label}
+                    </span>
+                    <span className="text-[11px] text-[color:var(--secondary-muted-edge)]">
+                      Open →
+                    </span>
+                  </Link>
+                ))
+              )}
             </div>
 
             <div className="mt-5 flex items-center justify-between">
               <div className="text-xs text-[color:var(--secondary-muted-edge)]">
-                {Object.values(checked).filter(Boolean).length} of{" "}
-                {defaultItems.length} completed
+                {done} of {total} completed
               </div>
               <button
                 onClick={() => setOpen(false)}
                 className="inline-flex items-center justify-center rounded-full bg-[var(--primary-base)] text-white px-4 py-2 text-xs font-medium hover:opacity-90"
               >
-                Continue
+                Close
               </button>
             </div>
           </div>

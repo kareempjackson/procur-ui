@@ -99,7 +99,7 @@ const SellerTopNavigation: React.FC = () => {
     setActiveDropdown(activeDropdown === dropdownName ? null : dropdownName);
   };
 
-  const navBgClass = "bg-[var(--primary-background)]";
+  const navBgClass = "bg-white";
 
   const safeItems = Array.isArray(items)
     ? items
@@ -251,7 +251,7 @@ const SellerTopNavigation: React.FC = () => {
                   )}
                 </button>
                 {activeDropdown === "notifications" && (
-                  <div className="absolute top-full right-0 w-80 bg-white/95 backdrop-blur-md border border-gray-200/50 rounded-xl shadow-2xl z-50 mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="absolute top-full right-0 w-80 bg-white border border-gray-200 rounded-xl z-50 mt-3">
                     <div className="py-3">
                       <div className="px-4 py-2 border-b border-gray-200">
                         <div className="flex items-center justify-between">
@@ -284,7 +284,7 @@ const SellerTopNavigation: React.FC = () => {
                           <Link
                             key={n.id}
                             href="/seller/notifications"
-                            className={`block px-4 py-3 hover:bg-gray-50/80 transition-all duration-200 border-b border-gray-100 last:border-0 ${
+                            className={`block px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0 ${
                               !n.read_at ? "bg-blue-50/30" : ""
                             }`}
                             onClick={() => {
@@ -331,9 +331,9 @@ const SellerTopNavigation: React.FC = () => {
               {/* Add Product Button */}
               <Link
                 href="/seller/add/product"
-                className={`px-6 py-2.5 rounded-full font-medium text-[15px] transition-all duration-200 flex items-center ${
+                className={`px-6 py-2.5 rounded-full font-medium text-[15px] transition-colors flex items-center ${
                   pathname?.startsWith("/seller/add")
-                    ? "bg-[var(--primary-accent2)] text-white shadow-md"
+                    ? "bg-[var(--primary-accent2)] text-white"
                     : "bg-black text-white hover:bg-gray-800"
                 }`}
               >
@@ -353,7 +353,7 @@ const SellerTopNavigation: React.FC = () => {
                   />
                 </button>
                 {activeDropdown === "user" && (
-                  <div className="absolute top-full right-0 w-64 bg-white/95 backdrop-blur-md border border-gray-200/50 rounded-xl shadow-2xl z-50 mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="absolute top-full right-0 w-64 bg-white border border-gray-200 rounded-xl z-50 mt-3">
                     <div className="py-3">
                       <div className="px-4 py-3 border-b border-gray-200">
                         <div className="font-medium text-gray-900">
@@ -366,21 +366,21 @@ const SellerTopNavigation: React.FC = () => {
                       <div className="py-2">
                         <Link
                           href="/seller/profile"
-                          className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50/80 hover:text-gray-900 transition-all duration-200"
+                          className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
                           onClick={() => setActiveDropdown(null)}
                         >
                           Profile Settings
                         </Link>
                         <Link
                           href="/seller/business"
-                          className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50/80 hover:text-gray-900 transition-all duration-200"
+                          className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
                           onClick={() => setActiveDropdown(null)}
                         >
                           Business Settings
                         </Link>
                         <Link
                           href="/seller/help"
-                          className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50/80 hover:text-gray-900 transition-all duration-200"
+                          className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
                           onClick={() => setActiveDropdown(null)}
                         >
                           Help & Support
@@ -400,7 +400,7 @@ const SellerTopNavigation: React.FC = () => {
                                   setSelectedLanguage(lang);
                                   setLocale(toLocale(lang));
                                 }}
-                                className={`px-3 py-1.5 text-sm rounded-md transition-all duration-200 ${
+                                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
                                   selectedLanguage === lang
                                     ? "bg-[var(--primary-accent2)] text-white"
                                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -529,7 +529,7 @@ const SellerTopNavigation: React.FC = () => {
 
       {/* Country Selection Modal */}
       {showCountryModal && (
-        <div className="fixed inset-0 backdrop-blur-xs bg-white/20 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-96 max-h-96 overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">Select Country</h3>
@@ -544,7 +544,7 @@ const SellerTopNavigation: React.FC = () => {
               {countries.map((country) => (
                 <button
                   key={country.code}
-                  className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                  className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
                   onClick={() => {
                     setSelectedCountry(country);
                     setShowCountryModal(false);
