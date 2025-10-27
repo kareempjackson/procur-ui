@@ -224,7 +224,6 @@ export default function SellerDashboardPage() {
         <div className="mb-8">
           <AccountSetupLoader />
         </div>
-
         {/* Hero Section */}
         <section className="rounded-xl bg-white border border-[color:var(--secondary-soft-highlight)] px-6 sm:px-10 py-8">
           <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
@@ -293,7 +292,6 @@ export default function SellerDashboardPage() {
             </div>
           </div>
         </section>
-
         {/* KPI Cards Row */}
         <section className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {kpis.length === 0 ? (
@@ -329,7 +327,11 @@ export default function SellerDashboardPage() {
             </>
           )}
         </section>
-
+        {/* Analytics Tabs */}
+        <AnalyticsTabs
+          active={analyticsTab}
+          onChange={(tab) => dispatch(setAnalyticsTabAction(tab))}
+        />
         {/* Main Split: Inventory/Orders + Insights */}
         <div className="mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Left: Activity & Orders */}
@@ -468,12 +470,6 @@ export default function SellerDashboardPage() {
             </div>
           </aside>
         </div>
-
-        {/* Analytics Tabs */}
-        <AnalyticsTabs
-          active={analyticsTab}
-          onChange={(tab) => dispatch(setAnalyticsTabAction(tab))}
-        />
       </main>
     </div>
   );
