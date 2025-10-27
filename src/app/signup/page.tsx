@@ -19,10 +19,13 @@ const SignUpPage: React.FC = () => {
     email: "",
     password: "",
     fullname: "",
-    accountType: "buyer",
+    accountType: "",
+    businessType: "",
+    businessName: "",
     phoneNumber: "",
     country: "",
   });
+  const [step, setStep] = useState<1 | 2>(1);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const dispatch = useAppDispatch();
@@ -38,17 +41,65 @@ const SignUpPage: React.FC = () => {
     }));
   };
 
+  const handleAccountTypeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      accountType: value,
+      businessType: "",
+    }));
+  };
+
+  const goToNextStep = () => {
+    if (!formData.accountType) {
+      setError("Please select an account type to continue.");
+      return;
+    }
+    setError(null);
+    setStep(2);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
     try {
+      // Require business type for buyer/seller
+      if (
+        (formData.accountType === "buyer" ||
+          formData.accountType === "seller") &&
+        !formData.businessType
+      ) {
+        setIsLoading(false);
+        setError("Please select your business type.");
+        return;
+      }
+      // Require business name for buyer/seller
+      if (
+        (formData.accountType === "buyer" ||
+          formData.accountType === "seller") &&
+        !formData.businessName
+      ) {
+        setIsLoading(false);
+        setError("Please enter your business name.");
+        return;
+      }
       await dispatch(
         signupThunk({
           email: formData.email,
           password: formData.password,
           fullname: formData.fullname,
           accountType: formData.accountType,
+          businessType:
+            formData.accountType === "buyer" ||
+            formData.accountType === "seller"
+              ? formData.businessType
+              : undefined,
+          businessName:
+            formData.accountType === "buyer" ||
+            formData.accountType === "seller"
+              ? formData.businessName
+              : undefined,
           phoneNumber: formData.phoneNumber || undefined,
           country: formData.country || undefined,
         })
@@ -88,6 +139,25 @@ const SignUpPage: React.FC = () => {
     },
   ];
 
+  const businessTypeOptions: Record<
+    string,
+    { value: string; label: string }[]
+  > = {
+    buyer: [
+      { value: "general", label: "General" },
+      { value: "hotels", label: "Hotels" },
+      { value: "restaurants", label: "Restaurants" },
+      { value: "supermarkets", label: "Supermarkets" },
+      { value: "exporters", label: "Exporters" },
+    ],
+    seller: [
+      { value: "general", label: "General" },
+      { value: "farmers", label: "Farmers" },
+      { value: "manufacturers", label: "Manufacturers" },
+      { value: "fishermen", label: "Fishermen" },
+    ],
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-[var(--primary-background)]">
       <TopNavigation />
@@ -114,137 +184,235 @@ const SignUpPage: React.FC = () => {
                   {error}
                 </div>
               )}
-              {/* Full Name */}
-              <div>
-                <label htmlFor="fullname" className="sr-only">
-                  Full Name
-                </label>
-                <input
-                  id="fullname"
-                  name="fullname"
-                  type="text"
-                  required
-                  value={formData.fullname}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-full placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all duration-200"
-                  placeholder="Enter your full name"
-                />
-              </div>
-
-              {/* Email */}
-              <div>
-                <label htmlFor="email" className="sr-only">
-                  Email address
-                </label>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-full placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all duration-200"
-                  placeholder="Enter your email"
-                />
-              </div>
-
-              {/* Password */}
-              <div>
-                <label htmlFor="password" className="sr-only">
-                  Password
-                </label>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-full placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all duration-200"
-                  placeholder="Create a password"
-                />
-              </div>
-
-              {/* Country */}
-              <div>
-                <label htmlFor="country" className="sr-only">
-                  Country
-                </label>
-                <select
-                  id="country"
-                  name="country"
-                  required
-                  value={formData.country}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-full text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all duration-200 bg-white"
+              {/* Stepper / Header */}
+              <div className="flex items-center justify-center gap-5 text-sm text-gray-600">
+                <div
+                  className={`flex items-center gap-2 ${step === 1 ? "font-semibold text-gray-900" : ""}`}
                 >
-                  <option value="">Select your country</option>
-                  {countries.map((country) => (
-                    <option key={country} value={country}>
-                      {country}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Account Type */}
-              <div>
-                <label
-                  htmlFor="accountType"
-                  className="block text-sm font-medium text-gray-700 mb-3"
+                  <span
+                    className={`h-7 w-7 flex items-center justify-center rounded-full border transition-colors ${step >= 1 ? "bg-black text-white border-black" : "bg-white border-gray-300"}`}
+                  >
+                    1
+                  </span>
+                  <span>Account Type</span>
+                </div>
+                <span className="opacity-40">—</span>
+                <div
+                  className={`flex items-center gap-2 ${step === 2 ? "font-semibold text-gray-900" : ""}`}
                 >
-                  Account Type
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {accountTypeOptions.map((option) => {
-                    const selected = formData.accountType === option.value;
-                    const Icon = option.icon;
-                    return (
-                      <label
-                        key={option.value}
-                        className={`cursor-pointer rounded-2xl border p-4 transition-all ${
-                          selected
-                            ? "bg-white border-transparent ring-2 ring-black"
-                            : "bg-white/80 border-gray-200 hover:border-gray-300"
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="accountType"
-                          value={option.value}
-                          checked={selected}
-                          onChange={handleInputChange}
-                          className="sr-only"
-                        />
-                        <div className="flex flex-col">
-                          <span
-                            className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 text-gray-900"
-                            aria-hidden="true"
-                          >
-                            <Icon className="h-6 w-6" aria-hidden="true" />
-                          </span>
-                          <span className="mt-3 text-base font-semibold text-gray-900">
-                            {option.label}
-                          </span>
-                          <span className="mt-1 text-sm text-gray-600">
-                            {option.description}
-                          </span>
-                        </div>
-                      </label>
-                    );
-                  })}
+                  <span
+                    className={`h-7 w-7 flex items-center justify-center rounded-full border transition-colors ${step >= 2 ? "bg-black text-white border-black" : "bg-white border-gray-300"}`}
+                  >
+                    2
+                  </span>
+                  <span>Business & Details</span>
                 </div>
               </div>
 
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="btn btn-secondary !rounded-full w-full flex justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoading ? "Creating account..." : "Create Account"}
-              </button>
+              {/* Step 1: Account Type */}
+              {step === 1 && (
+                <div>
+                  <label
+                    htmlFor="accountType"
+                    className="block text-sm font-medium text-gray-700 mb-3"
+                  >
+                    Account Type
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    {accountTypeOptions.map((option) => {
+                      const selected = formData.accountType === option.value;
+                      const Icon = option.icon;
+                      return (
+                        <label
+                          key={option.value}
+                          className={`group relative cursor-pointer rounded-2xl border p-6 transition-all duration-200 ${
+                            selected
+                              ? "bg-white border-transparent ring-2 ring-black shadow-md"
+                              : "bg-white/80 border-gray-200 hover:border-gray-300 hover:shadow-sm"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="accountType"
+                            value={option.value}
+                            checked={selected}
+                            onChange={handleAccountTypeChange}
+                            className="sr-only"
+                          />
+                          <div className="flex items-start gap-4">
+                            <span
+                              className={`inline-flex h-12 w-12 items-center justify-center rounded-xl transition-colors ${selected ? "bg-black text-white" : "bg-gray-100 text-gray-900"}`}
+                              aria-hidden="true"
+                            >
+                              <Icon className="h-6 w-6" aria-hidden="true" />
+                            </span>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between">
+                                <span className="text-base font-semibold text-gray-900">
+                                  {option.label}
+                                </span>
+                              </div>
+                              <span className="mt-1 block text-sm text-gray-600">
+                                {option.description}
+                              </span>
+                            </div>
+                          </div>
+                          {selected && (
+                            <span className="absolute top-3 right-3 h-5 w-5 rounded-full bg-black text-white text-[10px] leading-5 text-center">
+                              ✓
+                            </span>
+                          )}
+                        </label>
+                      );
+                    })}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={goToNextStep}
+                    disabled={!formData.accountType || isLoading}
+                    className={`btn btn-secondary !rounded-full w-full mt-4 ${!formData.accountType || isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                  >
+                    Continue
+                  </button>
+                </div>
+              )}
+
+              {/* Step 2: Business type + rest of form */}
+              {step === 2 && (
+                <>
+                  {(formData.accountType === "buyer" ||
+                    formData.accountType === "seller") && (
+                    <div>
+                      <label
+                        htmlFor="businessType"
+                        className="block text-sm font-medium text-gray-700 mb-2"
+                      >
+                        Business Type
+                      </label>
+                      <select
+                        id="businessType"
+                        name="businessType"
+                        required
+                        value={formData.businessType}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-full text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all duration-200 bg-white"
+                      >
+                        <option value="">Select your business type</option>
+                        {businessTypeOptions[formData.accountType]?.map(
+                          (bt) => (
+                            <option key={bt.value} value={bt.value}>
+                              {bt.label}
+                            </option>
+                          )
+                        )}
+                      </select>
+                    </div>
+                  )}
+
+                  {(formData.accountType === "buyer" ||
+                    formData.accountType === "seller") && (
+                    <div>
+                      <label htmlFor="businessName" className="sr-only">
+                        Business Name
+                      </label>
+                      <input
+                        id="businessName"
+                        name="businessName"
+                        type="text"
+                        required
+                        value={formData.businessName}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-full placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all duration-200"
+                        placeholder="Enter your business name"
+                      />
+                    </div>
+                  )}
+
+                  {/* Full Name */}
+                  <div>
+                    <label htmlFor="fullname" className="sr-only">
+                      Full Name
+                    </label>
+                    <input
+                      id="fullname"
+                      name="fullname"
+                      type="text"
+                      required
+                      value={formData.fullname}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-full placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all duration-200"
+                      placeholder="Enter your full name"
+                    />
+                  </div>
+
+                  {/* Email */}
+                  <div>
+                    <label htmlFor="email" className="sr-only">
+                      Email address
+                    </label>
+                    <input
+                      id="email"
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      required
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-full placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all duration-200"
+                      placeholder="Enter your email"
+                    />
+                  </div>
+
+                  {/* Password */}
+                  <div>
+                    <label htmlFor="password" className="sr-only">
+                      Password
+                    </label>
+                    <input
+                      id="password"
+                      name="password"
+                      type="password"
+                      autoComplete="new-password"
+                      required
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-full placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all duration-200"
+                      placeholder="Create a password"
+                    />
+                  </div>
+
+                  {/* Country */}
+                  <div>
+                    <label htmlFor="country" className="sr-only">
+                      Country
+                    </label>
+                    <select
+                      id="country"
+                      name="country"
+                      required
+                      value={formData.country}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-full text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all duration-200 bg-white"
+                    >
+                      <option value="">Select your country</option>
+                      {countries.map((country) => (
+                        <option key={country} value={country}>
+                          {country}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="btn btn-secondary !rounded-full w-full flex justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isLoading ? "Creating account..." : "Create Account"}
+                  </button>
+                </>
+              )}
             </form>
 
             {/* Privacy Policy Link */}

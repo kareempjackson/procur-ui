@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   BuildingOfficeIcon,
   UserGroupIcon,
@@ -47,14 +48,22 @@ export default function SellerBusinessSettingsPage() {
   // General Settings State
   const [businessName, setBusinessName] = useState("");
   const [businessType, setBusinessType] = useState("");
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [taxId, setTaxId] = useState("");
   const [registrationNumber, setRegistrationNumber] = useState("");
   const [address, setAddress] = useState("");
   const [phone, setPhone] = useState("");
-  const [website, setWebsite] = useState("");
+  // const [website, setWebsite] = useState("");
   const [description, setDescription] = useState("");
   const [farmerIdFile, setFarmerIdFile] = useState<File | null>(null);
   const [farmerIdPreview, setFarmerIdPreview] = useState<string | null>(null);
+
+  const publicSlug = useMemo(() => {
+    const name = (businessName || "").trim().toLowerCase();
+    if (!name) return "preview";
+    return name.replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  }, [businessName]);
 
   // Load live profile data
   useEffect(() => {
@@ -68,6 +77,9 @@ export default function SellerBusinessSettingsPage() {
     const org = profile.organization;
     setBusinessName(org?.businessName || org?.name || "");
     setBusinessType(org?.businessType || "");
+    if (!logoFile) {
+      setLogoPreview(org?.logoUrl || null);
+    }
     setAddress(
       org?.address ||
         [org?.city, org?.state, org?.postalCode, org?.country]
@@ -81,7 +93,7 @@ export default function SellerBusinessSettingsPage() {
     if (!farmerIdFile) {
       setFarmerIdPreview(org?.farmersIdUrl || null);
     }
-  }, [profile, farmerIdFile]);
+  }, [profile, farmerIdFile, logoFile]);
 
   // Team Management State
   const [teamMembers] = useState<TeamMember[]>([]);
@@ -118,10 +130,32 @@ export default function SellerBusinessSettingsPage() {
     reader.readAsDataURL(file);
   };
 
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("Please upload an image file");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Image size must be less than 5MB");
+      return;
+    }
+
+    setLogoFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setLogoPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSaveGeneral = async () => {
     const client = getApiClient();
     try {
       let farmersIdPath: string | undefined = undefined;
+      let logoPath: string | undefined = undefined;
 
       if (farmerIdFile && user?.organizationId) {
         // 1) Ask backend for signed upload URL (private storage)
@@ -150,6 +184,31 @@ export default function SellerBusinessSettingsPage() {
         farmersIdPath = signed.path as string;
       }
 
+      if (logoFile && user?.organizationId) {
+        const { data: signed } = await client.patch(
+          "/users/logo/signed-upload",
+          {
+            organizationId: user.organizationId,
+            filename: logoFile.name,
+          }
+        );
+
+        const uploadRes = await fetch(signed.signedUrl as string, {
+          method: "PUT",
+          headers: {
+            "Content-Type": logoFile.type || "application/octet-stream",
+            "x-upsert": "false",
+          },
+          body: logoFile,
+        });
+
+        if (!uploadRes.ok) {
+          throw new Error("Failed to upload Logo to storage");
+        }
+
+        logoPath = signed.path as string;
+      }
+
       // 3) Save profile fields (and farmersIdPath if present)
       await client.patch("/users/profile", {
         businessName,
@@ -158,6 +217,7 @@ export default function SellerBusinessSettingsPage() {
         phone,
         description,
         ...(farmersIdPath ? { farmersIdPath } : {}),
+        ...(logoPath ? { logoPath } : {}),
       });
 
       // Refresh profile after save
@@ -166,13 +226,17 @@ export default function SellerBusinessSettingsPage() {
       try {
         if (typeof window !== "undefined") {
           localStorage.setItem("onboarding:business_profile_completed", "true");
+          if (businessName && (logoFile || logoPreview || description)) {
+            localStorage.setItem("onboarding:brand_ready", "true");
+          }
         }
-      } catch (_) {
+      } catch {
         // ignore storage errors
       }
 
       // Clear local file state after successful save
       setFarmerIdFile(null);
+      setLogoFile(null);
       // Keep preview; it will refresh from profile when fetched
     } catch (e) {
       console.error(e);
@@ -208,12 +272,11 @@ export default function SellerBusinessSettingsPage() {
     setInviteRole("member");
   };
 
-  const handleRemoveUser = async (userId: string) => {
-    if (!confirm("Are you sure you want to remove this team member?")) return;
-
-    // TODO: Implement API call to remove user
-    console.log("Removing user:", userId);
-  };
+  // const handleRemoveUser = async (userId: string) => {
+  //   if (!confirm("Are you sure you want to remove this team member?")) return;
+  //   // TODO: Implement API call to remove user
+  //   console.log("Removing user:", userId);
+  // };
 
   const handleRevokeInvitation = async (invitationId: string) => {
     // TODO: Implement API call to revoke invitation
@@ -273,6 +336,49 @@ export default function SellerBusinessSettingsPage() {
         {/* General Settings Tab */}
         {activeTab === "general" && (
           <div className="space-y-4">
+            {/* Public Profile Preview */}
+            <div className="bg-white rounded-2xl p-5 border border-[var(--secondary-soft-highlight)]/20">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <InformationCircleIcon className="h-5 w-5 text-[var(--primary-accent2)]" />
+                  <h2 className="text-lg font-semibold text-[var(--secondary-black)]">
+                    Public Profile Preview
+                  </h2>
+                </div>
+                <Link
+                  href={`/seller/${publicSlug}`}
+                  target="_blank"
+                  className="text-sm text-blue-600 hover:text-blue-700"
+                >
+                  Open public page →
+                </Link>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="h-16 w-16 rounded-xl border border-[var(--secondary-soft-highlight)]/30 bg-gray-50 overflow-hidden flex items-center justify-center">
+                  {logoPreview ? (
+                    <Image
+                      src={logoPreview}
+                      alt="Logo"
+                      width={64}
+                      height={64}
+                      className="h-16 w-16 object-cover"
+                    />
+                  ) : (
+                    <span className="text-xs text-gray-400">Logo</span>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-base font-semibold text-[var(--secondary-black)] truncate">
+                    {businessName || "Your Business Name"}
+                  </div>
+                  <div className="text-xs text-[var(--secondary-muted-edge)] truncate max-w-[28rem]">
+                    {description ||
+                      "Your short description appears here for buyers."}
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Company Information */}
             <div className="bg-white rounded-2xl p-5 border border-[var(--secondary-soft-highlight)]/20">
               <div className="flex items-center gap-2 mb-4">
@@ -283,6 +389,67 @@ export default function SellerBusinessSettingsPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-medium text-[var(--secondary-black)] mb-1.5">
+                    Business Logo
+                  </label>
+                  <div className="flex items-start gap-4">
+                    {logoPreview ? (
+                      <div className="relative group">
+                        <Image
+                          src={logoPreview}
+                          alt="Business Logo"
+                          width={80}
+                          height={80}
+                          className="h-20 w-20 object-cover rounded-xl border border-[var(--secondary-soft-highlight)]/30"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLogoFile(null);
+                            setLogoPreview(null);
+                          }}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <XMarkIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center justify-center h-20 w-20 border-2 border-dashed border-[var(--secondary-soft-highlight)]/30 rounded-xl hover:border-[var(--primary-accent2)] transition-colors cursor-pointer group">
+                        <div className="flex flex-col items-center">
+                          <svg
+                            className="w-6 h-6 text-gray-400 group-hover:text-[var(--primary-accent2)] transition-colors"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                            />
+                          </svg>
+                          <span className="mt-1 text-[10px] text-gray-500 group-hover:text-[var(--primary-accent2)]">
+                            Upload
+                          </span>
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleLogoChange}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
+                    <div className="flex-1">
+                      <p className="text-xs text-[var(--secondary-muted-edge)]">
+                        Upload your logo. JPG or PNG, max 5MB. Preview updates
+                        instantly.
+                      </p>
+                    </div>
+                  </div>
+                </div>
                 <div>
                   <label className="block text-xs font-medium text-[var(--secondary-black)] mb-1.5">
                     Business Name *
@@ -385,9 +552,11 @@ export default function SellerBusinessSettingsPage() {
                   <div className="flex items-start gap-4">
                     {farmerIdPreview ? (
                       <div className="relative group">
-                        <img
+                        <Image
                           src={farmerIdPreview}
                           alt="Farmer ID"
+                          width={192}
+                          height={128}
                           className="h-32 w-48 object-cover rounded-xl border border-[var(--secondary-soft-highlight)]/30"
                         />
                         <button

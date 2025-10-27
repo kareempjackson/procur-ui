@@ -43,6 +43,7 @@ type SignupPayload = {
   phoneNumber?: string;
   country?: string;
   businessType?: string;
+  businessName?: string;
 };
 
 function getClient() {

@@ -19,9 +19,9 @@ import {
   ClockIcon,
 } from "@heroicons/react/24/outline";
 import { StarIcon as StarIconSolid } from "@heroicons/react/24/solid";
-import TopNavigation from "@/components/navigation/TopNavigation";
-import Footer from "@/components/footer/Footer";
+// Removed page-level TopNavigation/Footer to avoid duplication with layout
 import ProcurLoader from "@/components/ProcurLoader";
+import { getApiClient } from "@/lib/apiClient";
 
 interface SellerProfile {
   id: string;
@@ -116,277 +116,190 @@ export default function PublicSellerPage() {
     delivery_date: "",
   });
 
-  // Demo data - replace with API calls
   useEffect(() => {
     const loadSellerData = async () => {
       setLoading(true);
 
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      try {
+        const client = getApiClient();
 
-      // Demo seller data
-      const demoSeller: SellerProfile = {
-        id: "seller-1",
-        business_name: decodeURIComponent(businessName).replace(/-/g, " "),
-        display_name: "Green Valley Organic Farm",
-        description:
-          "Family-owned organic farm specializing in fresh, locally-grown produce. We've been serving the community for over 25 years with sustainable farming practices and the highest quality fruits and vegetables. Our commitment to organic farming ensures you get the freshest, most nutritious produce while supporting environmental sustainability.",
-        logo_url:
-          "https://images.unsplash.com/photo-1560493676-04071c5f467b?w=200&h=200&fit=crop&crop=center",
-        banner_url:
-          "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1200&h=400&fit=crop&crop=center",
-        address: {
-          street: "1234 Farm Road",
-          city: "Green Valley",
-          state: "California",
-          country: "United States",
-          postal_code: "95945",
-        },
-        contact: {
-          phone: "+1 (555) 123-4567",
-          email: "info@greenvalleyorganic.com",
-          website: "https://greenvalleyorganic.com",
-        },
-        specialties: [
-          "Organic Vegetables",
-          "Fresh Fruits",
-          "Herbs & Spices",
-          "Seasonal Produce",
-        ],
-        certifications: [
-          "USDA Organic",
-          "Non-GMO Project",
-          "California Certified Organic",
-        ],
-        rating: 4.8,
-        total_reviews: 127,
-        years_in_business: 25,
-        is_verified: true,
-        is_local: true,
-        is_organic_certified: true,
-        delivery_radius: 50,
-        min_order_amount: 25,
-        response_time: "Within 2 hours",
-      };
+        // 1) Fetch the authenticated seller's profile (for preview values)
+        const { data: profile } = await client.get("/users/profile");
+        const org = profile?.organization || {};
 
-      // Demo products
-      const demoProducts: Product[] = [
-        {
-          id: "1",
-          name: "Organic Roma Tomatoes",
-          description:
-            "Fresh, vine-ripened organic Roma tomatoes perfect for cooking and sauces.",
-          short_description: "Fresh, vine-ripened organic Roma tomatoes",
-          sku: "TOM-ROM-001",
-          category: "Vegetables",
-          subcategory: "Tomatoes",
-          tags: ["organic", "fresh", "local"],
-          base_price: 4.99,
-          currency: "USD",
-          stock_quantity: 150,
-          unit_of_measurement: "lb",
-          condition: "new",
-          status: "active",
-          is_featured: true,
-          is_organic: true,
-          is_local: true,
-          images: [
-            {
-              id: "img1",
-              image_url:
-                "https://images.unsplash.com/photo-1546470427-e26264be0b0d?w=400&h=400&fit=crop&crop=center",
-              alt_text: "Fresh organic Roma tomatoes",
-              is_primary: true,
-            },
-          ],
-        },
-        {
-          id: "2",
-          name: "Fresh Organic Spinach",
-          description:
-            "Tender, nutrient-rich organic spinach leaves, perfect for salads and cooking.",
-          short_description: "Tender, nutrient-rich organic spinach leaves",
-          sku: "SPN-ORG-001",
-          category: "Vegetables",
-          subcategory: "Leafy Greens",
-          tags: ["organic", "leafy greens", "fresh"],
-          base_price: 3.49,
-          currency: "USD",
-          stock_quantity: 80,
-          unit_of_measurement: "bunch",
-          condition: "new",
-          status: "active",
-          is_featured: false,
-          is_organic: true,
-          is_local: true,
-          images: [
-            {
-              id: "img2",
-              image_url:
-                "https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=400&h=400&fit=crop&crop=center",
-              alt_text: "Fresh organic spinach",
-              is_primary: true,
-            },
-          ],
-        },
-        {
-          id: "3",
-          name: "Organic Strawberries",
-          description:
-            "Sweet, juicy organic strawberries grown with care and harvested at peak ripeness.",
-          short_description: "Sweet, juicy organic strawberries",
-          sku: "STR-ORG-001",
-          category: "Fruits",
-          subcategory: "Berries",
-          tags: ["organic", "sweet", "berries"],
-          base_price: 6.99,
-          sale_price: 5.99,
-          currency: "USD",
-          stock_quantity: 45,
-          unit_of_measurement: "lb",
-          condition: "new",
-          status: "active",
-          is_featured: true,
-          is_organic: true,
-          is_local: true,
-          images: [
-            {
-              id: "img3",
-              image_url:
-                "https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=400&h=400&fit=crop&crop=center",
-              alt_text: "Fresh organic strawberries",
-              is_primary: true,
-            },
-          ],
-        },
-        {
-          id: "4",
-          name: "Farm Fresh Eggs",
-          description:
-            "Free-range eggs from happy hens, collected daily for maximum freshness.",
-          short_description: "Free-range eggs from happy hens",
-          sku: "EGG-FR-001",
-          category: "Dairy & Eggs",
-          subcategory: "Eggs",
-          tags: ["free-range", "fresh", "local"],
-          base_price: 5.99,
-          currency: "USD",
-          stock_quantity: 60,
-          unit_of_measurement: "dozen",
-          condition: "new",
-          status: "active",
-          is_featured: false,
-          is_organic: false,
-          is_local: true,
-          images: [
-            {
-              id: "img4",
-              image_url:
-                "https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=400&h=400&fit=crop&crop=center",
-              alt_text: "Farm fresh eggs",
-              is_primary: true,
-            },
-          ],
-        },
-        {
-          id: "5",
-          name: "Organic Bell Peppers",
-          description:
-            "Colorful organic bell peppers in red, yellow, and green varieties.",
-          short_description: "Colorful organic bell peppers",
-          sku: "PEP-MIX-001",
-          category: "Vegetables",
-          subcategory: "Peppers",
-          tags: ["organic", "colorful", "mixed"],
-          base_price: 4.49,
-          currency: "USD",
-          stock_quantity: 90,
-          unit_of_measurement: "lb",
-          condition: "new",
-          status: "active",
-          is_featured: false,
-          is_organic: true,
-          is_local: true,
-          images: [
-            {
-              id: "img5",
-              image_url:
-                "https://images.unsplash.com/photo-1563565375-f3fdfdbefa83?w=400&h=400&fit=crop&crop=center",
-              alt_text: "Organic bell peppers",
-              is_primary: true,
-            },
-          ],
-        },
-        {
-          id: "6",
-          name: "Fresh Basil",
-          description:
-            "Aromatic fresh basil perfect for cooking, garnishing, and making pesto.",
-          short_description: "Aromatic fresh basil",
-          sku: "BAS-FR-001",
-          category: "Herbs",
-          subcategory: "Fresh Herbs",
-          tags: ["herbs", "aromatic", "fresh"],
-          base_price: 2.99,
-          currency: "USD",
-          stock_quantity: 30,
-          unit_of_measurement: "bunch",
-          condition: "new",
-          status: "active",
-          is_featured: false,
-          is_organic: true,
-          is_local: true,
-          images: [
-            {
-              id: "img6",
-              image_url:
-                "https://images.unsplash.com/photo-1618375569909-3c8616cf7733?w=400&h=400&fit=crop&crop=center",
-              alt_text: "Fresh basil",
-              is_primary: true,
-            },
-          ],
-        },
-      ];
-
-      // Demo reviews
-      const demoReviews: Review[] = [
-        {
-          id: "1",
-          buyer_name: "Sarah M.",
+        const mappedSeller: SellerProfile = {
+          id: org.id || "seller-preview",
+          business_name:
+            org.businessName ||
+            decodeURIComponent(businessName).replace(/-/g, " "),
+          display_name:
+            org.businessName ||
+            org.name ||
+            decodeURIComponent(businessName).replace(/-/g, " "),
+          description: org.description || "",
+          logo_url: org.logoUrl || undefined,
+          banner_url: undefined,
+          address: {
+            street: org.address || "",
+            city: org.city || "",
+            state: org.state || "",
+            country: org.country || "",
+            postal_code: org.postalCode || "",
+          },
+          contact: {
+            phone: profile?.phone || "",
+            email: profile?.email || "",
+            website: org.website || "",
+          },
+          specialties: [],
+          certifications: [],
           rating: 5,
-          comment:
-            "Amazing quality produce! The tomatoes were so fresh and flavorful. Will definitely order again.",
-          created_at: "2024-01-20T10:30:00Z",
-          product_name: "Organic Roma Tomatoes",
-        },
-        {
-          id: "2",
-          buyer_name: "Mike R.",
-          rating: 5,
-          comment:
-            "Best strawberries I've ever had! Sweet, juicy, and perfectly ripe. Fast delivery too.",
-          created_at: "2024-01-18T14:15:00Z",
-          product_name: "Organic Strawberries",
-        },
-        {
-          id: "3",
-          buyer_name: "Jennifer L.",
-          rating: 4,
-          comment:
-            "Great selection of organic vegetables. The spinach was very fresh. Highly recommend!",
-          created_at: "2024-01-15T09:45:00Z",
-          product_name: "Fresh Organic Spinach",
-        },
-      ];
+          total_reviews: 0,
+          years_in_business: 0,
+          is_verified: true,
+          is_local: true,
+          is_organic_certified: false,
+          delivery_radius: 0,
+          min_order_amount: 0,
+          response_time: "—",
+        };
 
-      setSeller(demoSeller);
-      setProducts(demoProducts);
-      setReviews(demoReviews);
-      setLoading(false);
+        // 2) Fetch the seller's own products using seller endpoint (auth as seller)
+        const { data: productsRes } = await client.get("/sellers/products", {
+          params: { page: 1, limit: 50, status: "active" },
+        });
+
+        const mappedProducts: Product[] = (productsRes?.products || []).map(
+          (p: {
+            id: string;
+            name: string;
+            description?: string;
+            short_description?: string;
+            sku?: string;
+            category?: string;
+            subcategory?: string;
+            tags?: string[];
+            base_price?: number;
+            sale_price?: number;
+            currency?: string;
+            stock_quantity?: number;
+            unit_of_measurement?: string;
+            condition?: string;
+            status?: string;
+            is_featured?: boolean;
+            is_organic?: boolean;
+            is_local?: boolean;
+            product_images?: Array<{
+              id?: string;
+              image_url?: string;
+              alt_text?: string;
+              is_primary?: boolean;
+            }>;
+          }) => ({
+            id: p.id,
+            name: p.name,
+            description: p.description,
+            short_description: p.short_description,
+            sku: p.sku,
+            category: p.category || "Other",
+            subcategory: p.subcategory || undefined,
+            tags: p.tags || [],
+            base_price: typeof p.base_price === "number" ? p.base_price : 0,
+            sale_price: p.sale_price ?? undefined,
+            currency: p.currency || "USD",
+            stock_quantity: p.stock_quantity ?? 0,
+            unit_of_measurement: p.unit_of_measurement || "unit",
+            condition: p.condition || "new",
+            status: p.status || "active",
+            is_featured: !!p.is_featured,
+            is_organic: !!p.is_organic,
+            is_local: !!p.is_local,
+            images: Array.isArray(p.product_images)
+              ? p.product_images.map((img, idx: number) => ({
+                  id: String(img.id ?? idx),
+                  image_url: img.image_url || "",
+                  alt_text: img.alt_text,
+                  is_primary: !!img.is_primary,
+                }))
+              : [],
+          })
+        );
+
+        setSeller(mappedSeller);
+        setProducts(mappedProducts);
+        setReviews([]);
+      } catch {
+        // Fallback: no data accessible – keep empty lists but show header based on slug
+        setSeller({
+          id: "seller-preview",
+          business_name: decodeURIComponent(businessName).replace(/-/g, " "),
+          display_name: decodeURIComponent(businessName).replace(/-/g, " "),
+          description: "",
+          logo_url: undefined,
+          banner_url: undefined,
+          address: {
+            street: "",
+            city: "",
+            state: "",
+            country: "",
+            postal_code: "",
+          },
+          contact: { phone: "", email: "", website: "" },
+          specialties: [],
+          certifications: [],
+          rating: 5,
+          total_reviews: 0,
+          years_in_business: 0,
+          is_verified: true,
+          is_local: true,
+          is_organic_certified: false,
+          delivery_radius: 0,
+          min_order_amount: 0,
+          response_time: "—",
+        });
+        setProducts([]);
+        setReviews([]);
+      } finally {
+        setLoading(false);
+      }
     };
 
     loadSellerData();
   }, [businessName]);
+
+  // Static demo reviews until backend hook-up
+  useEffect(() => {
+    const demoReviews: Review[] = [
+      {
+        id: "1",
+        buyer_name: "Sarah M.",
+        rating: 5,
+        comment:
+          "Amazing quality produce! The tomatoes were so fresh and flavorful. Will definitely order again.",
+        created_at: "2024-01-20T10:30:00Z",
+        product_name: "Organic Roma Tomatoes",
+      },
+      {
+        id: "2",
+        buyer_name: "Mike R.",
+        rating: 5,
+        comment:
+          "Best strawberries I've ever had! Sweet, juicy, and perfectly ripe. Fast delivery too.",
+        created_at: "2024-01-18T14:15:00Z",
+        product_name: "Organic Strawberries",
+      },
+      {
+        id: "3",
+        buyer_name: "Jennifer L.",
+        rating: 4,
+        comment:
+          "Great selection of organic vegetables. The spinach was very fresh. Highly recommend!",
+        created_at: "2024-01-15T09:45:00Z",
+        product_name: "Fresh Organic Spinach",
+      },
+    ];
+    setReviews(demoReviews);
+  }, []);
 
   const categories = [
     "All",
@@ -449,67 +362,65 @@ export default function PublicSellerPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[var(--primary-background)]">
-        <TopNavigation />
+      <div className="min-h-screen bg-white">
         <div className="flex items-center justify-center min-h-[60vh]">
           <ProcurLoader size="lg" text="Loading seller profile..." />
         </div>
-        <Footer />
       </div>
     );
   }
 
   if (!seller) {
     return (
-      <div className="min-h-screen bg-[var(--primary-background)]">
-        <TopNavigation />
+      <div className="min-h-screen bg-white">
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
             <h1 className="text-2xl font-medium text-[var(--secondary-black)] mb-2">
               Seller Not Found
             </h1>
             <p className="text-[var(--primary-base)] mb-4">
-              The seller you&apos;re looking for doesn't exist.
+              The seller you&apos;re looking for doesn&apos;t exist.
             </p>
             <Link href="/" className="btn btn-primary">
               Back to Home
             </Link>
           </div>
         </div>
-        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
-      <TopNavigation />
-
+    <div className="min-h-screen bg-white">
       {/* Hero Banner */}
       <section className="relative">
         {seller.banner_url && (
-          <div className="h-64 md:h-80 overflow-hidden">
-            <img
+          <div className="h-64 md:h-80 overflow-hidden relative">
+            <Image
               src={seller.banner_url}
               alt={`${seller.display_name} banner`}
-              className="w-full h-full object-cover"
+              fill
+              className="object-cover"
+              priority
             />
-            <div className="absolute inset-0 seller-banner-overlay"></div>
+            <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-transparent"></div>
           </div>
         )}
 
         {/* Seller Profile Header */}
         <div className="max-w-7xl mx-auto px-6">
           <div className={`relative ${seller.banner_url ? "-mt-20" : "pt-10"}`}>
-            <div className="bg-white rounded-2xl shadow-lg border border-[var(--secondary-soft-highlight)] p-6 md:p-8">
+            <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)] p-6 md:p-8">
               <div className="flex flex-col md:flex-row gap-6">
                 {/* Logo */}
                 <div className="flex-shrink-0">
                   <div className="w-24 h-24 md:w-32 md:h-32 rounded-2xl overflow-hidden bg-gray-100 border border-[var(--secondary-soft-highlight)]">
                     {seller.logo_url ? (
-                      <img
+                      <Image
                         src={seller.logo_url}
                         alt={`${seller.display_name} logo`}
+                        width={128}
+                        height={128}
                         className="w-full h-full object-cover"
                       />
                     ) : (
@@ -641,6 +552,60 @@ export default function PublicSellerPage() {
         </div>
       </section>
 
+      {/* Sticky quick actions and tabs */}
+      <div className="bg-white border-b border-[var(--secondary-soft-highlight)] sticky top-0 z-20">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between py-3 gap-3">
+            <div className="flex items-center flex-wrap gap-3 text-sm">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--primary-background)] border border-[var(--secondary-soft-highlight)]">
+                {renderStars(seller.rating, "sm")}
+                <span className="text-[var(--primary-base)]">
+                  {seller.rating} ({seller.total_reviews})
+                </span>
+              </div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--primary-background)] border border-[var(--secondary-soft-highlight)]">
+                <TruckIcon className="h-4 w-4 text-[var(--primary-accent2)]" />
+                <span className="text-[var(--primary-base)]">
+                  {seller.delivery_radius}mi delivery
+                </span>
+              </div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--primary-background)] border border-[var(--secondary-soft-highlight)]">
+                <ClockIcon className="h-4 w-4 text-[var(--primary-accent2)]" />
+                <span className="text-[var(--primary-base)]">
+                  {seller.response_time}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <a
+                href="#products"
+                className="px-3 py-1.5 text-sm rounded-full border border-[var(--secondary-soft-highlight)] hover:bg-gray-50"
+              >
+                Products
+              </a>
+              <a
+                href="#about"
+                className="px-3 py-1.5 text-sm rounded-full border border-[var(--secondary-soft-highlight)] hover:bg-gray-50"
+              >
+                About
+              </a>
+              <a
+                href="#reviews"
+                className="px-3 py-1.5 text-sm rounded-full border border-[var(--secondary-soft-highlight)] hover:bg-gray-50"
+              >
+                Reviews
+              </a>
+              <button
+                onClick={() => setShowRequestModal(true)}
+                className="btn btn-primary ml-1"
+              >
+                Request Produce
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-10">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
@@ -722,7 +687,7 @@ export default function PublicSellerPage() {
           {/* Main Content */}
           <div className="lg:col-span-3">
             {/* Products Section */}
-            <section className="mb-10">
+            <section id="products" className="mb-10">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
                 <div>
                   <h2 className="text-2xl font-medium text-[var(--secondary-black)]">
@@ -797,18 +762,24 @@ export default function PublicSellerPage() {
                   {filteredProducts.map((product) => (
                     <div
                       key={product.id}
-                      className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)] overflow-hidden product-card-hover"
+                      className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)] overflow-hidden"
                     >
                       {/* Product Image */}
-                      <div className="aspect-square overflow-hidden">
-                        <img
-                          src={
-                            product.images?.[0]?.image_url ||
-                            "/images/products/placeholder.jpg"
-                          }
-                          alt={product.images?.[0]?.alt_text || product.name}
-                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                        />
+                      <div className="aspect-square overflow-hidden relative">
+                        {product.images &&
+                        product.images.length > 0 &&
+                        product.images[0]?.image_url ? (
+                          <Image
+                            src={product.images[0].image_url}
+                            alt={product.images[0].alt_text || product.name}
+                            fill
+                            className="object-cover"
+                          />
+                        ) : (
+                          <div className="absolute inset-0 bg-gray-100 flex items-center justify-center text-gray-400 text-xs">
+                            No image
+                          </div>
+                        )}
                       </div>
 
                       {/* Product Info */}
@@ -870,19 +841,25 @@ export default function PublicSellerPage() {
                   {filteredProducts.map((product) => (
                     <div
                       key={product.id}
-                      className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)] p-4 hover:shadow-lg transition-shadow"
+                      className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)] p-4"
                     >
                       <div className="flex gap-4">
                         {/* Product Image */}
-                        <div className="w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden">
-                          <img
-                            src={
-                              product.images?.[0]?.image_url ||
-                              "/images/products/placeholder.jpg"
-                            }
-                            alt={product.images?.[0]?.alt_text || product.name}
-                            className="w-full h-full object-cover"
-                          />
+                        <div className="w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden relative">
+                          {product.images &&
+                          product.images.length > 0 &&
+                          product.images[0]?.image_url ? (
+                            <Image
+                              src={product.images[0].image_url}
+                              alt={product.images[0].alt_text || product.name}
+                              fill
+                              className="object-cover"
+                            />
+                          ) : (
+                            <div className="absolute inset-0 bg-gray-100 flex items-center justify-center text-gray-400 text-xs">
+                              No image
+                            </div>
+                          )}
                         </div>
 
                         {/* Product Info */}
@@ -946,8 +923,32 @@ export default function PublicSellerPage() {
               )}
             </section>
 
+            {/* About Section */}
+            <section id="about" className="mb-10">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-medium text-[var(--secondary-black)]">
+                  About the Farm
+                </h2>
+              </div>
+              <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)] p-6">
+                <p className="text-[var(--primary-base)] leading-relaxed">
+                  {seller.description}
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {seller.specialties.map((s, i) => (
+                    <span
+                      key={i}
+                      className="px-3 py-1 bg-[var(--primary-background)] text-[var(--primary-base)] text-sm rounded-full border border-[var(--secondary-soft-highlight)]"
+                    >
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </section>
+
             {/* Reviews Section */}
-            <section>
+            <section id="reviews">
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h2 className="text-2xl font-medium text-[var(--secondary-black)]">
@@ -1175,7 +1176,7 @@ export default function PublicSellerPage() {
         </div>
       )}
 
-      <Footer />
+      {/* Layout renders global footer */}
     </div>
   );
 }

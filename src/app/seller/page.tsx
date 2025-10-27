@@ -35,6 +35,7 @@ import {
 } from "@/store/slices/harvestFeedSlice";
 // Timeline replaced by ActivityFeed component
 import type { SellerHomeProduct } from "@/store/slices/sellerHomeSlice";
+import { useToast } from "@/components/ui/Toast";
 
 // InventoryRow removed as inventory section has been replaced by timeline
 
@@ -54,6 +55,7 @@ function classNames(...classes: (string | false | null | undefined)[]) {
 
 export default function SellerDashboardPage() {
   const router = useRouter();
+  const { show } = useToast();
   const orderTab = useAppSelector(selectOrderTab);
   const analyticsTab = useAppSelector(selectAnalyticsTab);
   const isBuyer = useAppSelector((s) => s.auth.user?.accountType === "buyer");
@@ -64,6 +66,20 @@ export default function SellerDashboardPage() {
   useEffect(() => {
     dispatch(fetchSellerHome({ period: "last_30_days" }));
   }, [dispatch]);
+
+  // One-time welcome toast for new sellers
+  useEffect(() => {
+    try {
+      if (typeof window === "undefined") return;
+      const shown = localStorage.getItem("onboarding:welcome_toast_shown");
+      if (!shown) {
+        localStorage.setItem("onboarding:welcome_toast_shown", "true");
+        show("Welcome to Procur! 3 quick steps to go live.");
+      }
+    } catch (_) {
+      // ignore storage errors
+    }
+  }, [show]);
 
   const kpis = useMemo(() => {
     const homeData = sellerHome.data;

@@ -80,7 +80,7 @@ export default function SellerHarvestUpdatePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
+    <div className="min-h-screen bg-white">
       <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16">
         {/* Hero */}
         <section className="rounded-3xl bg-[var(--primary-accent1)]/14 border border-[color:var(--secondary-soft-highlight)] px-6 sm:px-10 py-10 sm:py-12">
