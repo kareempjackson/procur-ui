@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import TopNavigation from "@/components/navigation/TopNavigation";
@@ -11,9 +11,6 @@ import { useAppSelector } from "@/store";
 import { selectAuthUser } from "@/store/slices/authSlice";
 import {
   MagnifyingGlassIcon,
-  ChevronDownIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   ArrowRightIcon,
   // Category icons
   CubeIcon,
@@ -21,53 +18,29 @@ import {
   SparklesIcon,
   // Service icons
   TruckIcon,
-  ChartBarIcon,
   ShieldCheckIcon,
   CalendarDaysIcon,
   // Additional icons
-  BuildingStorefrontIcon,
   MapPinIcon,
-  StarIcon,
   CheckBadgeIcon,
 } from "@heroicons/react/24/outline";
 
 export default function Home() {
   const user = useAppSelector(selectAuthUser);
-  const [currentSlide, setCurrentSlide] = useState(0);
+
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
-  const [openSearchDropdown, setOpenSearchDropdown] = useState<
-    "sticky" | "global" | null
-  >(null);
   const [activeSearchBar, setActiveSearchBar] = useState<
     "sticky" | "global" | null
   >(null);
-  const [showStickySearch, setShowStickySearch] = useState(false);
-  const [isHeroHover, setIsHeroHover] = useState(false);
-  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const heroSearchRef = useRef<HTMLDivElement | null>(null);
 
-  // Hero carousel data
-  const heroSlides = [
-    {
-      headline: "Source Fresh Produce Directly from Trusted Farms",
-      subcopy: "Verified suppliers. Transparent logistics. Regional reach.",
-      cta: { label: "Explore Marketplace", href: "/marketplace" },
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-    },
-    {
-      headline: "Real-time Insights for Buyers & Governments",
-      subcopy:
-        "Supply, demand, and food security analytics at your fingertips.",
-      cta: { label: "View Insights", href: "/insights" },
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-    },
-    {
-      headline: "Secure Payments & Escrow Solutions",
-      subcopy: "Safe, fast transactions with milestone protection.",
-      cta: { label: "Learn More", href: "/payments" },
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-    },
-  ];
+  // Single hero (Alibaba-inspired)
+  const hero = {
+    headline: "The leading B2B marketplace for Global fresh produce",
+    subcopy: "Verified suppliers. Assured quality. One-stop trading.",
+    image: "/images/backgrounds/markus-winkler-ye2SrYuqtWM-unsplash.jpg",
+    cta: { label: "Explore Marketplace", href: "/marketplace" },
+  };
 
   // Categories data
   const categories = [
@@ -100,6 +73,42 @@ export default function Home() {
       icon: GlobeAltIcon,
       image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
       href: "/marketplace?tag=export",
+    },
+    {
+      name: "Coffee",
+      icon: SparklesIcon,
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+      href: "/marketplace?cat=coffee",
+    },
+    {
+      name: "Grains",
+      icon: CubeIcon,
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+      href: "/marketplace?cat=grains",
+    },
+    {
+      name: "Wheat",
+      icon: CubeIcon,
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+      href: "/marketplace?cat=wheat",
+    },
+    {
+      name: "Ground Provisions",
+      icon: CubeIcon,
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+      href: "/marketplace?cat=ground-provisions",
+    },
+    {
+      name: "Meat",
+      icon: CheckBadgeIcon,
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+      href: "/marketplace?cat=meat",
+    },
+    {
+      name: "Fish",
+      icon: GlobeAltIcon,
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+      href: "/marketplace?cat=fish",
     },
   ];
 
@@ -139,118 +148,12 @@ export default function Home() {
     },
   ];
 
-  // Featured products data
-  const featuredProducts = [
-    {
-      id: 1,
-      name: "Organic Tomatoes",
-      price: "$3.50",
-      unit: "/lb",
-      discount: "15% off",
-      farm: "Green Valley Farm",
-      rating: 4.8,
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      href: "/product/organic-tomatoes",
-    },
-    {
-      id: 2,
-      name: "Fresh Lettuce",
-      price: "$2.25",
-      unit: "/head",
-      discount: "20% off",
-      farm: "Leafy Greens Co.",
-      rating: 4.9,
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      href: "/product/fresh-lettuce",
-    },
-    {
-      id: 3,
-      name: "Sweet Peppers",
-      price: "$4.80",
-      unit: "/lb",
-      discount: "10% off",
-      farm: "Pepper Paradise",
-      rating: 4.7,
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      href: "/product/sweet-peppers",
-    },
-    {
-      id: 4,
-      name: "Organic Carrots",
-      price: "$1.95",
-      unit: "/bunch",
-      discount: "25% off",
-      farm: "Root & Branch",
-      rating: 4.6,
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      href: "/product/organic-carrots",
-    },
-  ];
+  // (featured products removed in simplified homepage)
 
-  // From the Blog (demo data)
-  const homeBlogPosts = [
-    {
-      title: "Introducing Procur Insights: Market trends in global produce",
-      category: "Announcements",
-      date: "Sep 28, 2025",
-      excerpt:
-        "A new resource hub for procurement leaders, covering logistics, compliance, and fresh market data.",
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      href: "/blog/procur-insights-market-trends",
-    },
-    {
-      title: "Real-time logistics visibility with Procur Tracking",
-      category: "Product",
-      date: "Sep 24, 2025",
-      excerpt:
-        "We’re rolling out shipment telemetry and automated ETAs for time-sensitive goods.",
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      href: "/blog/realtime-logistics-visibility",
-    },
-    {
-      title: "Sustainability metrics that actually matter",
-      category: "Research",
-      date: "Sep 20, 2025",
-      excerpt:
-        "From farm inputs to cold chain efficiency — measuring sustainability with outcomes instead of labels.",
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      href: "/blog/sustainability-metrics-that-matter",
-    },
-  ];
+  // (blog data removed in simplified homepage)
 
-  // Editorial service blocks
-  const serviceBlocks = [
-    {
-      icon: TruckIcon,
-      title: "Logistics & Fulfillment",
-      description: "Delivery scheduling and tracking tools.",
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      href: "/logistics",
-    },
-    {
-      icon: ChartBarIcon,
-      title: "Government Insights",
-      description: "Real-time dashboards for supply & demand.",
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      href: "/insights",
-    },
-    {
-      icon: ShieldCheckIcon,
-      title: "Payments & Escrow",
-      description: "Secure milestone-based payments.",
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      href: "/payments",
-    },
-    {
-      icon: CalendarDaysIcon,
-      title: "Upcoming Harvests",
-      description: "Pre-order supply before it's harvested.",
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      href: "/harvests",
-    },
-  ];
+  // (service blocks removed in simplified homepage)
 
-  const searchCategories = ["All", "Produce", "Farms", "Logistics", "Insights"];
   const searchSuggestions = [
     "organic tomatoes",
     "leafy greens",
@@ -259,38 +162,65 @@ export default function Home() {
     "supply chain insights",
   ];
 
-  // Auto-advance carousel (pauses on hover)
-  useEffect(() => {
-    if (isHeroHover) return;
-    const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
-    }, 6000);
-    return () => clearInterval(timer);
-  }, [heroSlides.length, isHeroHover]);
+  // How It Works: interactive steps and preview
+  const howItWorksSteps = [
+    {
+      icon: MagnifyingGlassIcon,
+      title: "Search for matches",
+      badge: "Procur Search",
+      overlayTitle: "Find products",
+      overlayCta: "Search",
+      image: "/images/backgrounds/markus-winkler-ye2SrYuqtWM-unsplash.jpg",
+    },
+    {
+      icon: CheckBadgeIcon,
+      title: "Identify the right one",
+      badge: "Verified Suppliers",
+      overlayTitle: "Compare suppliers",
+      overlayCta: "Compare",
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+    },
+    {
+      icon: ShieldCheckIcon,
+      title: "Pay with confidence",
+      badge: "Secure Escrow",
+      overlayTitle: "Create escrow",
+      overlayCta: "Continue",
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+    },
+    {
+      icon: TruckIcon,
+      title: "Fulfill with transparency",
+      highlight: true,
+      description:
+        "Real‑time tracking and tailored logistics with trusted partners.",
+      badge: "Procur Logistics",
+      overlayTitle: "Book shipping rate",
+      overlayCta: "Search",
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+    },
+    {
+      icon: CalendarDaysIcon,
+      title: "Manage with ease",
+      badge: "Order Tracking",
+      overlayTitle: "View timeline",
+      overlayCta: "Open",
+      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+    },
+  ];
 
-  // Keyboard navigation for carousel
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "ArrowLeft") {
-        prevSlide();
-      } else if (event.key === "ArrowRight") {
-        nextSlide();
-      } else if (event.key === "Escape") {
-        setOpenSearchDropdown(null);
-        setActiveSearchBar(null);
-      }
-    };
+  const [activeHowItWorksIdx, setActiveHowItWorksIdx] = useState(0);
+  const activeHowItWorks = howItWorksSteps[activeHowItWorksIdx];
 
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  // (carousel auto-advance removed)
+
+  // Keyboard shortcuts not needed; keep escape behavior for dropdown via click-outside
 
   // Close search dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Element;
       if (!target.closest('[role="search"]')) {
-        setOpenSearchDropdown(null);
         setActiveSearchBar(null);
       }
     };
@@ -299,27 +229,34 @@ export default function Home() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Scroll detection for sticky search bar
+  // Observe the hero search bar to inform nav when it leaves viewport
   useEffect(() => {
-    const handleScroll = () => {
-      const scrollY = window.scrollY;
-      const searchBarHeight = 200; // Approximate height where original search bar disappears
-      setShowStickySearch(scrollY > searchBarHeight);
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    if (!heroSearchRef.current) return;
+    const el = heroSearchRef.current;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        const inView = entry.isIntersecting;
+        window.dispatchEvent(
+          new CustomEvent<boolean>("procur:heroSearchInView", {
+            detail: inView,
+          })
+        );
+      },
+      {
+        root: null,
+        // Treat as out of view slightly before fully gone; accounts for nav height
+        rootMargin: "-100px 0px 0px 0px",
+        threshold: 0,
+      }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
   }, []);
 
-  const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
-  };
+  // (sticky search behavior removed)
 
-  const prevSlide = () => {
-    setCurrentSlide(
-      (prev) => (prev - 1 + heroSlides.length) % heroSlides.length
-    );
-  };
+  // (carousel controls removed)
 
   // Reusable search bar component
   const renderSearchBar = (isSticky = false) => {
@@ -331,7 +268,7 @@ export default function Home() {
         aria-label="Search marketplace"
         onSubmit={(e) => {
           e.preventDefault();
-          console.log("Search:", searchQuery, "Category:", selectedCategory);
+          console.log("Search:", searchQuery);
         }}
       >
         <div
@@ -341,55 +278,6 @@ export default function Home() {
               : "border border-[var(--secondary-soft-highlight)]/20"
           }`}
         >
-          <div className="relative">
-            <button
-              type="button"
-              className="flex items-center px-6 py-4 text-base font-medium text-[var(--secondary-black)] hover:bg-[var(--primary-background)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)] focus:ring-inset rounded-l-full transition-colors duration-200"
-              onClick={() => {
-                setActiveSearchBar(instance);
-                setOpenSearchDropdown((prev) =>
-                  prev === instance ? null : instance
-                );
-              }}
-              onFocus={() => setActiveSearchBar(instance)}
-              aria-expanded={openSearchDropdown === instance}
-              aria-haspopup="listbox"
-              aria-label={`Category: ${selectedCategory}`}
-            >
-              {selectedCategory}
-              <ChevronDownIcon className="ml-3 h-5 w-5 text-[var(--secondary-muted-edge)]" />
-            </button>
-            {openSearchDropdown === instance && (
-              <div
-                className="absolute top-full left-0 w-40 bg-white border border-[var(--secondary-soft-highlight)]/30 rounded-xl z-20 mt-2 backdrop-blur-sm"
-                role="listbox"
-                aria-label="Search categories"
-              >
-                <div className="py-2">
-                  {searchCategories.map((cat) => (
-                    <button
-                      key={cat}
-                      type="button"
-                      role="option"
-                      aria-selected={selectedCategory === cat}
-                      className={`block w-full text-left px-4 py-3 text-sm font-medium transition-colors duration-200 focus:outline-none ${
-                        selectedCategory === cat
-                          ? "bg-[var(--primary-accent2)] text-white"
-                          : "text-[var(--secondary-black)] hover:bg-[var(--primary-background)] hover:text-[var(--primary-accent2)]"
-                      }`}
-                      onClick={() => {
-                        setSelectedCategory(cat);
-                        setOpenSearchDropdown(null);
-                      }}
-                    >
-                      {cat}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="w-px h-8 bg-[var(--secondary-soft-highlight)]/30"></div>
           <input
             type="text"
             placeholder="Search produce, farms, or insights…"
@@ -427,6 +315,7 @@ export default function Home() {
                       key={suggestion}
                       type="button"
                       role="option"
+                      aria-selected={false}
                       className="block w-full text-left px-4 py-3 text-base text-[var(--secondary-black)] hover:bg-[var(--primary-background)] hover:text-[var(--primary-accent2)] rounded-lg focus:outline-none focus:bg-[var(--primary-background)] transition-colors duration-200 font-medium"
                       onClick={() => setSearchQuery(suggestion)}
                     >
@@ -457,135 +346,52 @@ export default function Home() {
         <TopNavigation />
       )}
 
-      {/* Sticky Search Bar */}
-      <div
-        className={`fixed top-0 left-0 right-0 bg-white z-50 transition-transform duration-300 ${
-          showStickySearch ? "translate-y-0" : "-translate-y-full"
-        }`}
-      >
-        <div className="max-w-[1280px] mx-auto px-6 py-4">
-          <div className="relative max-w-2xl mx-auto">
-            {renderSearchBar(true)}
-          </div>
-        </div>
-      </div>
-
-      {/* Global Search Bar */}
-      <div className="bg-[var(--primary-background)] py-2">
-        <div className="max-w-[1280px] mx-auto px-6 py-6">
-          <div className="relative max-w-4xl mx-auto">
-            {renderSearchBar(false)}
-          </div>
-        </div>
-      </div>
+      {/* (sticky and global search bars removed; search moved into hero) */}
 
       <main>
-        {/* Hero Carousel */}
-        <section
-          className="py-6 px-4 sm:px-6 relative"
-          role="region"
-          aria-label="Featured content carousel"
-          aria-live="polite"
-        >
-          <div
-            className="relative h-[60vh] md:h-[70vh] overflow-hidden rounded-2xl group"
-            onMouseEnter={() => setIsHeroHover(true)}
-            onMouseLeave={() => setIsHeroHover(false)}
-            onTouchStart={(e) => setTouchStartX(e.touches[0]?.clientX ?? null)}
-            onTouchEnd={(e) => {
-              if (touchStartX == null) return;
-              const endX = e.changedTouches[0]?.clientX ?? touchStartX;
-              const delta = endX - touchStartX;
-              if (Math.abs(delta) > 40) {
-                if (delta > 0) {
-                  prevSlide();
-                } else {
-                  nextSlide();
-                }
-              }
-              setTouchStartX(null);
-            }}
-          >
-            {heroSlides.map((slide, index) => (
-              <div
-                key={index}
-                className={`absolute inset-0 transition-opacity duration-700 ease-in-out transform-gpu backface-hidden ${
-                  index === currentSlide
-                    ? "opacity-100 pointer-events-auto"
-                    : "opacity-0 pointer-events-none"
-                }`}
-                aria-hidden={index !== currentSlide}
-              >
-                <div className="relative h-full">
-                  <Image
-                    src={slide.image}
-                    alt=""
-                    fill
-                    className={`object-cover rounded-2xl transition-transform duration-[1200ms] ease-out will-change-transform transform-gpu motion-reduce:transition-none motion-reduce:transform-none ${
-                      index === currentSlide ? "scale-[1.05]" : "scale-[1.00]"
-                    }`}
-                    priority={index === 0}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/40 to-transparent rounded-2xl" />
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="max-w-[1280px] mx-auto px-6 sm:px-12 w-full">
-                      <div className="text-white text-center sm:text-left max-w-[22rem] sm:max-w-3xl mx-auto sm:mx-0">
-                        <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-light mb-4 sm:mb-6 leading-[1.1] tracking-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.35)]">
-                          {slide.headline}
-                        </h1>
-                        <p className="text-lg sm:text-xl md:text-2xl mb-6 sm:mb-10 opacity-90 font-light leading-relaxed max-w-[22rem] sm:max-w-2xl mx-auto sm:mx-0 drop-shadow-[0_2px_6px_rgba(0,0,0,0.25)]">
-                          {slide.subcopy}
-                        </p>
-                        <Link
-                          href={slide.cta.href}
-                          className="inline-flex items-center bg-[var(--primary-accent2)]/90 hover:bg-[var(--primary-accent2)] text-white px-6 py-3 sm:px-8 sm:py-4 rounded-full font-medium text-base sm:text-lg transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent1)] focus:ring-offset-2 focus:ring-offset-black/50 mx-auto sm:mx-0 mt-3 sm:mt-0"
-                        >
-                          {slide.cta.label}
-                          <ArrowRightIcon className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                        </Link>
-                      </div>
-                    </div>
+        {/* Hero (Alibaba-inspired, single panel) */}
+        <section className="py-6 px-4 sm:px-6 relative" aria-label="Hero">
+          <div className="relative h-[60vh] md:h-[70vh] overflow-hidden rounded-2xl">
+            <Image
+              src={hero.image}
+              alt=""
+              fill
+              className="object-cover rounded-2xl"
+              priority
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/40 to-transparent rounded-2xl" />
+            <div className="absolute inset-0 flex items-center">
+              <div className="max-w-[1280px] mx-auto px-6 sm:px-12 w-full">
+                <div className="text-white max-w-3xl">
+                  <div className="flex items-center text-white/85 mb-3 gap-2">
+                    <span className="inline-block w-2 h-2 rounded-full bg-[var(--primary-accent2)]"></span>
+                    <span className="text-sm">Learn about Procur</span>
+                  </div>
+                  <h1 className="text-4xl sm:text-5xl md:text-6xl font-semibold leading-tight">
+                    {hero.headline}
+                  </h1>
+                  <p className="mt-4 text-lg md:text-xl text-white/90">
+                    {hero.subcopy}
+                  </p>
+                  <div className="mt-6 max-w-3xl" ref={heroSearchRef}>
+                    {renderSearchBar(false)}
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2 items-center">
+                    <span className="text-white/70 text-sm mr-1">
+                      Frequently searched:
+                    </span>
+                    {searchSuggestions.slice(0, 5).map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => setSearchQuery(s)}
+                        className="px-3 py-1.5 rounded-full text-sm bg-white/15 hover:bg-white/25 text-white transition-colors"
+                      >
+                        {s}
+                      </button>
+                    ))}
                   </div>
                 </div>
               </div>
-            ))}
-
-            {/* Brand-styled Carousel Controls */}
-            <button
-              onClick={prevSlide}
-              className="absolute left-3 sm:left-5 top-1/2 -translate-y-1/2 bg-[var(--primary-accent2)] hover:bg-[var(--primary-accent3)] text-white p-2.5 sm:p-3 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent1)]/60 backdrop-blur-sm shadow-lg"
-              aria-label="Previous slide"
-            >
-              <ChevronLeftIcon className="h-5 w-5 stroke-2" />
-            </button>
-            <button
-              onClick={nextSlide}
-              className="absolute right-3 sm:right-5 top-1/2 -translate-y-1/2 bg-[var(--primary-accent2)] hover:bg-[var(--primary-accent3)] text-white p-2.5 sm:p-3 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent1)]/60 backdrop-blur-sm shadow-lg"
-              aria-label="Next slide"
-            >
-              <ChevronRightIcon className="h-5 w-5 stroke-2" />
-            </button>
-
-            {/* Brand-styled Carousel Dots */}
-            <div
-              className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 flex space-x-2"
-              role="tablist"
-              aria-label="Carousel navigation"
-            >
-              {heroSlides.map((slide, index) => (
-                <button
-                  key={index}
-                  onClick={() => setCurrentSlide(index)}
-                  className={`h-2 w-2 rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-white/40 border border-white/30 ${
-                    index === currentSlide
-                      ? "bg-white w-5 sm:w-6"
-                      : "bg-white/30 hover:bg-white/50"
-                  }`}
-                  role="tab"
-                  aria-selected={index === currentSlide}
-                  aria-label={`Go to slide ${index + 1}: ${slide.headline}`}
-                />
-              ))}
             </div>
           </div>
         </section>
@@ -619,30 +425,21 @@ export default function Home() {
                 Discover fresh produce across the region
               </p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-6 justify-items-center">
               {categories.map((category) => {
                 const IconComponent = category.icon;
                 return (
                   <Link
                     key={category.name}
                     href={category.href}
-                    className="group focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)] focus:ring-offset-2 rounded-lg"
+                    className="group focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)] focus:ring-offset-2 rounded-full"
                     aria-label={`Browse ${category.name}`}
                   >
-                    <div className="relative h-48 rounded-lg overflow-hidden">
-                      <Image
-                        src={category.image}
-                        alt={category.name}
-                        fill
-                        className="object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                      <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors duration-300" />
-                      <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
-                        <IconComponent className="h-8 w-8 mb-3 stroke-1" />
-                        <h3 className="text-lg font-medium tracking-wide">
-                          {category.name}
-                        </h3>
-                      </div>
+                    <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full ring-1 ring-[var(--secondary-soft-highlight)]/50 bg-white flex flex-col items-center justify-center text-center px-3 transition-colors duration-200 group-hover:bg-[var(--primary-background)] group-hover:ring-[var(--primary-accent2)]/40">
+                      <IconComponent className="h-7 w-7 sm:h-8 sm:w-8 text-[var(--secondary-black)] group-hover:text-[var(--primary-accent2)]" />
+                      <span className="mt-2 text-xs sm:text-sm font-medium text-[var(--secondary-black)] leading-snug">
+                        {category.name}
+                      </span>
                     </div>
                   </Link>
                 );
@@ -662,317 +459,339 @@ export default function Home() {
                 Meet trusted suppliers across the region
               </p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {featuredFarms.map((farm) => (
+            <div className="grid gap-6 lg:grid-cols-12">
+              {/* Large feature on the left */}
+              {featuredFarms[0] && (
                 <Link
-                  key={farm.name}
-                  href={farm.href}
-                  className="group focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)] focus:ring-offset-2 rounded-lg"
+                  href={featuredFarms[0].href}
+                  className="group relative lg:col-span-7 lg:row-span-2 rounded-2xl overflow-hidden focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)] focus:ring-offset-2"
+                  aria-label={`View profile: ${featuredFarms[0].name}`}
                 >
-                  <div className="relative h-64 rounded-lg overflow-hidden">
-                    <Image
-                      src={farm.image}
-                      alt={farm.name}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                    <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
-                      <div className="flex items-center mb-2">
-                        <BuildingStorefrontIcon className="h-5 w-5 mr-2 stroke-1" />
-                        <h3 className="text-xl font-medium">{farm.name}</h3>
-                      </div>
-                      <div className="flex items-center mb-3">
-                        <MapPinIcon className="h-4 w-4 mr-2 stroke-1" />
-                        <p className="text-sm opacity-90">{farm.region}</p>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex flex-wrap gap-1">
-                          {farm.certifications.slice(0, 2).map((cert) => (
-                            <span
-                              key={cert}
-                              className="text-xs px-2 py-1 bg-white/20 rounded-full"
-                            >
-                              {cert}
-                            </span>
-                          ))}
-                        </div>
-                        <span className="text-sm font-medium">
-                          {farm.listings} listings
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Impact Statistics */}
-        <section className="py-20 bg-[var(--primary-background)]">
-          <div className="max-w-[1280px] mx-auto px-6">
-            <div className="grid lg:grid-cols-2 gap-16 items-center">
-              {/* Statistics Content */}
-              <div>
-                <h2 className="text-3xl md:text-4xl font-light text-[var(--secondary-black)] mb-6 tracking-tight">
-                  Transforming Caribbean Agriculture
-                </h2>
-                <p className="text-lg text-[var(--secondary-muted-edge)] font-light mb-12 leading-relaxed">
-                  Building connections across the region to strengthen food
-                  security and economic growth.
-                </p>
-
-                <div className="grid grid-cols-2 gap-8">
-                  <div className="text-center">
-                    <div className="text-4xl md:text-5xl font-light text-[var(--primary-accent2)] mb-2">
-                      2,847
-                    </div>
-                    <p className="text-sm md:text-base font-medium text-[var(--secondary-black)] mb-1">
-                      Active Farmers
-                    </p>
-                    <p className="text-xs md:text-sm text-[var(--secondary-muted-edge)]">
-                      Across the Caribbean
-                    </p>
-                  </div>
-
-                  <div className="text-center">
-                    <div className="text-4xl md:text-5xl font-light text-[var(--primary-accent2)] mb-2">
-                      1,293
-                    </div>
-                    <p className="text-sm md:text-base font-medium text-[var(--secondary-black)] mb-1">
-                      Partner Businesses
-                    </p>
-                    <p className="text-xs md:text-sm text-[var(--secondary-muted-edge)]">
-                      Buyers & Suppliers
-                    </p>
-                  </div>
-
-                  <div className="text-center">
-                    <div className="text-4xl md:text-5xl font-light text-[var(--primary-accent2)] mb-2">
-                      $12.4M
-                    </div>
-                    <p className="text-sm md:text-base font-medium text-[var(--secondary-black)] mb-1">
-                      Total Transactions
-                    </p>
-                    <p className="text-xs md:text-sm text-[var(--secondary-muted-edge)]">
-                      This year
-                    </p>
-                  </div>
-
-                  <div className="text-center">
-                    <div className="text-4xl md:text-5xl font-light text-[var(--primary-accent2)] mb-2">
-                      15
-                    </div>
-                    <p className="text-sm md:text-base font-medium text-[var(--secondary-black)] mb-1">
-                      Countries Served
-                    </p>
-                    <p className="text-xs md:text-sm text-[var(--secondary-muted-edge)]">
-                      Regional coverage
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Statistics Image */}
-              <div className="relative">
-                <div className="relative h-96 md:h-[500px] rounded-2xl overflow-hidden">
                   <Image
-                    src="/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg"
-                    alt="Caribbean agriculture and farming"
+                    src={featuredFarms[0].image}
+                    alt={featuredFarms[0].name}
                     fill
-                    className="object-cover"
+                    sizes="(min-width: 1280px) 60vw, (min-width: 1024px) 58vw, 100vw"
+                    className="object-cover transition-transform duration-700 group-hover:scale-[1.03]"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[var(--primary-accent2)]/20 via-transparent to-transparent" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* From the Blog */}
-        <section
-          className="py-20 bg-white"
-          aria-labelledby="from-the-blog-heading"
-        >
-          <div className="max-w-[1280px] mx-auto px-6">
-            <div className="text-center mb-16">
-              <h2
-                id="from-the-blog-heading"
-                className="text-3xl md:text-4xl font-light text-[var(--secondary-black)] mb-4 tracking-tight"
-              >
-                From the Blog
-              </h2>
-              <p className="text-lg text-[var(--secondary-muted-edge)] font-light">
-                Insights from the Procur team
-              </p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {homeBlogPosts.map((post) => (
-                <Link
-                  key={post.href}
-                  href={post.href}
-                  className="group bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-md transition-shadow"
-                >
-                  <div className="relative h-52">
-                    <Image
-                      src={post.image}
-                      alt={post.title}
-                      fill
-                      sizes="(max-width: 768px) 100vw, 33vw"
-                      className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                    />
-                    <span className="absolute left-3 top-3 text-[11px] font-semibold uppercase tracking-wider bg-white/90 text-gray-800 px-2.5 py-1 rounded-full border border-white">
-                      {post.category}
-                    </span>
-                  </div>
-                  <div className="p-5">
-                    <h3 className="text-lg font-semibold text-[var(--secondary-black)] group-hover:underline">
-                      {post.title}
-                    </h3>
-                    {post.excerpt ? (
-                      <p className="mt-2 text-gray-600 text-sm line-clamp-3">
-                        {post.excerpt}
-                      </p>
-                    ) : null}
-                    <div className="mt-4 text-sm text-gray-500">
-                      {post.date}
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-            <div className="mt-10 text-center">
-              <Link
-                href="/blog"
-                className="inline-flex items-center bg-[var(--secondary-black)] text-white px-6 py-3 rounded-full font-medium hover:bg-black transition-colors"
-              >
-                Read all posts
-                <ArrowRightIcon className="ml-2 h-4 w-4" />
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        {/* This Week's Highlights */}
-        <section className="py-20" aria-labelledby="products-heading">
-          <div className="max-w-[1280px] mx-auto px-6">
-            <div className="text-center mb-16">
-              <h2
-                id="products-heading"
-                className="text-3xl md:text-4xl font-light text-[var(--secondary-black)] mb-4 tracking-tight"
-              >
-                This Week's Highlights
-              </h2>
-              <p className="text-lg text-[var(--secondary-muted-edge)] font-light">
-                Fresh inventory and seasonal deals
-              </p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {featuredProducts.map((product) => (
-                <Link
-                  key={product.id}
-                  href={product.href}
-                  className="group focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)] focus:ring-offset-2 rounded-lg"
-                >
-                  <div className="relative h-64 rounded-lg overflow-hidden mb-4">
-                    <Image
-                      src={product.image}
-                      alt={product.name}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    {product.discount && (
-                      <div className="absolute top-3 left-3 bg-[var(--primary-accent2)] text-white px-2 py-1 rounded-full text-xs font-medium">
-                        {product.discount}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                  <div className="absolute inset-0 flex items-end">
+                    <div className="p-6 md:p-8 text-white">
+                      <div className="text-xs font-semibold uppercase tracking-wider text-white/90">
+                        Featured supplier
                       </div>
-                    )}
-                    <div className="absolute bottom-3 right-3 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full flex items-center">
-                      <StarIcon className="h-3 w-3 fill-yellow-400 text-yellow-400 mr-1" />
-                      <span className="text-xs font-medium">
-                        {product.rating}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <h3 className="font-medium text-[var(--secondary-black)] group-hover:text-[var(--primary-accent2)] transition-colors">
-                      {product.name}
-                    </h3>
-                    <p className="text-sm text-[var(--secondary-muted-edge)]">
-                      {product.farm}
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-lg font-semibold text-[var(--secondary-black)]">
-                        {product.price}
-                        <span className="text-sm font-normal text-[var(--secondary-muted-edge)]">
-                          {product.unit}
+                      <h3 className="mt-2 text-2xl md:text-4xl font-semibold leading-tight">
+                        {featuredFarms[0].name}
+                      </h3>
+                      <div className="mt-3 flex items-center text-sm text-white/90">
+                        <MapPinIcon className="h-4 w-4 mr-1 stroke-1" />
+                        {featuredFarms[0].region}
+                        <span className="ml-3 inline-block text-white/90">
+                          {featuredFarms[0].listings} listings
                         </span>
-                      </span>
+                      </div>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {featuredFarms[0].certifications.map((cert) => (
+                          <span
+                            key={cert}
+                            className="text-xs px-2.5 py-1 rounded-full bg-white/15 backdrop-blur border border-white/20"
+                          >
+                            {cert}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </Link>
-              ))}
-            </div>
-          </div>
-        </section>
+              )}
 
-        {/* Beyond the Marketplace - Editorial Service Blocks */}
-        <section className="py-24 bg-white">
-          <div className="max-w-[1280px] mx-auto px-6">
-            <div className="text-center mb-20">
-              <h2 className="text-4xl md:text-5xl font-light text-[var(--secondary-black)] mb-6 tracking-tight">
-                Beyond the Marketplace
-              </h2>
-              <p className="text-xl text-[var(--secondary-muted-edge)] font-light max-w-3xl mx-auto">
-                Infrastructure for a resilient regional food system
-              </p>
-            </div>
-
-            <div className="space-y-24">
-              {serviceBlocks.map((block, index) => {
-                const IconComponent = block.icon;
-                const isEven = index % 2 === 0;
-
-                return (
-                  <div
-                    key={block.title}
-                    className={`flex flex-col lg:flex-row items-center gap-12 lg:gap-16 ${
-                      isEven ? "" : "lg:flex-row-reverse"
-                    }`}
+              {/* Right column stacked */}
+              <div className="lg:col-span-5 grid gap-6">
+                {featuredFarms[1] && (
+                  <Link
+                    href={featuredFarms[1].href}
+                    className="group rounded-2xl border border-gray-200 bg-[var(--primary-background)] p-6 md:p-8 flex flex-col justify-between focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)] focus:ring-offset-2"
+                    aria-label={`View profile: ${featuredFarms[1].name}`}
                   >
-                    <div className="flex-1 space-y-6">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-[var(--primary-accent2)] rounded-full flex items-center justify-center">
-                          <IconComponent className="h-6 w-6 text-white stroke-1" />
-                        </div>
-                        <h3 className="text-2xl md:text-3xl font-light text-[var(--secondary-black)] tracking-tight">
-                          {block.title}
-                        </h3>
-                      </div>
-                      <p className="text-lg text-[var(--secondary-muted-edge)] font-light leading-relaxed">
-                        {block.description}
-                      </p>
-                      <Link
-                        href={block.href}
-                        className="inline-flex items-center text-[var(--primary-accent2)] font-medium hover:text-[var(--primary-accent3)] transition-colors group"
-                      >
-                        Learn more
-                        <ArrowRightIcon className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                      </Link>
+                    <div className="text-[var(--secondary-muted-edge)] text-xs font-semibold uppercase tracking-wider">
+                      Featured cooperative
                     </div>
-                    <div className="flex-1">
-                      <div className="relative h-80 rounded-lg overflow-hidden">
+                    <h3 className="mt-2 text-2xl md:text-3xl font-semibold text-[var(--secondary-black)] group-hover:underline">
+                      {featuredFarms[1].name}
+                    </h3>
+                    <p className="mt-2 text-sm text-[var(--secondary-muted-edge)]">
+                      <span className="inline-flex items-center">
+                        <MapPinIcon className="h-4 w-4 mr-1 stroke-1" />
+                        {featuredFarms[1].region}
+                      </span>
+                      <span className="ml-3 text-[var(--secondary-black)]/80 font-medium">
+                        {featuredFarms[1].listings} listings
+                      </span>
+                    </p>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {featuredFarms[1].certifications.map((cert) => (
+                        <span
+                          key={cert}
+                          className="text-xs px-2.5 py-1 rounded-full border border-gray-200 text-[var(--secondary-black)]/80"
+                        >
+                          {cert}
+                        </span>
+                      ))}
+                    </div>
+                  </Link>
+                )}
+
+                {featuredFarms[2] && (
+                  <Link
+                    href={featuredFarms[2].href}
+                    className="group relative rounded-2xl overflow-hidden h-64 md:h-80 focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)] focus:ring-offset-2"
+                    aria-label={`View profile: ${featuredFarms[2].name}`}
+                  >
+                    <Image
+                      src={featuredFarms[2].image}
+                      alt={featuredFarms[2].name}
+                      fill
+                      sizes="(min-width: 1280px) 38vw, (min-width: 1024px) 40vw, 100vw"
+                      className="object-cover transition-transform duration-700 group-hover:scale-[1.03]"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+                    <div className="absolute inset-0 flex items-end">
+                      <div className="p-6 md:p-8 text-white">
+                        <div className="text-xs font-semibold uppercase tracking-wider text-white/90">
+                          Featured farm
+                        </div>
+                        <h3 className="mt-2 text-2xl font-semibold leading-tight">
+                          {featuredFarms[2].name}
+                        </h3>
+                        <div className="mt-2 text-sm text-white/90 inline-flex items-center">
+                          <MapPinIcon className="h-4 w-4 mr-1 stroke-1" />
+                          {featuredFarms[2].region}
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                )}
+              </div>
+
+              {/* Remaining items */}
+              {featuredFarms.slice(3).length > 0 && (
+                <div className="lg:col-span-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {featuredFarms.slice(3).map((farm) => (
+                    <Link
+                      key={farm.name}
+                      href={farm.href}
+                      className="group rounded-2xl overflow-hidden border border-gray-200 bg-white hover:shadow-md transition-shadow focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)] focus:ring-offset-2"
+                      aria-label={`View profile: ${farm.name}`}
+                    >
+                      <div className="relative w-full aspect-[16/10] bg-gray-100">
                         <Image
-                          src={block.image}
-                          alt={block.title}
+                          src={farm.image}
+                          alt={farm.name}
                           fill
-                          className="object-cover"
+                          className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                         />
                       </div>
+                      <div className="p-5">
+                        <h3 className="text-lg font-semibold text-[var(--secondary-black)] group-hover:underline">
+                          {farm.name}
+                        </h3>
+                        <div className="mt-2 flex items-center justify-between text-sm text-[var(--secondary-muted-edge)]">
+                          <span className="inline-flex items-center">
+                            <MapPinIcon className="h-4 w-4 mr-1 stroke-1" />
+                            {farm.region}
+                          </span>
+                          <span className="font-medium text-[var(--secondary-black)]/80">
+                            {farm.listings} listings
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* Trade with Confidence */}
+        <section className="relative py-24 overflow-hidden">
+          <div className="absolute inset-0">
+            <Image
+              src="/images/backgrounds/nao-takabayashi-TlzyJStoITg-unsplash.jpg"
+              alt=""
+              fill
+              className="object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/70" />
+          </div>
+          <div className="relative max-w-[1280px] mx-auto px-6">
+            <h2 className="text-3xl md:text-5xl font-light text-white tracking-tight max-w-4xl">
+              Trade with confidence from production quality to purchase
+              protection
+            </h2>
+
+            <div className="mt-10 grid gap-6 md:grid-cols-2">
+              {/* Verified Supplier card */}
+              <div className="rounded-2xl bg-white/85 backdrop-blur-md border border-white/30 p-6 md:p-8">
+                <div className="flex items-center gap-3">
+                  <CheckBadgeIcon className="h-8 w-8 text-[var(--primary-accent2)]" />
+                  <p className="text-2xl md:text-3xl font-semibold text-[var(--secondary-black)]">
+                    Verified Supplier
+                  </p>
+                </div>
+                <p className="mt-4 text-[var(--secondary-black)]/80 leading-relaxed">
+                  Connect with suppliers validated by third‑party checks for
+                  credentials and capabilities. Look for the
+                  &quot;Verified&quot; badge to start sourcing with confidence.
+                </p>
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <Link
+                    href="/learn/verified-supplier"
+                    className="inline-flex items-center rounded-full px-4 py-2 bg-white text-[var(--secondary-black)] ring-1 ring-black/10 hover:bg-[var(--primary-background)]"
+                  >
+                    Watch video
+                  </Link>
+                  <Link
+                    href="/learn/verified-supplier"
+                    className="inline-flex items-center rounded-full px-4 py-2 bg-transparent text-white ring-1 ring-white/40 hover:bg-white/10"
+                  >
+                    Learn more
+                  </Link>
+                </div>
+              </div>
+
+              {/* Trade Assurance card */}
+              <div className="rounded-2xl bg-white/85 backdrop-blur-md border border-white/30 p-6 md:p-8">
+                <div className="flex items-center gap-3">
+                  <ShieldCheckIcon className="h-8 w-8 text-[var(--primary-accent2)]" />
+                  <p className="text-2xl md:text-3xl font-semibold text-[var(--secondary-black)]">
+                    Trade Assurance
+                  </p>
+                </div>
+                <p className="mt-4 text-[var(--secondary-black)]/80 leading-relaxed">
+                  Source confidently with secure payment options, shipment
+                  protection, and support for any purchase‑related issues when
+                  you order through Procur.
+                </p>
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <Link
+                    href="/learn/trade-assurance"
+                    className="inline-flex items-center rounded-full px-4 py-2 bg-white text-[var(--secondary-black)] ring-1 ring-black/10 hover:bg-[var(--primary-background)]"
+                  >
+                    Watch video
+                  </Link>
+                  <Link
+                    href="/learn/trade-assurance"
+                    className="inline-flex items-center rounded-full px-4 py-2 bg-transparent text-white ring-1 ring-white/40 hover:bg-white/10"
+                  >
+                    Learn more
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* How It Works - Alibaba-inspired explainer */}
+        <section className="py-20 bg-white">
+          <div className="max-w-[1280px] mx-auto px-6">
+            <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+              {/* Left - Steps */}
+              <div>
+                <h2 className="text-3xl md:text-4xl font-light text-[var(--secondary-black)] mb-8 tracking-tight">
+                  Streamline ordering from search to fulfillment, all in one
+                  place
+                </h2>
+
+                <ol className="relative">
+                  {howItWorksSteps.map((step, index, arr) => {
+                    const IconComp = step.icon;
+                    const isLast = index === arr.length - 1;
+                    const isActive = activeHowItWorksIdx === index;
+                    return (
+                      <li
+                        key={step.title}
+                        className="relative pl-16 pb-8 last:pb-0 cursor-pointer select-none"
+                        onMouseEnter={() => setActiveHowItWorksIdx(index)}
+                        onFocus={() => setActiveHowItWorksIdx(index)}
+                        onClick={() => setActiveHowItWorksIdx(index)}
+                        role="button"
+                        aria-pressed={isActive}
+                      >
+                        {!isLast && (
+                          <span
+                            className="absolute left-6 top-10 h-full w-px bg-gray-200"
+                            aria-hidden
+                          ></span>
+                        )}
+                        <span
+                          className={`absolute left-0 top-1 flex h-12 w-12 items-center justify-center rounded-full ring-1 ${
+                            step.highlight || isActive
+                              ? "bg-[var(--primary-accent2)]/10 ring-[var(--primary-accent2)]/30"
+                              : "bg-gray-50 ring-gray-200"
+                          }`}
+                        >
+                          <IconComp
+                            className={`h-6 w-6 ${
+                              step.highlight || isActive
+                                ? "text-[var(--primary-accent2)]"
+                                : "text-gray-500"
+                            }`}
+                          />
+                        </span>
+                        <div>
+                          <p
+                            className={`text-xl md:text-2xl font-medium ${
+                              step.highlight || isActive
+                                ? "text-[var(--primary-accent2)]"
+                                : "text-[var(--secondary-black)]"
+                            }`}
+                          >
+                            {step.title}
+                          </p>
+                          {step.description && isActive && (
+                            <p className="mt-3 text-[var(--secondary-muted-edge)]">
+                              {step.description}
+                            </p>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
+
+              {/* Right - Visual card */}
+              <div className="relative">
+                <div className="relative rounded-2xl overflow-hidden shadow-sm">
+                  <div className="relative h-80 md:h-[420px]">
+                    <Image
+                      src={activeHowItWorks.image}
+                      alt={activeHowItWorks.title}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                  {/* Floating badge */}
+                  <div className="absolute left-4 top-4 bg-black/70 text-white px-4 py-2 rounded-xl text-sm shadow">
+                    {activeHowItWorks.badge}
+                  </div>
+                  {/* Overlay card */}
+                  <div className="absolute right-4 bottom-4 bg-white/95 backdrop-blur rounded-xl border border-gray-200 w-[260px] p-4 shadow">
+                    <div className="text-sm font-semibold text-gray-800 mb-2">
+                      {activeHowItWorks.overlayTitle}
+                    </div>
+                    <div className="space-y-2">
+                      <div className="h-8 rounded-md border border-gray-200/70 bg-gray-50" />
+                      <div className="h-8 rounded-md border border-gray-200/70 bg-gray-50" />
+                      <div className="h-8 rounded-md border border-gray-200/70 bg-gray-50" />
+                      <button className="w-full h-9 rounded-md bg-[var(--primary-accent2)] text-white text-sm font-medium">
+                        {activeHowItWorks.overlayCta}
+                      </button>
                     </div>
                   </div>
-                );
-              })}
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -981,7 +800,7 @@ export default function Home() {
         <section className="relative py-32 overflow-hidden">
           <div className="absolute inset-0">
             <Image
-              src="/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg"
+              src="/images/backgrounds/nao-takabayashi-TlzyJStoITg-unsplash.jpg"
               alt=""
               fill
               className="object-cover"
@@ -993,8 +812,9 @@ export default function Home() {
               Build a Resilient Regional Food System
             </h2>
             <p className="text-xl md:text-2xl font-light mb-12 opacity-90 max-w-4xl mx-auto leading-relaxed">
-              Connecting farms, buyers, and governments to strengthen the
-              Caribbean food supply chain.
+              Empowering farms, buyers, and governments to create a transparent
+              global food network. Strengthening food security and eliminating
+              waste across borders.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
@@ -1015,49 +835,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Newsletter */}
-        <section
-          className="py-20 bg-gray-50"
-          aria-labelledby="newsletter-heading"
-        >
-          <div className="max-w-[1280px] mx-auto px-6 text-center">
-            <h2
-              id="newsletter-heading"
-              className="text-3xl md:text-4xl font-light text-[var(--secondary-black)] mb-4 tracking-tight"
-            >
-              Stay Informed
-            </h2>
-            <p className="text-lg text-[var(--secondary-muted-edge)] font-light mb-12 max-w-2xl mx-auto">
-              Marketplace growth, logistics innovations, and insights.
-            </p>
-            <div className="max-w-lg mx-auto">
-              <form
-                className="flex gap-4"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  // Handle newsletter subscription
-                }}
-              >
-                <input
-                  type="email"
-                  placeholder="Email address"
-                  required
-                  className="flex-[2] px-8 py-4 text-lg min-w-0 border border-[var(--secondary-soft-highlight)] rounded-full bg-white transition-all duration-200 focus:border-[var(--primary-base)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-base)]/20"
-                  aria-label="Email address for newsletter"
-                />
-                <button
-                  type="submit"
-                  className="px-8 py-4 font-medium flex-shrink-0 bg-[var(--primary-accent2)] text-white rounded-full hover:bg-[var(--primary-accent3)] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)]/20"
-                >
-                  Subscribe
-                </button>
-              </form>
-              <p className="text-sm text-[var(--secondary-muted-edge)] mt-4 font-light">
-                No spam. Unsubscribe anytime.
-              </p>
-            </div>
-          </div>
-        </section>
+        {/* (newsletter removed for a cleaner homepage) */}
       </main>
 
       <Footer />

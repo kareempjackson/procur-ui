@@ -243,12 +243,6 @@ export default function SellerDashboardPage() {
               >
                 Post Harvest Update
               </Link>
-              <Link
-                href="/seller/inventory?import=csv"
-                className="inline-flex items-center justify-center rounded-full border border-[color:var(--secondary-soft-highlight)] bg-transparent text-[color:var(--secondary-black)] px-5 py-2.5 text-sm font-medium hover:bg-black/[0.02] transition-colors focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:ring-offset-2"
-              >
-                Bulk import CSV
-              </Link>
             </div>
           </div>
           <div className="mt-6">

@@ -25,17 +25,11 @@ const Footer: React.FC = () => {
       { title: "Reporting & Analytics", href: "/gov/reporting" },
       { title: "Vendor Management", href: "/gov/vendors" },
     ],
-    Resources: [
-      { title: "Documentation", href: "/resources/docs" },
-      { title: "API Reference", href: "/resources/api" },
-      { title: "Case Studies", href: "/resources/case-studies" },
-      { title: "Webinars", href: "/resources/webinars" },
-      { title: "White Papers", href: "/resources/white-papers" },
-    ],
     Company: [
       { title: "About Procur", href: "/company/about" },
       { title: "Careers", href: "/company/careers" },
       { title: "Contact Us", href: "/company/contact" },
+      { title: "Newsroom", href: "/blog" },
     ],
     Help: [
       { title: "Support Center", href: "/help/support" },
@@ -75,7 +69,7 @@ const Footer: React.FC = () => {
       <div className="max-w-7xl mx-auto px-6 py-16">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
           {/* Logo Section */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-3">
             <div className="mb-6 -ml-4">
               <Image
                 src="/images/logos/procur-logo.svg"
@@ -85,7 +79,7 @@ const Footer: React.FC = () => {
                 className="h-12 w-auto filter invert"
               />
             </div>
-            <p className="text-gray-400 text-sm leading-relaxed max-w-md -ml-4">
+            <p className="text-gray-400 text-sm leading-relaxed max-w-lg -ml-4">
               Procur is the global marketplace for fresh produce procurement,
               connecting buyers and suppliers with trusted logistics, quality,
               and secure payments.
@@ -134,15 +128,12 @@ const Footer: React.FC = () => {
           </div>
 
           {/* Footer Links - two rows: 4 on top, 3 on bottom, right-aligned */}
-          <div className="lg:col-span-10 flex flex-col w-full items-end text-right">
+          <div className="lg:col-span-9 flex flex-col w-full items-end text-right">
             {/* Top row (4 sections) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12 w-full lg:w-[88%]">
-              {[
-                "For Purchasers",
-                "For Suppliers",
-                "For Government",
-                "Resources",
-              ].map((key) => renderSection(key, footerSections[key]))}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-12 w-full lg:w-[88%]">
+              {["For Purchasers", "For Suppliers", "For Government"].map(
+                (key) => renderSection(key, footerSections[key])
+              )}
             </div>
 
             {/* Bottom row (3 sections) */}
