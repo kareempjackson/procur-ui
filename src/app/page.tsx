@@ -370,7 +370,7 @@ export default function Home() {
                   <h1 className="text-4xl sm:text-5xl md:text-6xl font-semibold leading-tight text-balance">
                     {hero.headline}
                   </h1>
-                  <p className="mt-3 sm:mt-4 text-base sm:text-lg md:text-xl text-white/90">
+                  <p className="mt-3 sm:mt-4 text-base sm:text-lg md:text-xl text-white/90 text-pretty">
                     {hero.subcopy}
                   </p>
                   <div className="mt-5 sm:mt-6 max-w-3xl" ref={heroSearchRef}>
@@ -384,7 +384,7 @@ export default function Home() {
                       {hero.cta.label}
                     </Link>
                   </div>
-                  <div className="mt-3 flex flex-wrap gap-2 items-center">
+                  <div className="mt-3 hidden sm:flex flex-wrap gap-2 items-center">
                     <span className="text-white/70 text-sm mr-1">
                       Frequently searched:
                     </span>
