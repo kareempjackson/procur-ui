@@ -367,14 +367,22 @@ export default function Home() {
                     <span className="inline-block w-2 h-2 rounded-full bg-[var(--primary-accent2)]"></span>
                     <span className="text-sm">Learn about Procur</span>
                   </div>
-                  <h1 className="text-4xl sm:text-5xl md:text-6xl font-semibold leading-tight">
+                  <h1 className="text-4xl sm:text-5xl md:text-6xl font-semibold leading-tight text-balance">
                     {hero.headline}
                   </h1>
-                  <p className="mt-4 text-lg md:text-xl text-white/90">
+                  <p className="mt-3 sm:mt-4 text-base sm:text-lg md:text-xl text-white/90">
                     {hero.subcopy}
                   </p>
-                  <div className="mt-6 max-w-3xl" ref={heroSearchRef}>
+                  <div className="mt-5 sm:mt-6 max-w-3xl" ref={heroSearchRef}>
                     {renderSearchBar(false)}
+                  </div>
+                  <div className="mt-4 sm:mt-6">
+                    <Link
+                      href={hero.cta.href}
+                      className="inline-flex w-full sm:w-auto items-center justify-center rounded-full bg-[var(--primary-accent2)] text-white px-5 py-3 text-sm sm:text-base font-medium hover:bg-[var(--primary-accent3)]"
+                    >
+                      {hero.cta.label}
+                    </Link>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2 items-center">
                     <span className="text-white/70 text-sm mr-1">

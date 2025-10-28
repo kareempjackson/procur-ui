@@ -421,7 +421,7 @@ const TopNavigation: React.FC = () => {
       {/* Utility Bar (Alibaba-inspired) */}
       <div className="bg-black text-white text-sm">
         <div className="max-w-7xl mx-auto px-6 h-10 flex items-center justify-between">
-          <div className="flex items-center gap-6">
+          <div className="hidden md:flex items-center gap-6">
             <Link
               href="/categories"
               className="hover:underline whitespace-nowrap"
@@ -441,8 +441,8 @@ const TopNavigation: React.FC = () => {
               Order protections
             </Link>
           </div>
-          <div className="flex items-center gap-6">
-            <span className="hidden sm:inline text-white/80 whitespace-nowrap">
+          <div className="flex items-center gap-6 w-full justify-end md:w-auto md:justify-normal">
+            <span className="hidden md:inline text-white/80 whitespace-nowrap">
               Deliver to{" "}
               <button
                 className="ml-1 underline"
@@ -453,13 +453,13 @@ const TopNavigation: React.FC = () => {
             </span>
             <Link
               href="/buyer"
-              className="text-white/80 hover:text-white whitespace-nowrap"
+              className="hidden md:inline text-white/80 hover:text-white whitespace-nowrap"
             >
               Buyer Central
             </Link>
             <Link
               href="/help/support"
-              className="text-white/80 hover:text-white whitespace-nowrap"
+              className="hidden md:inline text-white/80 hover:text-white whitespace-nowrap"
             >
               Help Center
             </Link>
@@ -476,7 +476,7 @@ const TopNavigation: React.FC = () => {
 
       <nav className={`${navBgClass} sticky top-0 z-40`} ref={navRef}>
         <div className="max-w-7xl mx-auto px-6">
-          <div className="relative flex items-center h-20 justify-between pr-0 lg:pr-56">
+          <div className="relative flex items-center h-16 lg:h-20 justify-between pr-0 lg:pr-56">
             {/* Logo */}
             <div className="flex-shrink-0">
               <Link href="/" className="flex items-center">
@@ -653,7 +653,7 @@ const TopNavigation: React.FC = () => {
 
         {/* Mobile Navigation Menu */}
         {mobileMenuOpen && (
-          <div className="lg:hidden bg-white border-t border-gray-100">
+          <div className="lg:hidden bg-white border-t border-gray-100 max-h-[calc(100vh-64px)] overflow-y-auto">
             <div className="px-6 py-4 space-y-4">
               <a
                 href="/marketplace"
@@ -661,6 +661,35 @@ const TopNavigation: React.FC = () => {
               >
                 {t("nav.marketplace")}
               </a>
+              {/* Quick links for mobile */}
+              <div className="pt-1">
+                <div className="text-sm font-semibold text-gray-500 px-1 py-1">
+                  Quick links
+                </div>
+                <div className="space-y-1">
+                  <Link
+                    href="/buyer"
+                    className="block text-gray-700 px-2 py-1 rounded hover:bg-gray-50"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Buyer Central
+                  </Link>
+                  <Link
+                    href="/help/support"
+                    className="block text-gray-700 px-2 py-1 rounded hover:bg-gray-50"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Help Center
+                  </Link>
+                  <Link
+                    href="/suppliers/join"
+                    className="block text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)] font-semibold px-2 py-1 rounded"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Become a supplier
+                  </Link>
+                </div>
+              </div>
               <button
                 className="w-full text-left text-gray-800 font-medium py-2"
                 onClick={() => setMobileResourcesOpen(!mobileResourcesOpen)}
@@ -761,9 +790,13 @@ const TopNavigation: React.FC = () => {
                   <button className="text-lg">{selectedCountry.flag}</button>
                   {/* Cart hidden on mobile */}
                 </div>
-                <button className="bg-black text-white px-4 py-2 rounded-full font-medium text-sm">
+                <Link
+                  href="/signup"
+                  className="bg-black text-white px-4 py-2 rounded-full font-medium text-sm"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
                   {t("action.tryProcur")}
-                </button>
+                </Link>
               </div>
             </div>
           </div>
