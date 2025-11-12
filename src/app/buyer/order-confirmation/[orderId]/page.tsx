@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -14,6 +14,9 @@ import {
   PhoneIcon,
   CheckBadgeIcon,
 } from "@heroicons/react/24/outline";
+import { useAppDispatch, useAppSelector } from "@/store";
+import { fetchOrderDetail } from "@/store/slices/buyerOrdersSlice";
+import ProcurLoader from "@/components/ProcurLoader";
 
 // Demo order data
 const demoOrder = {
@@ -102,8 +105,39 @@ const demoOrder = {
 export default function OrderConfirmationPage({
   params,
 }: {
-  params: { orderId: string };
+  params: Promise<{ orderId: string }> | { orderId: string };
 }) {
+  // Next.js 15: params may be a Promise; unwrap with React.use()
+  // Backward compatible: if it's already an object, use as-is
+  const unwrappedParams =
+    typeof (params as any)?.then === "function"
+      ? (React as any).use(params as Promise<{ orderId: string }>)
+      : (params as { orderId: string });
+  const orderId = unwrappedParams.orderId;
+
+  const dispatch = useAppDispatch();
+  const { currentOrder, orderDetailStatus } = useAppSelector(
+    (s) => s.buyerOrders
+  );
+
+  useEffect(() => {
+    if (orderId) {
+      dispatch(fetchOrderDetail(orderId));
+    }
+  }, [orderId, dispatch]);
+
+  const loading = orderDetailStatus === "loading";
+  const order = currentOrder as any | null;
+
+  const shipping = order?.shipping_address || {};
+  const addrLine1 =
+    shipping.address_line1 || shipping.street || shipping.street_address || "";
+  const addrLine2 = shipping.address_line2 || shipping.apartment || "";
+  const addrCity = shipping.city || "";
+  const addrState = shipping.state || "";
+  const addrPostal =
+    shipping.postal_code || shipping.zip || shipping.zipCode || "";
+  const addrCountry = shipping.country || "";
   return (
     <div className="min-h-screen bg-white">
       <main className="max-w-4xl mx-auto px-6 py-10">
@@ -121,6 +155,13 @@ export default function OrderConfirmationPage({
           </p>
         </div>
 
+        {/* Loading */}
+        {loading && (
+          <div className="bg-white rounded-3xl border border-[var(--secondary-soft-highlight)]/20 p-10 mb-6 flex justify-center">
+            <ProcurLoader size="md" text="Loading your order..." />
+          </div>
+        )}
+
         {/* Order Number & Actions */}
         <div className="bg-white rounded-3xl border border-[var(--secondary-soft-highlight)]/20 p-6 mb-6">
           <div className="flex items-center justify-between flex-wrap gap-4">
@@ -129,7 +170,7 @@ export default function OrderConfirmationPage({
                 Order Number
               </p>
               <p className="text-2xl font-bold text-[var(--secondary-black)]">
-                {demoOrder.orderNumber}
+                {order?.order_number || "--"}
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -142,7 +183,7 @@ export default function OrderConfirmationPage({
                 <span className="text-sm font-medium">Download Invoice</span>
               </button>
               <Link
-                href={`/buyer/orders/${params.orderId}`}
+                href={`/buyer/orders/${orderId}`}
                 className="flex items-center gap-2 px-5 py-2 bg-[var(--primary-accent2)] text-white rounded-full hover:bg-[var(--primary-accent3)] transition-all shadow-sm"
               >
                 <TruckIcon className="h-4 w-4" />
@@ -160,7 +201,7 @@ export default function OrderConfirmationPage({
           <div className="space-y-4">
             <div className="flex gap-4">
               <div className="flex flex-col items-center">
-                <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
+                <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center shrink-0">
                   <CheckCircleIcon className="h-6 w-6 text-white" />
                 </div>
                 <div className="w-0.5 h-full bg-gray-200 mt-2" />
@@ -183,7 +224,7 @@ export default function OrderConfirmationPage({
 
             <div className="flex gap-4">
               <div className="flex flex-col items-center">
-                <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center shrink-0">
                   <CheckCircleIcon className="h-6 w-6 text-gray-500" />
                 </div>
                 <div className="w-0.5 h-full bg-gray-200 mt-2" />
@@ -200,7 +241,7 @@ export default function OrderConfirmationPage({
 
             <div className="flex gap-4">
               <div className="flex flex-col items-center">
-                <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center shrink-0">
                   <TruckIcon className="h-6 w-6 text-gray-500" />
                 </div>
                 <div className="w-0.5 h-full bg-gray-200 mt-2" />
@@ -217,7 +258,7 @@ export default function OrderConfirmationPage({
 
             <div className="flex gap-4">
               <div className="flex flex-col items-center">
-                <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center shrink-0">
                   <MapPinIcon className="h-6 w-6 text-gray-500" />
                 </div>
               </div>
@@ -233,33 +274,24 @@ export default function OrderConfirmationPage({
           </div>
         </div>
 
-        {/* Order Details by Seller */}
+        {/* Order Items */}
         <div className="space-y-6 mb-6">
-          {demoOrder.sellers.map((seller) => (
-            <div
-              key={seller.id}
-              className="bg-white rounded-3xl border border-[var(--secondary-soft-highlight)]/20 overflow-hidden"
-            >
+          {order && (
+            <div className="bg-white rounded-3xl border border-[var(--secondary-soft-highlight)]/20 overflow-hidden">
               {/* Seller Header */}
               <div className="bg-[var(--primary-background)] px-6 py-4 border-b border-[var(--secondary-soft-highlight)]/30">
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="flex items-center gap-2 mb-2">
                       <h3 className="font-semibold text-[var(--secondary-black)]">
-                        {seller.name}
+                        {order.seller_name || "Seller"}
                       </h3>
-                      {seller.verified && (
-                        <CheckBadgeIcon className="h-5 w-5 text-[var(--primary-accent2)]" />
-                      )}
                     </div>
                     <div className="space-y-1 text-sm text-[var(--secondary-muted-edge)]">
                       <div className="flex items-center gap-2">
-                        <MapPinIcon className="h-4 w-4" />
-                        {seller.location}
-                      </div>
-                      <div className="flex items-center gap-2">
                         <CalendarIcon className="h-4 w-4" />
-                        Estimated delivery: {seller.estimatedDelivery}
+                        Estimated delivery:{" "}
+                        {order.estimated_delivery_date || "TBD"}
                       </div>
                     </div>
                   </div>
@@ -268,7 +300,7 @@ export default function OrderConfirmationPage({
                       Subtotal
                     </p>
                     <p className="text-xl font-bold text-[var(--secondary-black)]">
-                      ${seller.subtotal.toFixed(2)}
+                      ${Number(order.subtotal || 0).toFixed(2)}
                     </p>
                   </div>
                 </div>
@@ -276,30 +308,38 @@ export default function OrderConfirmationPage({
 
               {/* Items */}
               <div className="p-6 space-y-4">
-                {seller.items.map((item) => (
+                {(order.items || []).map((item: any) => (
                   <div key={item.id} className="flex gap-4">
                     <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
                       <Image
-                        src={item.image}
-                        alt={item.name}
+                        src={
+                          item.product_snapshot?.image_url ||
+                          "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg"
+                        }
+                        alt={item.product_name}
                         fill
                         className="object-cover"
                       />
                     </div>
                     <div className="flex-1">
                       <h4 className="font-semibold text-[var(--secondary-black)]">
-                        {item.name}
+                        {item.product_name}
                       </h4>
                       <p className="text-sm text-[var(--secondary-muted-edge)] mt-1">
-                        Quantity: {item.quantity} {item.unit}
+                        Quantity: {item.quantity}
                       </p>
                     </div>
                     <div className="text-right">
                       <p className="font-semibold text-[var(--secondary-black)]">
-                        ${(item.price * item.quantity).toFixed(2)}
+                        $
+                        {Number(
+                          item.total_price ||
+                            item.unit_price * item.quantity ||
+                            0
+                        ).toFixed(2)}
                       </p>
                       <p className="text-sm text-[var(--secondary-muted-edge)]">
-                        ${item.price.toFixed(2)}/{item.unit}
+                        ${Number(item.unit_price || 0).toFixed(2)}
                       </p>
                     </div>
                   </div>
@@ -309,17 +349,10 @@ export default function OrderConfirmationPage({
                 <div className="pt-4 border-t border-[var(--secondary-soft-highlight)]/30">
                   <div className="flex items-center justify-between">
                     <div className="text-sm text-[var(--secondary-muted-edge)]">
-                      <div className="flex items-center gap-2 mb-1">
-                        <EnvelopeIcon className="h-4 w-4" />
-                        {seller.email}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <PhoneIcon className="h-4 w-4" />
-                        {seller.phone}
-                      </div>
+                      Order ID: {order.id}
                     </div>
                     <Link
-                      href={`/buyer/messages?seller=${seller.id}`}
+                      href={`/buyer/messages`}
                       className="px-5 py-2 bg-[var(--primary-accent2)] text-white rounded-full text-sm font-medium hover:bg-[var(--primary-accent3)] transition-all shadow-sm"
                     >
                       Contact Seller
@@ -328,7 +361,7 @@ export default function OrderConfirmationPage({
                 </div>
               </div>
             </div>
-          ))}
+          )}
         </div>
 
         {/* Shipping & Payment Info */}
@@ -340,26 +373,36 @@ export default function OrderConfirmationPage({
               Shipping Address
             </h3>
             <div className="text-sm text-[var(--secondary-black)]">
-              <p className="font-medium">{demoOrder.shippingAddress.name}</p>
-              <p className="text-[var(--secondary-muted-edge)] mt-1">
-                {demoOrder.shippingAddress.street}
-              </p>
-              {demoOrder.shippingAddress.apartment && (
-                <p className="text-[var(--secondary-muted-edge)]">
-                  {demoOrder.shippingAddress.apartment}
+              {(shipping.name || shipping.contact_name) && (
+                <p className="font-medium">
+                  {shipping.name || shipping.contact_name}
                 </p>
               )}
-              <p className="text-[var(--secondary-muted-edge)]">
-                {demoOrder.shippingAddress.city},{" "}
-                {demoOrder.shippingAddress.state}{" "}
-                {demoOrder.shippingAddress.zipCode}
-              </p>
-              <p className="text-[var(--secondary-muted-edge)]">
-                {demoOrder.shippingAddress.country}
-              </p>
-              <p className="text-[var(--secondary-muted-edge)] mt-2">
-                {demoOrder.shippingAddress.phone}
-              </p>
+              {addrLine1 && (
+                <p className="text-[var(--secondary-muted-edge)] mt-1">
+                  {addrLine1}
+                </p>
+              )}
+              {addrLine2 && (
+                <p className="text-[var(--secondary-muted-edge)]">
+                  {addrLine2}
+                </p>
+              )}
+              {(addrCity || addrState || addrPostal) && (
+                <p className="text-[var(--secondary-muted-edge)]">
+                  {[addrCity, addrState, addrPostal].filter(Boolean).join(" ")}
+                </p>
+              )}
+              {addrCountry && (
+                <p className="text-[var(--secondary-muted-edge)]">
+                  {addrCountry}
+                </p>
+              )}
+              {(shipping.phone || shipping.contact_phone) && (
+                <p className="text-[var(--secondary-muted-edge)] mt-2">
+                  {shipping.phone || shipping.contact_phone}
+                </p>
+              )}
             </div>
           </div>
 
@@ -375,12 +418,11 @@ export default function OrderConfirmationPage({
                 </span>
               </div>
               <div className="text-sm">
-                <p className="font-medium text-[var(--secondary-black)]">
-                  {demoOrder.paymentMethod.brand} ••••{" "}
-                  {demoOrder.paymentMethod.last4}
+                <p className="font-medium text-[var(--secondary-black)] capitalize">
+                  {order?.payment_status || "pending"}
                 </p>
                 <p className="text-[var(--secondary-muted-edge)]">
-                  Charged ${demoOrder.total.toFixed(2)}
+                  Total ${Number(order?.total_amount || 0).toFixed(2)}
                 </p>
               </div>
             </div>
@@ -398,7 +440,7 @@ export default function OrderConfirmationPage({
                 Subtotal
               </span>
               <span className="font-medium text-[var(--secondary-black)]">
-                ${demoOrder.subtotal.toFixed(2)}
+                ${Number(order?.subtotal || 0).toFixed(2)}
               </span>
             </div>
             <div className="flex justify-between text-sm">
@@ -406,13 +448,13 @@ export default function OrderConfirmationPage({
                 Shipping
               </span>
               <span className="font-medium text-[var(--secondary-black)]">
-                ${demoOrder.shipping.toFixed(2)}
+                ${Number(order?.shipping_amount || 0).toFixed(2)}
               </span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-[var(--secondary-muted-edge)]">Tax</span>
               <span className="font-medium text-[var(--secondary-black)]">
-                ${demoOrder.tax.toFixed(2)}
+                ${Number(order?.tax_amount || 0).toFixed(2)}
               </span>
             </div>
             <div className="border-t border-[var(--secondary-soft-highlight)]/30 pt-3">
@@ -421,7 +463,7 @@ export default function OrderConfirmationPage({
                   Total
                 </span>
                 <span className="font-bold text-xl text-[var(--secondary-black)]">
-                  ${demoOrder.total.toFixed(2)}
+                  ${Number(order?.total_amount || 0).toFixed(2)}
                 </span>
               </div>
             </div>

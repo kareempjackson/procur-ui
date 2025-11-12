@@ -42,6 +42,7 @@ export interface Order {
   id: string;
   order_number: string;
   status: string;
+  payment_status?: string;
   created_at: string;
   updated_at: string;
   seller_org_id: string;
@@ -278,11 +279,25 @@ const buyerOrdersSlice = createSlice({
       })
       .addCase(fetchOrders.fulfilled, (state, action) => {
         state.status = "succeeded";
-        state.orders = action.payload.data || action.payload;
+        const payload = action.payload as any;
+        // API returns { orders, total, page, limit } for buyers
+        // Some endpoints may return { data, pagination }
+        const orders = payload?.orders ?? payload?.data ?? [];
+        state.orders = Array.isArray(orders) ? orders : [];
 
-        // Handle pagination if provided
-        if (action.payload.pagination) {
-          state.pagination = action.payload.pagination;
+        // Normalize pagination
+        if (payload?.pagination) {
+          state.pagination = payload.pagination;
+        } else {
+          const total = Number(
+            payload?.total ?? state.pagination.totalItems ?? 0
+          );
+          const page = Number(payload?.page ?? state.pagination.page ?? 1);
+          const limit = Number(payload?.limit ?? state.pagination.limit ?? 20);
+          state.pagination.page = page;
+          state.pagination.limit = limit;
+          state.pagination.totalItems = total;
+          state.pagination.totalPages = Math.max(1, Math.ceil(total / limit));
         }
       })
       .addCase(fetchOrders.rejected, (state, action) => {

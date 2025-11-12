@@ -10,6 +10,7 @@ import {
   CheckIcon,
   MapPinIcon,
   CreditCardIcon,
+  BanknotesIcon,
   TruckIcon,
   ShieldCheckIcon,
   CheckBadgeIcon,
@@ -20,10 +21,19 @@ import { useAppDispatch, useAppSelector } from "@/store";
 import { fetchCart } from "@/store/slices/buyerCartSlice";
 import {
   fetchAddresses,
+  fetchOrders,
   createOrder,
   resetCreateOrderStatus,
 } from "@/store/slices/buyerOrdersSlice";
 import ProcurLoader from "@/components/ProcurLoader";
+import { getApiClient } from "@/lib/apiClient";
+import { loadStripe } from "@stripe/stripe-js";
+import {
+  Elements,
+  PaymentElement,
+  useStripe,
+  useElements,
+} from "@stripe/react-stripe-js";
 
 // Demo data - will come from cart in real implementation
 const demoOrderData = {
@@ -152,6 +162,127 @@ export default function CheckoutClient() {
   const [deliveryInstructions, setDeliveryInstructions] = useState("");
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [orderIds, setOrderIds] = useState<string[]>([]);
+  const [isStartingPayment, setIsStartingPayment] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [autoConfirm, setAutoConfirm] = useState(false);
+  const [paymentElementReady, setPaymentElementReady] = useState(false);
+  const [intentValid, setIntentValid] = useState<boolean>(false);
+
+  // Payment method: card (Stripe), bank_transfer, cash
+  const [paymentMethod, setPaymentMethod] = useState<
+    "card" | "bank_transfer" | "cash"
+  >("card");
+
+  // Stripe publishable key handling
+  const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+  const stripePromise = React.useMemo(() => {
+    return publishableKey ? loadStripe(publishableKey) : null;
+  }, [publishableKey]);
+
+  // Auto-create a PaymentIntent when on card payment step
+  useEffect(() => {
+    if (
+      currentStep === "payment" &&
+      paymentMethod === "card" &&
+      publishableKey &&
+      selectedAddress &&
+      !clientSecret &&
+      !isStartingPayment
+    ) {
+      startPayment();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep, paymentMethod, publishableKey, selectedAddress]);
+
+  // Reset PaymentElement readiness when the intent changes
+  useEffect(() => {
+    setPaymentElementReady(false);
+    setIntentValid(false);
+  }, [clientSecret]);
+
+  // Verify client secret is valid for this publishable key before mounting PaymentElement
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!clientSecret || !stripePromise) return;
+      const stripe = await stripePromise;
+      if (!stripe) return;
+      const res = await stripe.retrievePaymentIntent(clientSecret);
+      if (cancelled) return;
+      if (res.error) {
+        setIntentValid(false);
+        setPaymentError(
+          res.error.message || "Invalid payment session. Please try again."
+        );
+      } else {
+        setIntentValid(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [clientSecret, stripePromise]);
+
+  // Unified Pay handler
+  const handlePay = async () => {
+    if (paymentMethod === "card") {
+      if (!publishableKey) {
+        setPaymentError("Payments are not configured.");
+        return;
+      }
+      if (!clientSecret) {
+        await startPayment();
+      }
+      // Optimistically refresh cart and orders so UI reflects changes after redirect
+      dispatch(fetchCart());
+      dispatch(fetchOrders({ page: 1, limit: 20 } as any));
+      setAutoConfirm(true);
+      return;
+    }
+
+    if (!cart || !selectedAddress) return;
+    setPaymentError(null);
+    setIsPlacingOrder(true);
+    try {
+      const items = cart.seller_groups.flatMap((g) =>
+        g.items.map((it) => ({
+          product_id: it.product_id,
+          quantity: it.quantity,
+        }))
+      );
+      await dispatch(
+        createOrder({
+          items,
+          shipping_address_id: selectedAddress,
+          billing_address_id: selectedAddress,
+          buyer_notes: deliveryInstructions || undefined,
+        })
+      ).unwrap();
+      // Refresh cart and orders after order creation (non-card flows)
+      dispatch(fetchCart());
+      dispatch(fetchOrders({ page: 1, limit: 20 } as any));
+    } catch (e: any) {
+      setPaymentError(e?.message || "Failed to place order");
+    } finally {
+      setIsPlacingOrder(false);
+    }
+  };
+  const [isSavingAddress, setIsSavingAddress] = useState(false);
+
+  // New address form state
+  const [addrName, setAddrName] = useState("");
+  const [addrStreet, setAddrStreet] = useState("");
+  const [addrApartment, setAddrApartment] = useState("");
+  const [addrCity, setAddrCity] = useState("");
+  const [addrState, setAddrState] = useState("");
+  const [addrZip, setAddrZip] = useState("");
+  const [addrCountry, setAddrCountry] = useState("");
+  const [addrPhone, setAddrPhone] = useState("");
+  const [addressError, setAddressError] = useState<string | null>(null);
 
   // Fetch cart and addresses on mount
   useEffect(() => {
@@ -211,17 +342,17 @@ export default function CheckoutClient() {
       }
     : { sellers: [] };
 
-  const demoAddresses = addresses.map((addr) => ({
+  const demoAddresses = addresses.map((addr: any) => ({
     id: addr.id,
-    label: addr.type,
-    name: "", // TODO: Get from profile
-    street: addr.address_line1,
+    label: addr.label || addr.type || "Address",
+    name: addr.contact_name || "", // TODO: Get from profile
+    street: addr.street_address || addr.address_line1,
     apartment: addr.address_line2 || "",
     city: addr.city,
     state: addr.state,
     zipCode: addr.postal_code,
     country: addr.country,
-    phone: "", // TODO: Get from profile
+    phone: addr.contact_phone || "",
     isDefault: addr.is_default,
   }));
 
@@ -240,27 +371,24 @@ export default function CheckoutClient() {
 
   const totals = calculateTotals();
 
-  const handlePlaceOrder = () => {
-    if (!cart || !selectedAddress) {
-      return;
-    }
-
-    // Collect all cart items for the order
-    const orderItems = cart.seller_groups.flatMap((group) =>
-      group.items.map((item) => ({
-        product_id: item.product_id,
-        quantity: item.quantity,
-      }))
-    );
-
-    dispatch(
-      createOrder({
-        items: orderItems,
+  const startPayment = async () => {
+    if (!cart || !selectedAddress) return;
+    setPaymentError(null);
+    setIsStartingPayment(true);
+    try {
+      const api = getApiClient();
+      const { data } = await api.post("/buyers/checkout/payment-intent", {
         shipping_address_id: selectedAddress,
-        billing_address_id: selectedAddress, // Using same for now
+        billing_address_id: selectedAddress,
         buyer_notes: deliveryInstructions || undefined,
-      })
-    );
+      });
+      setClientSecret(data.client_secret);
+      setOrderIds(data.order_ids || []);
+    } catch (e: any) {
+      setPaymentError(e?.message || "Failed to start payment");
+    } finally {
+      setIsStartingPayment(false);
+    }
   };
   const selectedAddressData = demoAddresses.find(
     (addr) => addr.id === selectedAddress
@@ -435,16 +563,197 @@ export default function CheckoutClient() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {/* Address form would go here */}
-                    <p className="text-sm text-[var(--secondary-muted-edge)]">
-                      Address form placeholder
-                    </p>
+                    {addressError && (
+                      <div className="p-3 text-sm rounded-lg border border-red-200 bg-red-50 text-red-700">
+                        {addressError}
+                      </div>
+                    )}
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-[var(--secondary-black)]">
+                          Full Name
+                        </label>
+                        <input
+                          value={addrName}
+                          onChange={(e) => setAddrName(e.target.value)}
+                          placeholder="Name for delivery"
+                          className="w-full px-4 py-3 border border-[var(--secondary-soft-highlight)]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)] focus:border-transparent"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-[var(--secondary-black)]">
+                          Phone
+                        </label>
+                        <input
+                          value={addrPhone}
+                          onChange={(e) => setAddrPhone(e.target.value)}
+                          placeholder="e.g., (305) 555-0123"
+                          className="w-full px-4 py-3 border border-[var(--secondary-soft-highlight)]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)] focus:border-transparent"
+                        />
+                      </div>
+
+                      <div className="space-y-2 md:col-span-2">
+                        <label className="text-sm font-medium text-[var(--secondary-black)]">
+                          Street Address
+                        </label>
+                        <input
+                          value={addrStreet}
+                          onChange={(e) => setAddrStreet(e.target.value)}
+                          placeholder="123 Main Street"
+                          className="w-full px-4 py-3 border border-[var(--secondary-soft-highlight)]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)] focus:border-transparent"
+                        />
+                      </div>
+
+                      <div className="space-y-2 md:col-span-2">
+                        <label className="text-sm font-medium text-[var(--secondary-black)]">
+                          Apartment, Suite, etc (Optional)
+                        </label>
+                        <input
+                          value={addrApartment}
+                          onChange={(e) => setAddrApartment(e.target.value)}
+                          placeholder="Apt 4B"
+                          className="w-full px-4 py-3 border border-[var(--secondary-soft-highlight)]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)] focus:border-transparent"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-[var(--secondary-black)]">
+                          City
+                        </label>
+                        <input
+                          value={addrCity}
+                          onChange={(e) => setAddrCity(e.target.value)}
+                          placeholder="City"
+                          className="w-full px-4 py-3 border border-[var(--secondary-soft-highlight)]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)] focus:border-transparent"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-[var(--secondary-black)]">
+                          State / Province
+                        </label>
+                        <input
+                          value={addrState}
+                          onChange={(e) => setAddrState(e.target.value)}
+                          placeholder="State"
+                          className="w-full px-4 py-3 border border-[var(--secondary-soft-highlight)]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)] focus:border-transparent"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-[var(--secondary-black)]">
+                          Postal Code
+                        </label>
+                        <input
+                          value={addrZip}
+                          onChange={(e) => setAddrZip(e.target.value)}
+                          placeholder="ZIP / Postal Code"
+                          className="w-full px-4 py-3 border border-[var(--secondary-soft-highlight)]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)] focus:border-transparent"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-[var(--secondary-black)]">
+                          Country
+                        </label>
+                        <input
+                          value={addrCountry}
+                          onChange={(e) => setAddrCountry(e.target.value)}
+                          placeholder="Country"
+                          className="w-full px-4 py-3 border border-[var(--secondary-soft-highlight)]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)] focus:border-transparent"
+                        />
+                      </div>
+
+                      {/* Live Map Preview */}
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-[var(--secondary-black)] mb-2">
+                          Map Preview
+                        </label>
+                        <div className="rounded-xl overflow-hidden border border-[var(--secondary-soft-highlight)]/30 h-64">
+                          <iframe
+                            title="address-map"
+                            width="100%"
+                            height="100%"
+                            style={{ border: 0 }}
+                            loading="lazy"
+                            referrerPolicy="no-referrer-when-downgrade"
+                            src={`https://www.google.com/maps?q=${encodeURIComponent(
+                              [
+                                addrStreet,
+                                addrApartment,
+                                addrCity,
+                                addrState,
+                                addrZip,
+                                addrCountry,
+                              ]
+                                .filter(Boolean)
+                                .join(", ")
+                            )}&output=embed`}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                      <button
+                        onClick={async () => {
+                          setAddressError(null);
+                          if (
+                            !addrStreet ||
+                            !addrCity ||
+                            !addrState ||
+                            !addrZip ||
+                            !addrCountry
+                          ) {
+                            setAddressError(
+                              "Please complete street, city, state, postal code, and country."
+                            );
+                            return;
+                          }
+                          setIsSavingAddress(true);
+                          try {
+                            const api = getApiClient();
+                            const { data } = await api.post(
+                              "/buyers/addresses",
+                              {
+                                street_address: [addrStreet, addrApartment]
+                                  .filter(Boolean)
+                                  .join(", "),
+                                city: addrCity,
+                                state: addrState || undefined,
+                                postal_code: addrZip || undefined,
+                                country: addrCountry,
+                                contact_name: addrName || undefined,
+                                contact_phone: addrPhone || undefined,
+                                is_default: false,
+                                is_shipping: true,
+                                is_billing: false,
+                              }
+                            );
+                            await dispatch(fetchAddresses());
+                            if (data?.id) {
+                              setSelectedAddress(data.id);
+                            }
+                            setShowAddressForm(false);
+                          } catch (e: any) {
+                            setAddressError(
+                              e?.message || "Failed to save address"
+                            );
+                          } finally {
+                            setIsSavingAddress(false);
+                          }
+                        }}
+                        disabled={isSavingAddress}
+                        className="px-5 py-3 bg-[var(--primary-accent2)] text-white rounded-full text-sm font-medium hover:bg-[var(--primary-accent3)] transition-colors disabled:opacity-50"
+                      >
+                        {isSavingAddress ? "Saving..." : "Save Address"}
+                      </button>
                     <button
                       onClick={() => setShowAddressForm(false)}
                       className="text-sm text-[var(--primary-accent2)]"
                     >
                       Cancel
                     </button>
+                    </div>
                   </div>
                 )}
 
@@ -569,69 +878,108 @@ export default function CheckoutClient() {
                   Payment Method
                 </h2>
 
-                {!showPaymentForm ? (
-                  <div className="space-y-4">
-                    {demoPaymentMethods.map((payment) => (
-                      <label
-                        key={payment.id}
-                        className={`block p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                          selectedPayment === payment.id
+                {/* Payment method selector */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+                  <button
+                    onClick={() => setPaymentMethod("card")}
+                    className={`flex items-center gap-3 p-4 rounded-xl border transition-all ${
+                      paymentMethod === "card"
                             ? "border-[var(--primary-accent2)] bg-[var(--primary-accent2)]/5"
                             : "border-[var(--secondary-soft-highlight)]/30 hover:border-[var(--primary-accent2)]/50"
                         }`}
                       >
-                        <div className="flex items-center gap-3">
-                          <input
-                            type="radio"
-                            name="payment"
-                            value={payment.id}
-                            checked={selectedPayment === payment.id}
-                            onChange={(e) => setSelectedPayment(e.target.value)}
-                          />
-                          <div className="flex-1 flex items-center gap-3">
-                            <div className="w-12 h-8 bg-gray-100 rounded flex items-center justify-center">
-                              <span className="text-xs font-semibold text-gray-600">
-                                {payment.cardBrand}
-                              </span>
-                            </div>
-                            <div>
-                              <p className="font-medium text-[var(--secondary-black)]">
-                                {payment.cardBrand} •••• {payment.last4}
-                              </p>
-                              <p className="text-sm text-[var(--secondary-muted-edge)]">
-                                Expires {payment.expiryMonth}/
-                                {payment.expiryYear}
+                    <CreditCardIcon className="h-5 w-5 text-[var(--secondary-black)]" />
+                    <div className="text-left">
+                      <p className="font-medium text-[var(--secondary-black)] text-sm">
+                        Credit Card
+                      </p>
+                      <p className="text-xs text-[var(--secondary-muted-edge)]">
+                        Pay securely with Stripe
                               </p>
                             </div>
-                          </div>
-                          {payment.isDefault && (
-                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded">
-                              Default
-                            </span>
-                          )}
-                        </div>
-                      </label>
-                    ))}
+                  </button>
+                    <button
+                    onClick={() => setPaymentMethod("bank_transfer")}
+                    className={`flex items-center gap-3 p-4 rounded-xl border transition-all ${
+                      paymentMethod === "bank_transfer"
+                        ? "border-[var(--primary-accent2)] bg-[var(--primary-accent2)]/5"
+                        : "border-[var(--secondary-soft-highlight)]/30 hover:border-[var(--primary-accent2)]/50"
+                    }`}
+                  >
+                    <BanknotesIcon className="h-5 w-5 text-[var(--secondary-black)]" />
+                    <div className="text-left">
+                      <p className="font-medium text-[var(--secondary-black)] text-sm">
+                        Bank Transfer
+                      </p>
+                      <p className="text-xs text-[var(--secondary-muted-edge)]">
+                        Get instructions to pay offline
+                      </p>
+                    </div>
+                  </button>
+                    <button
+                    onClick={() => setPaymentMethod("cash")}
+                    className={`flex items-center gap-3 p-4 rounded-xl border transition-all ${
+                      paymentMethod === "cash"
+                        ? "border-[var(--primary-accent2)] bg-[var(--primary-accent2)]/5"
+                        : "border-[var(--secondary-soft-highlight)]/30 hover:border-[var(--primary-accent2)]/50"
+                    }`}
+                  >
+                    <BanknotesIcon className="h-5 w-5 text-[var(--secondary-black)]" />
+                    <div className="text-left">
+                      <p className="font-medium text-[var(--secondary-black)] text-sm">
+                        Cash on Delivery
+                      </p>
+                      <p className="text-xs text-[var(--secondary-muted-edge)]">
+                        Pay the courier upon delivery
+                      </p>
+                    </div>
+                    </button>
+                </div>
 
-                    <button
-                      onClick={() => setShowPaymentForm(true)}
-                      className="w-full p-4 border-2 border-dashed border-[var(--secondary-soft-highlight)] rounded-xl text-[var(--primary-accent2)] hover:border-[var(--primary-accent2)] hover:bg-[var(--primary-accent2)]/5 transition-all flex items-center justify-center gap-2 font-medium"
-                    >
-                      <PlusIcon className="h-5 w-5" />
-                      Add New Payment Method
-                    </button>
+                {/* For non-card methods show simple instructions; card uses Stripe Payment Element below */}
+                {paymentMethod !== "card" && (
+                  <div className="space-y-3">
+                    <div className="p-4 border border-[var(--secondary-soft-highlight)]/30 rounded-xl bg-[var(--primary-background)]">
+                      <p className="text-sm font-medium text-[var(--secondary-black)]">
+                        {paymentMethod === "bank_transfer"
+                          ? "Bank Transfer Instructions"
+                          : "Cash on Delivery"}
+                      </p>
+                      <p className="text-xs text-[var(--secondary-muted-edge)] mt-1">
+                        {paymentMethod === "bank_transfer"
+                          ? "Place the order to receive bank details and reference number. Your order will be pending until payment is verified."
+                          : "Place the order and pay the courier upon delivery. Exact cash may be required depending on region."}
+                      </p>
+                    </div>
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    <p className="text-sm text-[var(--secondary-muted-edge)]">
-                      Payment form placeholder
-                    </p>
-                    <button
-                      onClick={() => setShowPaymentForm(false)}
-                      className="text-sm text-[var(--primary-accent2)]"
+                )}
+
+                {/* Stripe Elements (render after clientSecret) */}
+                {paymentMethod === "card" &&
+                  clientSecret &&
+                  stripePromise &&
+                  intentValid && (
+                  <div className="mt-6">
+                    <Elements
+                        key={clientSecret}
+                        stripe={stripePromise}
+                      options={{ clientSecret }}
                     >
-                      Cancel
-                    </button>
+                      <div className="p-4 border border-[var(--secondary-soft-highlight)]/30 rounded-xl">
+                          <PaymentElement
+                            onReady={() => setPaymentElementReady(true)}
+                          />
+                      </div>
+                        <StripeConfirmButton
+                          orderId={orderIds[0]}
+                          setError={setPaymentError}
+                          isConfirming={isConfirming}
+                          setIsConfirming={setIsConfirming}
+                          autoConfirm={autoConfirm}
+                          ready={paymentElementReady}
+                          renderButton={false}
+                        />
+                    </Elements>
                   </div>
                 )}
 
@@ -673,29 +1021,36 @@ export default function CheckoutClient() {
                 </button>
               ) : (
                 <div className="space-y-3">
-                  {createOrderError && (
+                  {(paymentError || createOrderError) && (
                     <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                      <p className="text-sm text-red-800">{createOrderError}</p>
+                      <p className="text-sm text-red-800">
+                        {paymentError || createOrderError}
+                      </p>
                     </div>
                   )}
-                  <button
-                    onClick={handlePlaceOrder}
+                    <button
+                    onClick={handlePay}
                     disabled={
-                      createOrderStatus === "loading" ||
+                      isStartingPayment ||
+                      isPlacingOrder ||
                       !selectedAddress ||
-                      !cart
+                      !cart ||
+                      (paymentMethod === "card" && !publishableKey)
                     }
-                    className="flex items-center gap-2 px-8 py-3 bg-green-600 text-white rounded-full hover:bg-green-700 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {createOrderStatus === "loading" ? (
-                      <span>Placing Order...</span>
-                    ) : (
+                      className="flex items-center gap-2 px-8 py-3 bg-[var(--primary-accent2)] text-white rounded-full hover:bg-[var(--primary-accent3)] transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                    {isStartingPayment || isPlacingOrder ? (
+                      <span>Processing...</span>
+                    ) : paymentMethod === "card" ? (
                       <>
-                        <CheckIcon className="h-5 w-5" />
-                        Place Order
+                        <CreditCardIcon className="h-5 w-5" /> Pay Now
                       </>
-                    )}
-                  </button>
+                      ) : (
+                        <>
+                        <TruckIcon className="h-5 w-5" /> Place Order
+                        </>
+                      )}
+                    </button>
                 </div>
               )}
             </div>
@@ -745,23 +1100,46 @@ export default function CheckoutClient() {
                 </div>
               </div>
 
-              {/* Items Preview */}
+              {/* Items Preview - Detailed */}
               <div className="border-t border-[var(--secondary-soft-highlight)]/30 pt-4">
                 <p className="text-sm font-medium text-[var(--secondary-black)] mb-3">
                   {demoOrderData.sellers.reduce(
                     (sum, s) => sum + s.items.length,
                     0
                   )}{" "}
-                  items from {demoOrderData.sellers.length} sellers
+                  items
                 </p>
-                <div className="space-y-2">
+                <div className="space-y-4 max-h-[340px] overflow-y-auto pr-1">
                   {demoOrderData.sellers.map((seller) => (
-                    <div
-                      key={seller.id}
-                      className="text-xs text-[var(--secondary-muted-edge)]"
-                    >
-                      {seller.name}: {seller.items.length}{" "}
-                      {seller.items.length === 1 ? "item" : "items"}
+                    <div key={seller.id} className="space-y-2">
+                      <p className="text-xs font-semibold text-[var(--secondary-black)]">
+                        {seller.name}
+                      </p>
+                      <div className="space-y-2">
+                        {seller.items.map((it) => (
+                          <div key={it.id} className="flex items-center gap-3">
+                            <div className="relative w-10 h-10 rounded-md overflow-hidden bg-gray-100 flex-shrink-0">
+                              <Image
+                                src={it.image}
+                                alt={it.name}
+                                fill
+                                className="object-cover"
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-[var(--secondary-black)] truncate">
+                                {it.name}
+                              </p>
+                              <p className="text-[10px] text-[var(--secondary-muted-edge)]">
+                                {it.quantity} × ${it.price.toFixed(2)} {it.unit}
+                              </p>
+                            </div>
+                            <div className="text-xs font-semibold text-[var(--secondary-black)]">
+                              ${(it.price * it.quantity).toFixed(2)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -771,5 +1149,76 @@ export default function CheckoutClient() {
         </div>
       </main>
     </div>
+  );
+}
+
+function StripeConfirmButton(props: {
+  orderId?: string;
+  setError: (s: string | null) => void;
+  isConfirming: boolean;
+  setIsConfirming: (b: boolean) => void;
+  autoConfirm?: boolean;
+  ready?: boolean;
+  renderButton?: boolean;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const router = useRouter();
+  const dispatch = useAppDispatch();
+  const {
+    orderId,
+    setError,
+    isConfirming,
+    setIsConfirming,
+    autoConfirm,
+    ready,
+    renderButton = true,
+  } = props;
+
+  const onConfirm = async () => {
+    if (!stripe || !elements) return;
+    setError(null);
+    setIsConfirming(true);
+    try {
+      // Optimistically refresh store so UI reflects cleared cart and new orders
+      dispatch(fetchCart());
+      dispatch(fetchOrders({ page: 1, limit: 20 } as any));
+      const { error } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: `${window.location.origin}/buyer/order-confirmation/${orderId || ""}`,
+        },
+      });
+      if (error) {
+        setError(error.message || "Payment failed");
+      }
+    } finally {
+      setIsConfirming(false);
+    }
+  };
+
+  useEffect(() => {
+    if (autoConfirm && ready && stripe && elements && !isConfirming) {
+      onConfirm();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoConfirm, ready, stripe, elements]);
+
+  if (!renderButton) return null;
+
+  return (
+    <button
+      onClick={onConfirm}
+      disabled={!stripe || !elements || isConfirming}
+      className="flex items-center gap-2 px-8 py-3 bg-green-600 text-white rounded-full hover:bg-green-700 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      {isConfirming ? (
+        <span>Processing...</span>
+      ) : (
+        <>
+          <CheckIcon className="h-5 w-5" /> Pay Now
+        </>
+      )}
+    </button>
   );
 }

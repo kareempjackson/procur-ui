@@ -510,12 +510,30 @@ export default function BuyerClient() {
 
   // Get unique countries from products (for filter options) - memoized
   const countries = React.useMemo(() => {
+    const getCountry = (location?: string) => {
+      if (!location) return "";
+      const parts = location.split(",");
+      return parts[parts.length - 1].trim();
+    };
     return Array.from(
-      new Set(products.map((p) => p.seller.name.split(",").pop()?.trim() || ""))
+      new Set(products.map((p) => getCountry(p.seller.location)))
     )
       .filter(Boolean)
       .sort();
   }, [products]);
+
+  // Products to display after applying client-side country filter
+  const displayedProducts = React.useMemo(() => {
+    if (selectedCountries.length === 0) return products;
+    const getCountry = (location?: string) => {
+      if (!location) return "";
+      const parts = location.split(",");
+      return parts[parts.length - 1].trim();
+    };
+    return products.filter((p) =>
+      selectedCountries.includes(getCountry(p.seller.location))
+    );
+  }, [products, selectedCountries]);
 
   // Get unique certifications from products (for filter options) - memoized
   const certifications = React.useMemo(() => {
@@ -664,6 +682,17 @@ export default function BuyerClient() {
                     Country
                   </h4>
                   <div className="space-y-1.5 max-h-28 overflow-y-auto">
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedCountries.length === 0}
+                        onChange={() => setSelectedCountries([])}
+                        className="w-3.5 h-3.5 rounded border-[var(--secondary-soft-highlight)] text-[var(--primary-accent2)] focus:ring-[var(--primary-accent2)]"
+                      />
+                      <span className="text-xs text-[var(--secondary-black)]">
+                        All Countries
+                      </span>
+                    </label>
                     {countries.map((country) => (
                       <label
                         key={country}
@@ -839,8 +868,8 @@ export default function BuyerClient() {
                       Available Harvests
                     </h2>
                     <p className="text-xs text-[var(--secondary-muted-edge)] mt-0.5">
-                      Showing {products.length} of {pagination.totalItems}{" "}
-                      products
+                      Showing {displayedProducts.length} of{" "}
+                      {pagination.totalItems} products
                     </p>
                   </div>
                   <select className="px-3 py-1.5 bg-white border border-[var(--secondary-soft-highlight)]/30 rounded-full text-xs font-medium text-[var(--secondary-black)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)]">
@@ -853,7 +882,7 @@ export default function BuyerClient() {
 
                 {status === "loading" ? (
                   <ProcurLoader size="md" text="Loading products..." />
-                ) : products.length === 0 ? (
+                ) : displayedProducts.length === 0 ? (
                   <div className="bg-white rounded-2xl p-12 text-center border border-[var(--secondary-soft-highlight)]/20">
                     <FunnelIcon className="h-12 w-12 text-[var(--secondary-muted-edge)] mx-auto mb-3 opacity-50" />
                     <h3 className="text-lg font-semibold text-[var(--secondary-black)] mb-1.5">
@@ -871,7 +900,7 @@ export default function BuyerClient() {
                   </div>
                 ) : (
                   <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                    {products.map((product) => (
+                    {displayedProducts.map((product) => (
                       <Link
                         key={product.id}
                         href={`/buyer/product/${product.id}`}

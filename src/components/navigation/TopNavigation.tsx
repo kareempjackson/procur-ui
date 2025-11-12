@@ -140,6 +140,8 @@ const TopNavigation: React.FC = () => {
   ];
 
   const languages = ["EN", "ES", "FR"];
+  const [selectedCurrency, setSelectedCurrency] = useState("USD");
+  const currencies = ["USD", "XCD", "JMD", "TTD", "BBD"]; // basic regional defaults
 
   useEffect(() => {
     const label = locale === "es" ? "ES" : locale === "fr" ? "FR" : "EN";
@@ -592,29 +594,56 @@ const TopNavigation: React.FC = () => {
 
         {/* Right Side Actions - anchored to nav right, independent of center */}
         <div className="hidden lg:flex items-center space-x-6 absolute right-8 top-1/2 -translate-y-1/2">
-          {/* Language Toggle */}
+          {/* Language & Currency Toggle */}
           <div className="relative">
             <button
               className="flex items-center space-x-1 text-gray-700 hover:text-gray-900 transition-colors duration-200"
               onClick={() => handleDropdownToggle("language")}
             >
               <LanguageIcon className="h-5 w-5" />
-              <span className="text-sm font-medium">{selectedLanguage}</span>
+              <span className="text-sm font-medium">
+                {selectedLanguage} · {selectedCurrency}
+              </span>
             </button>
             {activeDropdown === "language" && (
-              <div className="absolute top-full right-0 w-24 bg-white/95 backdrop-blur-md border border-gray-200/50 rounded-xl shadow-2xl z-50 mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="absolute top-full right-0 w-56 bg-white/95 backdrop-blur-md border border-gray-200/50 rounded-xl shadow-2xl z-50 mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
                 <div className="py-2">
+                  <div className="px-4 pb-1 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                    Language
+                  </div>
                   {languages.map((lang) => (
                     <button
                       key={lang}
-                      className="block w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50/80 hover:text-gray-900 transition-all duration-200 font-medium"
+                      className={`block w-full text-left px-4 py-2.5 text-sm transition-all duration-200 font-medium ${
+                        selectedLanguage === lang
+                          ? "text-gray-900"
+                          : "text-gray-700 hover:bg-gray-50/80 hover:text-gray-900"
+                      }`}
                       onClick={() => {
                         setSelectedLanguage(lang);
                         setLocale(toLocale(lang));
-                        setActiveDropdown(null);
                       }}
                     >
                       {lang}
+                    </button>
+                  ))}
+                  <div className="my-2 h-px bg-gray-100" />
+                  <div className="px-4 pb-1 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                    Currency
+                  </div>
+                  {currencies.map((cur) => (
+                    <button
+                      key={cur}
+                      className={`block w-full text-left px-4 py-2.5 text-sm transition-all duration-200 font-medium ${
+                        selectedCurrency === cur
+                          ? "text-gray-900"
+                          : "text-gray-700 hover:bg-gray-50/80 hover:text-gray-900"
+                      }`}
+                      onClick={() => {
+                        setSelectedCurrency(cur);
+                      }}
+                    >
+                      {cur}
                     </button>
                   ))}
                 </div>
@@ -785,18 +814,31 @@ const TopNavigation: React.FC = () => {
                 <div className="flex items-center space-x-4">
                   <button className="flex items-center space-x-1 text-gray-700">
                     <LanguageIcon className="h-5 w-5" />
-                    <span className="text-sm">{selectedLanguage}</span>
+                    <span className="text-sm">
+                      {selectedLanguage} · {selectedCurrency}
+                    </span>
                   </button>
                   <button className="text-lg">{selectedCountry.flag}</button>
                   {/* Cart hidden on mobile */}
                 </div>
-                <Link
-                  href="/signup"
-                  className="bg-black text-white px-4 py-2 rounded-full font-medium text-sm"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  {t("action.tryProcur")}
-                </Link>
+                <div className="flex items-center gap-2">
+                  {!authUser && (
+                    <Link
+                      href="/login"
+                      className="text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)] font-semibold text-sm"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Login
+                    </Link>
+                  )}
+                  <Link
+                    href="/signup"
+                    className="bg-black text-white px-4 py-2 rounded-full font-medium text-sm"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    {t("action.tryProcur")}
+                  </Link>
+                </div>
               </div>
             </div>
           </div>

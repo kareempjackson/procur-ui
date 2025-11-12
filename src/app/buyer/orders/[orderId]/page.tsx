@@ -167,7 +167,7 @@ const statusColors: Record<string, string> = {
 export default function OrderDetailPage({
   params,
 }: {
-  params: { orderId: string };
+  params: Promise<{ orderId: string }> | { orderId: string };
 }) {
   const router = useRouter();
   const dispatch = useAppDispatch();
@@ -183,24 +183,39 @@ export default function OrderDetailPage({
   const [isStartingConversation, setIsStartingConversation] = useState(false);
   const [cancellingOrder, setCancellingOrder] = useState(false);
 
+  // Next.js 15: unwrap params if it's a Promise
+  const unwrappedParams =
+    typeof (params as any)?.then === "function"
+      ? (React as any).use(params as Promise<{ orderId: string }>)
+      : (params as { orderId: string });
+  const orderId = unwrappedParams.orderId;
+
   // Fetch order detail on mount
   useEffect(() => {
-    dispatch(fetchOrderDetail(params.orderId));
+    dispatch(fetchOrderDetail(orderId));
 
     return () => {
       dispatch(clearCurrentOrder());
     };
-  }, [params.orderId, dispatch]);
+  }, [orderId, dispatch]);
+
+  // Optional fields that may or may not be present on the Order payload
+  const acceptedAt = (order as any)?.accepted_at as string | undefined;
+  const shippedAt = (order as any)?.shipped_at as string | undefined;
+  const deliveredAt = (order as any)?.delivered_at as string | undefined;
+  const actualDeliveryDate = (order as any)?.actual_delivery_date as
+    | string
+    | undefined;
+  const shippingMethod = (order as any)?.shipping_method as string | undefined;
+  const trackingNumber = (order as any)?.tracking_number as string | undefined;
 
   const handleCancelOrder = async () => {
     setCancellingOrder(true);
     try {
-      await dispatch(
-        cancelOrder({ orderId: params.orderId, reason: cancelReason })
-      ).unwrap();
+      await dispatch(cancelOrder({ orderId, reason: cancelReason })).unwrap();
       setShowCancelDialog(false);
       // Refresh order detail
-      dispatch(fetchOrderDetail(params.orderId));
+      dispatch(fetchOrderDetail(orderId));
     } catch (error) {
       console.error("Failed to cancel order:", error);
       alert("Failed to cancel order. Please try again.");
@@ -217,8 +232,8 @@ export default function OrderDetailPage({
       const client = getApiClient(() => authToken);
       const { data } = await client.post("/conversations/start", {
         contextType: "order",
-        contextId: params.orderId,
-        withUserId: order.seller_org_id,
+        contextId: orderId,
+        withOrgId: order.seller_org_id,
         title: `Order ${order.order_number}`,
       });
       router.push(`/buyer/messages?conversationId=${data.id}`);
@@ -259,7 +274,7 @@ export default function OrderDetailPage({
               Back to Orders
             </button>
             <button
-              onClick={() => dispatch(fetchOrderDetail(params.orderId))}
+              onClick={() => dispatch(fetchOrderDetail(orderId))}
               className="px-6 py-3 bg-[var(--primary-accent2)] text-white rounded-full font-semibold hover:bg-[var(--primary-accent3)] transition-all duration-200"
             >
               Try Again
@@ -296,6 +311,41 @@ export default function OrderDetailPage({
   // Transform order data for UI (use real order data)
   const canCancel = order.status === "pending" || order.status === "accepted";
   const canReview = order.status === "delivered";
+  const steps = [
+    {
+      key: "placed",
+      label: "Order Placed",
+      date: order.created_at,
+      done: true,
+      icon: <CheckCircleIcon className="h-4 w-4" />,
+    },
+    {
+      key: "accepted",
+      label: "Accepted",
+      date: acceptedAt,
+      done: Boolean(acceptedAt),
+      icon: <CheckCircleIcon className="h-4 w-4" />,
+    },
+    {
+      key: "shipped",
+      label: "Shipped",
+      date: shippedAt,
+      done: Boolean(shippedAt),
+      icon: <TruckIcon className="h-4 w-4" />,
+    },
+    {
+      key: "delivered",
+      label: "Delivered",
+      date: (deliveredAt || actualDeliveryDate) as string | undefined,
+      eta: order.estimated_delivery_date,
+      done: Boolean(deliveredAt || actualDeliveryDate),
+      icon: <CheckBadgeIcon className="h-4 w-4" />,
+    },
+  ];
+  const currentIndex =
+    steps.map((s) => s.done).lastIndexOf(true) === -1
+      ? 0
+      : steps.map((s) => s.done).lastIndexOf(true);
 
   return (
     <div className="min-h-screen bg-white">
@@ -318,7 +368,7 @@ export default function OrderDetailPage({
             </button>
             {canReview && (
               <Link
-                href={`/buyer/orders/${params.orderId}/review`}
+                href={`/buyer/orders/${orderId}/review`}
                 className="flex items-center gap-2 px-5 py-2 bg-[var(--primary-accent2)] text-white rounded-full hover:bg-[var(--primary-accent3)] transition-all shadow-sm"
               >
                 <StarIcon className="h-4 w-4" />
@@ -375,8 +425,162 @@ export default function OrderDetailPage({
               )}
             </div>
 
-            {/* Tracking Information - TODO: Add tracking support to Order type */}
-            {/* {order.tracking && (...)} */}
+            {/* Tracking Information */}
+            <div className="bg-white rounded-3xl border border-[var(--secondary-soft-highlight)]/20 p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-[var(--secondary-black)]">
+                  Order Tracking
+                </h2>
+                <div className="flex items-center gap-3">
+                  {shippingMethod && (
+                    <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm bg-[var(--primary-background)]/60 text-[var(--secondary-black)] border border-[var(--secondary-soft-highlight)]/30">
+                      Method
+                      <span className="font-medium">{shippingMethod}</span>
+                    </span>
+                  )}
+                  {trackingNumber && (
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm bg-[var(--primary-background)]/60 text-[var(--secondary-black)] border border-[var(--secondary-soft-highlight)]/30">
+                        Tracking #
+                        <span className="font-medium">{trackingNumber}</span>
+                      </span>
+                      <a
+                        href={`https://parcelsapp.com/en/tracking/${encodeURIComponent(
+                          trackingNumber
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)]"
+                      >
+                        Track Package
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Stepper */}
+              <div className="relative">
+                <div className="absolute left-2 top-0 bottom-0 w-0.5 bg-[var(--secondary-soft-highlight)]/40" />
+                <ol className="space-y-6">
+                  {steps.map((step, index) => {
+                    const isDone = step.done;
+                    const isCurrent = !step.done && index === currentIndex + 1;
+                    return (
+                      <li key={step.key} className="relative pl-8">
+                        <span
+                          className={`absolute left-0 top-1.5 flex h-4 w-4 items-center justify-center rounded-full ring-4 ${
+                            isDone
+                              ? "bg-[var(--primary-accent2)] ring-[var(--primary-accent2)]/15"
+                              : isCurrent
+                                ? "bg-white ring-[var(--primary-accent2)]/30 border border-[var(--primary-accent2)]"
+                                : "bg-white ring-[var(--secondary-soft-highlight)]/40 border border-[var(--secondary-soft-highlight)]/70"
+                          }`}
+                        >
+                          <span
+                            className={`${
+                              isDone
+                                ? "text-white"
+                                : isCurrent
+                                  ? "text-[var(--primary-accent2)]"
+                                  : "text-[var(--secondary-muted-edge)]"
+                            }`}
+                          >
+                            {step.icon}
+                          </span>
+                        </span>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-[var(--secondary-black)]">
+                              {step.label}
+                            </span>
+                            {isCurrent && (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200">
+                                In progress
+                              </span>
+                            )}
+                            {isDone && (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">
+                                Completed
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-[var(--secondary-muted-edge)]">
+                            {step.date
+                              ? new Date(step.date).toLocaleString()
+                              : step.key === "delivered" && step.eta
+                                ? `ETA ${new Date(step.eta).toLocaleDateString()}`
+                                : "Pending"}
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
+            </div>
+
+            {/* Delivery Map */}
+            {order.shipping_address && (
+              <div className="bg-white rounded-3xl border border-[var(--secondary-soft-highlight)]/20 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-[var(--secondary-black)]">
+                    Delivery Map
+                  </h2>
+                  <div className="flex items-center gap-3">
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1${
+                        order.seller_location
+                          ? `&origin=${encodeURIComponent(order.seller_location)}`
+                          : ""
+                      }&destination=${encodeURIComponent(
+                        [
+                          order.shipping_address.address_line1,
+                          order.shipping_address.address_line2,
+                          `${order.shipping_address.city || ""} ${
+                            order.shipping_address.state || ""
+                          } ${order.shipping_address.postal_code || ""}`,
+                          order.shipping_address.country,
+                        ]
+                          .filter(Boolean)
+                          .join(", ")
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)]"
+                    >
+                      Open Live Directions
+                    </a>
+                  </div>
+                </div>
+                <div className="aspect-[16/9] w-full rounded-xl overflow-hidden border border-[var(--secondary-soft-highlight)]/30">
+                  <iframe
+                    title="Delivery Map"
+                    src={`https://www.google.com/maps?q=${encodeURIComponent(
+                      [
+                        order.shipping_address.address_line1,
+                        order.shipping_address.address_line2,
+                        `${order.shipping_address.city || ""} ${
+                          order.shipping_address.state || ""
+                        } ${order.shipping_address.postal_code || ""}`,
+                        order.shipping_address.country,
+                      ]
+                        .filter(Boolean)
+                        .join(", ")
+                    )}&output=embed`}
+                    width="100%"
+                    height="100%"
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    allowFullScreen
+                  />
+                </div>
+                <p className="mt-3 text-xs text-[var(--secondary-muted-edge)]">
+                  Tip: Use “Open Live Directions” to follow the driver’s route
+                  in real-time via Google Maps.
+                </p>
+              </div>
+            )}
 
             {/* Order Items */}
             <div className="bg-white rounded-3xl border border-[var(--secondary-soft-highlight)]/20 p-6">
@@ -411,15 +615,27 @@ export default function OrderDetailPage({
                         {item.product_name}
                       </Link>
                       <p className="text-sm text-[var(--secondary-muted-edge)] mt-1">
-                        Quantity: {item.quantity} {item.unit}
+                        Quantity: {item.quantity}{" "}
+                        {item.unit ||
+                          (item as any)?.product_snapshot
+                            ?.unit_of_measurement ||
+                          ""}
                       </p>
                       <p className="text-sm text-[var(--secondary-muted-edge)]">
-                        ${item.unit_price.toFixed(2)} per {item.unit}
+                        ${Number(item.unit_price || 0).toFixed(2)} per{" "}
+                        {item.unit ||
+                          (item as any)?.product_snapshot
+                            ?.unit_of_measurement ||
+                          ""}
                       </p>
                     </div>
                     <div className="text-right">
                       <p className="font-semibold text-[var(--secondary-black)]">
-                        ${item.subtotal.toFixed(2)}
+                        $
+                        {Number(
+                          (item as any)?.total_price ??
+                            (item.unit_price || 0) * (item.quantity || 0)
+                        ).toFixed(2)}
                       </p>
                       <Link
                         href={`/buyer/product/${item.product_id}`}
@@ -465,7 +681,7 @@ export default function OrderDetailPage({
                     Shipping
                   </span>
                   <span className="font-medium text-[var(--secondary-black)]">
-                    ${order.shipping_cost.toFixed(2)}
+                    ${Number(order.shipping_cost || 0).toFixed(2)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
@@ -473,7 +689,7 @@ export default function OrderDetailPage({
                     Tax
                   </span>
                   <span className="font-medium text-[var(--secondary-black)]">
-                    ${order.tax.toFixed(2)}
+                    ${Number(order.tax || 0).toFixed(2)}
                   </span>
                 </div>
                 <div className="border-t border-[var(--secondary-soft-highlight)]/30 pt-3">

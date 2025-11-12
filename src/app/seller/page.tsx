@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useMemo, useEffect, useState } from "react";
+import { useMemo, useEffect } from "react";
 import AccountSetupLoader from "@/components/dashboard/AccountSetupLoader";
 import MetricCard from "@/components/dashboard/MetricCard";
 import ActivityFeed from "@/components/dashboard/ActivityFeed";
@@ -20,21 +20,19 @@ import { useAppSelector, useAppDispatch } from "@/store";
 import {
   selectOrderTab,
   selectAnalyticsTab,
-  setOrderTab as setOrderTabAction,
   setAnalyticsTab as setAnalyticsTabAction,
-  type OrderTab,
-  type AnalyticsTab,
 } from "@/store/slices/sellerSlice";
 import { fetchSellerHome } from "@/store/slices/sellerHomeSlice";
-import { useRouter } from "next/navigation";
 import {
-  fetchHarvestFeed,
-  addHarvestComment,
-  createHarvestBuyerRequest,
-  acknowledgeHarvestBuyerRequest,
-} from "@/store/slices/harvestFeedSlice";
+  fetchSellerInsights,
+  executeSellerInsight,
+} from "@/store/slices/sellerInsightsSlice";
+import { useRouter } from "next/navigation";
 // Timeline replaced by ActivityFeed component
-import type { SellerHomeProduct } from "@/store/slices/sellerHomeSlice";
+import type {
+  SellerHomeProduct,
+  SellerHomeOrder,
+} from "@/store/slices/sellerHomeSlice";
 import { useToast } from "@/components/ui/Toast";
 
 // InventoryRow removed as inventory section has been replaced by timeline
@@ -58,14 +56,21 @@ export default function SellerDashboardPage() {
   const { show } = useToast();
   const orderTab = useAppSelector(selectOrderTab);
   const analyticsTab = useAppSelector(selectAnalyticsTab);
-  const isBuyer = useAppSelector((s) => s.auth.user?.accountType === "buyer");
+  // const isBuyer = useAppSelector((s) => s.auth.user?.accountType === "buyer");
 
   const dispatch = useAppDispatch();
   const sellerHome = useAppSelector((s) => s.sellerHome);
+  const sellerInsights = useAppSelector((s) => s.sellerInsights);
 
   useEffect(() => {
     dispatch(fetchSellerHome({ period: "last_30_days" }));
   }, [dispatch]);
+
+  useEffect(() => {
+    if (sellerInsights.status === "idle") {
+      dispatch(fetchSellerInsights());
+    }
+  }, [dispatch, sellerInsights.status]);
 
   // One-time welcome toast for new sellers
   useEffect(() => {
@@ -76,7 +81,7 @@ export default function SellerDashboardPage() {
         localStorage.setItem("onboarding:welcome_toast_shown", "true");
         show("Welcome to Procur! 3 quick steps to go live.");
       }
-    } catch (_) {
+    } catch {
       // ignore storage errors
     }
   }, [show]);
@@ -157,25 +162,29 @@ export default function SellerDashboardPage() {
   // Inventory table replaced by social timeline; keep mapping available if needed elsewhere
 
   const orders: OrderRow[] = useMemo(() => {
-    const apiOrders = sellerHome.data?.recent_orders ?? [];
-    return apiOrders.map((o) => ({
-      id: o.order_number || o.id,
-      buyer: (o as any).buyer_name || "Buyer",
-      items: o.items?.reduce((sum, i) => sum + (i.quantity ?? 0), 0) ?? 0,
-      total: (o.total_amount ?? 0).toLocaleString("en-US", {
-        style: "currency",
-        currency: (o as any).currency || "USD",
-      }),
-      eta: o.created_at,
-      status: (() => {
-        const s = (o.status || "").toLowerCase();
-        if (s === "pending") return "new";
-        if (s === "processing" || s === "accepted") return "preparing";
-        if (s === "shipped") return "in_transit";
-        if (s === "delivered") return "delivered";
-        return "issue";
-      })(),
-    }));
+    const apiOrders =
+      (sellerHome.data?.recent_orders as SellerHomeOrder[]) ?? [];
+    return apiOrders.map((o) => {
+      const extra = o as unknown as { buyer_name?: string; currency?: string };
+      return {
+        id: o.order_number || o.id,
+        buyer: extra.buyer_name || "Buyer",
+        items: o.items?.reduce((sum, i) => sum + (i.quantity ?? 0), 0) ?? 0,
+        total: (o.total_amount ?? 0).toLocaleString("en-US", {
+          style: "currency",
+          currency: extra.currency || "USD",
+        }),
+        eta: o.created_at,
+        status: (() => {
+          const s = (o.status || "").toLowerCase();
+          if (s === "pending") return "new";
+          if (s === "processing" || s === "accepted") return "preparing";
+          if (s === "shipped") return "in_transit";
+          if (s === "delivered") return "delivered";
+          return "issue";
+        })(),
+      };
+    });
   }, [sellerHome]);
 
   const filteredOrders = useMemo(() => {
@@ -191,12 +200,22 @@ export default function SellerDashboardPage() {
   }, [orderTab, orders]);
 
   const insights: Array<{
+    id: string;
     title: string;
     sub?: string;
     cta?: string;
     action?: () => void;
     urgent?: boolean;
-  }> = [];
+  }> = (sellerInsights.items || []).map((i) => ({
+    id: i.id,
+    title: i.title,
+    sub: i.sub || undefined,
+    cta: i.cta || (i.actionId ? "Run" : undefined),
+    urgent: i.urgent,
+    action: i.actionId
+      ? () => dispatch(executeSellerInsight({ id: i.id }))
+      : undefined,
+  }));
 
   const buyerRequests = useMemo(() => {
     const homeData = sellerHome.data;
@@ -472,305 +491,5 @@ export default function SellerDashboardPage() {
         </div>
       </main>
     </div>
-  );
-}
-
-function Timeline() {
-  const dispatch = useAppDispatch();
-  const feed = useAppSelector((s) => s.harvestFeed);
-  const isBuyer = useAppSelector((s) => s.auth.user?.accountType === "buyer");
-  const [commentDraft, setCommentDraft] = useState<Record<string, string>>({});
-  const [requestDraft, setRequestDraft] = useState<
-    Record<
-      string,
-      { quantity: string; unit: string; date?: string; notes?: string }
-    >
-  >({});
-
-  useEffect(() => {
-    if (feed.status === "idle") dispatch(fetchHarvestFeed());
-  }, [dispatch, feed.status]);
-
-  return (
-    <section className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white overflow-hidden">
-      <div className="flex items-center justify-between p-5 border-b border-[color:var(--secondary-soft-highlight)]">
-        <div>
-          <h2 className="text-base font-semibold text-[color:var(--secondary-black)]">
-            Harvest timeline
-          </h2>
-          <p className="text-xs text-[color:var(--secondary-muted-edge)] mt-0.5">
-            Updates, comments, and buyer requests
-          </p>
-        </div>
-        <Link
-          href="/seller/harvest-update"
-          className="inline-flex items-center justify-center rounded-full bg-[var(--primary-accent2)] text-white px-4 py-2 text-xs font-medium hover:bg-[var(--primary-accent3)] transition-colors focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:ring-offset-2"
-        >
-          Post update
-        </Link>
-      </div>
-
-      {feed.status === "loading" ? (
-        <div className="p-5 text-sm text-[color:var(--secondary-muted-edge)]">
-          Loading feed…
-        </div>
-      ) : feed.items.length === 0 ? (
-        <div className="p-5 text-sm text-[color:var(--secondary-muted-edge)]">
-          No harvest updates yet.
-        </div>
-      ) : (
-        <div className="divide-y divide-[color:var(--secondary-soft-highlight)]/30">
-          {feed.items.map((item) => (
-            <div key={item.id} className="p-5">
-              <div className="flex items-start gap-3">
-                <div className="h-10 w-10 rounded-full bg-[var(--primary-accent1)]/20 flex items-center justify-center text-xs font-semibold text-[color:var(--primary-accent3)]">
-                  {item.crop.slice(0, 1)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm text-[color:var(--secondary-black)] font-medium">
-                      {item.crop}
-                      {item.quantity != null && item.unit && (
-                        <span className="ml-1 text-[color:var(--secondary-muted-edge)] font-normal">
-                          · {item.quantity} {item.unit}
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-[10px] text-[color:var(--secondary-muted-edge)]">
-                      {new Date(item.created_at).toLocaleString()}
-                    </div>
-                  </div>
-                  {item.expected_harvest_window && (
-                    <div className="text-xs text-[color:var(--secondary-muted-edge)] mt-0.5">
-                      Window: {item.expected_harvest_window}
-                    </div>
-                  )}
-                  {item.notes && (
-                    <div className="text-sm text-[color:var(--secondary-black)] mt-2 whitespace-pre-wrap">
-                      {item.notes}
-                    </div>
-                  )}
-
-                  {/* Social actions */}
-                  <div className="mt-3 flex gap-3 text-[11px] text-[color:var(--secondary-muted-edge)]">
-                    <span>{item.comments_count} Comments</span>
-                    <span className="h-1 w-1 rounded-full bg-[color:var(--secondary-soft-highlight)]"></span>
-                    <span>{item.requests_count} Requests</span>
-                  </div>
-
-                  {/* Comments */}
-                  <div className="mt-3 space-y-3">
-                    {item.comments.map((c) => (
-                      <div key={c.id} className="flex items-start gap-2">
-                        <div className="h-6 w-6 rounded-full bg-[var(--primary-base)]/15 flex items-center justify-center text-[10px] text-[color:var(--primary-base)]">
-                          B
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs text-[color:var(--secondary-black)]">
-                            {c.content}
-                          </div>
-                          <div className="text-[10px] text-[color:var(--secondary-muted-edge)] mt-0.5">
-                            {new Date(c.created_at).toLocaleString()}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    <div className="flex items-center gap-2">
-                      <input
-                        value={commentDraft[item.id] || ""}
-                        onChange={(e) =>
-                          setCommentDraft((s) => ({
-                            ...s,
-                            [item.id]: e.target.value,
-                          }))
-                        }
-                        placeholder="Write a comment…"
-                        className="flex-1 rounded-full border border-[color:var(--secondary-soft-highlight)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)]"
-                      />
-                      <button
-                        onClick={() => {
-                          const content = (commentDraft[item.id] || "").trim();
-                          if (!content) return;
-                          dispatch(
-                            addHarvestComment({ harvestId: item.id, content })
-                          );
-                          setCommentDraft((s) => ({ ...s, [item.id]: "" }));
-                        }}
-                        className="rounded-full bg-[var(--primary-base)] text-white px-3 py-2 text-xs font-medium hover:opacity-90"
-                      >
-                        Comment
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Buyer Requests */}
-                  <div className="mt-4">
-                    <div className="text-xs text-[color:var(--secondary-muted-edge)] mb-2">
-                      Request from this harvest
-                    </div>
-                    {item.requests.map((r) => (
-                      <div
-                        key={r.id}
-                        className="rounded-xl border border-[color:var(--secondary-soft-highlight)] p-3 mb-2"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="text-sm text-[color:var(--secondary-black)] font-medium">
-                            {r.requested_quantity} {r.unit}
-                          </div>
-                          <span
-                            className={`ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                              r.status === "pending"
-                                ? "bg-[var(--secondary-highlight1)]/25 text-[color:var(--secondary-muted-edge)]"
-                                : r.status === "acknowledged_yes"
-                                  ? "bg-[var(--primary-base)]/15 text-[color:var(--primary-base)]"
-                                  : "bg-[var(--primary-accent2)]/10 text-[color:var(--primary-accent2)]"
-                            }`}
-                          >
-                            {r.status === "pending"
-                              ? "Pending"
-                              : r.status === "acknowledged_yes"
-                                ? "Can fulfill"
-                                : "Cannot fulfill"}
-                          </span>
-                        </div>
-                        {r.seller_message && (
-                          <div className="text-xs text-[color:var(--secondary-muted-edge)] mt-1">
-                            {r.seller_message}
-                          </div>
-                        )}
-                        {r.status === "pending" && (
-                          <div className="mt-2 flex gap-2">
-                            <button
-                              onClick={() =>
-                                dispatch(
-                                  acknowledgeHarvestBuyerRequest({
-                                    requestId: r.id,
-                                    can_fulfill: true,
-                                  })
-                                )
-                              }
-                              className="inline-flex items-center rounded-full bg-[var(--primary-base)] text-white px-3 py-1.5 text-[11px] font-medium hover:opacity-90"
-                            >
-                              Acknowledge yes
-                            </button>
-                            <button
-                              onClick={() =>
-                                dispatch(
-                                  acknowledgeHarvestBuyerRequest({
-                                    requestId: r.id,
-                                    can_fulfill: false,
-                                  })
-                                )
-                              }
-                              className="inline-flex items-center rounded-full border border-[color:var(--secondary-soft-highlight)] bg-transparent text-[color:var(--secondary-muted-edge)] px-3 py-1.5 text-[11px] font-medium hover:bg-gray-50"
-                            >
-                              Acknowledge no
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-
-                    {isBuyer && (
-                      <div className="rounded-xl border border-[color:var(--secondary-soft-highlight)] p-3">
-                        <div className="grid grid-cols-2 gap-2">
-                          <input
-                            type="number"
-                            min={0}
-                            placeholder="Quantity"
-                            value={requestDraft[item.id]?.quantity || ""}
-                            onChange={(e) =>
-                              setRequestDraft((s) => ({
-                                ...s,
-                                [item.id]: {
-                                  ...(s[item.id] || {
-                                    quantity: "",
-                                    unit: "kg",
-                                  }),
-                                  quantity: e.target.value,
-                                },
-                              }))
-                            }
-                            className="rounded-full border border-[color:var(--secondary-soft-highlight)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)]"
-                          />
-                          <input
-                            placeholder="Unit (e.g. kg)"
-                            value={requestDraft[item.id]?.unit || ""}
-                            onChange={(e) =>
-                              setRequestDraft((s) => ({
-                                ...s,
-                                [item.id]: {
-                                  ...(s[item.id] || { quantity: "", unit: "" }),
-                                  unit: e.target.value,
-                                },
-                              }))
-                            }
-                            className="rounded-full border border-[color:var(--secondary-soft-highlight)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)]"
-                          />
-                          <input
-                            type="date"
-                            value={requestDraft[item.id]?.date || ""}
-                            onChange={(e) =>
-                              setRequestDraft((s) => ({
-                                ...s,
-                                [item.id]: {
-                                  ...(s[item.id] || { quantity: "", unit: "" }),
-                                  date: e.target.value,
-                                },
-                              }))
-                            }
-                            className="rounded-full border border-[color:var(--secondary-soft-highlight)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)]"
-                          />
-                          <input
-                            placeholder="Notes (optional)"
-                            value={requestDraft[item.id]?.notes || ""}
-                            onChange={(e) =>
-                              setRequestDraft((s) => ({
-                                ...s,
-                                [item.id]: {
-                                  ...(s[item.id] || { quantity: "", unit: "" }),
-                                  notes: e.target.value,
-                                },
-                              }))
-                            }
-                            className="rounded-full border border-[color:var(--secondary-soft-highlight)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] col-span-2"
-                          />
-                        </div>
-                        <div className="mt-2 flex justify-end">
-                          <button
-                            onClick={() => {
-                              const draft = requestDraft[item.id];
-                              const quantity = Number(draft?.quantity || 0);
-                              const unit = (draft?.unit || "").trim();
-                              if (!quantity || !unit) return;
-                              dispatch(
-                                createHarvestBuyerRequest({
-                                  harvestId: item.id,
-                                  quantity,
-                                  unit,
-                                  requested_date: draft?.date,
-                                  notes: draft?.notes,
-                                })
-                              );
-                              setRequestDraft((s) => ({
-                                ...s,
-                                [item.id]: { quantity: "", unit: "" },
-                              }));
-                            }}
-                            className="inline-flex items-center rounded-full bg-[var(--primary-accent2)] text-white px-3 py-1.5 text-[11px] font-medium hover:bg-[var(--primary-accent3)]"
-                          >
-                            Request
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
   );
 }

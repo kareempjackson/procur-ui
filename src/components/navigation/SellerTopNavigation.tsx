@@ -15,6 +15,7 @@ import {
   BellIcon as BellSolidIcon,
   ChartBarIcon as ChartBarSolidIcon,
 } from "@heroicons/react/24/solid";
+import { BookOpenIcon } from "@heroicons/react/24/outline";
 import { useAppDispatch, useAppSelector } from "@/store";
 import { selectAuthUser, signout } from "@/store/slices/authSlice";
 import {
@@ -24,6 +25,7 @@ import {
 } from "@/store/slices/notificationsSlice";
 import { useNotificationsSocket } from "@/hooks/useNotificationsSocket";
 import { useI18n } from "@/lib/i18n/I18nProvider";
+import { fetchProfile } from "@/store/slices/profileSlice";
 
 const SellerTopNavigation: React.FC = () => {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
@@ -81,6 +83,11 @@ const SellerTopNavigation: React.FC = () => {
     displayName
   )}&background=407178&color=fff`;
 
+  // Business type from profile to gate farmer-only features
+  const businessType = useAppSelector(
+    (s) => s.profile.profile?.organization?.businessType
+  );
+
   // Click outside to close dropdowns
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -107,6 +114,15 @@ const SellerTopNavigation: React.FC = () => {
       ? ((items as unknown as { data: unknown[] }).data as any[])
       : [];
   const unreadCount = safeItems.filter((n: any) => !n.read_at).length;
+
+  // Ensure profile is loaded so businessType is available
+  const profile = useAppSelector((s) => s.profile.profile);
+  const profileStatus = useAppSelector((s) => s.profile.status);
+  useEffect(() => {
+    if (!profile && profileStatus === "idle") {
+      dispatch(fetchProfile());
+    }
+  }, [dispatch, profile, profileStatus]);
 
   return (
     <>
@@ -328,6 +344,21 @@ const SellerTopNavigation: React.FC = () => {
                 )}
               </div>
 
+              {/* Farmer Diary Button (farmers only) */}
+              {businessType === "farmers" && (
+                <Link
+                  href="/seller/diary"
+                  className={`px-5 py-2.5 rounded-full font-medium text-[15px] transition-colors flex items-center ${
+                    pathname?.startsWith("/seller/diary")
+                      ? "bg-[var(--primary-accent2)] text-white hover:bg-[var(--primary-accent3)]"
+                      : "bg-white text-[color:var(--secondary-black)] border border-[color:var(--secondary-soft-highlight)] hover:bg-[var(--primary-background)]"
+                  }`}
+                >
+                  <BookOpenIcon className="h-5 w-5 -ml-0.5 mr-2" />
+                  Diary
+                </Link>
+              )}
+
               {/* Add Product Button */}
               <Link
                 href="/seller/add/product"
@@ -457,6 +488,14 @@ const SellerTopNavigation: React.FC = () => {
         {mobileMenuOpen && (
           <div className="lg:hidden bg-white border-t border-gray-100">
             <div className="px-6 py-4 space-y-4">
+              {businessType === "farmers" && (
+                <Link
+                  href="/seller/diary"
+                  className="block w-full bg-white text-[color:var(--secondary-black)] border border-[color:var(--secondary-soft-highlight)] px-6 py-2.5 rounded-full font-medium text-center hover:bg-[var(--primary-background)] transition-colors duration-200"
+                >
+                  Diary
+                </Link>
+              )}
               <Link
                 href="/seller/add/product"
                 className="block w-full bg-black text-white px-6 py-2.5 rounded-full font-medium text-center hover:bg-gray-800 transition-colors duration-200"

@@ -27,6 +27,7 @@ import {
   type UpdateProfileDto,
 } from "@/store/slices/profileSlice";
 import ProcurLoader from "@/components/ProcurLoader";
+import { getApiClient } from "@/lib/apiClient";
 
 export default function ProfileClient() {
   const dispatch = useAppDispatch();
@@ -112,6 +113,55 @@ export default function ProfileClient() {
   const [activeTab, setActiveTab] = useState<
     "profile" | "security" | "notifications" | "users"
   >("profile");
+
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const handlePickAvatar = () => fileInputRef.current?.click();
+
+  // Optional avatar URL may be provided by the API even if not in the TS type
+  const avatarUrl = (profile as any)?.avatarUrl as string | undefined;
+
+  const handleAvatarSelected = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!/^image\//.test(file.type)) {
+      alert("Please select an image file");
+      return;
+    }
+
+    setAvatarUploading(true);
+    try {
+      const client = getApiClient();
+      // 1) Get signed upload URL
+      const { data: signed } = await client.patch(
+        "/users/profile/avatar/signed-upload",
+        { filename: file.name }
+      );
+
+      // 2) Upload directly to Supabase Storage
+      await fetch(signed.signedUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+
+      // 3) Persist avatar path on profile
+      await client.patch("/users/profile", { avatarPath: signed.path });
+
+      // 4) Refresh profile to get signed download URL
+      await dispatch(fetchProfile());
+      alert("Avatar updated successfully!");
+    } catch (err) {
+      console.error("Avatar upload failed", err);
+      alert("Failed to upload avatar. Please try again.");
+    } finally {
+      setAvatarUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [newUser, setNewUser] = useState({
@@ -213,16 +263,51 @@ export default function ProfileClient() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
-      <div className="max-w-5xl mx-auto px-6 py-6">
+    <div className="min-h-screen bg-white">
+      <div className="max-w-6xl mx-auto px-6 py-10">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-[var(--secondary-black)] mb-1">
-            Profile Settings
-          </h1>
-          <p className="text-sm text-[var(--secondary-muted-edge)]">
-            Manage your personal information and account preferences
-          </p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-[var(--secondary-black)] mb-2">
+              Profile Settings
+            </h1>
+            <p className="text-sm text-[var(--secondary-muted-edge)]">
+              Manage your personal information and account preferences
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-full overflow-hidden bg-[var(--primary-background)] border border-[var(--secondary-soft-highlight)]/40">
+              {avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={avatarUrl}
+                  alt="Avatar"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-[var(--secondary-muted-edge)]">
+                  <UserCircleIcon className="h-8 w-8" />
+                </div>
+              )}
+            </div>
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAvatarSelected}
+              />
+              <button
+                type="button"
+                onClick={handlePickAvatar}
+                disabled={avatarUploading}
+                className="px-4 py-2 rounded-full text-sm font-semibold bg-[var(--primary-accent2)] text-white hover:bg-[var(--primary-accent3)] disabled:opacity-60"
+              >
+                {avatarUploading ? "Uploading..." : "Upload Avatar"}
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Tabs */}

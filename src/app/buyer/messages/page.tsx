@@ -62,6 +62,9 @@ export default function BuyerMessagesPage() {
   const [showDetails, setShowDetails] = useState(false);
   const [participants, setParticipants] = useState<any[]>([]);
   const listEndRef = useRef<HTMLDivElement | null>(null);
+  const [lastMessageByConv, setLastMessageByConv] = useState<
+    Record<string, ApiMessage | null>
+  >({});
 
   const client = useMemo(
     () => getApiClient(() => authToken || null),
@@ -116,10 +119,77 @@ export default function BuyerMessagesPage() {
     [client]
   );
 
+  const fetchConversationById = useCallback(
+    async (id: string) => {
+      try {
+        const { data } = await client.get<ApiConversation>(
+          `/conversations/${id}`
+        );
+        return data;
+      } catch {
+        return null;
+      }
+    },
+    [client]
+  );
+
   useEffect(() => {
     if (!authToken) return;
     fetchConversations();
   }, [authToken, fetchConversations]);
+
+  // Fetch latest message preview per conversation
+  useEffect(() => {
+    const fetchLatestForAll = async () => {
+      if (conversations.length === 0) return;
+      try {
+        const results = await Promise.all(
+          conversations.map(async (c) => {
+            try {
+              const { data } = await client.get<ApiMessage[]>(
+                `/conversations/${c.id}/messages`,
+                { params: { limit: 1 } }
+              );
+              return {
+                id: c.id,
+                msg: Array.isArray(data) ? (data[0] ?? null) : null,
+              };
+            } catch {
+              return { id: c.id, msg: null };
+            }
+          })
+        );
+        setLastMessageByConv((prev) => {
+          const next = { ...prev };
+          results.forEach(({ id, msg }) => {
+            next[id] = msg || null;
+          });
+          return next;
+        });
+      } catch {
+        // ignore preview errors
+      }
+    };
+    fetchLatestForAll();
+  }, [conversations, client]);
+
+  // Ensure the conversation from URL is present in the list
+  useEffect(() => {
+    const ensureConversationPresent = async () => {
+      if (!activeConversationId) return;
+      const exists = conversations.some((c) => c.id === activeConversationId);
+      if (!exists) {
+        const conv = await fetchConversationById(activeConversationId);
+        if (conv) {
+          setConversations((prev) => {
+            const already = prev.some((c) => c.id === conv.id);
+            return already ? prev : [conv, ...prev];
+          });
+        }
+      }
+    };
+    ensureConversationPresent();
+  }, [activeConversationId, conversations, fetchConversationById]);
 
   useEffect(() => {
     if (!activeConversationId) return;
@@ -269,10 +339,9 @@ export default function BuyerMessagesPage() {
     return name.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
-  const activeConv = useMemo(
-    () => conversations.find((c) => c.id === activeConversationId) || null,
-    [conversations, activeConversationId]
-  );
+  const activeConv = useMemo(() => {
+    return conversations.find((c) => c.id === activeConversationId) || null;
+  }, [conversations, activeConversationId]);
 
   return (
     <div className="h-screen overflow-hidden bg-white flex flex-col">
@@ -335,9 +404,8 @@ export default function BuyerMessagesPage() {
                         </span>
                       </div>
                       <p className="text-xs text-gray-600 mb-1 truncate">
-                        {conversation.context_type
-                          ? `${conversation.context_type} • ${conversation.context_id}`
-                          : conversation.id}
+                        {lastMessageByConv[conversation.id]?.text ||
+                          "No messages yet"}
                       </p>
                     </div>
                   </button>
@@ -349,29 +417,32 @@ export default function BuyerMessagesPage() {
 
         {/* Message Thread */}
         <div className="flex-1 flex flex-col bg-white">
-          {activeConv ? (
+          {activeConversationId ? (
             <>
               <div className="p-4 border-b border-gray-200 flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <div className="relative">
                     <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 text-sm">
-                      {activeConv.title?.[0]?.toUpperCase() ||
-                        activeConv.type[0].toUpperCase()}
+                      {activeConv?.title?.[0]?.toUpperCase() ||
+                        activeConv?.type?.[0]?.toUpperCase() ||
+                        "C"}
                     </div>
                   </div>
                   <div>
                     <h2 className="text-lg font-semibold text-gray-900">
-                      {activeConv.title ||
-                        activeConv.context_type ||
+                      {activeConv?.title ||
+                        activeConv?.context_type ||
                         "Conversation"}
                     </h2>
-                    {activeConv.context_type && (
+                    {activeConv?.context_type && (
                       <div className="flex items-center space-x-2">
                         <p className="text-sm text-gray-600">
-                          {activeConv.context_type}
-                          {activeConv.context_id
-                            ? ` • ${activeConv.context_id}`
-                            : ""}
+                          {activeConv?.context_type === "order"
+                            ? "Order conversation"
+                            : activeConv?.context_type === "product" ||
+                                activeConv?.context_type === "item"
+                              ? "Product conversation"
+                              : "Conversation"}
                         </p>
                       </div>
                     )}
@@ -494,29 +565,80 @@ export default function BuyerMessagesPage() {
           )}
         </div>
 
-        {showDetails && activeConv && (
+        {showDetails && (activeConversationId || activeConv) && (
           <div className="w-80 border-l border-gray-200 bg-white p-6 overflow-y-auto">
             <h3 className="text-lg font-semibold text-gray-900 mb-6">
               Details
             </h3>
             <div className="space-y-6">
-              <div className="text-center">
-                <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center mx-auto mb-3 text-gray-600 text-lg">
-                  {activeConv.title?.[0]?.toUpperCase() ||
-                    activeConv.type[0].toUpperCase()}
+              {/* Conversation Context */}
+              {activeConv?.context_type && activeConv?.context_id && (
+                <div className="rounded-xl border border-gray-200 p-4">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-2">
+                    Conversation Context
+                  </h4>
+                  {activeConv.context_type === "order" ? (
+                    <div className="text-sm text-gray-700">
+                      <p className="mb-2">
+                        This conversation was started from an order.
+                      </p>
+                      <a
+                        href={`/buyer/orders/${activeConv.context_id}`}
+                        className="inline-block text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)]"
+                      >
+                        View Order
+                      </a>
+                    </div>
+                  ) : activeConv.context_type === "product" ||
+                    activeConv.context_type === "item" ? (
+                    <div className="text-sm text-gray-700">
+                      <p className="mb-2">
+                        This conversation was started from a product.
+                      </p>
+                      <a
+                        href={`/buyer/product/${activeConv.context_id}`}
+                        className="inline-block text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)]"
+                      >
+                        View Product
+                      </a>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-700">
+                      <p className="mb-1 capitalize">
+                        {activeConv.context_type || "Conversation"}
+                      </p>
+                    </div>
+                  )}
                 </div>
-                <h4 className="font-semibold text-gray-900">
-                  {activeConv.title ||
-                    activeConv.context_type ||
-                    "Conversation"}
-                </h4>
-                {activeConv.context_type && (
-                  <p className="text-sm text-gray-600">
-                    {activeConv.context_type}
-                    {activeConv.context_id ? ` • ${activeConv.context_id}` : ""}
-                  </p>
-                )}
-              </div>
+              )}
+
+              {(() => {
+                const other =
+                  participants.find(
+                    (p: any) => p.user_id !== authUser?.id && !p.is_removed
+                  ) || null;
+                const org = other?.organizations || null;
+                const user = other?.users || null;
+                const displayName =
+                  org?.business_name ||
+                  org?.name ||
+                  user?.full_name ||
+                  "Supplier";
+                const location = org?.country || "";
+                return (
+                  <div className="text-center">
+                    <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center mx-auto mb-3 text-gray-600 text-lg">
+                      {(displayName?.[0] || "S").toUpperCase()}
+                    </div>
+                    <h4 className="font-semibold text-gray-900">
+                      {displayName}
+                    </h4>
+                    {location && (
+                      <p className="text-sm text-gray-600">{location}</p>
+                    )}
+                  </div>
+                );
+              })()}
 
               <div className="space-y-2">
                 <button className="w-full px-4 py-2.5 bg-[var(--primary-accent2)] text-white rounded-lg font-medium hover:bg-[var(--primary-accent3)] transition-colors duration-200">
@@ -531,10 +653,28 @@ export default function BuyerMessagesPage() {
                 <h5 className="text-sm font-semibold text-gray-900 mb-3">
                   Contact Information
                 </h5>
-                <div className="space-y-2 text-sm">
-                  <p className="text-gray-600">Email: supplier@example.com</p>
-                  <p className="text-gray-600">Phone: (555) 123-4567</p>
-                </div>
+                {(() => {
+                  const other =
+                    participants.find(
+                      (p: any) => p.user_id !== authUser?.id && !p.is_removed
+                    ) || null;
+                  const org = other?.organizations || null;
+                  const user = other?.users || null;
+                  return (
+                    <div className="space-y-2 text-sm">
+                      <p className="text-gray-600">
+                        Email: {user?.email || "—"}
+                      </p>
+                      {org?.address && (
+                        <p className="text-gray-600">Address: {org.address}</p>
+                      )}
+
+                      {org?.country && (
+                        <p className="text-gray-600">{org.country}</p>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </div>

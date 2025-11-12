@@ -36,8 +36,9 @@ export default function Home() {
 
   // Single hero (Alibaba-inspired)
   const hero = {
-    headline: "The leading B2B marketplace for Global fresh produce",
-    subcopy: "Verified suppliers. Assured quality. One-stop trading.",
+    headline: "Procure regional produce with local confidence",
+    subcopy:
+      "Bringing global supply to local demand—one‑stop procurement from sourcing to delivery.",
     image: "/images/backgrounds/markus-winkler-ye2SrYuqtWM-unsplash.jpg",
     cta: { label: "Explore Marketplace", href: "/marketplace" },
   };
@@ -297,7 +298,7 @@ export default function Home() {
         </div>
         {activeSearchBar === instance && searchQuery && (
           <div
-            className="absolute top-full left-0 right-0 bg-white/95 backdrop-blur-md border border-[var(--secondary-soft-highlight)]/30 rounded-xl z-20 mt-3"
+            className="absolute top-full left-0 right-0 bg-white border border-[var(--secondary-soft-highlight)]/30 rounded-xl shadow-lg z-20 mt-3"
             role="listbox"
             aria-label="Search suggestions"
           >
@@ -392,7 +393,7 @@ export default function Home() {
                       <button
                         key={s}
                         onClick={() => setSearchQuery(s)}
-                        className="px-3 py-1.5 rounded-full text-sm bg-white/15 hover:bg-white/25 text-white transition-colors"
+                        className="px-3 py-1.5 rounded-full text-sm bg-white text-[var(--secondary-black)] ring-1 ring-black/10 hover:bg-[var(--primary-background)] transition-colors"
                       >
                         {s}
                       </button>
@@ -461,10 +462,11 @@ export default function Home() {
           <div className="max-w-[1280px] mx-auto px-6">
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-4xl font-light text-[var(--secondary-black)] mb-4 tracking-tight">
-                Featured Farms & Cooperatives
+                Trusted suppliers in your region
               </h2>
               <p className="text-lg text-[var(--secondary-muted-edge)] font-light">
-                Meet trusted suppliers across the region
+                Bringing a trusted network of regional suppliers to your loading
+                dock — all in one app
               </p>
             </div>
             <div className="grid gap-6 lg:grid-cols-12">
@@ -502,7 +504,7 @@ export default function Home() {
                         {featuredFarms[0].certifications.map((cert) => (
                           <span
                             key={cert}
-                            className="text-xs px-2.5 py-1 rounded-full bg-white/15 backdrop-blur border border-white/20"
+                            className="text-xs px-2.5 py-1 rounded-full bg-white text-[var(--secondary-black)] border border-white/20"
                           >
                             {cert}
                           </span>
@@ -621,7 +623,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Trade with Confidence */}
+        {/* Procure with Confidence */}
         <section className="relative py-24 overflow-hidden">
           <div className="absolute inset-0">
             <Image
@@ -634,13 +636,13 @@ export default function Home() {
           </div>
           <div className="relative max-w-[1280px] mx-auto px-6">
             <h2 className="text-3xl md:text-5xl font-light text-white tracking-tight max-w-4xl">
-              Trade with confidence from production quality to purchase
+              Procure with confidence — from production quality to purchase
               protection
             </h2>
 
             <div className="mt-10 grid gap-6 md:grid-cols-2">
               {/* Verified Supplier card */}
-              <div className="rounded-2xl bg-white/85 backdrop-blur-md border border-white/30 p-6 md:p-8">
+              <div className="rounded-2xl bg-white border border-gray-200 p-6 md:p-8 shadow-sm">
                 <div className="flex items-center gap-3">
                   <CheckBadgeIcon className="h-8 w-8 text-[var(--primary-accent2)]" />
                   <p className="text-2xl md:text-3xl font-semibold text-[var(--secondary-black)]">
@@ -661,19 +663,19 @@ export default function Home() {
                   </Link>
                   <Link
                     href="/learn/verified-supplier"
-                    className="inline-flex items-center rounded-full px-4 py-2 bg-transparent text-white ring-1 ring-white/40 hover:bg-white/10"
+                    className="inline-flex items-center rounded-full px-4 py-2 bg-transparent text-white ring-1 ring-white/40 hover:bg-white hover:text-[var(--secondary-black)]"
                   >
                     Learn more
                   </Link>
                 </div>
               </div>
 
-              {/* Trade Assurance card */}
-              <div className="rounded-2xl bg-white/85 backdrop-blur-md border border-white/30 p-6 md:p-8">
+              {/* Purchase Assurance card */}
+              <div className="rounded-2xl bg-white border border-gray-200 p-6 md:p-8 shadow-sm">
                 <div className="flex items-center gap-3">
                   <ShieldCheckIcon className="h-8 w-8 text-[var(--primary-accent2)]" />
                   <p className="text-2xl md:text-3xl font-semibold text-[var(--secondary-black)]">
-                    Trade Assurance
+                    Purchase Assurance
                   </p>
                 </div>
                 <p className="mt-4 text-[var(--secondary-black)]/80 leading-relaxed">
@@ -690,7 +692,7 @@ export default function Home() {
                   </Link>
                   <Link
                     href="/learn/trade-assurance"
-                    className="inline-flex items-center rounded-full px-4 py-2 bg-transparent text-white ring-1 ring-white/40 hover:bg-white/10"
+                    className="inline-flex items-center rounded-full px-4 py-2 bg-transparent text-white ring-1 ring-white/40 hover:bg-white hover:text-[var(--secondary-black)]"
                   >
                     Learn more
                   </Link>
@@ -785,7 +787,7 @@ export default function Home() {
                     {activeHowItWorks.badge}
                   </div>
                   {/* Overlay card */}
-                  <div className="absolute right-4 bottom-4 bg-white/95 backdrop-blur rounded-xl border border-gray-200 w-[260px] p-4 shadow">
+                  <div className="absolute right-4 bottom-4 bg-white rounded-xl border border-gray-200 w-[260px] p-4 shadow">
                     <div className="text-sm font-semibold text-gray-800 mb-2">
                       {activeHowItWorks.overlayTitle}
                     </div>
@@ -819,10 +821,15 @@ export default function Home() {
             <h2 className="text-4xl md:text-6xl font-light mb-8 tracking-tight leading-tight">
               Build a Resilient Regional Food System
             </h2>
-            <p className="text-xl md:text-2xl font-light mb-12 opacity-90 max-w-4xl mx-auto leading-relaxed">
-              Empowering farms, buyers, and governments to create a transparent
-              global food network. Strengthening food security and eliminating
-              waste across borders.
+            <p className="text-xl md:text-2xl font-light opacity-90 max-w-4xl mx-auto leading-relaxed">
+              Empowering buyers with a trusted network that brings global supply
+              to local demand — transparent procurement, stronger food security,
+              and less waste.
+            </p>
+            <p className="text-lg md:text-xl font-light mb-12 opacity-90 max-w-4xl mx-auto leading-relaxed mt-6">
+              Suppliers: join a trusted cross‑border network to reach buyers who
+              want a local touch — your market‑channel access partner for the
+              last mile.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
@@ -833,10 +840,10 @@ export default function Home() {
                 <ArrowRightIcon className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </Link>
               <Link
-                href="/mission"
+                href="/signup"
                 className="btn btn-secondary inline-flex items-center text-white px-8 py-4 font-medium transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[var(--secondary-muted-edge)] focus:ring-offset-2 group"
               >
-                Learn About Our Mission
+                Become a Supplier
                 <ArrowRightIcon className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </Link>
             </div>
