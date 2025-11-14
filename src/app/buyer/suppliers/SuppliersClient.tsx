@@ -123,7 +123,7 @@ export default function SuppliersClient() {
     name: seller.name,
     location: seller.location || "Caribbean",
     country: seller.location?.split(",").pop()?.trim() || "Caribbean",
-    rating: seller.average_rating || 4.5,
+    rating: seller.average_rating ?? 0,
     totalReviews: seller.review_count || 0,
     products: seller.product_count || 0,
     responseTime: "< 2 hours",
@@ -718,7 +718,15 @@ export default function SuppliersClient() {
               {filteredSuppliers.map((supplier) => (
                 <Link
                   key={supplier.id}
-                  href={`/buyer/supplier/${supplier.id}`}
+                  href={{
+                    pathname: `/buyer/supplier/${supplier.id}`,
+                    query: {
+                      name: supplier.name,
+                      location: supplier.location,
+                      verified: supplier.verified ? "1" : "0",
+                      products: String(supplier.products || 0),
+                    },
+                  }}
                   className="block group"
                 >
                   <div className="bg-white rounded-xl overflow-hidden border border-[var(--secondary-soft-highlight)]/20 hover:shadow-lg transition-all duration-200">

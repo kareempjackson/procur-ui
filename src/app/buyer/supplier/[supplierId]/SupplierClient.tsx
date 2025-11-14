@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import {
   MapPinIcon,
   StarIcon,
@@ -33,6 +34,7 @@ interface SupplierClientProps {
 
 export default function SupplierClient({ supplierId }: SupplierClientProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const dispatch = useAppDispatch();
   const {
     sellerProducts,
@@ -52,22 +54,21 @@ export default function SupplierClient({ supplierId }: SupplierClientProps) {
     dispatch(fetchSellerProducts(supplierId));
   }, [dispatch, supplierId]);
 
-  // Use seller data from Redux
-  const supplier = currentSeller || {
+  const fallbackFromQuery = {
     id: supplierId,
-    name: "Caribbean Farms Co.",
-    description:
-      "We are a family-owned farm specializing in organic produce for over 30 years. Our commitment to sustainable farming practices and quality control ensures that every product meets the highest standards. We serve restaurants, retailers, and distributors across the Caribbean and beyond.",
-    location: "Kingston, Jamaica",
-    country: "Jamaica",
-    average_rating: 4.8,
-    total_reviews: 234,
-    is_verified: true,
-    product_count: 47,
-    review_count: 234,
-    created_at: "2019-01-01",
-    specialties: ["Organic Produce", "Sustainable Farming", "Export Quality"],
+    name: searchParams.get("name") || "Supplier",
+    description: "", // optional until a seller profile API exists
+    location: searchParams.get("location") || "",
+    country: (searchParams.get("location") || "").split(",").pop()?.trim(),
+    average_rating: 0,
+    total_reviews: 0,
+    is_verified: searchParams.get("verified") === "1",
+    product_count: Number(searchParams.get("products") || 0),
+    review_count: 0,
+    created_at: "",
+    specialties: [] as string[],
   };
+  const supplier = currentSeller || fallbackFromQuery;
 
   // Transform products from Redux to match UI structure
   const products = sellerProducts.map((product) => ({
