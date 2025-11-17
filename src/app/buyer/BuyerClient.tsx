@@ -1181,7 +1181,15 @@ export default function BuyerClient() {
                     {sellers.slice(0, 6).map((supplier) => (
                       <Link
                         key={supplier.id}
-                        href={`/buyer/supplier/${supplier.id}`}
+                        href={{
+                          pathname: `/buyer/supplier/${supplier.id}`,
+                          query: {
+                            name: supplier.name,
+                            location: supplier.location || "",
+                            verified: supplier.is_verified ? "1" : "0",
+                            products: String(supplier.product_count || 0),
+                          },
+                        }}
                         className="block group"
                       >
                         <div className="flex gap-2">

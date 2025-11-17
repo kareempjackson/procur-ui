@@ -247,7 +247,7 @@ export default function SupplierClient({ supplierId }: SupplierClientProps) {
             <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-[var(--secondary-soft-highlight)]/20">
               <div className="text-center">
                 <div className="text-2xl font-bold text-[var(--primary-accent2)]">
-                  {supplier.product_count}
+                  {products.length}
                 </div>
                 <p className="text-sm text-[var(--secondary-muted-edge)]">
                   Products

@@ -42,6 +42,24 @@ enum MeasurementUnit {
   GALLON = "gallon",
 }
 
+// Product categories for dropdown
+enum ProductCategory {
+  VEGETABLES = "Vegetables",
+  FRUITS = "Fruits",
+  HERBS = "Herbs",
+  GRAINS = "Grains",
+  LEGUMES = "Legumes",
+  ROOT_CROPS = "Root Crops",
+  SPICES = "Spices",
+  BEVERAGES = "Beverages",
+  DAIRY = "Dairy",
+  MEAT = "Meat",
+  SEAFOOD = "Seafood",
+  OTHER = "Other",
+}
+
+const CATEGORY_OPTIONS = Object.values(ProductCategory);
+
 // Removed ProductDimensions and related UI/state
 
 interface ProductImage {
@@ -58,11 +76,8 @@ interface CreateProductData {
   sku?: string;
   barcode?: string;
   category: string;
-  subcategory?: string;
   tags?: string[];
   base_price: number;
-  sale_price?: number;
-  currency?: string;
   stock_quantity?: number;
   unit_of_measurement: MeasurementUnit;
   condition?: ProductCondition;
@@ -99,7 +114,6 @@ export default function AddProductPage() {
     category: "",
     base_price: 0,
     unit_of_measurement: MeasurementUnit.PIECE,
-    currency: "XCD",
     stock_quantity: 0,
     condition: ProductCondition.NEW,
     status: ProductStatus.DRAFT,
@@ -603,36 +617,23 @@ export default function AddProductPage() {
                     >
                       Category *
                     </label>
-                    <input
-                      type="text"
+                    <select
                       id="category"
                       name="category"
                       required
-                      maxLength={100}
                       value={formData.category}
                       onChange={handleInputChange}
                       className="input w-full"
-                      placeholder="e.g., Vegetables"
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="subcategory"
-                      className="block text-sm font-medium text-[var(--secondary-black)] mb-2"
                     >
-                      Subcategory
-                    </label>
-                    <input
-                      type="text"
-                      id="subcategory"
-                      name="subcategory"
-                      maxLength={100}
-                      value={formData.subcategory || ""}
-                      onChange={handleInputChange}
-                      className="input w-full"
-                      placeholder="e.g., Fresh Vegetables"
-                    />
+                      <option value="" disabled>
+                        Select a category
+                      </option>
+                      {CATEGORY_OPTIONS.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="md:col-span-2">
@@ -686,7 +687,7 @@ export default function AddProductPage() {
                       htmlFor="base_price"
                       className="block text-sm font-medium text-[var(--secondary-black)] mb-2"
                     >
-                      Base Price *
+                      Price per unit *
                     </label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--primary-base)]">
@@ -707,97 +708,43 @@ export default function AddProductPage() {
                     </div>
                   </div>
 
-                  <div>
-                    <label
-                      htmlFor="sale_price"
-                      className="block text-sm font-medium text-[var(--secondary-black)] mb-2"
-                    >
-                      Sale Price
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-[var(--secondary-black)] mb-2">
+                      Quantity and unit
                     </label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--primary-base)]">
-                        $
-                      </span>
+                    <div className="flex gap-3">
                       <input
                         type="number"
-                        id="sale_price"
-                        name="sale_price"
+                        id="stock_quantity"
+                        name="stock_quantity"
                         min="0"
-                        step="0.01"
-                        value={formData.sale_price || ""}
+                        value={formData.stock_quantity}
                         onChange={handleInputChange}
-                        className="input w-full pl-8 text-right"
-                        placeholder="0.00"
+                        className="input w-32"
+                        placeholder="0"
                       />
+                      <select
+                        id="unit_of_measurement"
+                        name="unit_of_measurement"
+                        required
+                        value={formData.unit_of_measurement}
+                        onChange={handleInputChange}
+                        className="input w-full"
+                      >
+                        <option value={MeasurementUnit.PIECE}>Piece</option>
+                        <option value={MeasurementUnit.DOZEN}>Dozen</option>
+                        <option value={MeasurementUnit.KG}>Kilogram</option>
+                        <option value={MeasurementUnit.G}>Gram</option>
+                        <option value={MeasurementUnit.LB}>Pound</option>
+                        <option value={MeasurementUnit.OZ}>Ounce</option>
+                        <option value={MeasurementUnit.LITER}>Liter</option>
+                        <option value={MeasurementUnit.ML}>Milliliter</option>
+                        <option value={MeasurementUnit.GALLON}>Gallon</option>
+                      </select>
                     </div>
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="currency"
-                      className="block text-sm font-medium text-[var(--secondary-black)] mb-2"
-                    >
-                      Currency
-                    </label>
-                    <select
-                      id="currency"
-                      name="currency"
-                      value={formData.currency}
-                      onChange={handleInputChange}
-                      className="input w-full"
-                    >
-                      <option value="XCD">XCD</option>
-                      <option value="USD">USD</option>
-                      <option value="EUR">EUR</option>
-                      <option value="GBP">GBP</option>
-                      <option value="CAD">CAD</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="unit_of_measurement"
-                      className="block text-sm font-medium text-[var(--secondary-black)] mb-2"
-                    >
-                      Unit of Measurement *
-                    </label>
-                    <select
-                      id="unit_of_measurement"
-                      name="unit_of_measurement"
-                      required
-                      value={formData.unit_of_measurement}
-                      onChange={handleInputChange}
-                      className="input w-full"
-                    >
-                      <option value={MeasurementUnit.PIECE}>Piece</option>
-                      <option value={MeasurementUnit.DOZEN}>Dozen</option>
-                      <option value={MeasurementUnit.KG}>Kilogram</option>
-                      <option value={MeasurementUnit.G}>Gram</option>
-                      <option value={MeasurementUnit.LB}>Pound</option>
-                      <option value={MeasurementUnit.OZ}>Ounce</option>
-                      <option value={MeasurementUnit.LITER}>Liter</option>
-                      <option value={MeasurementUnit.ML}>Milliliter</option>
-                      <option value={MeasurementUnit.GALLON}>Gallon</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="stock_quantity"
-                      className="block text-sm font-medium text-[var(--secondary-black)] mb-2"
-                    >
-                      Stock Quantity
-                    </label>
-                    <input
-                      type="number"
-                      id="stock_quantity"
-                      name="stock_quantity"
-                      min="0"
-                      value={formData.stock_quantity}
-                      onChange={handleInputChange}
-                      className="input w-full"
-                      placeholder="0"
-                    />
+                    <p className="mt-2 text-xs text-[var(--primary-base)]">
+                      Price shown is per selected unit.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -865,7 +812,6 @@ export default function AddProductPage() {
                             category: "",
                             base_price: 0,
                             unit_of_measurement: MeasurementUnit.PIECE,
-                            currency: "XCD",
                             stock_quantity: 0,
                             condition: ProductCondition.NEW,
                             status: ProductStatus.DRAFT,
@@ -1002,21 +948,9 @@ export default function AddProductPage() {
 
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        {formData.sale_price &&
-                        formData.sale_price < formData.base_price ? (
-                          <>
-                            <span className="text-lg font-semibold text-[var(--primary-accent2)]">
-                              ${formData.sale_price.toFixed(2)}
-                            </span>
-                            <span className="text-sm text-gray-400 line-through">
-                              ${formData.base_price.toFixed(2)}
-                            </span>
-                          </>
-                        ) : (
-                          <span className="text-lg font-semibold text-[var(--secondary-black)]">
-                            ${formData.base_price.toFixed(2)}
-                          </span>
-                        )}
+                        <span className="text-lg font-semibold text-[var(--secondary-black)]">
+                          ${formData.base_price.toFixed(2)}
+                        </span>
                         <span className="text-sm text-[var(--primary-base)]">
                           / {formData.unit_of_measurement}
                         </span>

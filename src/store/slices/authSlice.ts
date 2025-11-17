@@ -164,6 +164,45 @@ export const resendVerification = createAsyncThunk(
   }
 );
 
+export const requestOtp = createAsyncThunk(
+  "auth/requestOtp",
+  async (
+    payload: { phoneNumber: string; channel?: "whatsapp" | "email" },
+    { rejectWithValue }
+  ) => {
+    try {
+      const client = getClient();
+      const { data } = await client.post("/auth/otp/request", payload);
+      return data as { message: string };
+    } catch (err: unknown) {
+      return rejectWithValue(extractErrorMessage(err, "Failed to send code"));
+    }
+  }
+);
+
+export const verifyOtp = createAsyncThunk(
+  "auth/verifyOtp",
+  async (
+    payload: { phoneNumber: string; code: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const client = getClient();
+      const { data } = await client.post("/auth/otp/verify", payload);
+      return data as {
+        accessToken: string;
+        tokenType: string;
+        expiresIn: number;
+        user: AuthUser;
+      };
+    } catch (err: unknown) {
+      return rejectWithValue(
+        extractErrorMessage(err, "Invalid or expired code")
+      );
+    }
+  }
+);
+
 const authSlice = createSlice({
   name: "auth",
   initialState,
@@ -331,6 +370,54 @@ const authSlice = createSlice({
         state.status = "failed";
         state.error =
           (action.payload as string) || "Failed to resend verification";
+      })
+      .addCase(requestOtp.pending, (state) => {
+        state.status = "loading";
+        state.error = null;
+      })
+      .addCase(requestOtp.fulfilled, (state) => {
+        state.status = "succeeded";
+      })
+      .addCase(requestOtp.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = (action.payload as string) || "Failed to send code";
+      })
+      .addCase(verifyOtp.pending, (state) => {
+        state.status = "loading";
+        state.error = null;
+      })
+      .addCase(
+        verifyOtp.fulfilled,
+        (
+          state,
+          action: PayloadAction<{
+            accessToken: string;
+            tokenType: string;
+            expiresIn: number;
+            user: AuthUser;
+          }>
+        ) => {
+          state.status = "succeeded";
+          state.accessToken = action.payload.accessToken;
+          state.tokenType = action.payload.tokenType;
+          state.expiresIn = action.payload.expiresIn;
+          state.user = action.payload.user;
+          if (typeof window !== "undefined") {
+            localStorage.setItem(
+              "auth",
+              JSON.stringify({
+                accessToken: state.accessToken,
+                tokenType: state.tokenType,
+                expiresIn: state.expiresIn,
+                user: state.user,
+              })
+            );
+          }
+        }
+      )
+      .addCase(verifyOtp.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = (action.payload as string) || "Invalid or expired code";
       });
   },
 });

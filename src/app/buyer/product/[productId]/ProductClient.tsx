@@ -142,9 +142,21 @@ export default function ProductClient({ productId }: ProductClientProps) {
   }
 
   // Get product images
-  const images = product.image_url
-    ? [product.image_url]
-    : ["/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg"];
+  const images =
+    (Array.isArray(product.images) && product.images.length > 0
+      ? product.images
+      : product.image_url
+        ? [product.image_url]
+        : []) || [];
+  const fallbackImage =
+    "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg";
+  const sellerLocation =
+    (product.seller.location && product.seller.location.trim()) || "";
+  const mapSrc = sellerLocation
+    ? `https://www.google.com/maps?q=${encodeURIComponent(
+        sellerLocation
+      )}&output=embed`
+    : `https://www.google.com/maps?q=Caribbean&output=embed`;
 
   return (
     <div className="min-h-screen bg-white">
@@ -382,18 +394,17 @@ export default function ProductClient({ productId }: ProductClientProps) {
                     </span>
                   </div>
                   <div className="flex items-center gap-3 text-xs flex-wrap">
-                    <div className="flex items-center gap-1">
-                      <StarIcon className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
-                      <span className="font-medium text-[var(--secondary-black)]">
-                        {product.seller.average_rating?.toFixed(1) || "4.5"}
-                      </span>
-                      <span className="text-[var(--secondary-muted-edge)]">
-                        ({product.seller.review_count || 0})
-                      </span>
-                    </div>
-                    <span className="text-[var(--secondary-muted-edge)]">
-                      Fast Response
-                    </span>
+                    {typeof product.seller.average_rating === "number" && (
+                      <div className="flex items-center gap-1">
+                        <StarIcon className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
+                        <span className="font-medium text-[var(--secondary-black)]">
+                          {product.seller.average_rating.toFixed(1)}
+                        </span>
+                        <span className="text-[var(--secondary-muted-edge)]">
+                          ({product.seller.review_count || 0})
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -427,7 +438,9 @@ export default function ProductClient({ productId }: ProductClientProps) {
               </div>
               <div className="text-center">
                 <div className="text-lg font-bold text-[var(--primary-accent2)]">
-                  {product.seller.average_rating?.toFixed(1) || "4.5"}
+                  {typeof product.seller.average_rating === "number"
+                    ? product.seller.average_rating.toFixed(1)
+                    : "—"}
                 </div>
                 <p className="text-xs text-[var(--secondary-muted-edge)]">
                   Rating
@@ -451,7 +464,7 @@ export default function ProductClient({ productId }: ProductClientProps) {
             </h2>
             <div className="aspect-video rounded-xl overflow-hidden border border-[var(--secondary-soft-highlight)]/20">
               <iframe
-                src={`https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d238158.88377814756!2d-76.93854395!3d17.98506155!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8edb3fd5f8e54777%3A0x4ebe73bcf1c3e1d2!2sKingston%2C%20Jamaica!5e0!3m2!1sen!2sus!4v1234567890123`}
+                src={mapSrc}
                 width="100%"
                 height="100%"
                 style={{ border: 0 }}
@@ -467,7 +480,7 @@ export default function ProductClient({ productId }: ProductClientProps) {
                 <p className="font-medium text-[var(--secondary-black)]">
                   {product.seller.location || "Caribbean Region"}
                 </p>
-                <p className="text-xs">Agricultural Supplier</p>
+                <p className="text-xs">Supplier</p>
               </div>
             </div>
           </div>

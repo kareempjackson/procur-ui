@@ -177,8 +177,28 @@ export default function CheckoutClient() {
     "card" | "bank_transfer" | "cash"
   >("card");
 
-  // Stripe publishable key handling
-  const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+  // Stripe publishable key handling (env or backend fallback)
+  const envPublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+  const [publishableKey, setPublishableKey] = useState<string | null>(
+    envPublishableKey || null
+  );
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (publishableKey) return;
+      try {
+        const api = getApiClient();
+        const { data } = await api.get("/payments/config");
+        const key = data?.publishable_key as string | undefined;
+        if (!cancelled && key) setPublishableKey(key);
+      } catch {
+        // ignore; UI will show non-configured state
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [publishableKey]);
   const stripePromise = React.useMemo(() => {
     return publishableKey ? loadStripe(publishableKey) : null;
   }, [publishableKey]);
@@ -397,9 +417,56 @@ export default function CheckoutClient() {
     (pm) => pm.id === selectedPayment
   );
 
-  const handleNextStep = () => {
-    if (currentStep === "shipping") setCurrentStep("review");
-    else if (currentStep === "review") setCurrentStep("payment");
+  const saveAddressIfNeeded = async (): Promise<boolean> => {
+    if (!showAddressForm) return true;
+    setAddressError(null);
+    if (!addrStreet || !addrCity || !addrState || !addrZip || !addrCountry) {
+      setAddressError(
+        "Please complete street, city, state, postal code, and country."
+      );
+      return false;
+    }
+    setIsSavingAddress(true);
+    try {
+      const api = getApiClient();
+      const { data } = await api.post("/buyers/addresses", {
+        street_address: [addrStreet, addrApartment].filter(Boolean).join(", "),
+        city: addrCity,
+        state: addrState || undefined,
+        postal_code: addrZip || undefined,
+        country: addrCountry,
+        contact_name: addrName || undefined,
+        contact_phone: addrPhone || undefined,
+        is_default: false,
+        is_shipping: true,
+        is_billing: false,
+      });
+      await dispatch(fetchAddresses());
+      if (data?.id) {
+        setSelectedAddress(data.id);
+      }
+      setShowAddressForm(false);
+      return true;
+    } catch (e: any) {
+      setAddressError(e?.message || "Failed to save address");
+      return false;
+    } finally {
+      setIsSavingAddress(false);
+    }
+  };
+
+  const handleNextStep = async () => {
+    if (currentStep === "shipping") {
+      const ok = await saveAddressIfNeeded();
+      if (!ok) return;
+      if (!selectedAddress) {
+        setAddressError("Please select or add an address.");
+        return;
+      }
+      setCurrentStep("review");
+      return;
+    }
+    if (currentStep === "review") setCurrentStep("payment");
   };
 
   const handlePreviousStep = () => {
@@ -747,12 +814,12 @@ export default function CheckoutClient() {
                       >
                         {isSavingAddress ? "Saving..." : "Save Address"}
                       </button>
-                    <button
-                      onClick={() => setShowAddressForm(false)}
-                      className="text-sm text-[var(--primary-accent2)]"
-                    >
-                      Cancel
-                    </button>
+                      <button
+                        onClick={() => setShowAddressForm(false)}
+                        className="text-sm text-[var(--primary-accent2)]"
+                      >
+                        Cancel
+                      </button>
                     </div>
                   </div>
                 )}
@@ -884,10 +951,10 @@ export default function CheckoutClient() {
                     onClick={() => setPaymentMethod("card")}
                     className={`flex items-center gap-3 p-4 rounded-xl border transition-all ${
                       paymentMethod === "card"
-                            ? "border-[var(--primary-accent2)] bg-[var(--primary-accent2)]/5"
-                            : "border-[var(--secondary-soft-highlight)]/30 hover:border-[var(--primary-accent2)]/50"
-                        }`}
-                      >
+                        ? "border-[var(--primary-accent2)] bg-[var(--primary-accent2)]/5"
+                        : "border-[var(--secondary-soft-highlight)]/30 hover:border-[var(--primary-accent2)]/50"
+                    }`}
+                  >
                     <CreditCardIcon className="h-5 w-5 text-[var(--secondary-black)]" />
                     <div className="text-left">
                       <p className="font-medium text-[var(--secondary-black)] text-sm">
@@ -895,10 +962,10 @@ export default function CheckoutClient() {
                       </p>
                       <p className="text-xs text-[var(--secondary-muted-edge)]">
                         Pay securely with Stripe
-                              </p>
-                            </div>
+                      </p>
+                    </div>
                   </button>
-                    <button
+                  <button
                     onClick={() => setPaymentMethod("bank_transfer")}
                     className={`flex items-center gap-3 p-4 rounded-xl border transition-all ${
                       paymentMethod === "bank_transfer"
@@ -916,7 +983,7 @@ export default function CheckoutClient() {
                       </p>
                     </div>
                   </button>
-                    <button
+                  <button
                     onClick={() => setPaymentMethod("cash")}
                     className={`flex items-center gap-3 p-4 rounded-xl border transition-all ${
                       paymentMethod === "cash"
@@ -933,7 +1000,7 @@ export default function CheckoutClient() {
                         Pay the courier upon delivery
                       </p>
                     </div>
-                    </button>
+                  </button>
                 </div>
 
                 {/* For non-card methods show simple instructions; card uses Stripe Payment Element below */}
@@ -955,33 +1022,38 @@ export default function CheckoutClient() {
                 )}
 
                 {/* Stripe Elements (render after clientSecret) */}
-                {paymentMethod === "card" &&
-                  clientSecret &&
-                  stripePromise &&
-                  intentValid && (
+                {paymentMethod === "card" && clientSecret && stripePromise && (
                   <div className="mt-6">
                     <Elements
-                        key={clientSecret}
-                        stripe={stripePromise}
+                      key={clientSecret}
+                      stripe={stripePromise}
                       options={{ clientSecret }}
                     >
                       <div className="p-4 border border-[var(--secondary-soft-highlight)]/30 rounded-xl">
-                          <PaymentElement
-                            onReady={() => setPaymentElementReady(true)}
-                          />
-                      </div>
-                        <StripeConfirmButton
-                          orderId={orderIds[0]}
-                          setError={setPaymentError}
-                          isConfirming={isConfirming}
-                          setIsConfirming={setIsConfirming}
-                          autoConfirm={autoConfirm}
-                          ready={paymentElementReady}
-                          renderButton={false}
+                        <PaymentElement
+                          onReady={() => setPaymentElementReady(true)}
                         />
+                      </div>
+                      <StripeConfirmButton
+                        orderId={orderIds[0]}
+                        setError={setPaymentError}
+                        isConfirming={isConfirming}
+                        setIsConfirming={setIsConfirming}
+                        autoConfirm={autoConfirm}
+                        ready={paymentElementReady}
+                        renderButton={false}
+                      />
                     </Elements>
                   </div>
                 )}
+                {paymentMethod === "card" &&
+                  (!publishableKey || !clientSecret) && (
+                    <div className="mt-4 p-3 border border-yellow-200 bg-yellow-50 rounded text-xs text-yellow-900">
+                      {!publishableKey
+                        ? "Payments are not configured. Missing Stripe publishable key."
+                        : "Creating a secure payment session... If this takes longer than a few seconds, refresh and try again."}
+                    </div>
+                  )}
 
                 {/* Security Notice */}
                 <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start gap-3">
@@ -1028,7 +1100,7 @@ export default function CheckoutClient() {
                       </p>
                     </div>
                   )}
-                    <button
+                  <button
                     onClick={handlePay}
                     disabled={
                       isStartingPayment ||
@@ -1037,20 +1109,20 @@ export default function CheckoutClient() {
                       !cart ||
                       (paymentMethod === "card" && !publishableKey)
                     }
-                      className="flex items-center gap-2 px-8 py-3 bg-[var(--primary-accent2)] text-white rounded-full hover:bg-[var(--primary-accent3)] transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
+                    className="flex items-center gap-2 px-8 py-3 bg-[var(--primary-accent2)] text-white rounded-full hover:bg-[var(--primary-accent3)] transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
                     {isStartingPayment || isPlacingOrder ? (
                       <span>Processing...</span>
                     ) : paymentMethod === "card" ? (
                       <>
                         <CreditCardIcon className="h-5 w-5" /> Pay Now
                       </>
-                      ) : (
-                        <>
+                    ) : (
+                      <>
                         <TruckIcon className="h-5 w-5" /> Place Order
-                        </>
-                      )}
-                    </button>
+                      </>
+                    )}
+                  </button>
                 </div>
               )}
             </div>

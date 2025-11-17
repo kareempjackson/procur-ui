@@ -18,89 +18,7 @@ import { useAppDispatch, useAppSelector } from "@/store";
 import { fetchOrderDetail } from "@/store/slices/buyerOrdersSlice";
 import ProcurLoader from "@/components/ProcurLoader";
 
-// Demo order data
-const demoOrder = {
-  id: "ord_abc123",
-  orderNumber: "#10245",
-  status: "pending",
-  createdAt: "2025-10-05T14:30:00Z",
-  estimatedDelivery: "2025-10-15",
-  total: 245.83,
-  currency: "USD",
-  sellers: [
-    {
-      id: "seller_1",
-      name: "Caribbean Farms Co.",
-      email: "orders@caribbeanfarms.com",
-      phone: "(876) 555-0123",
-      location: "Kingston, Jamaica",
-      verified: true,
-      items: [
-        {
-          id: "item_1",
-          name: "Organic Cherry Tomatoes",
-          quantity: 10,
-          unit: "lb",
-          price: 3.5,
-          image:
-            "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-        },
-        {
-          id: "item_2",
-          name: "Fresh Basil",
-          quantity: 5,
-          unit: "bunch",
-          price: 8.5,
-          image:
-            "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-        },
-      ],
-      subtotal: 77.5,
-      shipping: 25.0,
-      estimatedDelivery: "Oct 15, 2025",
-    },
-    {
-      id: "seller_2",
-      name: "Tropical Harvest Ltd",
-      email: "sales@tropicalharvest.com",
-      phone: "(809) 555-0456",
-      location: "Santo Domingo, DR",
-      verified: true,
-      items: [
-        {
-          id: "item_3",
-          name: "Alphonso Mangoes",
-          quantity: 15,
-          unit: "lb",
-          price: 4.2,
-          image:
-            "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-        },
-      ],
-      subtotal: 63.0,
-      shipping: 30.0,
-      estimatedDelivery: "Oct 12, 2025",
-    },
-  ],
-  shippingAddress: {
-    name: "John Smith",
-    street: "123 Main Street",
-    apartment: "Apt 4B",
-    city: "Miami",
-    state: "FL",
-    zipCode: "33101",
-    country: "United States",
-    phone: "(305) 555-0123",
-  },
-  paymentMethod: {
-    type: "card",
-    brand: "Visa",
-    last4: "4242",
-  },
-  subtotal: 140.5,
-  shipping: 55.0,
-  tax: 11.24,
-};
+// Note: legacy demo data removed; page now uses live order data only
 
 export default function OrderConfirmationPage({
   params,
@@ -210,15 +128,17 @@ export default function OrderConfirmationPage({
                 <h3 className="font-semibold text-[var(--secondary-black)]">
                   Order Placed
                 </h3>
-                <p className="text-sm text-[var(--secondary-muted-edge)] mt-1">
-                  {new Date(demoOrder.createdAt).toLocaleString("en-US", {
-                    month: "long",
-                    day: "numeric",
-                    year: "numeric",
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })}
-                </p>
+                {order?.created_at && (
+                  <p className="text-sm text-[var(--secondary-muted-edge)] mt-1">
+                    {new Date(order.created_at).toLocaleString("en-US", {
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -266,9 +186,11 @@ export default function OrderConfirmationPage({
                 <h3 className="font-semibold text-[var(--secondary-black)]">
                   Delivered
                 </h3>
-                <p className="text-sm text-[var(--secondary-muted-edge)] mt-1">
-                  Estimated by {demoOrder.estimatedDelivery}
-                </p>
+                {order?.estimated_delivery_date && (
+                  <p className="text-sm text-[var(--secondary-muted-edge)] mt-1">
+                    Estimated by {order.estimated_delivery_date}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -311,15 +233,24 @@ export default function OrderConfirmationPage({
                 {(order.items || []).map((item: any) => (
                   <div key={item.id} className="flex gap-4">
                     <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                      <Image
-                        src={
-                          item.product_snapshot?.image_url ||
-                          "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg"
-                        }
-                        alt={item.product_name}
-                        fill
-                        className="object-cover"
-                      />
+                      {item.product_image ||
+                      item.product_snapshot?.product_images?.find(
+                        (img: any) => img.is_primary
+                      )?.image_url ||
+                      item.product_snapshot?.image_url ? (
+                        <Image
+                          src={
+                            item.product_image ||
+                            item.product_snapshot?.product_images?.find(
+                              (img: any) => img.is_primary
+                            )?.image_url ||
+                            item.product_snapshot?.image_url
+                          }
+                          alt={item.product_name}
+                          fill
+                          className="object-cover"
+                        />
+                      ) : null}
                     </div>
                     <div className="flex-1">
                       <h4 className="font-semibold text-[var(--secondary-black)]">
@@ -412,11 +343,7 @@ export default function OrderConfirmationPage({
               Payment Method
             </h3>
             <div className="flex items-center gap-3">
-              <div className="w-12 h-8 bg-gray-100 rounded flex items-center justify-center">
-                <span className="text-xs font-semibold text-gray-600">
-                  {demoOrder.paymentMethod.brand}
-                </span>
-              </div>
+              <div className="w-12 h-8 bg-gray-100 rounded flex items-center justify-center" />
               <div className="text-sm">
                 <p className="font-medium text-[var(--secondary-black)] capitalize">
                   {order?.payment_status || "pending"}

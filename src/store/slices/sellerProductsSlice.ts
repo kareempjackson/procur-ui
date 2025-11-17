@@ -121,7 +121,6 @@ export type CreateSellerProductInput = {
   description?: string;
   short_description?: string;
   category: string;
-  subcategory?: string;
   base_price: number;
   sale_price?: number;
   currency?: string;

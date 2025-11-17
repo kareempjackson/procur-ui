@@ -5,7 +5,12 @@ import Image from "next/image";
 import TopNavigation from "@/components/navigation/TopNavigation";
 import Footer from "@/components/footer/Footer";
 import { useAppDispatch } from "@/store";
-import { signin, devSignin } from "@/store/slices/authSlice";
+import {
+  signin,
+  devSignin,
+  requestOtp,
+  verifyOtp,
+} from "@/store/slices/authSlice";
 import { useRouter } from "next/navigation";
 import ProcurLoader from "@/components/ProcurLoader";
 
@@ -14,6 +19,10 @@ const LoginPage: React.FC = () => {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [useOtp, setUseOtp] = useState(false);
+  const [phone, setPhone] = useState("");
+  const [code, setCode] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
   const dispatch = useAppDispatch();
   const router = useRouter();
 
@@ -65,6 +74,49 @@ const LoginPage: React.FC = () => {
     }
   };
 
+  const handleRequestOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+    try {
+      await dispatch(
+        requestOtp({ phoneNumber: phone, channel: "whatsapp" })
+      ).unwrap();
+      setOtpSent(true);
+    } catch (err) {
+      const message = typeof err === "string" ? err : "Failed to send code";
+      setError(message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+    try {
+      const auth = await dispatch(
+        verifyOtp({ phoneNumber: phone, code })
+      ).unwrap();
+      const next = getNextParam();
+      if (next) {
+        router.replace(next);
+        return;
+      }
+      const dest = getDestination(
+        auth.user.accountType,
+        auth.user.emailVerified
+      );
+      router.replace(dest);
+    } catch (err) {
+      const message = typeof err === "string" ? err : "Invalid or expired code";
+      setError(message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleDevSignin = async (type: "seller" | "buyer" | "government") => {
     setError(null);
     setIsLoading(true);
@@ -107,81 +159,162 @@ const LoginPage: React.FC = () => {
                 </p>
               </div>
 
-              {/* Login Form */}
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {error && (
-                  <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
-                    {error}
-                  </div>
-                )}
-                <div>
-                  <label htmlFor="email" className="sr-only">
-                    Email address
-                  </label>
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-full placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all duration-200"
-                    placeholder="Enter your email"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="password" className="sr-only">
-                    Password
-                  </label>
-                  <input
-                    id="password"
-                    name="password"
-                    type="password"
-                    autoComplete="current-password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-full placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all duration-200"
-                    placeholder="Enter your password"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <input
-                      id="remember-me"
-                      name="remember-me"
-                      type="checkbox"
-                      className="h-4 w-4 text-black focus:ring-black border-gray-300 rounded"
-                    />
-                    <label
-                      htmlFor="remember-me"
-                      className="ml-2 block text-sm text-gray-900"
-                    >
-                      Remember me
-                    </label>
-                  </div>
-
-                  <div className="text-sm">
-                    <a
-                      href="/forgot-password"
-                      className="font-medium text-black hover:text-gray-700 transition-colors duration-200"
-                    >
-                      Forgot your password?
-                    </a>
-                  </div>
-                </div>
-
+              <div className="text-center">
                 <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="btn btn-secondary !rounded-full w-full flex justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                  type="button"
+                  className="text-sm underline text-gray-700"
+                  onClick={() => {
+                    setUseOtp((v) => !v);
+                    setError(null);
+                    setOtpSent(false);
+                    setCode("");
+                  }}
                 >
-                  {isLoading ? "Signing in..." : "Continue with email"}
+                  {useOtp
+                    ? "Use email & password instead"
+                    : "Use phone OTP (WhatsApp) instead"}
                 </button>
-              </form>
+              </div>
+
+              {/* Login Form */}
+              {!useOtp ? (
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  {error && (
+                    <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                      {error}
+                    </div>
+                  )}
+                  <div>
+                    <label htmlFor="email" className="sr-only">
+                      Email address
+                    </label>
+                    <input
+                      id="email"
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-full placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all duration-200"
+                      placeholder="Enter your email"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="password" className="sr-only">
+                      Password
+                    </label>
+                    <input
+                      id="password"
+                      name="password"
+                      type="password"
+                      autoComplete="current-password"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-full placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all duration-200"
+                      placeholder="Enter your password"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <input
+                        id="remember-me"
+                        name="remember-me"
+                        type="checkbox"
+                        className="h-4 w-4 text-black focus:ring-black border-gray-300 rounded"
+                      />
+                      <label
+                        htmlFor="remember-me"
+                        className="ml-2 block text-sm text-gray-900"
+                      >
+                        Remember me
+                      </label>
+                    </div>
+
+                    <div className="text-sm">
+                      <a
+                        href="/forgot-password"
+                        className="font-medium text-black hover:text-gray-700 transition-colors duration-200"
+                      >
+                        Forgot your password?
+                      </a>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="btn btn-secondary !rounded-full w-full flex justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isLoading ? "Signing in..." : "Continue with email"}
+                  </button>
+                </form>
+              ) : (
+                <form
+                  onSubmit={otpSent ? handleVerifyOtp : handleRequestOtp}
+                  className="space-y-6"
+                >
+                  {error && (
+                    <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                      {error}
+                    </div>
+                  )}
+                  {!otpSent ? (
+                    <>
+                      <div>
+                        <label htmlFor="phone" className="sr-only">
+                          Phone number
+                        </label>
+                        <input
+                          id="phone"
+                          name="phone"
+                          type="tel"
+                          required
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-full placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all duration-200"
+                          placeholder="Phone (E.164, e.g. +15551234567)"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={isLoading}
+                        className="btn btn-secondary !rounded-full w-full flex justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isLoading ? "Sending..." : "Send code via WhatsApp"}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <label htmlFor="code" className="sr-only">
+                          6-digit code
+                        </label>
+                        <input
+                          id="code"
+                          name="code"
+                          type="text"
+                          required
+                          value={code}
+                          onChange={(e) => setCode(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-full placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all duration-200"
+                          placeholder="Enter 6-digit code"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={isLoading}
+                        className="btn btn-secondary !rounded-full w-full flex justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isLoading ? "Verifying..." : "Verify & Sign in"}
+                      </button>
+                    </>
+                  )}
+                </form>
+              )}
 
               {/* Dev Auth (only renders in non-production) */}
               {process.env.NEXT_PUBLIC_ENV !== "production" && (
