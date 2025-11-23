@@ -30,6 +30,7 @@ import {
   selectVendorsStatus,
 } from "@/store/slices/governmentVendorsSlice";
 import { Vendor } from "@/types";
+import { useToast } from "@/components/ui/Toast";
 
 type EnrollmentStep = "select" | "review" | "confirm";
 
@@ -63,6 +64,7 @@ export default function ProgramEnrollmentPage() {
   const [showEligibleOnly, setShowEligibleOnly] = useState(false);
   const [enrollmentNotes, setEnrollmentNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { show } = useToast();
 
   // Fetch program and vendors
   useEffect(() => {
@@ -196,7 +198,7 @@ export default function ProgramEnrollmentPage() {
       );
     } catch (error) {
       console.error("Enrollment failed:", error);
-      alert("Failed to enroll vendors. Please try again.");
+      show("Failed to enroll vendors. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

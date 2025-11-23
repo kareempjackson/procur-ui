@@ -21,9 +21,9 @@ function extractErrorMessage(error: unknown, fallback: string): string {
 export interface UserProfile {
   id: string;
   email: string;
-  firstName?: string;
-  lastName?: string;
-  phone?: string;
+  fullname?: string;
+  phone_number?: string;
+  avatarUrl?: string | null;
   role?: string;
   emailVerified: boolean;
   organization?: {
@@ -49,9 +49,29 @@ export interface UserProfile {
 }
 
 export interface UpdateProfileDto {
-  firstName?: string;
-  lastName?: string;
+  // User-level fields
+  fullname?: string;
   phone?: string;
+
+  // Organization-level fields
+  businessName?: string;
+  name?: string;
+  businessType?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
+  website?: string;
+  description?: string;
+  taxId?: string;
+  registrationNumber?: string;
+
+  // Document / media fields
+  farmersIdPath?: string;
+  farmersIdUrl?: string;
+  avatarPath?: string;
+  logoPath?: string;
 }
 
 export interface NotificationPreferences {
@@ -116,7 +136,10 @@ export const updateProfile = createAsyncThunk(
   async (updateData: UpdateProfileDto, { rejectWithValue }) => {
     try {
       const client = getApiClient();
-      const { data } = await client.patch("/users/profile", updateData);
+      // First apply the update
+      await client.patch("/users/profile", updateData);
+      // Then fetch the fresh profile so the slice shape always matches getProfile
+      const { data } = await client.get("/users/profile");
       return data as UserProfile;
     } catch (err) {
       return rejectWithValue(

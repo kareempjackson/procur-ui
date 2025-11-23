@@ -4,12 +4,8 @@ import React, { useState, useEffect } from "react";
 import {
   UserCircleIcon,
   BuildingOfficeIcon,
-  EnvelopeIcon,
-  PhoneIcon,
   MapPinIcon,
-  GlobeAltIcon,
   BellIcon,
-  ShieldCheckIcon,
   KeyIcon,
   UserGroupIcon,
   XMarkIcon,
@@ -19,43 +15,27 @@ import { useAppDispatch, useAppSelector } from "@/store";
 import {
   fetchProfile,
   updateProfile,
-  fetchPreferences,
-  updatePreferences,
-  fetchOrganizationMembers,
   inviteOrganizationMember,
   removeOrganizationMember,
   type UpdateProfileDto,
 } from "@/store/slices/profileSlice";
 import ProcurLoader from "@/components/ProcurLoader";
 import { getApiClient } from "@/lib/apiClient";
+import { useToast } from "@/components/ui/Toast";
 
 export default function ProfileClient() {
   const dispatch = useAppDispatch();
-  const {
-    profile,
-    preferences,
-    organizationMembers,
-    status,
-    preferencesStatus,
-    membersStatus,
-    error,
-  } = useAppSelector((state) => state.profile);
+  const { profile, preferences, organizationMembers, membersStatus } =
+    useAppSelector((state) => state.profile);
 
   // Fetch profile data on mount
   useEffect(() => {
     dispatch(fetchProfile());
-    dispatch(fetchPreferences()).catch(() => {
-      // Silently fail if preferences endpoint doesn't exist yet
-    });
-    dispatch(fetchOrganizationMembers()).catch(() => {
-      // Silently fail if members endpoint doesn't exist yet
-    });
   }, [dispatch]);
 
   const [formData, setFormData] = useState({
     // Personal Information
-    firstName: "",
-    lastName: "",
+    fullname: "",
     email: "",
     phone: "",
 
@@ -76,16 +56,16 @@ export default function ProfileClient() {
     smsNotifications: false,
     marketingEmails: true,
   });
+  const { show } = useToast();
 
   // Update form data when profile loads
   useEffect(() => {
     if (profile) {
       setFormData((prev) => ({
         ...prev,
-        firstName: profile.firstName || "",
-        lastName: profile.lastName || "",
+        fullname: profile.fullname || "",
         email: profile.email || "",
-        phone: profile.phone || "",
+        phone: profile.phone_number || "",
         organizationName: profile.organization?.name || "",
         businessType: profile.organization?.businessType || "",
         taxId: profile.organization?.taxId || "",
@@ -114,13 +94,16 @@ export default function ProfileClient() {
     "profile" | "security" | "notifications" | "users"
   >("profile");
 
+  // Feature flag to control visibility of Team Members tab
+  const showTeamMembersTab = false;
+
   const [avatarUploading, setAvatarUploading] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const handlePickAvatar = () => fileInputRef.current?.click();
 
   // Optional avatar URL may be provided by the API even if not in the TS type
-  const avatarUrl = (profile as any)?.avatarUrl as string | undefined;
+  const avatarUrl = profile?.avatarUrl ?? undefined;
 
   const handleAvatarSelected = async (
     e: React.ChangeEvent<HTMLInputElement>
@@ -128,7 +111,7 @@ export default function ProfileClient() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!/^image\//.test(file.type)) {
-      alert("Please select an image file");
+      show("Please select an image file");
       return;
     }
 
@@ -153,10 +136,10 @@ export default function ProfileClient() {
 
       // 4) Refresh profile to get signed download URL
       await dispatch(fetchProfile());
-      alert("Avatar updated successfully!");
+      show("Avatar updated successfully!");
     } catch (err) {
       console.error("Avatar upload failed", err);
-      alert("Failed to upload avatar. Please try again.");
+      show("Failed to upload avatar. Please try again.");
     } finally {
       setAvatarUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -169,6 +152,14 @@ export default function ProfileClient() {
     email: "",
     role: "purchaser",
   });
+
+  // Security - Change Password
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmNewPassword: "",
+  });
+  const [passwordUpdating, setPasswordUpdating] = useState(false);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -188,41 +179,38 @@ export default function ProfileClient() {
     // Handle profile update
     if (activeTab === "profile") {
       const updateData: UpdateProfileDto = {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        phone: formData.phone,
+        // User-level fields
+        fullname: formData.fullname || undefined,
+        phone: formData.phone || undefined,
+
+        // Organization-level fields
+        businessName: formData.organizationName || undefined,
+        businessType: formData.businessType || undefined,
+        address: formData.street || undefined,
+        city: formData.city || undefined,
+        state: formData.state || undefined,
+        postalCode: formData.postalCode || undefined,
+        country: formData.country || undefined,
       };
 
       try {
         await dispatch(updateProfile(updateData)).unwrap();
-        alert("Profile updated successfully!");
+        show("Profile updated successfully!");
       } catch (err) {
-        alert(`Failed to update profile: ${err}`);
+        show(`Failed to update profile: ${err}`);
       }
     }
 
     // Handle notification preferences update
     if (activeTab === "notifications") {
-      const preferencesData = {
-        emailNotifications: formData.emailNotifications,
-        smsNotifications: formData.smsNotifications,
-        marketingEmails: formData.marketingEmails,
-      };
-
-      try {
-        await dispatch(updatePreferences(preferencesData)).unwrap();
-        alert("Preferences updated successfully!");
-      } catch (err) {
-        // Silently fail if endpoint doesn't exist yet
-        console.log("Preferences update not available:", err);
-        alert("Preferences saved locally (API integration pending)");
-      }
+      // Preferences endpoints are not available yet - save locally only
+      show("Preferences saved locally (API integration pending)");
     }
   };
 
   const handleAddUser = async () => {
     if (!newUser.email || !newUser.name) {
-      alert("Please fill in all required fields");
+      show("Please fill in all required fields");
       return;
     }
 
@@ -230,11 +218,11 @@ export default function ProfileClient() {
       await dispatch(inviteOrganizationMember(newUser)).unwrap();
       setShowAddUserModal(false);
       setNewUser({ name: "", email: "", role: "purchaser" });
-      alert(`Invitation sent to ${newUser.email}`);
+      show(`Invitation sent to ${newUser.email}`);
     } catch (err) {
       // Fallback to local state if endpoint doesn't exist
       console.log("Member invite not available:", err);
-      alert(
+      show(
         `Invitation feature pending API integration. User: ${newUser.email}`
       );
       setShowAddUserModal(false);
@@ -249,17 +237,17 @@ export default function ProfileClient() {
 
     try {
       await dispatch(removeOrganizationMember(userId)).unwrap();
-      alert("User removed successfully");
+      show("User removed successfully");
     } catch (err) {
       console.log("Member removal not available:", err);
-      alert("User removal feature pending API integration");
+      show("User removal feature pending API integration");
     }
   };
 
   const handleChangeRole = (userId: string, newRole: string) => {
     // This would require a new API endpoint to change user roles
     console.log("Change role not yet implemented:", userId, newRole);
-    alert("Role change feature pending API integration");
+    show("Role change feature pending API integration");
   };
 
   return (
@@ -342,16 +330,18 @@ export default function ProfileClient() {
           >
             Notifications
           </button>
-          <button
-            onClick={() => setActiveTab("users")}
-            className={`px-4 py-2.5 text-sm font-medium transition-all duration-200 border-b-2 ${
-              activeTab === "users"
-                ? "text-[var(--primary-accent2)] border-[var(--primary-accent2)]"
-                : "text-[var(--secondary-muted-edge)] border-transparent hover:text-[var(--secondary-black)]"
-            }`}
-          >
-            Team Members
-          </button>
+          {showTeamMembersTab && (
+            <button
+              onClick={() => setActiveTab("users")}
+              className={`px-4 py-2.5 text-sm font-medium transition-all duration-200 border-b-2 ${
+                activeTab === "users"
+                  ? "text-[var(--primary-accent2)] border-[var(--primary-accent2)]"
+                  : "text-[var(--secondary-muted-edge)] border-transparent hover:text-[var(--secondary-black)]"
+              }`}
+            >
+              Team Members
+            </button>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -370,26 +360,12 @@ export default function ProfileClient() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-[var(--secondary-black)] mb-1.5">
-                      First Name *
+                      Full Name *
                     </label>
                     <input
                       type="text"
-                      name="firstName"
-                      value={formData.firstName}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2.5 text-sm rounded-full border border-[var(--secondary-soft-highlight)]/30 bg-[var(--primary-background)] outline-none focus:border-[var(--primary-accent2)] transition-colors text-[var(--secondary-black)]"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-[var(--secondary-black)] mb-1.5">
-                      Last Name *
-                    </label>
-                    <input
-                      type="text"
-                      name="lastName"
-                      value={formData.lastName}
+                      name="fullname"
+                      value={formData.fullname}
                       onChange={handleInputChange}
                       className="w-full px-4 py-2.5 text-sm rounded-full border border-[var(--secondary-soft-highlight)]/30 bg-[var(--primary-background)] outline-none focus:border-[var(--primary-accent2)] transition-colors text-[var(--secondary-black)]"
                       required
@@ -459,6 +435,23 @@ export default function ProfileClient() {
                       onChange={handleInputChange}
                       className="w-full px-4 py-2.5 text-sm rounded-full border border-[var(--secondary-soft-highlight)]/30 bg-[var(--primary-background)] outline-none focus:border-[var(--primary-accent2)] transition-colors text-[var(--secondary-black)]"
                     >
+                      {/* Ensure API-provided value is visible even if not in predefined list */}
+                      {formData.businessType &&
+                        ![
+                          "Restaurant",
+                          "Hotel",
+                          "Retailer",
+                          "Wholesaler",
+                          "Processor",
+                          "Other",
+                          "supermarkets",
+                          "Supermarkets",
+                        ].includes(formData.businessType) && (
+                          <option value={formData.businessType}>
+                            {formData.businessType}
+                          </option>
+                        )}
+                      <option value="supermarkets">Supermarkets</option>
                       <option>Restaurant</option>
                       <option>Hotel</option>
                       <option>Retailer</option>
@@ -555,11 +548,27 @@ export default function ProfileClient() {
                       onChange={handleInputChange}
                       className="w-full px-4 py-2.5 text-sm rounded-full border border-[var(--secondary-soft-highlight)]/30 bg-[var(--primary-background)] outline-none focus:border-[var(--primary-accent2)] transition-colors text-[var(--secondary-black)]"
                     >
+                      {/* Ensure API-provided value is visible even if not in predefined list */}
+                      {formData.country &&
+                        ![
+                          "Jamaica",
+                          "Dominican Republic",
+                          "Barbados",
+                          "Trinidad and Tobago",
+                          "Bahamas",
+                          "Grenada",
+                          "Other",
+                        ].includes(formData.country) && (
+                          <option value={formData.country}>
+                            {formData.country}
+                          </option>
+                        )}
                       <option>Jamaica</option>
                       <option>Dominican Republic</option>
                       <option>Barbados</option>
                       <option>Trinidad and Tobago</option>
                       <option>Bahamas</option>
+                      <option>Grenada</option>
                       <option>Other</option>
                     </select>
                   </div>
@@ -586,6 +595,14 @@ export default function ProfileClient() {
                     </label>
                     <input
                       type="password"
+                      name="currentPassword"
+                      value={passwordForm.currentPassword}
+                      onChange={(e) =>
+                        setPasswordForm((prev) => ({
+                          ...prev,
+                          currentPassword: e.target.value,
+                        }))
+                      }
                       className="w-full px-4 py-2.5 text-sm rounded-full border border-[var(--secondary-soft-highlight)]/30 bg-[var(--primary-background)] outline-none focus:border-[var(--primary-accent2)] transition-colors text-[var(--secondary-black)]"
                     />
                   </div>
@@ -596,6 +613,14 @@ export default function ProfileClient() {
                     </label>
                     <input
                       type="password"
+                      name="newPassword"
+                      value={passwordForm.newPassword}
+                      onChange={(e) =>
+                        setPasswordForm((prev) => ({
+                          ...prev,
+                          newPassword: e.target.value,
+                        }))
+                      }
                       className="w-full px-4 py-2.5 text-sm rounded-full border border-[var(--secondary-soft-highlight)]/30 bg-[var(--primary-background)] outline-none focus:border-[var(--primary-accent2)] transition-colors text-[var(--secondary-black)]"
                     />
                   </div>
@@ -606,20 +631,72 @@ export default function ProfileClient() {
                     </label>
                     <input
                       type="password"
+                      name="confirmNewPassword"
+                      value={passwordForm.confirmNewPassword}
+                      onChange={(e) =>
+                        setPasswordForm((prev) => ({
+                          ...prev,
+                          confirmNewPassword: e.target.value,
+                        }))
+                      }
                       className="w-full px-4 py-2.5 text-sm rounded-full border border-[var(--secondary-soft-highlight)]/30 bg-[var(--primary-background)] outline-none focus:border-[var(--primary-accent2)] transition-colors text-[var(--secondary-black)]"
                     />
                   </div>
 
                   <button
                     type="button"
+                    disabled={passwordUpdating}
+                    onClick={async () => {
+                      if (
+                        !passwordForm.currentPassword ||
+                        !passwordForm.newPassword
+                      ) {
+                        show("Please enter your current and new password.");
+                        return;
+                      }
+                      if (passwordForm.newPassword.length < 8) {
+                        show("New password must be at least 8 characters.");
+                        return;
+                      }
+                      if (
+                        passwordForm.newPassword !==
+                        passwordForm.confirmNewPassword
+                      ) {
+                        show("New passwords do not match.");
+                        return;
+                      }
+                      setPasswordUpdating(true);
+                      try {
+                        const client = getApiClient();
+                        await client.post("/auth/change-password", {
+                          currentPassword: passwordForm.currentPassword,
+                          newPassword: passwordForm.newPassword,
+                        });
+                        setPasswordForm({
+                          currentPassword: "",
+                          newPassword: "",
+                          confirmNewPassword: "",
+                        });
+                        show("Password updated successfully.");
+                      } catch (err: unknown) {
+                        // If endpoint not available yet or any error occurs
+                        console.error("Change password failed:", err);
+                        const message =
+                          (err as { message?: string })?.message ||
+                          "Failed to update password. Please try again.";
+                        show(message);
+                      } finally {
+                        setPasswordUpdating(false);
+                      }
+                    }}
                     className="px-6 py-2.5 bg-[var(--primary-accent2)] text-white rounded-full text-sm font-medium hover:bg-[var(--primary-accent3)] transition-all duration-200"
                   >
-                    Update Password
+                    {passwordUpdating ? "Updating..." : "Update Password"}
                   </button>
                 </div>
               </div>
 
-              <div className="bg-white rounded-2xl p-5 border border-[var(--secondary-soft-highlight)]/20">
+              {/* <div className="bg-white rounded-2xl p-5 border border-[var(--secondary-soft-highlight)]/20">
                 <div className="flex items-center gap-2 mb-4">
                   <ShieldCheckIcon className="h-5 w-5 text-[var(--primary-accent2)]" />
                   <h2 className="text-lg font-semibold text-[var(--secondary-black)]">
@@ -638,7 +715,7 @@ export default function ProfileClient() {
                 >
                   Enable 2FA
                 </button>
-              </div>
+              </div> */}
             </>
           )}
 
@@ -720,7 +797,7 @@ export default function ProfileClient() {
           )}
 
           {/* Users Tab */}
-          {activeTab === "users" && (
+          {activeTab === "users" && showTeamMembersTab && (
             <div className="bg-white rounded-2xl p-5 border border-[var(--secondary-soft-highlight)]/20">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">

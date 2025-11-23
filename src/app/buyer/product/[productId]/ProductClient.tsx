@@ -26,6 +26,7 @@ import {
 import { addToCartAsync } from "@/store/slices/buyerCartSlice";
 import { getApiClient } from "@/lib/apiClient";
 import ProcurLoader from "@/components/ProcurLoader";
+import { useToast } from "@/components/ui/Toast";
 
 interface ProductClientProps {
   productId: string;
@@ -34,6 +35,7 @@ interface ProductClientProps {
 export default function ProductClient({ productId }: ProductClientProps) {
   const dispatch = useAppDispatch();
   const router = useRouter();
+  const { show } = useToast();
   const {
     currentProduct: product,
     productDetailStatus,
@@ -52,7 +54,7 @@ export default function ProductClient({ productId }: ProductClientProps) {
 
   const handleAddToCart = () => {
     dispatch(addToCartAsync({ productId, quantity }));
-    alert(
+    show(
       `Added ${quantity} ${product?.unit_of_measurement || "items"} to cart!`
     );
   };
@@ -89,7 +91,7 @@ export default function ProductClient({ productId }: ProductClientProps) {
       router.push(`/buyer/messages?conversationId=${data.id}`);
     } catch (error) {
       console.error("Failed to start conversation:", error);
-      alert("Failed to start conversation. Please try again.");
+      show("Failed to start conversation. Please try again.");
     } finally {
       setIsStartingConversation(false);
     }

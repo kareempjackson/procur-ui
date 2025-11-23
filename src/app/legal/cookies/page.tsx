@@ -30,7 +30,6 @@ export default function CookiePolicyPage() {
   const savePreferences = () => {
     // In a real implementation, this would save to localStorage and update cookie consent
     console.log("Saving cookie preferences:", cookiePreferences);
-    alert("Cookie preferences saved successfully!");
   };
 
   const cookieTypes = [

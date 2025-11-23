@@ -205,6 +205,14 @@ export default function CheckoutClient() {
 
   // Auto-create a PaymentIntent when on card payment step
   useEffect(() => {
+    console.log(
+      "[Checkout] step=%s method=%s publishableKey=%s selectedAddress=%s clientSecret?=%s",
+      currentStep,
+      paymentMethod,
+      !!publishableKey,
+      selectedAddress,
+      !!clientSecret
+    );
     if (
       currentStep === "payment" &&
       paymentMethod === "card" &&
@@ -213,6 +221,7 @@ export default function CheckoutClient() {
       !clientSecret &&
       !isStartingPayment
     ) {
+      console.log("[Checkout] Trigger startPayment()");
       startPayment();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -229,16 +238,24 @@ export default function CheckoutClient() {
     let cancelled = false;
     (async () => {
       if (!clientSecret || !stripePromise) return;
+      console.log(
+        "[Checkout] Verifying clientSecret with Stripe.retrievePaymentIntent"
+      );
       const stripe = await stripePromise;
       if (!stripe) return;
       const res = await stripe.retrievePaymentIntent(clientSecret);
       if (cancelled) return;
       if (res.error) {
+        console.error("[Checkout] retrievePaymentIntent error", res.error);
         setIntentValid(false);
         setPaymentError(
           res.error.message || "Invalid payment session. Please try again."
         );
       } else {
+        console.log(
+          "[Checkout] PaymentIntent retrieved OK",
+          res.paymentIntent?.id
+        );
         setIntentValid(true);
       }
     })();
@@ -249,17 +266,22 @@ export default function CheckoutClient() {
 
   // Unified Pay handler
   const handlePay = async () => {
+    console.log("[Checkout] handlePay clicked; method=%s", paymentMethod);
     if (paymentMethod === "card") {
       if (!publishableKey) {
         setPaymentError("Payments are not configured.");
         return;
       }
       if (!clientSecret) {
+        console.log("[Checkout] No clientSecret yet; calling startPayment()");
         await startPayment();
       }
       // Optimistically refresh cart and orders so UI reflects changes after redirect
       dispatch(fetchCart());
       dispatch(fetchOrders({ page: 1, limit: 20 } as any));
+      console.log(
+        "[Checkout] Redirecting to Stripe confirm via StripeConfirmButton"
+      );
       setAutoConfirm(true);
       return;
     }
@@ -396,15 +418,24 @@ export default function CheckoutClient() {
     setPaymentError(null);
     setIsStartingPayment(true);
     try {
+      console.log("[Checkout] POST /buyers/checkout/payment-intent", {
+        shipping_address_id: selectedAddress,
+        billing_address_id: selectedAddress,
+      });
       const api = getApiClient();
       const { data } = await api.post("/buyers/checkout/payment-intent", {
         shipping_address_id: selectedAddress,
         billing_address_id: selectedAddress,
         buyer_notes: deliveryInstructions || undefined,
       });
+      console.log("[Checkout] payment-intent created", {
+        client_secret_present: !!data.client_secret,
+        order_ids_count: (data.order_ids || []).length,
+      });
       setClientSecret(data.client_secret);
       setOrderIds(data.order_ids || []);
     } catch (e: any) {
+      console.error("[Checkout] startPayment failed", e);
       setPaymentError(e?.message || "Failed to start payment");
     } finally {
       setIsStartingPayment(false);
@@ -457,12 +488,20 @@ export default function CheckoutClient() {
 
   const handleNextStep = async () => {
     if (currentStep === "shipping") {
+      console.log(
+        "[Checkout] Continue from shipping; showAddressForm=%s",
+        showAddressForm
+      );
       const ok = await saveAddressIfNeeded();
       if (!ok) return;
       if (!selectedAddress) {
         setAddressError("Please select or add an address.");
         return;
       }
+      console.log(
+        "[Checkout] Shipping step complete with address=%s",
+        selectedAddress
+      );
       setCurrentStep("review");
       return;
     }

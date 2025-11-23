@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   CheckCircleIcon,
   ArrowDownTrayIcon,
@@ -17,6 +18,8 @@ import {
 import { useAppDispatch, useAppSelector } from "@/store";
 import { fetchOrderDetail } from "@/store/slices/buyerOrdersSlice";
 import ProcurLoader from "@/components/ProcurLoader";
+import { getApiClient } from "@/lib/apiClient";
+import { useToast } from "@/components/ui/Toast";
 
 // Note: legacy demo data removed; page now uses live order data only
 
@@ -25,6 +28,7 @@ export default function OrderConfirmationPage({
 }: {
   params: Promise<{ orderId: string }> | { orderId: string };
 }) {
+  const router = useRouter();
   // Next.js 15: params may be a Promise; unwrap with React.use()
   // Backward compatible: if it's already an object, use as-is
   const unwrappedParams =
@@ -34,9 +38,12 @@ export default function OrderConfirmationPage({
   const orderId = unwrappedParams.orderId;
 
   const dispatch = useAppDispatch();
+  const { show } = useToast();
   const { currentOrder, orderDetailStatus } = useAppSelector(
     (s) => s.buyerOrders
   );
+  const authToken = useAppSelector((s) => s.auth.accessToken);
+  const [isStartingConversation, setIsStartingConversation] = useState(false);
 
   useEffect(() => {
     if (orderId) {
@@ -56,6 +63,27 @@ export default function OrderConfirmationPage({
   const addrPostal =
     shipping.postal_code || shipping.zip || shipping.zipCode || "";
   const addrCountry = shipping.country || "";
+
+  const handleContactSeller = async () => {
+    if (!authToken || !order) return;
+
+    setIsStartingConversation(true);
+    try {
+      const client = getApiClient(() => authToken);
+      const { data } = await client.post("/conversations/start", {
+        contextType: "order",
+        contextId: orderId,
+        withOrgId: order.seller_org_id,
+        title: `Order ${order.order_number}`,
+      });
+      router.push(`/buyer/messages?conversationId=${data.id}`);
+    } catch (error) {
+      console.error("Failed to start conversation:", error);
+      show("Failed to start conversation. Please try again.");
+    } finally {
+      setIsStartingConversation(false);
+    }
+  };
   return (
     <div className="min-h-screen bg-white">
       <main className="max-w-4xl mx-auto px-6 py-10">
@@ -282,12 +310,15 @@ export default function OrderConfirmationPage({
                     <div className="text-sm text-[var(--secondary-muted-edge)]">
                       Order ID: {order.id}
                     </div>
-                    <Link
-                      href={`/buyer/messages`}
-                      className="px-5 py-2 bg-[var(--primary-accent2)] text-white rounded-full text-sm font-medium hover:bg-[var(--primary-accent3)] transition-all shadow-sm"
+                    <button
+                      onClick={handleContactSeller}
+                      disabled={isStartingConversation || !authToken}
+                      className="px-5 py-2 bg-[var(--primary-accent2)] text-white rounded-full text-sm font-medium hover:bg-[var(--primary-accent3)] transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      Contact Seller
-                    </Link>
+                      {isStartingConversation
+                        ? "Opening chat..."
+                        : "Contact Seller"}
+                    </button>
                   </div>
                 </div>
               </div>

@@ -34,6 +34,7 @@ import type {
   SellerHomeOrder,
 } from "@/store/slices/sellerHomeSlice";
 import { useToast } from "@/components/ui/Toast";
+import { selectAuthUser } from "@/store/slices/authSlice";
 
 // InventoryRow removed as inventory section has been replaced by timeline
 
@@ -54,6 +55,7 @@ function classNames(...classes: (string | false | null | undefined)[]) {
 export default function SellerDashboardPage() {
   const router = useRouter();
   const { show } = useToast();
+  const authUser = useAppSelector(selectAuthUser);
   const orderTab = useAppSelector(selectOrderTab);
   const analyticsTab = useAppSelector(selectAnalyticsTab);
   // const isBuyer = useAppSelector((s) => s.auth.user?.accountType === "buyer");
@@ -61,6 +63,7 @@ export default function SellerDashboardPage() {
   const dispatch = useAppDispatch();
   const sellerHome = useAppSelector((s) => s.sellerHome);
   const sellerInsights = useAppSelector((s) => s.sellerInsights);
+  const latestFarmVisit = sellerHome.data?.latest_farm_visit_request;
 
   useEffect(() => {
     dispatch(fetchSellerHome({ period: "last_30_days" }));
@@ -159,6 +162,23 @@ export default function SellerDashboardPage() {
     );
   }, [sellerHome]);
 
+  const handleBookFarmVisit = async () => {
+    try {
+      const { getApiClient } = await import("@/lib/apiClient");
+      const api = getApiClient();
+      await api.post("/sellers/farm-visit-requests", {});
+      show(
+        "Your farm visit request has been submitted. An admin will follow up to confirm a date."
+      );
+      // Refresh home data to reflect latest request
+      dispatch(fetchSellerHome({ period: "last_30_days" }));
+    } catch {
+      show(
+        "We couldn't submit your farm visit request. Please try again or contact support."
+      );
+    }
+  };
+
   // Inventory table replaced by social timeline; keep mapping available if needed elsewhere
 
   const orders: OrderRow[] = useMemo(() => {
@@ -239,6 +259,42 @@ export default function SellerDashboardPage() {
       {/* Navigation is provided by seller layout */}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16">
+        {sellerHome.status === "failed" && (
+          <section className="mb-8 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <h2 className="font-semibold">
+              Your seller account is not fully verified yet.
+            </h2>
+            <p className="mt-1 text-xs text-amber-800">
+              An admin needs to review and approve your business before you can
+              list products, accept orders, or receive payments.
+            </p>
+            <p className="mt-1 text-xs text-amber-800">
+              {authUser?.accountType === "seller"
+                ? "If you are a farmer, make sure you've uploaded your Farmer ID and farm details so an admin can verify your account."
+                : null}{" "}
+              You can update your business details in{" "}
+              <Link
+                href="/seller/business"
+                className="underline font-medium text-amber-900"
+              >
+                Business Settings
+              </Link>
+              .
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+              <span className="text-amber-900 font-medium">
+                Need an on-site visit?
+              </span>
+              <button
+                type="button"
+                onClick={() => void handleBookFarmVisit()}
+                className="inline-flex items-center rounded-full bg-amber-900 text-amber-50 px-3 py-1 font-medium hover:bg-amber-800 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-700 focus:ring-offset-2"
+              >
+                Book farm visit
+              </button>
+            </div>
+          </section>
+        )}
         {/* Account Setup Loader */}
         <div className="mb-8">
           <AccountSetupLoader />
@@ -308,6 +364,63 @@ export default function SellerDashboardPage() {
                   ))
                 )}
               </div>
+            </div>
+          </div>
+        </section>
+        {/* Farm visit booking / status */}
+        <section
+          id="farm-visit"
+          className="mt-6 rounded-xl border border-[color:var(--secondary-soft-highlight)] bg-[var(--primary-background)] px-6 sm:px-8 py-5"
+        >
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-[color:var(--secondary-black)]">
+                Farm verification visit
+              </h2>
+              <p className="mt-1 text-xs text-[color:var(--secondary-muted-edge)] max-w-prose">
+                Request an on-site farm visit so our team can verify your fields
+                and activate full selling permissions on Procur.
+              </p>
+              {latestFarmVisit ? (
+                <p className="mt-2 text-xs text-[color:var(--secondary-muted-edge)]">
+                  Latest request:{" "}
+                  <span className="font-medium">
+                    {new Date(latestFarmVisit.created_at).toLocaleDateString()}
+                  </span>{" "}
+                  · Status:{" "}
+                  <span className="font-medium capitalize">
+                    {latestFarmVisit.status.replace(/_/g, " ")}
+                  </span>
+                  {latestFarmVisit.preferred_date && (
+                    <>
+                      {" "}
+                      · Preferred date:{" "}
+                      <span className="font-medium">
+                        {new Date(
+                          latestFarmVisit.preferred_date
+                        ).toLocaleDateString()}
+                      </span>
+                    </>
+                  )}
+                </p>
+              ) : (
+                <p className="mt-2 text-xs text-[color:var(--secondary-muted-edge)]">
+                  No farm visit requested yet.
+                </p>
+              )}
+            </div>
+            <div className="flex flex-col items-start gap-2">
+              <button
+                type="button"
+                onClick={() => void handleBookFarmVisit()}
+                className="inline-flex items-center justify-center rounded-full bg-[var(--primary-accent2)] text-white px-5 py-2 text-xs font-medium hover:bg-[var(--primary-accent3)] transition-colors focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:ring-offset-2"
+              >
+                {latestFarmVisit ? "Request another visit" : "Book farm visit"}
+              </button>
+              <p className="text-[10px] text-[color:var(--secondary-muted-edge)] max-w-xs">
+                We&apos;ll contact you by email or phone to confirm the visit
+                time and any additional details needed.
+              </p>
             </div>
           </div>
         </section>

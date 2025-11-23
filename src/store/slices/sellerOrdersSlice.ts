@@ -130,10 +130,21 @@ export const fetchSellerOrders = createAsyncThunk(
         limit: (data.limit as number) ?? query.limit ?? 20,
         query,
       };
-    } catch (err: unknown) {
-      return rejectWithValue(
-        (err as { message?: string })?.message || "Failed to fetch orders"
-      );
+    } catch (err: any) {
+      const status = err?.response?.status as number | undefined;
+      if (status === 403) {
+        // Seller must be verified before viewing/managing orders
+        return rejectWithValue(
+          "You must be verified to use this functionality. Please complete your business details and upload your Farmer ID on the Seller → Business page so your account can be reviewed and approved."
+        );
+      }
+
+      const fallbackMessage =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to fetch orders";
+
+      return rejectWithValue(fallbackMessage);
     }
   }
 );
@@ -178,7 +189,7 @@ export const acceptOrder = createAsyncThunk(
       acceptData,
     }: {
       orderId: string;
-      acceptData: {
+      acceptData?: {
         seller_notes?: string;
         estimated_delivery_date?: string;
         shipping_method?: string;
@@ -188,9 +199,10 @@ export const acceptOrder = createAsyncThunk(
   ) => {
     try {
       const client = getClient();
+      const payload = acceptData ?? {};
       const { data } = await client.patch(
         `/sellers/orders/${orderId}/accept`,
-        acceptData
+        payload
       );
       return data as SellerOrder;
     } catch (err: unknown) {

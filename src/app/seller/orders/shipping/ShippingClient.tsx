@@ -14,11 +14,9 @@ import {
   CubeIcon,
 } from "@heroicons/react/24/outline";
 import { useAppDispatch, useAppSelector } from "@/store";
-import {
-  fetchSellerOrders,
-  updateOrderStatus,
-} from "@/store/slices/sellerOrdersSlice";
+import { fetchSellerOrders } from "@/store/slices/sellerOrdersSlice";
 import ProcurLoader from "@/components/ProcurLoader";
+import { useToast } from "@/components/ui/Toast";
 
 export default function ShippingClient() {
   const dispatch = useAppDispatch();
@@ -32,6 +30,7 @@ export default function ShippingClient() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterPriority, setFilterPriority] = useState<string>("");
   const [showBulkActions, setShowBulkActions] = useState(false);
+  const { show } = useToast();
 
   // Fetch orders with status "processing" or "accepted"
   useEffect(() => {
@@ -86,7 +85,7 @@ export default function ShippingClient() {
 
   const handleBulkPrintLabels = () => {
     console.log("Printing labels for:", Array.from(selectedOrders));
-    alert(
+    show(
       `Print labels functionality would open a print dialog for ${selectedOrders.size} orders`
     );
   };
@@ -103,7 +102,7 @@ export default function ShippingClient() {
     console.log("Marking as shipped:", Array.from(selectedOrders));
 
     // TODO: Implement bulk update
-    alert("Bulk shipping update would be processed here");
+    show("Bulk shipping update would be processed here");
   };
 
   const formatCurrency = (amount: number, currency: string = "USD") => {

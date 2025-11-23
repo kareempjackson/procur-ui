@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/store";
 import {
@@ -9,7 +10,6 @@ import {
   fetchOrderTimeline,
   acceptOrder,
   rejectOrder,
-  updateOrderStatus,
   clearCurrentOrder,
 } from "@/store/slices/sellerOrdersSlice";
 import ProcurLoader from "@/components/ProcurLoader";
@@ -28,29 +28,11 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
   const { currentOrder, currentOrderStatus, timeline, timelineStatus, error } =
     useAppSelector((state) => state.sellerOrders);
 
-  const [showAcceptModal, setShowAcceptModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
-  const [showUpdateStatusModal, setShowUpdateStatusModal] = useState(false);
-
-  // Accept form state
-  const [acceptForm, setAcceptForm] = useState({
-    seller_notes: "",
-    estimated_delivery_date: "",
-    shipping_method: "",
-  });
 
   // Reject form state
   const [rejectForm, setRejectForm] = useState({
     reason: "",
-    seller_notes: "",
-  });
-
-  // Update status form state
-  const [statusForm, setStatusForm] = useState({
-    status: "",
-    tracking_number: "",
-    shipping_method: "",
-    estimated_delivery_date: "",
     seller_notes: "",
   });
 
@@ -65,12 +47,8 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
   }, [dispatch, orderId]);
 
   const handleAcceptOrder = async () => {
-    const result = await dispatch(
-      acceptOrder({ orderId, acceptData: acceptForm })
-    );
+    const result = await dispatch(acceptOrder({ orderId }));
     if (acceptOrder.fulfilled.match(result)) {
-      setShowAcceptModal(false);
-      // Refresh timeline
       dispatch(fetchOrderTimeline(orderId));
     }
   };
@@ -81,17 +59,6 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
     );
     if (rejectOrder.fulfilled.match(result)) {
       setShowRejectModal(false);
-      // Refresh timeline
-      dispatch(fetchOrderTimeline(orderId));
-    }
-  };
-
-  const handleUpdateStatus = async () => {
-    const result = await dispatch(
-      updateOrderStatus({ orderId, statusData: statusForm })
-    );
-    if (updateOrderStatus.fulfilled.match(result)) {
-      setShowUpdateStatusModal(false);
       // Refresh timeline
       dispatch(fetchOrderTimeline(orderId));
     }
@@ -188,10 +155,7 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
   if (!currentOrder) return null;
 
   const canAccept = currentOrder.status === "pending";
-  const canUpdateStatus =
-    currentOrder.status !== "pending" &&
-    currentOrder.status !== "cancelled" &&
-    currentOrder.status !== "rejected";
+  // Order status updates are now handled internally by the admin team
 
   return (
     <div className="min-h-screen bg-white">
@@ -255,10 +219,13 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
               {canAccept && (
                 <>
                   <button
-                    onClick={() => setShowAcceptModal(true)}
+                    onClick={handleAcceptOrder}
                     className="px-6 py-3 bg-[var(--primary-base)] text-white rounded-full text-sm font-medium hover:opacity-90 transition-all duration-200"
+                    disabled={currentOrderStatus === "loading"}
                   >
-                    Accept Order
+                    {currentOrderStatus === "loading"
+                      ? "Accepting..."
+                      : "Accept Order"}
                   </button>
                   <button
                     onClick={() => setShowRejectModal(true)}
@@ -267,14 +234,6 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
                     Reject Order
                   </button>
                 </>
-              )}
-              {canUpdateStatus && (
-                <button
-                  onClick={() => setShowUpdateStatusModal(true)}
-                  className="px-6 py-3 bg-[var(--primary-accent2)] text-white rounded-full text-sm font-medium hover:bg-[var(--primary-accent3)] transition-all duration-200"
-                >
-                  Update Status
-                </button>
               )}
             </div>
           </div>
@@ -299,37 +258,60 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
                 </h2>
               </div>
               <div className="divide-y divide-[var(--secondary-soft-highlight)]">
-                {currentOrder.items?.map((item) => (
-                  <div key={item.id} className="p-6 flex items-center gap-4">
-                    <div className="flex-1">
-                      <h3 className="font-medium text-[var(--secondary-black)] mb-1">
-                        {item.product_name}
-                      </h3>
-                      {item.product_sku && (
-                        <p className="text-sm text-[var(--secondary-muted-edge)]">
-                          SKU: {item.product_sku}
-                        </p>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-[var(--secondary-muted-edge)] mb-1">
-                        Qty: {item.quantity}
-                      </p>
-                      <p className="font-semibold text-[var(--secondary-black)]">
-                        {formatCurrency(item.unit_price, currentOrder.currency)}{" "}
-                        each
-                      </p>
-                    </div>
-                    <div className="text-right min-w-[100px]">
-                      <p className="text-lg font-bold text-[var(--secondary-black)]">
-                        {formatCurrency(
-                          item.total_price,
-                          currentOrder.currency
+                {currentOrder.items?.map((item) => {
+                  const imageUrl =
+                    (item as any)?.product_image ||
+                    (item as any)?.product_snapshot?.product_images?.find(
+                      (img: any) => img.is_primary
+                    )?.image_url ||
+                    (item as any)?.product_snapshot?.image_url ||
+                    null;
+
+                  return (
+                    <div key={item.id} className="p-6 flex items-center gap-4">
+                      <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                        {imageUrl && (
+                          <Image
+                            src={imageUrl}
+                            alt={item.product_name}
+                            fill
+                            className="object-cover"
+                          />
                         )}
-                      </p>
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-medium text-[var(--secondary-black)] mb-1">
+                          {item.product_name}
+                        </h3>
+                        {item.product_sku && (
+                          <p className="text-sm text-[var(--secondary-muted-edge)]">
+                            SKU: {item.product_sku}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-[var(--secondary-muted-edge)] mb-1">
+                          Qty: {item.quantity}
+                        </p>
+                        <p className="font-semibold text-[var(--secondary-black)]">
+                          {formatCurrency(
+                            item.unit_price,
+                            currentOrder.currency
+                          )}{" "}
+                          each
+                        </p>
+                      </div>
+                      <div className="text-right min-w-[100px]">
+                        <p className="text-lg font-bold text-[var(--secondary-black)]">
+                          {formatCurrency(
+                            item.total_price,
+                            currentOrder.currency
+                          )}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Order Summary */}
@@ -401,21 +383,76 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
                 Shipping Information
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Full Shipping Address from Seller */}
                 <div>
                   <h3 className="text-sm font-medium text-[var(--secondary-muted-edge)] mb-2">
                     Shipping Address
                   </h3>
                   {currentOrder.shipping_address ? (
-                    <div className="text-sm text-[var(--secondary-black)]">
-                      {currentOrder.shipping_address.street && (
-                        <p>{currentOrder.shipping_address.street}</p>
+                    <div className="text-sm text-[var(--secondary-black)] space-y-1">
+                      {(currentOrder.shipping_address.contact_name ||
+                        currentOrder.shipping_address.name) && (
+                        <p className="font-medium">
+                          {currentOrder.shipping_address.contact_name ||
+                            currentOrder.shipping_address.name}
+                        </p>
                       )}
-                      {currentOrder.shipping_address.city && (
+                      {currentOrder.shipping_address.company && (
+                        <p className="text-[var(--secondary-muted-edge)]">
+                          {currentOrder.shipping_address.company}
+                        </p>
+                      )}
+                      {(currentOrder.shipping_address.street ||
+                        currentOrder.shipping_address.street_address ||
+                        currentOrder.shipping_address.address_line1) && (
+                        <p>
+                          {currentOrder.shipping_address.street ||
+                            currentOrder.shipping_address.street_address ||
+                            currentOrder.shipping_address.address_line1}
+                        </p>
+                      )}
+                      {(currentOrder.shipping_address.apartment ||
+                        currentOrder.shipping_address.address_line2) && (
+                        <p>
+                          {currentOrder.shipping_address.apartment ||
+                            currentOrder.shipping_address.address_line2}
+                        </p>
+                      )}
+                      {(currentOrder.shipping_address.city ||
+                        currentOrder.shipping_address.state ||
+                        currentOrder.shipping_address.postal_code ||
+                        currentOrder.shipping_address.zip) && (
                         <p>
                           {currentOrder.shipping_address.city}
                           {currentOrder.shipping_address.state &&
                             `, ${currentOrder.shipping_address.state}`}{" "}
-                          {currentOrder.shipping_address.zip}
+                          {currentOrder.shipping_address.postal_code ??
+                            currentOrder.shipping_address.zip}
+                        </p>
+                      )}
+                      {currentOrder.shipping_address.country && (
+                        <p>{currentOrder.shipping_address.country}</p>
+                      )}
+                      {(currentOrder.shipping_address.contact_phone ||
+                        currentOrder.shipping_address.phone ||
+                        currentOrder.shipping_address.email) && (
+                        <div className="pt-2 space-y-1 text-[var(--secondary-muted-edge)]">
+                          {(currentOrder.shipping_address.contact_phone ||
+                            currentOrder.shipping_address.phone) && (
+                            <p>
+                              Phone:{" "}
+                              {currentOrder.shipping_address.contact_phone ||
+                                currentOrder.shipping_address.phone}
+                            </p>
+                          )}
+                          {currentOrder.shipping_address.email && (
+                            <p>Email: {currentOrder.shipping_address.email}</p>
+                          )}
+                        </div>
+                      )}
+                      {currentOrder.shipping_address.additional_info && (
+                        <p className="pt-2 text-xs text-[var(--secondary-muted-edge)]">
+                          {currentOrder.shipping_address.additional_info}
                         </p>
                       )}
                     </div>
@@ -425,9 +462,11 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
                     </p>
                   )}
                 </div>
+
+                {/* Delivery & Packaging Details */}
                 <div>
                   <h3 className="text-sm font-medium text-[var(--secondary-muted-edge)] mb-2">
-                    Delivery Details
+                    Delivery &amp; Packaging Details
                   </h3>
                   <div className="space-y-2 text-sm">
                     {currentOrder.shipping_method && (
@@ -437,6 +476,19 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
                         </span>
                         <span className="text-[var(--secondary-black)] font-medium">
                           {currentOrder.shipping_method}
+                        </span>
+                      </div>
+                    )}
+                    {typeof currentOrder.shipping_amount === "number" && (
+                      <div>
+                        <span className="text-[var(--secondary-muted-edge)]">
+                          Shipping Cost:{" "}
+                        </span>
+                        <span className="text-[var(--secondary-black)] font-medium">
+                          {formatCurrency(
+                            currentOrder.shipping_amount,
+                            currentOrder.currency
+                          )}
                         </span>
                       </div>
                     )}
@@ -458,6 +510,43 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
                         <span className="text-[var(--secondary-black)] font-medium">
                           {formatDate(currentOrder.estimated_delivery_date)}
                         </span>
+                      </div>
+                    )}
+                    {currentOrder.actual_delivery_date && (
+                      <div>
+                        <span className="text-[var(--secondary-muted-edge)]">
+                          Actual Delivery:{" "}
+                        </span>
+                        <span className="text-[var(--secondary-black)] font-medium">
+                          {formatDate(currentOrder.actual_delivery_date)}
+                        </span>
+                      </div>
+                    )}
+                    {currentOrder.internal_notes && (
+                      <div className="pt-2">
+                        <span className="block text-[var(--secondary-muted-edge)] mb-1">
+                          Packaging / Internal Notes
+                        </span>
+                        <p className="text-[var(--secondary-black)] bg-[var(--primary-background)] rounded-xl p-3">
+                          {currentOrder.internal_notes}
+                        </p>
+                      </div>
+                    )}
+                    {!currentOrder.internal_notes && (
+                      <div className="pt-2 text-xs text-[var(--secondary-muted-edge)] space-y-1">
+                        <p className="font-medium text-[var(--secondary-black)]">
+                          Demo Packaging Details
+                        </p>
+                        <p>
+                          Example: Packed in a reusable produce crate with
+                          insulated liner and ice packs to maintain freshness
+                          during transit.
+                        </p>
+                        <p>
+                          Example: Clearly labeled with order number and buyer
+                          name; include handling note: “Keep refrigerated on
+                          arrival”.
+                        </p>
                       </div>
                     )}
                   </div>
@@ -596,87 +685,6 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
         </div>
       </main>
 
-      {/* Accept Order Modal */}
-      {showAcceptModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6">
-            <h2 className="text-xl font-semibold text-[var(--secondary-black)] mb-4">
-              Accept Order
-            </h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-[var(--secondary-black)] mb-2">
-                  Shipping Method
-                </label>
-                <input
-                  type="text"
-                  value={acceptForm.shipping_method}
-                  onChange={(e) =>
-                    setAcceptForm((prev) => ({
-                      ...prev,
-                      shipping_method: e.target.value,
-                    }))
-                  }
-                  className="input w-full"
-                  placeholder="e.g., Standard Shipping"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[var(--secondary-black)] mb-2">
-                  Estimated Delivery Date
-                </label>
-                <input
-                  type="date"
-                  value={acceptForm.estimated_delivery_date}
-                  onChange={(e) =>
-                    setAcceptForm((prev) => ({
-                      ...prev,
-                      estimated_delivery_date: e.target.value,
-                    }))
-                  }
-                  className="input w-full"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[var(--secondary-black)] mb-2">
-                  Notes (Optional)
-                </label>
-                <textarea
-                  value={acceptForm.seller_notes}
-                  onChange={(e) =>
-                    setAcceptForm((prev) => ({
-                      ...prev,
-                      seller_notes: e.target.value,
-                    }))
-                  }
-                  className="input w-full"
-                  rows={3}
-                  placeholder="Add any notes for the buyer..."
-                />
-              </div>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setShowAcceptModal(false)}
-                className="flex-1 px-4 py-2 border border-[var(--secondary-soft-highlight)] text-[var(--secondary-black)] rounded-full text-sm font-medium hover:bg-[var(--primary-background)] transition-all duration-200"
-                disabled={currentOrderStatus === "loading"}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAcceptOrder}
-                className="flex-1 px-4 py-2 bg-[var(--primary-base)] text-white rounded-full text-sm font-medium hover:opacity-90 transition-all duration-200"
-                disabled={currentOrderStatus === "loading"}
-              >
-                {currentOrderStatus === "loading"
-                  ? "Accepting..."
-                  : "Accept Order"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Reject Order Modal */}
       {showRejectModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -748,125 +756,6 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
                 {currentOrderStatus === "loading"
                   ? "Rejecting..."
                   : "Reject Order"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Update Status Modal */}
-      {showUpdateStatusModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6">
-            <h2 className="text-xl font-semibold text-[var(--secondary-black)] mb-4">
-              Update Order Status
-            </h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-[var(--secondary-black)] mb-2">
-                  Status
-                </label>
-                <select
-                  value={statusForm.status}
-                  onChange={(e) =>
-                    setStatusForm((prev) => ({
-                      ...prev,
-                      status: e.target.value,
-                    }))
-                  }
-                  className="input w-full"
-                >
-                  <option value="">Keep current status</option>
-                  <option value="preparing">Preparing</option>
-                  <option value="ready">Ready for Pickup/Shipping</option>
-                  <option value="in_transit">In Transit</option>
-                  <option value="delivered">Delivered</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[var(--secondary-black)] mb-2">
-                  Tracking Number
-                </label>
-                <input
-                  type="text"
-                  value={statusForm.tracking_number}
-                  onChange={(e) =>
-                    setStatusForm((prev) => ({
-                      ...prev,
-                      tracking_number: e.target.value,
-                    }))
-                  }
-                  className="input w-full"
-                  placeholder="Enter tracking number..."
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[var(--secondary-black)] mb-2">
-                  Shipping Method
-                </label>
-                <input
-                  type="text"
-                  value={statusForm.shipping_method}
-                  onChange={(e) =>
-                    setStatusForm((prev) => ({
-                      ...prev,
-                      shipping_method: e.target.value,
-                    }))
-                  }
-                  className="input w-full"
-                  placeholder="e.g., FedEx Express"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[var(--secondary-black)] mb-2">
-                  Estimated Delivery
-                </label>
-                <input
-                  type="date"
-                  value={statusForm.estimated_delivery_date}
-                  onChange={(e) =>
-                    setStatusForm((prev) => ({
-                      ...prev,
-                      estimated_delivery_date: e.target.value,
-                    }))
-                  }
-                  className="input w-full"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[var(--secondary-black)] mb-2">
-                  Notes (Optional)
-                </label>
-                <textarea
-                  value={statusForm.seller_notes}
-                  onChange={(e) =>
-                    setStatusForm((prev) => ({
-                      ...prev,
-                      seller_notes: e.target.value,
-                    }))
-                  }
-                  className="input w-full"
-                  rows={3}
-                  placeholder="Add any notes..."
-                />
-              </div>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setShowUpdateStatusModal(false)}
-                className="flex-1 px-4 py-2 border border-[var(--secondary-soft-highlight)] text-[var(--secondary-black)] rounded-full text-sm font-medium hover:bg-[var(--primary-background)] transition-all duration-200"
-                disabled={currentOrderStatus === "loading"}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleUpdateStatus}
-                className="flex-1 px-4 py-2 bg-[var(--primary-accent2)] text-white rounded-full text-sm font-medium hover:bg-[var(--primary-accent3)] transition-all duration-200"
-                disabled={currentOrderStatus === "loading"}
-              >
-                {currentOrderStatus === "loading"
-                  ? "Updating..."
-                  : "Update Status"}
               </button>
             </div>
           </div>

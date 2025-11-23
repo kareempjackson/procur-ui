@@ -75,18 +75,25 @@ const SellerTopNavigation: React.FC = () => {
 
   // Authenticated user data
   const authUser = useAppSelector(selectAuthUser);
+  const profile = useAppSelector((s) => s.profile.profile);
   const displayName =
+    (profile?.fullname && profile.fullname.trim()) ||
     (authUser?.fullname && authUser.fullname.trim()) ||
     (authUser?.email ? authUser.email.split("@")[0] : "User");
-  const businessName = authUser?.organizationName || "Seller";
-  const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-    displayName
-  )}&background=407178&color=fff`;
+  const businessName =
+    profile?.organization?.businessName ||
+    profile?.organization?.name ||
+    authUser?.organizationName ||
+    "Seller";
+  const avatarUrl =
+    profile?.avatarUrl ||
+    authUser?.profileImg ||
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(
+      displayName
+    )}&background=407178&color=fff`;
 
   // Business type from profile to gate farmer-only features
-  const businessType = useAppSelector(
-    (s) => s.profile.profile?.organization?.businessType
-  );
+  const businessType = profile?.organization?.businessType;
 
   // Click outside to close dropdowns
   useEffect(() => {
@@ -108,15 +115,24 @@ const SellerTopNavigation: React.FC = () => {
 
   const navBgClass = "bg-white";
 
-  const safeItems = Array.isArray(items)
-    ? items
-    : Array.isArray((items as unknown as { data?: unknown })?.data)
-      ? ((items as unknown as { data: unknown[] }).data as any[])
-      : [];
-  const unreadCount = safeItems.filter((n: any) => !n.read_at).length;
+  type SafeNotification = {
+    id: string;
+    title: string;
+    body: string;
+    created_at: string;
+    read_at?: string | null;
+    data?: Record<string, unknown>;
+  };
 
-  // Ensure profile is loaded so businessType is available
-  const profile = useAppSelector((s) => s.profile.profile);
+  const safeItems: SafeNotification[] = Array.isArray(items)
+    ? (items as SafeNotification[])
+    : Array.isArray((items as unknown as { data?: unknown })?.data)
+      ? ((items as unknown as { data: unknown[] }).data as SafeNotification[])
+      : [];
+  const unreadCount = safeItems.filter(
+    (n: { read_at?: string | null }) => !n.read_at
+  ).length;
+
   const profileStatus = useAppSelector((s) => s.profile.status);
   useEffect(() => {
     if (!profile && profileStatus === "idle") {
@@ -154,7 +170,7 @@ const SellerTopNavigation: React.FC = () => {
             {/* Main Navigation - Center Section */}
             <div className="hidden lg:flex items-center justify-center space-x-8 flex-1">
               {/* Requests Link */}
-              <Link
+              {/* <Link
                 href="/seller/purchase-requests"
                 className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
                   pathname?.startsWith("/seller/purchase-requests")
@@ -163,7 +179,7 @@ const SellerTopNavigation: React.FC = () => {
                 }`}
               >
                 <span className="relative">Requests</span>
-              </Link>
+              </Link> */}
 
               {/* Orders Link */}
               <Link
@@ -178,7 +194,7 @@ const SellerTopNavigation: React.FC = () => {
               </Link>
 
               {/* Transactions Link */}
-              <Link
+              {/* <Link
                 href="/seller/transactions"
                 className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
                   pathname?.startsWith("/seller/transactions")
@@ -187,7 +203,7 @@ const SellerTopNavigation: React.FC = () => {
                 }`}
               >
                 <span className="relative">Transactions</span>
-              </Link>
+              </Link> */}
 
               {/* Inventory Link */}
               <Link
@@ -229,7 +245,7 @@ const SellerTopNavigation: React.FC = () => {
             {/* Right Side Actions - Right Section */}
             <div className="hidden lg:flex items-center justify-end space-x-5 flex-[1.4]">
               {/* Analytics */}
-              <Link
+              {/* <Link
                 href="/seller/analytics"
                 className={`relative transition-colors duration-200 flex items-center ${
                   pathname?.startsWith("/seller/analytics")
@@ -243,7 +259,7 @@ const SellerTopNavigation: React.FC = () => {
                 ) : (
                   <ChartBarIcon className="h-6 w-6 stroke-2" />
                 )}
-              </Link>
+              </Link> */}
 
               {/* Notifications */}
               <div className="relative flex items-center">
@@ -278,9 +294,9 @@ const SellerTopNavigation: React.FC = () => {
                             className="text-xs text-blue-600 hover:text-blue-700"
                             onClick={() => {
                               safeItems
-                                .filter((n: any) => !n.read_at)
+                                .filter((n) => !n.read_at)
                                 .slice(0, 20)
-                                .forEach((n: any) =>
+                                .forEach((n) =>
                                   dispatch(markNotificationRead({ id: n.id }))
                                 );
                               setActiveDropdown(null);
@@ -296,16 +312,27 @@ const SellerTopNavigation: React.FC = () => {
                             You have no notifications yet.
                           </div>
                         )}
-                        {safeItems.slice(0, 10).map((n: any) => (
-                          <Link
+                        {safeItems.slice(0, 10).map((n) => (
+                          <button
                             key={n.id}
-                            href="/seller/notifications"
-                            className={`block px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0 ${
+                            type="button"
+                            className={`w-full text-left block px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0 ${
                               !n.read_at ? "bg-blue-50/30" : ""
                             }`}
                             onClick={() => {
-                              if (!n.read_at)
+                              const ctaUrl: string | undefined =
+                                (n.data && (n.data.cta_url as string)) ||
+                                (n.data && (n.data.link as string));
+
+                              if (ctaUrl) {
+                                router.push(ctaUrl);
+                              } else {
+                                router.push("/seller/notifications");
+                              }
+
+                              if (!n.read_at) {
                                 dispatch(markNotificationRead({ id: n.id }));
+                              }
                               setActiveDropdown(null);
                             }}
                           >
@@ -327,7 +354,7 @@ const SellerTopNavigation: React.FC = () => {
                                 </div>
                               </div>
                             </div>
-                          </Link>
+                          </button>
                         ))}
                       </div>
                       <div className="px-4 py-2 border-t border-gray-200">
@@ -345,7 +372,7 @@ const SellerTopNavigation: React.FC = () => {
               </div>
 
               {/* Farmer Diary Button (farmers only) */}
-              {businessType === "farmers" && (
+              {/* {businessType === "farmers" && (
                 <Link
                   href="/seller/diary"
                   className={`px-5 py-2.5 rounded-full font-medium text-[15px] transition-colors flex items-center ${
@@ -357,7 +384,7 @@ const SellerTopNavigation: React.FC = () => {
                   <BookOpenIcon className="h-5 w-5 -ml-0.5 mr-2" />
                   Diary
                 </Link>
-              )}
+              )} */}
 
               {/* Add Product Button */}
               <Link
@@ -409,17 +436,17 @@ const SellerTopNavigation: React.FC = () => {
                         >
                           Business Settings
                         </Link>
-                        <Link
+                        {/* <Link
                           href="/seller/help"
                           className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
                           onClick={() => setActiveDropdown(null)}
                         >
                           Help & Support
-                        </Link>
+                        </Link> */}
                       </div>
                       <div className="border-t border-gray-200 py-2">
                         {/* Language Selector */}
-                        <div className="px-4 py-2">
+                        {/* <div className="px-4 py-2">
                           <label className="text-xs text-gray-500 uppercase tracking-wide mb-1 block">
                             {t("settings.language")}
                           </label>
@@ -441,7 +468,7 @@ const SellerTopNavigation: React.FC = () => {
                               </button>
                             ))}
                           </div>
-                        </div>
+                        </div> */}
 
                         {/* Country Selector */}
                         <div className="px-4 py-2">

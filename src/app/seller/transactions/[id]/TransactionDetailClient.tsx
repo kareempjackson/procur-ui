@@ -16,6 +16,7 @@ import { useAppSelector } from "@/store";
 import { selectAuthToken } from "@/store/slices/authSlice";
 import { getApiClient } from "@/lib/apiClient";
 import ProcurLoader from "@/components/ProcurLoader";
+import { useToast } from "@/components/ui/Toast";
 
 type TransactionDetailClientProps = {
   transactionId: string;
@@ -56,6 +57,7 @@ export default function TransactionDetailClient({
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { show } = useToast();
 
   useEffect(() => {
     const fetchTransaction = async () => {
@@ -148,7 +150,7 @@ export default function TransactionDetailClient({
 
   const handleDownloadReceipt = () => {
     // TODO: Implement receipt download
-    alert("Receipt download functionality would be implemented here");
+    show("Receipt download functionality would be implemented here");
   };
 
   if (loading) {

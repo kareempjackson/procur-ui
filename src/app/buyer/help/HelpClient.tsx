@@ -11,6 +11,7 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
 } from "@heroicons/react/24/outline";
+import { useToast } from "@/components/ui/Toast";
 
 export default function HelpClient() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -20,6 +21,7 @@ export default function HelpClient() {
     category: "general",
     message: "",
   });
+  const { show } = useToast();
 
   const faqs = [
     {
@@ -81,7 +83,7 @@ export default function HelpClient() {
   const handleContactSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     console.log("Contact form submitted:", contactForm);
-    alert("Your message has been sent! We'll get back to you within 24 hours.");
+    show("Your message has been sent! We'll get back to you within 24 hours.");
     setContactForm({ subject: "", category: "general", message: "" });
   };
 

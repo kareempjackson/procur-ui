@@ -16,7 +16,8 @@ import {
 import { useAppDispatch, useAppSelector } from "@/store";
 import { selectAuthUser } from "@/store/slices/authSlice";
 import { getApiClient } from "@/lib/apiClient";
-import { fetchProfile } from "@/store/slices/profileSlice";
+import { fetchProfile, updateProfile } from "@/store/slices/profileSlice";
+import { useToast } from "@/components/ui/Toast";
 
 type TeamMember = {
   id: string;
@@ -41,6 +42,7 @@ export default function SellerBusinessSettingsPage() {
   const dispatch = useAppDispatch();
   const profile = useAppSelector((s) => s.profile.profile);
   const profileStatus = useAppSelector((s) => s.profile.status);
+  const { show } = useToast();
   const [activeTab, setActiveTab] = useState<"general" | "team" | "payments">(
     "general"
   );
@@ -58,6 +60,7 @@ export default function SellerBusinessSettingsPage() {
   const [description, setDescription] = useState("");
   const [farmerIdFile, setFarmerIdFile] = useState<File | null>(null);
   const [farmerIdPreview, setFarmerIdPreview] = useState<string | null>(null);
+  const [savingGeneral, setSavingGeneral] = useState(false);
 
   const publicSlug = useMemo(() => {
     const name = (businessName || "").trim().toLowerCase();
@@ -87,7 +90,7 @@ export default function SellerBusinessSettingsPage() {
           .join(", ") ||
         ""
     );
-    setPhone(profile.phone || "");
+    setPhone(profile.phone_number || "");
     setDescription(org?.description || "");
     // If we have an existing Farmer ID URL from profile and no new file selected, show it
     if (!farmerIdFile) {
@@ -112,13 +115,13 @@ export default function SellerBusinessSettingsPage() {
 
     // Validate file type
     if (!file.type.startsWith("image/")) {
-      alert("Please upload an image file");
+      show("Please upload an image file");
       return;
     }
 
     // Validate file size (5MB max)
     if (file.size > 5 * 1024 * 1024) {
-      alert("Image size must be less than 5MB");
+      show("Image size must be less than 5MB");
       return;
     }
 
@@ -135,11 +138,11 @@ export default function SellerBusinessSettingsPage() {
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      alert("Please upload an image file");
+      show("Please upload an image file");
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      alert("Image size must be less than 5MB");
+      show("Image size must be less than 5MB");
       return;
     }
 
@@ -152,8 +155,9 @@ export default function SellerBusinessSettingsPage() {
   };
 
   const handleSaveGeneral = async () => {
-    const client = getApiClient();
+    setSavingGeneral(true);
     try {
+      const client = getApiClient();
       let farmersIdPath: string | undefined = undefined;
       let logoPath: string | undefined = undefined;
 
@@ -209,19 +213,20 @@ export default function SellerBusinessSettingsPage() {
         logoPath = signed.path as string;
       }
 
-      // 3) Save profile fields (and farmersIdPath if present)
-      await client.patch("/users/profile", {
-        businessName,
-        businessType,
-        address,
-        phone,
-        description,
-        ...(farmersIdPath ? { farmersIdPath } : {}),
-        ...(logoPath ? { logoPath } : {}),
-      });
-
-      // Refresh profile after save
-      dispatch(fetchProfile());
+      // 3) Save profile fields (and farmersIdPath / logoPath if present) via profile slice
+      await dispatch(
+        updateProfile({
+          businessName,
+          businessType,
+          address,
+          phone,
+          description,
+          ...(taxId ? { taxId } : {}),
+          ...(registrationNumber ? { registrationNumber } : {}),
+          ...(farmersIdPath ? { farmersIdPath } : {}),
+          ...(logoPath ? { logoPath } : {}),
+        })
+      ).unwrap();
 
       try {
         if (typeof window !== "undefined") {
@@ -238,9 +243,12 @@ export default function SellerBusinessSettingsPage() {
       setFarmerIdFile(null);
       setLogoFile(null);
       // Keep preview; it will refresh from profile when fetched
+      show("Business profile updated");
     } catch (e) {
       console.error(e);
-      alert("Failed to save changes. Please try again.");
+      show("Failed to save changes. Please try again.");
+    } finally {
+      setSavingGeneral(false);
     }
   };
 
@@ -621,9 +629,10 @@ export default function SellerBusinessSettingsPage() {
                 <button
                   type="button"
                   onClick={handleSaveGeneral}
-                  className="px-5 py-2 text-sm bg-[var(--primary-accent2)] text-white rounded-full hover:bg-[var(--primary-accent3)] transition-colors font-medium"
+                  disabled={savingGeneral}
+                  className="px-5 py-2 text-sm bg-[var(--primary-accent2)] text-white rounded-full hover:bg-[var(--primary-accent3)] disabled:opacity-60 transition-colors font-medium"
                 >
-                  Save Changes
+                  {savingGeneral ? "Saving..." : "Save Changes"}
                 </button>
               </div>
             </div>

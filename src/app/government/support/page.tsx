@@ -12,6 +12,7 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
 } from "@heroicons/react/24/outline";
+import { useToast } from "@/components/ui/Toast";
 
 interface FAQ {
   question: string;
@@ -29,6 +30,7 @@ export default function SupportPage() {
     message: "",
     priority: "normal",
   });
+  const { show } = useToast();
 
   const categories = [
     { id: "all", name: "All Topics" },
@@ -113,7 +115,7 @@ export default function SupportPage() {
     e.preventDefault();
     // TODO: Submit to API
     console.log("Submitting contact form:", contactForm);
-    alert("Your message has been sent. We'll get back to you soon!");
+    show("Your message has been sent. We'll get back to you soon!");
     setContactForm({
       subject: "",
       category: "general",

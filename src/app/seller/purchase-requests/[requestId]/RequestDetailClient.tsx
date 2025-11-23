@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getApiClient } from "@/lib/apiClient";
+import { useToast } from "@/components/ui/Toast";
 import {
   ArrowLeftIcon,
   TagIcon,
@@ -39,6 +40,7 @@ export default function RequestDetailClient({
     deliveryDate: "",
     notes: "",
   });
+  const { show } = useToast();
 
   useEffect(() => {
     let isMounted = true;
@@ -65,7 +67,7 @@ export default function RequestDetailClient({
   const handleBidSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     console.log("Submitting bid:", bidForm);
-    alert("Bid submitted successfully!");
+    show("Bid submitted successfully!");
     setShowBidModal(false);
   };
 

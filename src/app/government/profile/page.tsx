@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAppSelector } from "@/store";
 import { selectAuthUser } from "@/store/slices/authSlice";
+import { useToast } from "@/components/ui/Toast";
 import {
   UserCircleIcon,
   EnvelopeIcon,
@@ -23,6 +24,7 @@ export default function ProfilePage() {
   );
   const [isEditing, setIsEditing] = useState(false);
   const [showAddUserForm, setShowAddUserForm] = useState(false);
+  const { show } = useToast();
 
   // Mock profile data - will be replaced with real data
   const [formData, setFormData] = useState({
@@ -109,7 +111,7 @@ export default function ProfilePage() {
       role: "officer",
     });
     setShowAddUserForm(false);
-    alert("Invitation sent successfully!");
+    show("Invitation sent successfully!");
   };
 
   const handleRemoveUser = (userId: string) => {
@@ -635,8 +637,8 @@ export default function ProfilePage() {
                               user.role === "admin"
                                 ? "bg-purple-100 text-purple-700"
                                 : user.role === "officer"
-                                ? "bg-blue-100 text-blue-700"
-                                : "bg-gray-100 text-gray-700"
+                                  ? "bg-blue-100 text-blue-700"
+                                  : "bg-gray-100 text-gray-700"
                             }`}
                           >
                             {user.role}

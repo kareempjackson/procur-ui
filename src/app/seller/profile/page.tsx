@@ -1,21 +1,28 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   UserCircleIcon,
   KeyIcon,
-  BellIcon,
   CameraIcon,
 } from "@heroicons/react/24/outline";
-import { useAppSelector } from "@/store";
+import { useAppDispatch, useAppSelector } from "@/store";
 import { selectAuthUser } from "@/store/slices/authSlice";
+import { useToast } from "@/components/ui/Toast";
+import {
+  fetchProfile,
+  updateProfile,
+  type UpdateProfileDto,
+} from "@/store/slices/profileSlice";
+import { getApiClient } from "@/lib/apiClient";
 
 export default function SellerProfilePage() {
+  const dispatch = useAppDispatch();
   const user = useAppSelector(selectAuthUser);
-  const [activeTab, setActiveTab] = useState<
-    "profile" | "password" | "preferences"
-  >("profile");
+  const profileState = useAppSelector((state) => state.profile);
+  const profile = profileState.profile;
+  const [activeTab, setActiveTab] = useState<"profile" | "password">("profile");
 
   // Profile State
   const [fullname, setFullname] = useState(user?.fullname || "");
@@ -30,70 +37,137 @@ export default function SellerProfilePage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  // Preferences State
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [orderUpdates, setOrderUpdates] = useState(true);
-  const [messageNotifications, setMessageNotifications] = useState(true);
-  const [marketingEmails, setMarketingEmails] = useState(false);
+  const { show } = useToast();
+
+  // Load profile data on mount
+  useEffect(() => {
+    if (profileState.status === "idle") {
+      dispatch(fetchProfile());
+    }
+  }, [dispatch, profileState.status]);
+
+  // Sync local form state when profile loads
+  useEffect(() => {
+    if (profile) {
+      setFullname(
+        (profile.fullname && profile.fullname.trim()) || user?.fullname || ""
+      );
+      setEmail(user?.email || profile.email || "");
+      setPhone(profile.phone_number || "");
+
+      const org = profile.organization;
+      if (org) {
+        const combinedAddress =
+          org.address ||
+          [org.city, org.state, org.postalCode, org.country]
+            .filter(Boolean)
+            .join(", ");
+        if (combinedAddress) {
+          setAddress(combinedAddress);
+        }
+      }
+    }
+  }, [profile, user]);
 
   const displayName =
     (fullname && fullname.trim()) || (email ? email.split("@")[0] : "User");
   const defaultAvatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(
     displayName
   )}&background=407178&color=fff&size=200`;
+  const avatarUrl =
+    avatarPreview || profile?.avatarUrl || user?.profileImg || defaultAvatarUrl;
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     // Validate file type
     if (!file.type.startsWith("image/")) {
-      alert("Please upload an image file");
+      show("Please upload an image file");
       return;
     }
 
     // Validate file size (5MB max)
     if (file.size > 5 * 1024 * 1024) {
-      alert("Image size must be less than 5MB");
+      show("Image size must be less than 5MB");
       return;
     }
 
     setAvatarFile(file);
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setAvatarPreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+
+    try {
+      const client = getApiClient();
+
+      // 1) Get signed upload URL
+      const { data: signed } = await client.patch(
+        "/users/profile/avatar/signed-upload",
+        { filename: file.name }
+      );
+
+      // 2) Upload directly to Supabase Storage
+      await fetch(signed.signedUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+
+      // 3) Persist avatar path on profile
+      await client.patch("/users/profile", { avatarPath: signed.path });
+
+      // 4) Refresh profile to get signed download URL
+      await dispatch(fetchProfile());
+      setAvatarPreview(null);
+      show("Avatar updated successfully!");
+    } catch (err) {
+      console.error("Avatar upload failed", err);
+      show("Failed to upload avatar. Please try again.");
+    }
   };
 
   const handleSaveProfile = async () => {
-    // TODO: Implement API call to update profile
-    console.log("Saving profile...");
+    const updateData: UpdateProfileDto = {
+      fullname: fullname || undefined,
+      phone: phone || undefined,
+      address: address || undefined,
+    };
+
+    try {
+      await dispatch(updateProfile(updateData)).unwrap();
+      show("Profile updated successfully.");
+    } catch (err) {
+      console.error("Failed to update profile:", err);
+      show("Failed to update profile. Please try again.");
+    }
   };
 
   const handleChangePassword = async () => {
     if (newPassword !== confirmPassword) {
-      alert("Passwords do not match");
+      show("Passwords do not match");
       return;
     }
 
     if (newPassword.length < 8) {
-      alert("Password must be at least 8 characters");
+      show("Password must be at least 8 characters");
       return;
     }
 
-    // TODO: Implement API call to change password
-    console.log("Changing password...");
+    try {
+      const client = getApiClient();
+      await client.post("/auth/change-password", {
+        currentPassword,
+        newPassword,
+      });
+      show("Password updated successfully.");
+    } catch (err: unknown) {
+      console.error("Change password failed:", err);
+      show("Failed to update password. Please check your current password.");
+      return;
+    }
 
     // Clear form
     setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
-  };
-
-  const handleSavePreferences = async () => {
-    // TODO: Implement API call to save preferences
-    console.log("Saving preferences...");
   };
 
   const inputClassName =
@@ -134,16 +208,6 @@ export default function SellerProfilePage() {
           >
             Security
           </button>
-          <button
-            onClick={() => setActiveTab("preferences")}
-            className={`px-4 py-2.5 text-sm font-medium transition-all duration-200 border-b-2 ${
-              activeTab === "preferences"
-                ? "text-[var(--primary-accent2)] border-[var(--primary-accent2)]"
-                : "text-[var(--secondary-muted-edge)] border-transparent hover:text-[var(--secondary-black)]"
-            }`}
-          >
-            Notifications
-          </button>
         </div>
 
         {/* Profile Tab */}
@@ -161,7 +225,7 @@ export default function SellerProfilePage() {
               <div className="flex flex-col items-center gap-3">
                 <div className="relative group">
                   <img
-                    src={avatarPreview || user?.profileImg || defaultAvatarUrl}
+                    src={avatarUrl}
                     alt={displayName}
                     className="w-24 h-24 rounded-full object-cover border-2 border-[var(--secondary-soft-highlight)]/30"
                   />
@@ -378,116 +442,6 @@ export default function SellerProfilePage() {
                   Change Password
                 </button>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* Preferences Tab */}
-        {activeTab === "preferences" && (
-          <div className="bg-white rounded-2xl p-5 border border-[var(--secondary-soft-highlight)]/20">
-            <div className="flex items-center gap-2 mb-4">
-              <BellIcon className="h-5 w-5 text-[var(--primary-accent2)]" />
-              <h2 className="text-lg font-semibold text-[var(--secondary-black)]">
-                Notification Preferences
-              </h2>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between py-3 border-b border-[var(--secondary-soft-highlight)]/30">
-                <div>
-                  <div className="text-sm font-medium text-[var(--secondary-black)]">
-                    Email Notifications
-                  </div>
-                  <div className="text-xs text-[var(--secondary-muted-edge)] mt-0.5">
-                    Receive notifications via email
-                  </div>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={emailNotifications}
-                    onChange={(e) => setEmailNotifications(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[var(--primary-accent2)]/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary-accent2)]"></div>
-                </label>
-              </div>
-
-              <div className="flex items-center justify-between py-3 border-b border-[var(--secondary-soft-highlight)]/30">
-                <div>
-                  <div className="text-sm font-medium text-[var(--secondary-black)]">
-                    Order Updates
-                  </div>
-                  <div className="text-xs text-[var(--secondary-muted-edge)] mt-0.5">
-                    Get notified about order status changes
-                  </div>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={orderUpdates}
-                    onChange={(e) => setOrderUpdates(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[var(--primary-accent2)]/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary-accent2)]"></div>
-                </label>
-              </div>
-
-              <div className="flex items-center justify-between py-3 border-b border-[var(--secondary-soft-highlight)]/30">
-                <div>
-                  <div className="text-sm font-medium text-[var(--secondary-black)]">
-                    Message Notifications
-                  </div>
-                  <div className="text-xs text-[var(--secondary-muted-edge)] mt-0.5">
-                    Receive notifications for new messages
-                  </div>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={messageNotifications}
-                    onChange={(e) => setMessageNotifications(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[var(--primary-accent2)]/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary-accent2)]"></div>
-                </label>
-              </div>
-
-              <div className="flex items-center justify-between py-3 border-b border-[var(--secondary-soft-highlight)]/30">
-                <div>
-                  <div className="text-sm font-medium text-[var(--secondary-black)]">
-                    Marketing Emails
-                  </div>
-                  <div className="text-xs text-[var(--secondary-muted-edge)] mt-0.5">
-                    Receive updates about new features and promotions
-                  </div>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={marketingEmails}
-                    onChange={(e) => setMarketingEmails(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[var(--primary-accent2)]/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary-accent2)]"></div>
-                </label>
-              </div>
-            </div>
-
-            <div className="mt-4 flex justify-end gap-3 pt-4 border-t border-[var(--secondary-soft-highlight)]/30">
-              <button
-                type="button"
-                className="px-5 py-2 text-sm text-[var(--secondary-black)] hover:bg-gray-50 rounded-full transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSavePreferences}
-                className="px-5 py-2 text-sm bg-[var(--primary-accent2)] text-white rounded-full hover:bg-[var(--primary-accent3)] transition-colors font-medium"
-              >
-                Save Preferences
-              </button>
             </div>
           </div>
         )}

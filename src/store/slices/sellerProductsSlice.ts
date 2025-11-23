@@ -108,10 +108,21 @@ export const fetchSellerProducts = createAsyncThunk(
         limit: (data.limit as number) ?? query.limit ?? 20,
         query,
       };
-    } catch (err: unknown) {
-      return rejectWithValue(
-        (err as { message?: string })?.message || "Failed to fetch products"
-      );
+    } catch (err: any) {
+      const status = err?.response?.status as number | undefined;
+      if (status === 403) {
+        // Seller must be verified before managing inventory
+        return rejectWithValue(
+          "You must be verified to use this functionality. Please complete your business details and upload your Farmer ID on the Seller → Business page so your account can be reviewed and approved."
+        );
+      }
+
+      const fallbackMessage =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to fetch products";
+
+      return rejectWithValue(fallbackMessage);
     }
   }
 );

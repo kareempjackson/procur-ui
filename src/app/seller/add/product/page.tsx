@@ -298,14 +298,24 @@ export default function AddProductPage() {
     return publicData.publicUrl;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (
+    event:
+      | React.FormEvent<HTMLFormElement>
+      | React.MouseEvent<HTMLButtonElement>,
+    desiredStatus: ProductStatus
+  ) => {
+    event.preventDefault();
     setIsSubmitting(true);
     setError(null);
 
     try {
+      const payload: CreateProductData = {
+        ...formData,
+        status: desiredStatus,
+      };
+
       // Create product using Redux thunk
-      const result = await dispatch(createSellerProduct(formData));
+      const result = await dispatch(createSellerProduct(payload));
 
       // Check if creation was successful
       if (createSellerProduct.fulfilled.match(result)) {
@@ -319,26 +329,28 @@ export default function AddProductPage() {
         if (uploadedImages.length > 0) {
           const apiClient = getApiClient(() => accessToken);
 
-          for (let i = 0; i < uploadedImages.length; i++) {
-            const image = uploadedImages[i];
-            try {
-              const imageUrl = await uploadImageToStorage(
-                productId,
-                image.file,
-                i
-              );
+          // Upload all images + register metadata in parallel
+          await Promise.all(
+            uploadedImages.map(async (image, i) => {
+              try {
+                const imageUrl = await uploadImageToStorage(
+                  productId,
+                  image.file,
+                  i
+                );
 
-              await apiClient.post(`/sellers/products/${productId}/images`, {
-                image_url: imageUrl,
-                alt_text: `${formData.name} - Image ${i + 1}`,
-                display_order: i,
-                is_primary: i === 0,
-              });
-            } catch (imageError) {
-              console.error(`Failed to upload image ${i + 1}:`, imageError);
-              // Continue with other images even if one fails
-            }
-          }
+                await apiClient.post(`/sellers/products/${productId}/images`, {
+                  image_url: imageUrl,
+                  alt_text: `${formData.name} - Image ${i + 1}`,
+                  display_order: i,
+                  is_primary: i === 0,
+                });
+              } catch (imageError) {
+                console.error(`Failed to upload image ${i + 1}:`, imageError);
+                // Continue with other images even if one fails
+              }
+            })
+          );
         }
 
         // Clear draft after successful submission
@@ -478,7 +490,12 @@ export default function AddProductPage() {
         <div className="grid grid-cols-1 xl:grid-cols-5 gap-8">
           {/* Left Column - Form */}
           <div className="xl:col-span-3">
-            <form onSubmit={handleSubmit} className="space-y-8">
+            <form
+              onSubmit={(e) =>
+                handleSubmit(e, formData.status ?? ProductStatus.DRAFT)
+              }
+              className="space-y-8"
+            >
               {/* Product Images - Moved to top */}
               <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)] p-6">
                 <h2 className="text-lg font-medium text-[var(--secondary-black)] mb-4">
@@ -834,12 +851,11 @@ export default function AddProductPage() {
                   <button
                     type="submit"
                     onClick={(e) => {
-                      e.preventDefault();
                       setFormData((prev) => ({
                         ...prev,
                         status: ProductStatus.DRAFT,
                       }));
-                      handleSubmit(e);
+                      handleSubmit(e, ProductStatus.DRAFT);
                     }}
                     className="btn btn-ghost"
                     disabled={isSubmitting}
@@ -850,12 +866,11 @@ export default function AddProductPage() {
                   <button
                     type="submit"
                     onClick={(e) => {
-                      e.preventDefault();
                       setFormData((prev) => ({
                         ...prev,
                         status: ProductStatus.ACTIVE,
                       }));
-                      handleSubmit(e);
+                      handleSubmit(e, ProductStatus.ACTIVE);
                     }}
                     className="btn btn-primary"
                     disabled={isSubmitting}

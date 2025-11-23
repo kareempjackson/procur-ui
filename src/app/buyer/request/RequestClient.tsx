@@ -12,10 +12,12 @@ import {
   ClipboardDocumentListIcon,
   InformationCircleIcon,
 } from "@heroicons/react/24/outline";
+import { useToast } from "@/components/ui/Toast";
 
 export default function RequestClient() {
   const dispatch = useAppDispatch();
   const router = useRouter();
+  const { show } = useToast();
   const [formData, setFormData] = useState({
     produceName: "",
     category: "",
@@ -75,14 +77,14 @@ export default function RequestClient() {
     try {
       const action = await dispatch(createRequest(payload) as any);
       if (action.meta.requestStatus === "fulfilled") {
-        alert("Request submitted successfully! Suppliers will be notified.");
+        show("Request submitted! Suppliers will be notified.");
         router.push("/buyer/requests");
       } else {
         const err = action.payload || "Failed to submit request";
-        alert(String(err));
+        show(String(err));
       }
     } catch (err) {
-      alert("Failed to submit request");
+      show("Failed to submit request");
     }
   };
 

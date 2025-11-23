@@ -28,6 +28,7 @@ import {
 } from "@/store/slices/buyerOrdersSlice";
 import { getApiClient } from "@/lib/apiClient";
 import ProcurLoader from "@/components/ProcurLoader";
+import { useToast } from "@/components/ui/Toast";
 
 // Demo order data with full tracking
 const order = {
@@ -171,6 +172,7 @@ export default function OrderDetailPage({
 }) {
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const { show } = useToast();
   const {
     currentOrder: order,
     orderDetailStatus,
@@ -218,7 +220,7 @@ export default function OrderDetailPage({
       dispatch(fetchOrderDetail(orderId));
     } catch (error) {
       console.error("Failed to cancel order:", error);
-      alert("Failed to cancel order. Please try again.");
+      show("Failed to cancel order. Please try again.");
     } finally {
       setCancellingOrder(false);
     }
@@ -239,7 +241,7 @@ export default function OrderDetailPage({
       router.push(`/buyer/messages?conversationId=${data.id}`);
     } catch (error) {
       console.error("Failed to start conversation:", error);
-      alert("Failed to start conversation. Please try again.");
+      show("Failed to start conversation. Please try again.");
     } finally {
       setIsStartingConversation(false);
     }

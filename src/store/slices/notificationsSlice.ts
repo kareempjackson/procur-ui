@@ -159,6 +159,17 @@ const notificationsSlice = createSlice({
         state.status = "failed";
         state.error = (action.payload as string) || "Failed to fetch";
       })
+      .addCase(markNotificationRead.pending, (state, action) => {
+        // Optimistically mark as read for snappy UI
+        const id = action.meta.arg.id;
+        const idx = state.items.findIndex((n) => n.id === id);
+        if (idx >= 0) {
+          state.items[idx] = {
+            ...state.items[idx],
+            read_at: new Date().toISOString(),
+          } as NotificationItem;
+        }
+      })
       .addCase(markNotificationRead.fulfilled, (state, action) => {
         const idx = state.items.findIndex((n) => n.id === action.payload.id);
         if (idx >= 0) {

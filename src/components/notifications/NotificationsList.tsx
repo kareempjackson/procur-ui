@@ -1,17 +1,18 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/store";
 import {
   selectNotifications,
   fetchNotifications,
   markNotificationRead,
 } from "@/store/slices/notificationsSlice";
-import { useEffect } from "react";
 
 export default function NotificationsList() {
   const { items, status } = useAppSelector(selectNotifications);
   const dispatch = useAppDispatch();
+  const router = useRouter();
 
   useEffect(() => {
     if (status === "idle") {
@@ -22,13 +23,28 @@ export default function NotificationsList() {
   const safeItems = Array.isArray(items)
     ? items
     : Array.isArray((items as unknown as { data?: unknown })?.data)
-    ? ((items as unknown as { data: unknown[] }).data as any[])
-    : [];
+      ? ((items as unknown as { data: unknown[] }).data as any[])
+      : [];
 
   const unreadCount = useMemo(
     () => safeItems.filter((n) => !n.read_at).length,
     [safeItems]
   );
+
+  const handleNotificationClick = (n: any) => {
+    // Prefer explicit cta_url from notification payload
+    const ctaUrl: string | undefined =
+      (n.data && (n.data.cta_url as string)) ||
+      (n.data && (n.data.link as string));
+
+    if (ctaUrl) {
+      router.push(ctaUrl);
+    }
+
+    if (!n.read_at) {
+      void dispatch(markNotificationRead({ id: n.id }));
+    }
+  };
 
   if (status === "loading") {
     return (
@@ -84,6 +100,7 @@ export default function NotificationsList() {
           {safeItems.map((n) => (
             <li
               key={n.id}
+              onClick={() => handleNotificationClick(n)}
               style={{
                 display: "flex",
                 gap: 12,
@@ -93,6 +110,7 @@ export default function NotificationsList() {
                 background: n.read_at ? "#fff" : "#fff7ed",
                 borderRadius: 10,
                 marginBottom: 8,
+                cursor: "pointer",
               }}
             >
               <div
@@ -122,7 +140,10 @@ export default function NotificationsList() {
               {!n.read_at && (
                 <button
                   className="btn btn-ghost"
-                  onClick={() => dispatch(markNotificationRead({ id: n.id }))}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    dispatch(markNotificationRead({ id: n.id }));
+                  }}
                 >
                   Mark read
                 </button>

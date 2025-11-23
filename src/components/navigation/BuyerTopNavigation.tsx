@@ -54,13 +54,16 @@ const BuyerTopNavigation: React.FC = () => {
 
   // Authenticated user data
   const authUser = useAppSelector(selectAuthUser);
+  const profile = useAppSelector((state) => state.profile.profile);
   const displayName =
     (authUser?.fullname && authUser.fullname.trim()) ||
     (authUser?.email ? authUser.email.split("@")[0] : "User");
   const organizationName = authUser?.organizationName || "Buyer";
-  const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-    displayName
-  )}&background=407178&color=fff`;
+  const avatarUrl =
+    profile?.avatarUrl ||
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(
+      displayName
+    )}&background=407178&color=fff`;
 
   // Click outside to close dropdowns
   useEffect(() => {
@@ -134,7 +137,7 @@ const BuyerTopNavigation: React.FC = () => {
               </Link>
 
               {/* Requests Link */}
-              <Link
+              {/* <Link
                 href="/buyer/requests"
                 className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
                   pathname?.startsWith("/buyer/requests")
@@ -143,7 +146,7 @@ const BuyerTopNavigation: React.FC = () => {
                 }`}
               >
                 <span className="relative">Requests</span>
-              </Link>
+              </Link> */}
 
               {/* Orders Link */}
               <Link

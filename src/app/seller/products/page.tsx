@@ -11,6 +11,8 @@ import {
   updateSellerProduct,
 } from "@/store/slices/sellerProductsSlice";
 import ProcurLoader from "@/components/ProcurLoader";
+import { useToast } from "@/components/ui/Toast";
+import SellerVerificationChecklist from "@/components/seller/SellerVerificationChecklist";
 
 // Enums matching the API
 enum ProductStatus {
@@ -78,12 +80,14 @@ function classNames(...classes: (string | false | null | undefined)[]) {
 export default function SellerProductsPage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const { show } = useToast();
   const accessToken = useSelector((state: RootState) => state.auth.accessToken);
   const {
     items: products,
     total,
     status: loadStatus,
     error,
+    deletingIds,
   } = useSelector((state: RootState) => state.sellerProducts);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(12);
@@ -172,10 +176,13 @@ export default function SellerProductsPage() {
               update: { status: "discontinued" },
             })
           );
+          show("Product marked as discontinued");
         }
       } else {
-        alert(msg);
+        show(msg);
       }
+    } else {
+      show("Product deleted");
     }
   };
 
@@ -496,9 +503,14 @@ export default function SellerProductsPage() {
 
         {/* Error State */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
-            <p className="text-red-800">{error}</p>
-          </div>
+          <>
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
+              <p className="text-red-800">{error}</p>
+            </div>
+            {error.toLowerCase().includes("verified") && (
+              <SellerVerificationChecklist />
+            )}
+          </>
         )}
 
         {/* Loading State */}
@@ -507,7 +519,7 @@ export default function SellerProductsPage() {
         )}
 
         {/* Products Grid/List */}
-        {loadStatus !== "loading" && visibleProducts.length === 0 ? (
+        {loadStatus !== "loading" && !error && visibleProducts.length === 0 && (
           <div className="text-center py-12">
             <div className="w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
               <svg
@@ -536,447 +548,486 @@ export default function SellerProductsPage() {
               Add Your First Product
             </Link>
           </div>
-        ) : viewMode === "grid" ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
-            {visibleProducts.map((product) => (
-              <div
-                key={product.id}
-                className="bg-white rounded-2xl overflow-hidden group transition-colors"
-              >
-                {/* Product Image */}
-                <div className="relative aspect-square overflow-hidden bg-gray-50">
-                  {getPrimaryImage(product) ? (
-                    <img
-                      src={getPrimaryImage(product)}
-                      alt={product.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <svg
-                        className="w-12 h-12 text-gray-300"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.5}
-                          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+        )}
+
+        {loadStatus !== "loading" &&
+          !error &&
+          visibleProducts.length > 0 &&
+          viewMode === "grid" && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+              {visibleProducts.map((product) => {
+                return (
+                  <div
+                    key={product.id}
+                    className="bg-white rounded-2xl overflow-hidden group transition-colors"
+                  >
+                    {/* Product Image */}
+                    <div className="relative aspect-square overflow-hidden bg-gray-50">
+                      {getPrimaryImage(product) ? (
+                        <img
+                          src={getPrimaryImage(product)}
+                          alt={product.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
-                      </svg>
-                    </div>
-                  )}
-
-                  {/* Status Badge */}
-                  {product.status !== ProductStatus.ACTIVE && (
-                    <div className="absolute top-2 left-2">
-                      <span
-                        className={classNames(
-                          "px-2 py-0.5 text-[10px] font-bold rounded text-white",
-                          product.status === ProductStatus.DRAFT
-                            ? "bg-gray-600"
-                            : product.status === ProductStatus.INACTIVE
-                              ? "bg-yellow-600"
-                              : product.status === ProductStatus.OUT_OF_STOCK
-                                ? "bg-red-600"
-                                : "bg-red-700"
-                        )}
-                      >
-                        {product.status === ProductStatus.OUT_OF_STOCK
-                          ? "Out of Stock"
-                          : String(product.status).toUpperCase()}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Sale Badge */}
-                  {product.sale_price &&
-                    product.sale_price < product.base_price && (
-                      <div className="absolute top-2 left-2 bg-[var(--primary-accent2)] text-white px-1.5 py-0.5 rounded text-[10px] font-bold">
-                        {Math.round(
-                          ((product.base_price - product.sale_price) /
-                            product.base_price) *
-                            100
-                        )}
-                        % OFF
-                      </div>
-                    )}
-
-                  {/* Feature Badges - Top Right */}
-                  <div className="absolute top-2 right-2 flex gap-1">
-                    {product.is_featured && (
-                      <div className="w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center">
-                        <svg
-                          className="w-3 h-3 text-white"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                        </svg>
-                      </div>
-                    )}
-                    {product.is_organic && (
-                      <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                        <svg
-                          className="w-3 h-3 text-white"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2.5}
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                      </div>
-                    )}
-                    {product.is_local && (
-                      <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
-                        <svg
-                          className="w-3 h-3 text-white"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                          />
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                          />
-                        </svg>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Product Info */}
-                <div className="p-3">
-                  <div className="flex items-start justify-between gap-2 mb-1">
-                    <Link
-                      href={`/seller/products/${product.id}/edit`}
-                      className="text-sm font-semibold text-[var(--secondary-black)] line-clamp-1 flex-1 hover:text-[var(--primary-accent2)] transition-colors"
-                    >
-                      {product.name}
-                    </Link>
-                    <select
-                      value={product.status}
-                      onChange={(e) =>
-                        handleStatusChange(
-                          product.id,
-                          e.target.value as ProductStatus
-                        )
-                      }
-                      onClick={(e) => e.stopPropagation()}
-                      className="text-[10px] border border-[var(--secondary-soft-highlight)] rounded px-1.5 py-0.5 font-medium focus:ring-1 focus:ring-[var(--primary-accent2)] focus:border-[var(--primary-accent2)] transition-colors"
-                    >
-                      <option value={ProductStatus.DRAFT}>Draft</option>
-                      <option value={ProductStatus.ACTIVE}>Active</option>
-                      <option value={ProductStatus.INACTIVE}>Inactive</option>
-                      <option value={ProductStatus.OUT_OF_STOCK}>
-                        Out of Stock
-                      </option>
-                      <option value={ProductStatus.DISCONTINUED}>
-                        Discontinued
-                      </option>
-                    </select>
-                  </div>
-
-                  <div className="text-[11px] text-[var(--primary-base)] mb-2">
-                    {product.category}
-                    {product.sku && (
-                      <span className="ml-1 text-[var(--secondary-muted-edge)]">
-                        · SKU: {product.sku}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Price */}
-                  <div className="flex items-baseline gap-1.5 mb-2">
-                    {product.sale_price &&
-                    product.sale_price < product.base_price ? (
-                      <>
-                        <span className="text-lg font-bold text-[var(--primary-accent2)]">
-                          ${product.sale_price.toFixed(2)}
-                        </span>
-                        <span className="text-sm text-gray-400 line-through">
-                          ${product.base_price.toFixed(2)}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-lg font-bold text-[var(--secondary-black)]">
-                        ${product.base_price.toFixed(2)}
-                      </span>
-                    )}
-                    <span className="text-[11px] text-[var(--primary-base)]">
-                      / {product.unit_of_measurement}
-                    </span>
-                  </div>
-
-                  {/* Stock Info */}
-                  <div className="flex items-center justify-between text-[11px] mb-3">
-                    <div className="flex items-center gap-1.5">
-                      <div
-                        className={classNames(
-                          "w-1.5 h-1.5 rounded-full",
-                          product.stock_quantity > 10
-                            ? "bg-green-500"
-                            : product.stock_quantity > 0
-                              ? "bg-yellow-500"
-                              : "bg-red-500"
-                        )}
-                      ></div>
-                      <span className="font-medium text-[var(--secondary-black)]">
-                        {product.stock_quantity} in stock
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Action Buttons - Sleek Design */}
-                  <div className="grid grid-cols-2 gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                    <Link
-                      href={`/seller/products/${product.id}/edit`}
-                      className="flex items-center justify-center gap-1.5 px-3 py-2 bg-[var(--primary-accent2)] text-white rounded-full text-xs font-medium hover:bg-[var(--primary-accent3)] transition-colors"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <svg
-                        className="w-3.5 h-3.5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                        />
-                      </svg>
-                      Edit
-                    </Link>
-                    <Link
-                      href={`/seller/products/${product.id}/preview`}
-                      className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white text-[var(--secondary-black)] rounded-full text-xs font-medium hover:bg-gray-50 transition-colors"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <svg
-                        className="w-3.5 h-3.5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                        />
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                        />
-                      </svg>
-                      View
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          /* List View */
-          <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)] overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-[var(--secondary-soft-highlight)]">
-                  <tr>
-                    <th className="text-left py-3 px-4 font-medium text-[var(--secondary-black)]">
-                      Product
-                    </th>
-                    <th className="text-left py-3 px-4 font-medium text-[var(--secondary-black)]">
-                      Category
-                    </th>
-                    <th className="text-left py-3 px-4 font-medium text-[var(--secondary-black)]">
-                      Price
-                    </th>
-                    <th className="text-left py-3 px-4 font-medium text-[var(--secondary-black)]">
-                      Stock
-                    </th>
-                    <th className="text-left py-3 px-4 font-medium text-[var(--secondary-black)]">
-                      Status
-                    </th>
-                    <th className="text-left py-3 px-4 font-medium text-[var(--secondary-black)]">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {visibleProducts.map((product) => (
-                    <tr
-                      key={product.id}
-                      className="border-b border-[var(--secondary-soft-highlight)] last:border-0 hover:bg-gray-25"
-                    >
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-gray-50 rounded-lg overflow-hidden flex-shrink-0">
-                            {getPrimaryImage(product) ? (
-                              <img
-                                src={getPrimaryImage(product)}
-                                alt={product.name}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <svg
-                                  className="w-6 h-6 text-gray-300"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                                  />
-                                </svg>
-                              </div>
-                            )}
-                          </div>
-                          <div>
-                            <Link
-                              href={`/seller/products/${product.id}/edit`}
-                              className="font-medium text-[var(--secondary-black)] hover:text-[var(--primary-accent2)] transition-colors"
-                            >
-                              {product.name}
-                            </Link>
-                            {product.sku && (
-                              <div className="text-sm text-[var(--primary-base)]">
-                                SKU: {product.sku}
-                              </div>
-                            )}
-                          </div>
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <svg
+                            className="w-12 h-12 text-gray-300"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={1.5}
+                              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                            />
+                          </svg>
                         </div>
-                      </td>
-                      <td className="py-3 px-4 text-[var(--primary-base)]">
+                      )}
+
+                      {/* Status Badge */}
+                      {product.status !== ProductStatus.ACTIVE && (
+                        <div className="absolute top-2 left-2">
+                          <span
+                            className={classNames(
+                              "px-2 py-0.5 text-[10px] font-bold rounded text-white",
+                              product.status === ProductStatus.DRAFT
+                                ? "bg-gray-600"
+                                : product.status === ProductStatus.INACTIVE
+                                  ? "bg-yellow-600"
+                                  : product.status ===
+                                      ProductStatus.OUT_OF_STOCK
+                                    ? "bg-red-600"
+                                    : "bg-red-700"
+                            )}
+                          >
+                            {product.status === ProductStatus.OUT_OF_STOCK
+                              ? "Out of Stock"
+                              : String(product.status).toUpperCase()}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Sale Badge */}
+                      {product.sale_price &&
+                        product.sale_price < product.base_price && (
+                          <div className="absolute top-2 left-2 bg-[var(--primary-accent2)] text-white px-1.5 py-0.5 rounded text-[10px] font-bold">
+                            {Math.round(
+                              ((product.base_price - product.sale_price) /
+                                product.base_price) *
+                                100
+                            )}
+                            % OFF
+                          </div>
+                        )}
+
+                      {/* Feature Badges - Top Right */}
+                      <div className="absolute top-2 right-2 flex gap-1">
+                        {product.is_featured && (
+                          <div className="w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center">
+                            <svg
+                              className="w-3 h-3 text-white"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                            </svg>
+                          </div>
+                        )}
+                        {product.is_organic && (
+                          <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                            <svg
+                              className="w-3 h-3 text-white"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2.5}
+                                d="M5 13l4 4L19 7"
+                              />
+                            </svg>
+                          </div>
+                        )}
+                        {product.is_local && (
+                          <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                            <svg
+                              className="w-3 h-3 text-white"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                              />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                              />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Product Info */}
+                    <div className="p-3">
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <Link
+                          href={`/seller/products/${product.id}/edit`}
+                          className="text-sm font-semibold text-[var(--secondary-black)] line-clamp-1 flex-1 hover:text-[var(--primary-accent2)] transition-colors"
+                        >
+                          {product.name}
+                        </Link>
+                        <select
+                          value={product.status}
+                          onChange={(e) =>
+                            handleStatusChange(
+                              product.id,
+                              e.target.value as ProductStatus
+                            )
+                          }
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-[10px] border border-[var(--secondary-soft-highlight)] rounded px-1.5 py-0.5 font-medium focus:ring-1 focus:ring-[var(--primary-accent2)] focus:border-[var(--primary-accent2)] transition-colors"
+                        >
+                          <option value={ProductStatus.DRAFT}>Draft</option>
+                          <option value={ProductStatus.ACTIVE}>Active</option>
+                          <option value={ProductStatus.INACTIVE}>
+                            Inactive
+                          </option>
+                          <option value={ProductStatus.OUT_OF_STOCK}>
+                            Out of Stock
+                          </option>
+                          <option value={ProductStatus.DISCONTINUED}>
+                            Discontinued
+                          </option>
+                        </select>
+                      </div>
+
+                      <div className="text-[11px] text-[var(--primary-base)] mb-2">
                         {product.category}
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2">
-                          {product.sale_price &&
-                          product.sale_price < product.base_price ? (
-                            <>
-                              <span className="font-semibold text-[var(--primary-accent2)]">
-                                ${product.sale_price.toFixed(2)}
-                              </span>
-                              <span className="text-sm text-gray-400 line-through">
-                                ${product.base_price.toFixed(2)}
-                              </span>
-                            </>
-                          ) : (
-                            <span className="font-semibold text-[var(--secondary-black)]">
+                        {product.sku && (
+                          <span className="ml-1 text-[var(--secondary-muted-edge)]">
+                            · SKU: {product.sku}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Price */}
+                      <div className="flex items-baseline gap-1.5 mb-2">
+                        {product.sale_price &&
+                        product.sale_price < product.base_price ? (
+                          <>
+                            <span className="text-lg font-bold text-[var(--primary-accent2)]">
+                              ${product.sale_price.toFixed(2)}
+                            </span>
+                            <span className="text-sm text-gray-400 line-through">
                               ${product.base_price.toFixed(2)}
                             </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span
-                          className={classNames(
-                            "px-2 py-1 text-xs rounded-full",
-                            product.stock_quantity > 0
-                              ? "bg-green-100 text-green-800"
-                              : "bg-red-100 text-red-800"
-                          )}
-                        >
-                          {product.stock_quantity} {product.unit_of_measurement}
+                          </>
+                        ) : (
+                          <span className="text-lg font-bold text-[var(--secondary-black)]">
+                            ${product.base_price.toFixed(2)}
+                          </span>
+                        )}
+                        <span className="text-[11px] text-[var(--primary-base)]">
+                          / {product.unit_of_measurement}
                         </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span
-                          className={classNames(
-                            "px-2 py-1 text-xs rounded-full font-medium",
-                            getStatusColor(product.status as ProductStatus)
-                          )}
-                        >
-                          {String(product.status)
-                            .replace("_", " ")
-                            .toUpperCase()}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2">
-                          <Link
-                            href={`/seller/products/${product.id}/edit`}
-                            className="btn btn-ghost h-8 px-3 text-sm hover:bg-[var(--primary-accent2)]/10 hover:text-[var(--primary-accent2)]"
-                          >
-                            Edit
-                          </Link>
-                          <Link
-                            href={`/seller/products/${product.id}/preview`}
-                            className="btn btn-ghost h-8 px-3 text-sm hover:bg-blue-50 hover:text-blue-600"
-                            title="View as Buyer"
-                          >
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                              />
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                              />
-                            </svg>
-                          </Link>
-                          <button
-                            onClick={() => handleDeleteProduct(product.id)}
-                            className="btn btn-ghost h-8 px-2 text-red-600 hover:bg-red-50"
-                            title="Delete Product"
-                          >
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                              />
-                            </svg>
-                          </button>
+                      </div>
+
+                      {/* Stock Info */}
+                      <div className="flex items-center justify-between text-[11px] mb-3">
+                        <div className="flex items-center gap-1.5">
+                          <div
+                            className={classNames(
+                              "w-1.5 h-1.5 rounded-full",
+                              product.stock_quantity > 10
+                                ? "bg-green-500"
+                                : product.stock_quantity > 0
+                                  ? "bg-yellow-500"
+                                  : "bg-red-500"
+                            )}
+                          ></div>
+                          <span className="font-medium text-[var(--secondary-black)]">
+                            {product.stock_quantity} in stock
+                          </span>
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+
+                      {/* Action Buttons - Sleek Design */}
+                      <div className="grid grid-cols-3 gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        <Link
+                          href={`/seller/products/${product.id}/edit`}
+                          className="flex items-center justify-center gap-1.5 px-3 py-2 bg-[var(--primary-accent2)] text-white rounded-full text-xs font-medium hover:bg-[var(--primary-accent3)] transition-colors"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <svg
+                            className="w-3.5 h-3.5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                            />
+                          </svg>
+                          Edit
+                        </Link>
+                        <Link
+                          href={`/seller/products/${product.id}/preview`}
+                          className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white text-[var(--secondary-black)] rounded-full text-xs font-medium hover:bg-gray-50 transition-colors"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <svg
+                            className="w-3.5 h-3.5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                            />
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                            />
+                          </svg>
+                          View
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteProduct(product.id);
+                          }}
+                          className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white text-red-600 rounded-full text-xs font-medium hover:bg-red-50 transition-colors disabled:opacity-60"
+                          disabled={!!deletingIds[product.id]}
+                          title="Delete Product"
+                        >
+                          <svg
+                            className="w-3.5 h-3.5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          </div>
-        )}
+          )}
+
+        {loadStatus !== "loading" &&
+          !error &&
+          visibleProducts.length > 0 &&
+          viewMode === "list" && (
+            <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)] overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-[var(--secondary-soft-highlight)]">
+                    <tr>
+                      <th className="text-left py-3 px-4 font-medium text-[var(--secondary-black)]">
+                        Product
+                      </th>
+                      <th className="text-left py-3 px-4 font-medium text-[var(--secondary-black)]">
+                        Category
+                      </th>
+                      <th className="text-left py-3 px-4 font-medium text-[var(--secondary-black)]">
+                        Price
+                      </th>
+                      <th className="text-left py-3 px-4 font-medium text-[var(--secondary-black)]">
+                        Stock
+                      </th>
+                      <th className="text-left py-3 px-4 font-medium text-[var(--secondary-black)]">
+                        Status
+                      </th>
+                      <th className="text-left py-3 px-4 font-medium text-[var(--secondary-black)]">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleProducts.map((product) => (
+                      <tr
+                        key={product.id}
+                        className="border-b border-[var(--secondary-soft-highlight)] last:border-0 hover:bg-gray-25"
+                      >
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-gray-50 rounded-lg overflow-hidden flex-shrink-0">
+                              {getPrimaryImage(product) ? (
+                                <img
+                                  src={getPrimaryImage(product)}
+                                  alt={product.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <svg
+                                    className="w-6 h-6 text-gray-300"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                    />
+                                  </svg>
+                                </div>
+                              )}
+                            </div>
+                            <div>
+                              <Link
+                                href={`/seller/products/${product.id}/edit`}
+                                className="font-medium text-[var(--secondary-black)] hover:text-[var(--primary-accent2)] transition-colors"
+                              >
+                                {product.name}
+                              </Link>
+                              {product.sku && (
+                                <div className="text-sm text-[var(--primary-base)]">
+                                  SKU: {product.sku}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-[var(--primary-base)]">
+                          {product.category}
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2">
+                            {product.sale_price &&
+                            product.sale_price < product.base_price ? (
+                              <>
+                                <span className="font-semibold text-[var(--primary-accent2)]">
+                                  ${product.sale_price.toFixed(2)}
+                                </span>
+                                <span className="text-sm text-gray-400 line-through">
+                                  ${product.base_price.toFixed(2)}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="font-semibold text-[var(--secondary-black)]">
+                                ${product.base_price.toFixed(2)}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span
+                            className={classNames(
+                              "px-2 py-1 text-xs rounded-full",
+                              product.stock_quantity > 0
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-800"
+                            )}
+                          >
+                            {product.stock_quantity}{" "}
+                            {product.unit_of_measurement}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span
+                            className={classNames(
+                              "px-2 py-1 text-xs rounded-full font-medium",
+                              getStatusColor(product.status as ProductStatus)
+                            )}
+                          >
+                            {String(product.status)
+                              .replace("_", " ")
+                              .toUpperCase()}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2">
+                            <Link
+                              href={`/seller/products/${product.id}/edit`}
+                              className="btn btn-ghost h-8 px-3 text-sm hover:bg-[var(--primary-accent2)]/10 hover:text-[var(--primary-accent2)]"
+                            >
+                              Edit
+                            </Link>
+                            <Link
+                              href={`/seller/products/${product.id}/preview`}
+                              className="btn btn-ghost h-8 px-3 text-sm hover:bg-blue-50 hover:text-blue-600"
+                              title="View as Buyer"
+                            >
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                />
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                />
+                              </svg>
+                            </Link>
+                            <button
+                              onClick={() => handleDeleteProduct(product.id)}
+                              className="btn btn-ghost h-8 px-2 text-red-600 hover:bg-red-50"
+                              title="Delete Product"
+                            >
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
         {/* Pagination */}
         {totalPages > 1 && (

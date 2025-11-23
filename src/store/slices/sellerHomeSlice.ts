@@ -48,6 +48,17 @@ export type SellerHomeResponse = {
   inventory: SellerHomeProduct[];
   recent_orders: SellerHomeOrder[];
   buyer_requests: SellerBuyerRequest[];
+  latest_farm_visit_request?: {
+    id: string;
+    status: string;
+    preferred_date: string | null;
+    preferred_time_window: string | null;
+    notes: string | null;
+    scheduled_for: string | null;
+    admin_notes: string | null;
+    created_at: string;
+    updated_at: string;
+  } | null;
 };
 
 export type SellerHomeState = {

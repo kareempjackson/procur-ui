@@ -28,10 +28,7 @@ export default function AccountSetupLoader({
   const [flags, setFlags] = useState({
     business: false,
     product: false,
-    harvest: false,
-    logistics: false,
     payout: false,
-    brand: false,
   });
 
   useEffect(() => {
@@ -45,17 +42,8 @@ export default function AccountSetupLoader({
       const product =
         typeof window !== "undefined" &&
         !!localStorage.getItem("onboarding:product_added");
-      const harvest =
-        typeof window !== "undefined" &&
-        !!localStorage.getItem("onboarding:harvest_configured");
-      const logistics =
-        typeof window !== "undefined" &&
-        !!localStorage.getItem("onboarding:shipping_configured");
-      const brand =
-        typeof window !== "undefined" &&
-        !!localStorage.getItem("onboarding:brand_ready");
 
-      setFlags({ business, product, harvest, logistics, payout, brand });
+      setFlags({ business, product, payout });
     } catch (_) {
       // ignore
     }
@@ -68,7 +56,6 @@ export default function AccountSetupLoader({
         label: "Company & Compliance",
         sub: "Business details and Farmer ID",
         href: "/seller/business",
-        points: 10,
         completed: flags.business,
       },
       {
@@ -76,40 +63,14 @@ export default function AccountSetupLoader({
         label: "First Produce Listing",
         sub: "Create your first listing",
         href: "/seller/add/product",
-        points: 20,
         completed: flags.product,
-      },
-      {
-        id: "harvest",
-        label: "Harvest & Availability",
-        sub: "Set harvest schedule and lead time",
-        href: "/seller/harvest-update",
-        points: 10,
-        completed: flags.harvest,
-      },
-      {
-        id: "logistics",
-        label: "Packaging & Shipping",
-        sub: "Regions, handling time, policies",
-        href: "/seller/business",
-        points: 10,
-        completed: flags.logistics,
       },
       {
         id: "payout",
         label: "Payouts",
         sub: "Connect your bank account",
         href: "/seller/business",
-        points: 25,
         completed: flags.payout,
-      },
-      {
-        id: "brand",
-        label: "Brand & Profile",
-        sub: "Logo, bio, and public page",
-        href: "/seller/business",
-        points: 5,
-        completed: flags.brand,
       },
     ],
     [flags]
@@ -135,19 +96,6 @@ export default function AccountSetupLoader({
   const done = completedCount ?? allItems.filter((i) => i.completed).length;
   const progress = Math.min(100, Math.round((done / Math.max(1, total)) * 100));
 
-  const totalPoints = steps.reduce((sum, s) => sum + s.points, 0);
-  const earnedPoints = steps
-    .filter((s) => s.completed)
-    .reduce((sum, s) => sum + s.points, 0);
-
-  const tier = useMemo(() => {
-    const pct = progress;
-    if (pct >= 100) return "Platinum";
-    if (pct >= 71) return "Gold";
-    if (pct >= 41) return "Silver";
-    return "Bronze";
-  }, [progress]);
-
   return (
     <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-4 sm:p-5">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -161,9 +109,6 @@ export default function AccountSetupLoader({
               className="h-full bg-[var(--primary-accent2)] transition-all duration-500 ease-out"
               style={{ width: `${progress}%` }}
             />
-          </div>
-          <div className="mt-2 text-[11px] text-[color:var(--secondary-muted-edge)]">
-            {earnedPoints} / {totalPoints} pts · Tier: {tier}
           </div>
         </div>
         <div className="shrink-0">
@@ -214,9 +159,8 @@ export default function AccountSetupLoader({
                 </div>
                 <div className="mt-2 flex items-center justify-between text-[11px] text-[color:var(--secondary-muted-edge)]">
                   <span>
-                    {done}/{total} completed · {earnedPoints}/{totalPoints} pts
+                    {done}/{total} completed
                   </span>
-                  <span>Tier: {tier}</span>
                 </div>
               </div>
 
@@ -244,9 +188,6 @@ export default function AccountSetupLoader({
                         </div>
                         <div className="text-xs text-[color:var(--secondary-muted-edge)] mt-0.5">
                           {step.sub}
-                        </div>
-                        <div className="mt-2 text-[11px] text-[color:var(--secondary-muted-edge)]">
-                          Worth {step.points} pts
                         </div>
                       </div>
                       <div className="shrink-0 self-center">

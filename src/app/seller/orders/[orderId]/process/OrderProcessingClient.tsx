@@ -14,11 +14,9 @@ import {
 } from "@heroicons/react/24/outline";
 import { CheckCircleIcon } from "@heroicons/react/24/solid";
 import { useAppDispatch, useAppSelector } from "@/store";
-import {
-  fetchOrderDetail,
-  updateOrderStatus,
-} from "@/store/slices/sellerOrdersSlice";
+import { fetchOrderDetail } from "@/store/slices/sellerOrdersSlice";
 import ProcurLoader from "@/components/ProcurLoader";
+import { useToast } from "@/components/ui/Toast";
 
 type OrderProcessingClientProps = {
   orderId: string;
@@ -41,7 +39,7 @@ export default function OrderProcessingClient({
   const [trackingNumber, setTrackingNumber] = useState("");
   const [shippingCarrier, setShippingCarrier] = useState("");
   const [specialHandling, setSpecialHandling] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
+  const { show } = useToast();
 
   useEffect(() => {
     dispatch(fetchOrderDetail(orderId));
@@ -61,59 +59,6 @@ export default function OrderProcessingClient({
     ? order.items.every((item) => packedItems.has(item.id))
     : false;
   const packedCount = packedItems.size;
-
-  const handleMarkAsProcessing = async () => {
-    if (!order) return;
-
-    setIsProcessing(true);
-    try {
-      await dispatch(
-        updateOrderStatus({
-          orderId: order.id,
-          statusData: {
-            status: "processing",
-            seller_notes: "Order is being prepared for shipment",
-          },
-        })
-      ).unwrap();
-      alert("Order marked as processing");
-    } catch (error: any) {
-      alert(`Failed to update order: ${error}`);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleMarkAsShipped = async () => {
-    if (!order || !allItemsPacked || !packageWeight || !trackingNumber) {
-      alert("Please complete all required fields");
-      return;
-    }
-
-    setIsProcessing(true);
-    try {
-      await dispatch(
-        updateOrderStatus({
-          orderId: order.id,
-          statusData: {
-            status: "shipped",
-            tracking_number: trackingNumber,
-            shipping_method: shippingCarrier,
-            seller_notes: `Package shipped - Weight: ${packageWeight}lbs, Dimensions: ${packageLength}x${packageWidth}x${packageHeight} inches. ${
-              specialHandling ? `Special handling: ${specialHandling}` : ""
-            }`,
-          },
-        })
-      ).unwrap();
-
-      alert("Order marked as shipped! Buyer has been notified.");
-      router.push(`/seller/orders/${orderId}`);
-    } catch (error: any) {
-      alert(`Failed to ship order: ${error}`);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
 
   if (status === "loading") {
     return (
@@ -426,47 +371,13 @@ export default function OrderProcessingClient({
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex gap-4">
-          {order.status === "accepted" && !allItemsPacked && (
-            <button
-              onClick={handleMarkAsProcessing}
-              disabled={isProcessing}
-              className="flex-1 px-6 py-3 bg-[var(--primary-accent2)] text-white rounded-full hover:bg-[var(--primary-accent3)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
-            >
-              {isProcessing ? "Processing..." : "Mark as Processing"}
-            </button>
-          )}
-
-          {allItemsPacked && (
-            <button
-              onClick={handleMarkAsShipped}
-              disabled={
-                !packageWeight ||
-                !trackingNumber ||
-                !shippingCarrier ||
-                isProcessing
-              }
-              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-[var(--primary-accent2)] text-white rounded-full hover:bg-[var(--primary-accent3)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
-            >
-              <TruckIcon className="h-5 w-5" />
-              {isProcessing ? "Shipping..." : "Mark as Shipped"}
-            </button>
-          )}
-        </div>
-
-        {!allItemsPacked && (
-          <p className="text-sm text-[var(--secondary-muted-edge)] text-center mt-4">
-            Please mark all items as packed before shipping
-          </p>
-        )}
-
-        {allItemsPacked &&
-          (!packageWeight || !trackingNumber || !shippingCarrier) && (
-            <p className="text-sm text-[var(--secondary-muted-edge)] text-center mt-4">
-              Please fill in all required shipping details (* fields)
-            </p>
-          )}
+        {/* Note: Order status updates are now handled internally by the admin team */}
+        <p className="text-sm text-[var(--secondary-muted-edge)] text-center mt-6">
+          Order status updates (processing, shipped, delivered) are managed
+          internally by the Procur admin team. You can use this page to review
+          packing and shipping details, but status changes will be applied by
+          admin.
+        </p>
       </main>
     </div>
   );

@@ -25,6 +25,7 @@ import ProcurLoader from "@/components/ProcurLoader";
 import { getApiClient } from "@/lib/apiClient";
 import { useSelector } from "react-redux";
 import { selectAuthToken } from "@/store/slices/authSlice";
+import { useToast } from "@/components/ui/Toast";
 
 export default function SavedSuppliersClient() {
   const router = useRouter();
@@ -32,6 +33,7 @@ export default function SavedSuppliersClient() {
   const { favoriteSellers, favoriteSellersStatus, favoriteSellersError } =
     useAppSelector((state) => state.buyerMarketplace);
   const authToken = useSelector(selectAuthToken);
+  const { show } = useToast();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -63,8 +65,7 @@ export default function SavedSuppliersClient() {
       dispatch(fetchFavoriteSellers());
     } catch (error) {
       console.error("Failed to remove from favorites:", error);
-      // Show error notification (optional - you could add toast notifications)
-      alert("Failed to update favorite status. Please try again.");
+      show("Failed to update favorite status. Please try again.");
     }
   };
 
