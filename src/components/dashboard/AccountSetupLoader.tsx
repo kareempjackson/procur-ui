@@ -27,23 +27,22 @@ export default function AccountSetupLoader({
 }: AccountSetupLoaderProps) {
   const [flags, setFlags] = useState({
     business: false,
-    product: false,
+    farmVisit: false,
     payout: false,
   });
 
   useEffect(() => {
     try {
+      const hasWindow = typeof window !== "undefined";
       const business =
-        typeof window !== "undefined" &&
+        hasWindow &&
         !!localStorage.getItem("onboarding:business_profile_completed");
       const payout =
-        typeof window !== "undefined" &&
-        !!localStorage.getItem("onboarding:payments_completed");
-      const product =
-        typeof window !== "undefined" &&
-        !!localStorage.getItem("onboarding:product_added");
+        hasWindow && !!localStorage.getItem("onboarding:payments_completed");
+      const farmVisit =
+        hasWindow && !!localStorage.getItem("onboarding:farm_visit_booked");
 
-      setFlags({ business, product, payout });
+      setFlags({ business, farmVisit, payout });
     } catch (_) {
       // ignore
     }
@@ -59,11 +58,11 @@ export default function AccountSetupLoader({
         completed: flags.business,
       },
       {
-        id: "product",
-        label: "First Produce Listing",
-        sub: "Create your first listing",
-        href: "/seller/add/product",
-        completed: flags.product,
+        id: "farmVisit",
+        label: "Book Farm Visit",
+        sub: "Request an on-site visit to verify your farm",
+        href: "/seller",
+        completed: flags.farmVisit,
       },
       {
         id: "payout",

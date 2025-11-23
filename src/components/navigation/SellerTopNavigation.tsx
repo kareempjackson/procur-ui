@@ -194,7 +194,7 @@ const SellerTopNavigation: React.FC = () => {
               </Link>
 
               {/* Transactions Link */}
-              {/* <Link
+              <Link
                 href="/seller/transactions"
                 className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
                   pathname?.startsWith("/seller/transactions")
@@ -203,7 +203,7 @@ const SellerTopNavigation: React.FC = () => {
                 }`}
               >
                 <span className="relative">Transactions</span>
-              </Link> */}
+              </Link>
 
               {/* Inventory Link */}
               <Link

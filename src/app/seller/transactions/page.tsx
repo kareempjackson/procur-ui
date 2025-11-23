@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAppDispatch, useAppSelector } from "@/store";
@@ -108,6 +108,14 @@ export default function SellerTransactionsPage() {
 
   const dispatch = useAppDispatch();
   const txState = useAppSelector((s) => s.sellerTransactions);
+
+  const displayError =
+    error &&
+    (error.includes("403") ||
+      error.toLowerCase().includes("forbidden") ||
+      error.toLowerCase().includes("unauthorized"))
+      ? "Transactions are not available for your account yet. Please complete your seller setup or contact support."
+      : error;
 
   const getTransactionTypeColor = (type: TransactionType) => {
     switch (type) {
@@ -597,9 +605,9 @@ export default function SellerTransactionsPage() {
         </div>
 
         {/* Error State */}
-        {error && (
+        {displayError && (
           <div className="bg-[#CB5927]/10 border border-[#CB5927]/30 rounded-xl p-4 mb-6">
-            <p className="text-[#653011] font-medium">{error}</p>
+            <p className="text-[#653011] font-medium">{displayError}</p>
           </div>
         )}
 

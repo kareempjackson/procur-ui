@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -62,12 +62,6 @@ export default function SellerBusinessSettingsPage() {
   const [farmerIdPreview, setFarmerIdPreview] = useState<string | null>(null);
   const [savingGeneral, setSavingGeneral] = useState(false);
 
-  const publicSlug = useMemo(() => {
-    const name = (businessName || "").trim().toLowerCase();
-    if (!name) return "preview";
-    return name.replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-  }, [businessName]);
-
   // Load live profile data
   useEffect(() => {
     if (profileStatus === "idle") {
@@ -98,6 +92,14 @@ export default function SellerBusinessSettingsPage() {
     }
   }, [profile, farmerIdFile, logoFile]);
 
+  // Load bank info when Payments tab is opened
+  useEffect(() => {
+    if (activeTab === "payments") {
+      void loadBankInfo();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, user?.organizationId]);
+
   // Team Management State
   const [teamMembers] = useState<TeamMember[]>([]);
   const [invitations] = useState<Invitation[]>([]);
@@ -105,9 +107,15 @@ export default function SellerBusinessSettingsPage() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("member");
 
-  // Payment Settings State
-  const [bankConnected, setBankConnected] = useState(false);
-  const [bankAccountName, setBankAccountName] = useState("");
+  // Payment Settings State (backed by API)
+  const [bankInfoLoading, setBankInfoLoading] = useState(false);
+  const [bankInfoError, setBankInfoError] = useState<string | null>(null);
+  const [bankHasInfo, setBankHasInfo] = useState(false);
+  const [bankMaskedAccount, setBankMaskedAccount] = useState<string | null>(
+    null
+  );
+  const [bankName, setBankName] = useState<string | null>(null);
+  const [bankBranch, setBankBranch] = useState<string | null>(null);
 
   const handleFarmerIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -252,21 +260,42 @@ export default function SellerBusinessSettingsPage() {
     }
   };
 
-  const handleConnectBank = async () => {
-    // TODO: Implement Stripe or Plaid integration
-    console.log("Connecting bank account...");
-    setBankConnected(true);
-    setBankAccountName("Chase Bank •••• 1234");
-  };
+  const loadBankInfo = async () => {
+    if (!user?.organizationId) return;
+    setBankInfoLoading(true);
+    setBankInfoError(null);
+    try {
+      const client = getApiClient();
+      const { data } = await client.get("/sellers/bank-info");
 
-  const handleDisconnectBank = async () => {
-    if (!confirm("Are you sure you want to disconnect your bank account?"))
-      return;
+      const hasInfo = Boolean(data?.has_bank_info);
+      setBankHasInfo(hasInfo);
+      setBankName(data?.bank_name ?? null);
+      setBankBranch(data?.bank_branch ?? null);
+      const last4 = data?.account_last4 ?? null;
+      setBankMaskedAccount(
+        data?.bank_name && last4
+          ? `${data.bank_name} •••• ${last4}`
+          : last4
+            ? `Account •••• ${last4}`
+            : null
+      );
 
-    // TODO: Implement API call to disconnect bank
-    console.log("Disconnecting bank account...");
-    setBankConnected(false);
-    setBankAccountName("");
+      if (typeof window !== "undefined" && hasInfo) {
+        try {
+          localStorage.setItem("onboarding:payments_completed", "true");
+        } catch {
+          // ignore storage errors
+        }
+      }
+    } catch (err: any) {
+      console.error("Failed to load bank info", err);
+      const message =
+        err?.response?.data?.message || "Failed to load bank information.";
+      setBankInfoError(message);
+    } finally {
+      setBankInfoLoading(false);
+    }
   };
 
   const handleInviteUser = async () => {
@@ -344,49 +373,6 @@ export default function SellerBusinessSettingsPage() {
         {/* General Settings Tab */}
         {activeTab === "general" && (
           <div className="space-y-4">
-            {/* Public Profile Preview */}
-            <div className="bg-white rounded-2xl p-5 border border-[var(--secondary-soft-highlight)]/20">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <InformationCircleIcon className="h-5 w-5 text-[var(--primary-accent2)]" />
-                  <h2 className="text-lg font-semibold text-[var(--secondary-black)]">
-                    Public Profile Preview
-                  </h2>
-                </div>
-                <Link
-                  href={`/seller/${publicSlug}`}
-                  target="_blank"
-                  className="text-sm text-blue-600 hover:text-blue-700"
-                >
-                  Open public page →
-                </Link>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="h-16 w-16 rounded-xl border border-[var(--secondary-soft-highlight)]/30 bg-gray-50 overflow-hidden flex items-center justify-center">
-                  {logoPreview ? (
-                    <Image
-                      src={logoPreview}
-                      alt="Logo"
-                      width={64}
-                      height={64}
-                      className="h-16 w-16 object-cover"
-                    />
-                  ) : (
-                    <span className="text-xs text-gray-400">Logo</span>
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <div className="text-base font-semibold text-[var(--secondary-black)] truncate">
-                    {businessName || "Your Business Name"}
-                  </div>
-                  <div className="text-xs text-[var(--secondary-muted-edge)] truncate max-w-[28rem]">
-                    {description ||
-                      "Your short description appears here for buyers."}
-                  </div>
-                </div>
-              </div>
-            </div>
-
             {/* Company Information */}
             <div className="bg-white rounded-2xl p-5 border border-[var(--secondary-soft-highlight)]/20">
               <div className="flex items-center gap-2 mb-4">
@@ -819,16 +805,27 @@ export default function SellerBusinessSettingsPage() {
         {/* Payments Tab */}
         {activeTab === "payments" && (
           <div className="space-y-4">
-            {/* Bank Account Connection */}
             <div className="bg-white rounded-2xl p-5 border border-[var(--secondary-soft-highlight)]/20">
               <div className="flex items-center gap-2 mb-4">
                 <CreditCardIcon className="h-5 w-5 text-[var(--primary-accent2)]" />
                 <h2 className="text-lg font-semibold text-[var(--secondary-black)]">
-                  Bank Account
+                  Payout Bank Details
                 </h2>
               </div>
 
-              {bankConnected ? (
+              {bankInfoLoading && (
+                <div className="py-6 text-sm text-[var(--secondary-muted-edge)]">
+                  Loading bank information...
+                </div>
+              )}
+
+              {!bankInfoLoading && bankInfoError && (
+                <div className="py-4 px-4 mb-2 rounded-xl bg-red-50 border border-red-200 text-sm text-red-800">
+                  {bankInfoError}
+                </div>
+              )}
+
+              {!bankInfoLoading && !bankInfoError && bankHasInfo && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-xl">
                     <div className="flex items-center gap-3">
@@ -849,129 +846,65 @@ export default function SellerBusinessSettingsPage() {
                       </div>
                       <div>
                         <div className="text-sm font-semibold text-[var(--secondary-black)]">
-                          Bank Connected
+                          Bank details on file
                         </div>
-                        <div className="text-sm text-[var(--secondary-muted-edge)]">
-                          {bankAccountName}
-                        </div>
+                        {bankMaskedAccount && (
+                          <div className="text-sm text-[var(--secondary-muted-edge)]">
+                            {bankMaskedAccount}
+                          </div>
+                        )}
+                        {bankBranch && (
+                          <div className="text-xs text-[var(--secondary-muted-edge)]">
+                            Branch: {bankBranch}
+                          </div>
+                        )}
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={handleDisconnectBank}
-                      className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-full transition-colors font-medium"
-                    >
-                      Disconnect
-                    </button>
                   </div>
 
                   <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex gap-2">
                     <InformationCircleIcon className="w-5 h-5 text-blue-600 flex-shrink-0" />
                     <div className="text-xs text-blue-800">
-                      Your bank account is securely connected. Payments will be
-                      deposited directly to this account.
+                      Your payout bank information is securely stored and used
+                      for farmer payouts. To update these details, please
+                      contact support or your administrator.
                     </div>
                   </div>
                 </div>
-              ) : (
+              )}
+
+              {!bankInfoLoading && !bankInfoError && !bankHasInfo && (
                 <div className="space-y-4">
                   <div className="text-center py-8">
                     <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                       <CreditCardIcon className="w-8 h-8 text-gray-400" />
                     </div>
                     <h3 className="text-base font-semibold text-[var(--secondary-black)] mb-2">
-                      Connect Your Bank Account
+                      No payout bank on file
                     </h3>
-                    <p className="text-sm text-[var(--secondary-muted-edge)] mb-6 max-w-md mx-auto">
-                      Securely connect your bank account to receive payments
-                      from orders. We use bank-level encryption to protect your
-                      information.
+                    <p className="text-sm text-[var(--secondary-muted-edge)] mb-4 max-w-md mx-auto">
+                      To receive payouts via bank transfer, a bank account needs
+                      to be added for your organization.
                     </p>
-                    <button
-                      type="button"
-                      onClick={handleConnectBank}
-                      className="inline-flex items-center gap-2 px-6 py-3 bg-[var(--primary-accent2)] text-white rounded-full hover:bg-[var(--primary-accent3)] transition-colors font-medium"
-                    >
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                        />
-                      </svg>
-                      Connect Bank Account
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="p-4 bg-gray-50 rounded-xl">
-                      <div className="w-8 h-8 bg-[var(--primary-accent2)] bg-opacity-10 rounded-full flex items-center justify-center mb-3">
-                        <ShieldCheckIcon className="w-5 h-5 text-[var(--primary-accent2)]" />
-                      </div>
-                      <h4 className="text-sm font-semibold text-[var(--secondary-black)] mb-1">
-                        Secure Connection
-                      </h4>
-                      <p className="text-xs text-[var(--secondary-muted-edge)]">
-                        Bank-level encryption protects your data
-                      </p>
-                    </div>
-
-                    <div className="p-4 bg-gray-50 rounded-xl">
-                      <div className="w-8 h-8 bg-[var(--primary-accent2)] bg-opacity-10 rounded-full flex items-center justify-center mb-3">
-                        <svg
-                          className="w-5 h-5 text-[var(--primary-accent2)]"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M13 10V3L4 14h7v7l9-11h-7z"
-                          />
-                        </svg>
-                      </div>
-                      <h4 className="text-sm font-semibold text-[var(--secondary-black)] mb-1">
-                        Fast Deposits
-                      </h4>
-                      <p className="text-xs text-[var(--secondary-muted-edge)]">
-                        Receive payments within 1-2 business days
-                      </p>
-                    </div>
-
-                    <div className="p-4 bg-gray-50 rounded-xl">
-                      <div className="w-8 h-8 bg-[var(--primary-accent2)] bg-opacity-10 rounded-full flex items-center justify-center mb-3">
-                        <svg
-                          className="w-5 h-5 text-[var(--primary-accent2)]"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                          />
-                        </svg>
-                      </div>
-                      <h4 className="text-sm font-semibold text-[var(--secondary-black)] mb-1">
-                        No Hidden Fees
-                      </h4>
-                      <p className="text-xs text-[var(--secondary-muted-edge)]">
-                        Transparent pricing with no surprises
-                      </p>
-                    </div>
+                    <p className="text-xs text-[var(--secondary-muted-edge)] max-w-md mx-auto">
+                      Please contact support or your Procur representative to
+                      add or update your bank details. This helps us route
+                      payouts correctly.
+                    </p>
                   </div>
                 </div>
               )}
+
+              <div className="mt-4 text-xs text-[var(--secondary-muted-edge)]">
+                For payout history and individual transactions, visit{" "}
+                <Link
+                  href="/seller/transactions"
+                  className="text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)] underline"
+                >
+                  Seller → Transactions
+                </Link>
+                .
+              </div>
             </div>
           </div>
         )}
