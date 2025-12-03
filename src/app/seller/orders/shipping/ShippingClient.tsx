@@ -13,6 +13,7 @@ import {
   MapPinIcon,
   CubeIcon,
 } from "@heroicons/react/24/outline";
+import { getApiClient } from "@/lib/apiClient";
 import { useAppDispatch, useAppSelector } from "@/store";
 import { fetchSellerOrders } from "@/store/slices/sellerOrdersSlice";
 import ProcurLoader from "@/components/ProcurLoader";
@@ -84,25 +85,93 @@ export default function ShippingClient() {
   };
 
   const handleBulkPrintLabels = () => {
-    console.log("Printing labels for:", Array.from(selectedOrders));
-    show(
-      `Print labels functionality would open a print dialog for ${selectedOrders.size} orders`
+    if (selectedOrders.size === 0) return;
+
+    const selected = filteredOrders.filter((o) => selectedOrders.has(o.id));
+    if (selected.length === 0) return;
+
+    const printContent = selected
+      .map(
+        (o) => `
+        <div style="padding:12px;border-bottom:1px solid #eee;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;">
+          <h2>Order ${o.order_number}</h2>
+          <p><strong>Buyer:</strong> ${
+            o.buyer_info?.organization_name || "Buyer"
+          }</p>
+          <p><strong>Destination:</strong> ${
+            o.shipping_address
+              ? [o.shipping_address.city, o.shipping_address.state]
+                  .filter(Boolean)
+                  .join(", ")
+              : ""
+          }</p>
+          <p><strong>Total:</strong> ${formatCurrency(
+            o.total_amount,
+            o.currency
+          )}</p>
+        </div>
+      `
+      )
+      .join("");
+
+    const win = window.open("", "_blank", "width=800,height=600");
+    if (!win) {
+      show(
+        "Your browser blocked the print window. Please allow pop-ups and try again."
+      );
+      return;
+    }
+
+    win.document.write(
+      `<html><head><title>Shipping Labels</title></head><body>${printContent}</body></html>`
     );
+    win.document.close();
+    win.focus();
+    win.print();
   };
 
   const handleBulkMarkShipped = async () => {
+    if (selectedOrders.size === 0) return;
+
     if (
       !confirm(
-        `Are you sure you want to mark ${selectedOrders.size} orders as shipped? Please ensure tracking numbers have been added to each order.`
+        `Ask Procur admin to mark ${selectedOrders.size} order${
+          selectedOrders.size !== 1 ? "s" : ""
+        } as shipped? This will not change the status directly, but will create a request for review.`
       )
     ) {
       return;
     }
 
-    console.log("Marking as shipped:", Array.from(selectedOrders));
+    try {
+      const client = getApiClient();
+      const orderIds = Array.from(selectedOrders);
 
-    // TODO: Implement bulk update
-    show("Bulk shipping update would be processed here");
+      for (const orderId of orderIds) {
+        try {
+          await client.post(`/sellers/orders/${orderId}/status-requests`, {
+            requested_status: "shipped",
+            notes:
+              "Seller has packed items and marked this order as ready for shipment.",
+          });
+        } catch (err) {
+          console.error(
+            "Failed to request status update for order",
+            orderId,
+            err
+          );
+        }
+      }
+
+      show(
+        "Status update request sent to Procur admin for selected orders. They will update the status after review."
+      );
+      setSelectedOrders(new Set());
+      setShowBulkActions(false);
+    } catch (err) {
+      console.error("Bulk status update request failed", err);
+      show("Failed to send status update request. Please try again.");
+    }
   };
 
   const formatCurrency = (amount: number, currency: string = "USD") => {
@@ -225,7 +294,7 @@ export default function ShippingClient() {
                 className="flex items-center gap-2 px-5 py-2 bg-white text-[var(--primary-accent2)] rounded-full hover:bg-gray-50 transition-all font-medium text-sm"
               >
                 <CheckIcon className="h-4 w-4" />
-                Mark as Shipped
+                Request Status Update
               </button>
               <button
                 onClick={() => {
@@ -421,7 +490,8 @@ export default function ShippingClient() {
             <li className="flex items-start gap-2">
               <CheckIcon className="h-4 w-4 flex-shrink-0 mt-0.5" />
               <span>
-                Use bulk actions to process multiple orders efficiently
+                Use bulk label printing and status requests to help Procur admin
+                move shipments forward efficiently
               </span>
             </li>
           </ul>

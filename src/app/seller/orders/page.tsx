@@ -113,338 +113,6 @@ export default function SellerOrdersPage() {
   const [itemsPerPage] = useState(20);
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
 
-  // NOTE: Priority and fulfillment filters are UI-only for now; API supports status, payment_status, order_number, date range
-  // Demo orders data (removed; now from API)
-  const demoOrders: Order[] = [
-    {
-      id: "ord_001",
-      order_number: "#10234",
-      customer_name: "GreenLeaf Market",
-      customer_email: "orders@greenleafmarket.com",
-      customer_phone: "+1 (555) 123-4567",
-      status: OrderStatus.PREPARING,
-      priority: OrderPriority.HIGH,
-      payment_status: PaymentStatus.PAID,
-      fulfillment_method: FulfillmentMethod.DELIVERY,
-      subtotal: 1165.0,
-      tax_amount: 93.2,
-      shipping_cost: 25.0,
-      total_amount: 1283.2,
-      currency: "USD",
-      items: [
-        {
-          id: "item_001",
-          product_id: "prod_001",
-          product_name: "Organic Roma Tomatoes",
-          sku: "TOM-ROM-001",
-          quantity: 50,
-          unit_price: 4.99,
-          total_price: 249.5,
-          unit_of_measurement: "lb",
-          image_url:
-            "https://images.unsplash.com/photo-1546470427-e26264be0b0d?w=400&h=400&fit=crop&crop=center",
-        },
-        {
-          id: "item_002",
-          product_id: "prod_002",
-          product_name: "Free-Range Eggs",
-          sku: "EGG-FR-12",
-          quantity: 24,
-          unit_price: 6.5,
-          total_price: 156.0,
-          unit_of_measurement: "dozen",
-          image_url:
-            "https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=400&h=400&fit=crop&crop=center",
-        },
-        {
-          id: "item_003",
-          product_id: "prod_003",
-          product_name: "Organic Baby Spinach",
-          sku: "SPN-BAB-001",
-          quantity: 30,
-          unit_price: 3.49,
-          total_price: 104.7,
-          unit_of_measurement: "lb",
-          image_url:
-            "https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=400&h=400&fit=crop&crop=center",
-        },
-      ],
-      shipping_address: {
-        street: "123 Market St",
-        city: "Green Valley",
-        state: "CA",
-        zip: "94102",
-      },
-      notes: "Please deliver between 8-10 AM. Loading dock access available.",
-      estimated_delivery: "2024-01-24T09:00:00Z",
-      created_at: "2024-01-23T08:30:00Z",
-      updated_at: "2024-01-23T10:15:00Z",
-      confirmed_at: "2024-01-23T09:00:00Z",
-    },
-    {
-      id: "ord_002",
-      order_number: "#10233",
-      customer_name: "FreshCo Foods",
-      customer_email: "procurement@freshcofoods.com",
-      customer_phone: "+1 (555) 234-5678",
-      status: OrderStatus.IN_TRANSIT,
-      priority: OrderPriority.NORMAL,
-      payment_status: PaymentStatus.PAID,
-      fulfillment_method: FulfillmentMethod.SHIPPING,
-      subtotal: 356.0,
-      tax_amount: 28.48,
-      shipping_cost: 15.0,
-      total_amount: 399.48,
-      currency: "USD",
-      items: [
-        {
-          id: "item_004",
-          product_id: "prod_004",
-          product_name: "Heirloom Carrots",
-          sku: "CAR-HEI-001",
-          quantity: 25,
-          unit_price: 4.49,
-          total_price: 112.25,
-          unit_of_measurement: "lb",
-          image_url:
-            "https://images.unsplash.com/photo-1445282768818-728615cc910a?w=400&h=400&fit=crop&crop=center",
-        },
-        {
-          id: "item_005",
-          product_id: "prod_005",
-          product_name: "Organic Honey",
-          sku: "HON-ORG-001",
-          quantity: 12,
-          unit_price: 15.99,
-          total_price: 191.88,
-          unit_of_measurement: "jar",
-          image_url:
-            "https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=400&h=400&fit=crop&crop=center",
-        },
-      ],
-      shipping_address: {
-        street: "456 Fresh Ave",
-        city: "Organic City",
-        state: "CA",
-        zip: "94103",
-      },
-      estimated_delivery: "2024-01-25T14:00:00Z",
-      created_at: "2024-01-22T14:20:00Z",
-      updated_at: "2024-01-23T11:30:00Z",
-      confirmed_at: "2024-01-22T15:00:00Z",
-      shipped_at: "2024-01-23T11:30:00Z",
-    },
-    {
-      id: "ord_003",
-      order_number: "#10232",
-      customer_name: "Urban Grocer",
-      customer_email: "orders@urbangrocer.com",
-      customer_phone: "+1 (555) 345-6789",
-      status: OrderStatus.DELIVERED,
-      priority: OrderPriority.NORMAL,
-      payment_status: PaymentStatus.PAID,
-      fulfillment_method: FulfillmentMethod.DELIVERY,
-      subtotal: 1985.0,
-      tax_amount: 158.8,
-      shipping_cost: 35.0,
-      total_amount: 2178.8,
-      currency: "USD",
-      items: [
-        {
-          id: "item_006",
-          product_id: "prod_006",
-          product_name: "Grass-Fed Ground Beef",
-          sku: "BEF-GRD-001",
-          quantity: 40,
-          unit_price: 12.99,
-          total_price: 519.6,
-          unit_of_measurement: "lb",
-          image_url:
-            "https://images.unsplash.com/photo-1588347818121-69f25c4c6c0d?w=400&h=400&fit=crop&crop=center",
-        },
-        {
-          id: "item_007",
-          product_id: "prod_007",
-          product_name: "Artisan Sourdough Bread",
-          sku: "BRD-SOU-001",
-          quantity: 25,
-          unit_price: 8.99,
-          total_price: 224.75,
-          unit_of_measurement: "loaf",
-          image_url:
-            "https://images.unsplash.com/photo-1549931319-a545dcf3bc73?w=400&h=400&fit=crop&crop=center",
-        },
-        {
-          id: "item_008",
-          product_id: "prod_008",
-          product_name: "Organic Blueberries",
-          sku: "BLU-ORG-001",
-          quantity: 30,
-          unit_price: 7.99,
-          total_price: 239.7,
-          unit_of_measurement: "lb",
-          image_url:
-            "https://images.unsplash.com/photo-1498557850523-fd3d118b962e?w=400&h=400&fit=crop&crop=center",
-        },
-      ],
-      shipping_address: {
-        street: "789 Urban St",
-        city: "Metro City",
-        state: "CA",
-        zip: "94104",
-      },
-      notes: "Delivered successfully. Customer satisfied with quality.",
-      estimated_delivery: "2024-01-22T16:00:00Z",
-      created_at: "2024-01-21T10:15:00Z",
-      updated_at: "2024-01-22T16:30:00Z",
-      confirmed_at: "2024-01-21T11:00:00Z",
-      shipped_at: "2024-01-22T08:00:00Z",
-      delivered_at: "2024-01-22T16:30:00Z",
-    },
-    {
-      id: "ord_004",
-      order_number: "#10231",
-      customer_name: "Healthy Eats Co",
-      customer_email: "orders@healthyeats.com",
-      status: OrderStatus.PENDING,
-      priority: OrderPriority.URGENT,
-      payment_status: PaymentStatus.PENDING,
-      fulfillment_method: FulfillmentMethod.PICKUP,
-      subtotal: 445.5,
-      tax_amount: 35.64,
-      shipping_cost: 0.0,
-      total_amount: 481.14,
-      currency: "USD",
-      items: [
-        {
-          id: "item_009",
-          product_id: "prod_009",
-          product_name: "Organic Kale",
-          sku: "KAL-ORG-001",
-          quantity: 20,
-          unit_price: 5.99,
-          total_price: 119.8,
-          unit_of_measurement: "bunch",
-          image_url:
-            "https://images.unsplash.com/photo-1515543237350-b3eea1ec8082?w=400&h=400&fit=crop&crop=center",
-        },
-        {
-          id: "item_010",
-          product_id: "prod_010",
-          product_name: "Free-Range Chicken",
-          sku: "CHK-FR-001",
-          quantity: 8,
-          unit_price: 18.99,
-          total_price: 151.92,
-          unit_of_measurement: "lb",
-          image_url:
-            "https://images.unsplash.com/photo-1604503468506-a8da13d82791?w=400&h=400&fit=crop&crop=center",
-        },
-      ],
-      notes: "Customer will pickup at 2 PM today. Payment on pickup.",
-      estimated_delivery: "2024-01-23T14:00:00Z",
-      created_at: "2024-01-23T09:45:00Z",
-      updated_at: "2024-01-23T09:45:00Z",
-    },
-    {
-      id: "ord_005",
-      order_number: "#10230",
-      customer_name: "Farm Fresh Market",
-      customer_email: "billing@farmfreshmarket.com",
-      customer_phone: "+1 (555) 456-7890",
-      status: OrderStatus.CANCELLED,
-      priority: OrderPriority.LOW,
-      payment_status: PaymentStatus.FAILED,
-      fulfillment_method: FulfillmentMethod.DELIVERY,
-      subtotal: 567.25,
-      tax_amount: 45.38,
-      shipping_cost: 20.0,
-      total_amount: 632.63,
-      currency: "USD",
-      items: [
-        {
-          id: "item_011",
-          product_id: "prod_011",
-          product_name: "Bell Peppers",
-          sku: "PEP-BEL-001",
-          quantity: 35,
-          unit_price: 3.99,
-          total_price: 139.65,
-          unit_of_measurement: "lb",
-          image_url:
-            "https://images.unsplash.com/photo-1563565375-f3fdfdbefa83?w=400&h=400&fit=crop&crop=center",
-        },
-        {
-          id: "item_012",
-          product_id: "prod_012",
-          product_name: "Cucumbers",
-          sku: "CUC-GL-002",
-          quantity: 40,
-          unit_price: 2.49,
-          total_price: 99.6,
-          unit_of_measurement: "lb",
-          image_url:
-            "https://images.unsplash.com/photo-1449300079323-02e209d9d3a6?w=400&h=400&fit=crop&crop=center",
-        },
-      ],
-      shipping_address: {
-        street: "321 Farm Rd",
-        city: "Rural Town",
-        state: "CA",
-        zip: "94105",
-      },
-      notes: "Order cancelled due to payment failure. Customer notified.",
-      created_at: "2024-01-20T16:20:00Z",
-      updated_at: "2024-01-21T09:15:00Z",
-    },
-    {
-      id: "ord_006",
-      order_number: "#10229",
-      customer_name: "Local Farmer's Market",
-      customer_email: "coordinator@localfarmersmarket.com",
-      status: OrderStatus.CONFIRMED,
-      priority: OrderPriority.HIGH,
-      payment_status: PaymentStatus.PAID,
-      fulfillment_method: FulfillmentMethod.PICKUP,
-      subtotal: 289.75,
-      tax_amount: 23.18,
-      shipping_cost: 0.0,
-      total_amount: 312.93,
-      currency: "USD",
-      items: [
-        {
-          id: "item_013",
-          product_id: "prod_013",
-          product_name: "Mixed Greens",
-          sku: "GRN-MIX-001",
-          quantity: 15,
-          unit_price: 4.99,
-          total_price: 74.85,
-          unit_of_measurement: "bag",
-          image_url:
-            "https://images.unsplash.com/photo-1540420773420-3366772f4999?w=400&h=400&fit=crop&crop=center",
-        },
-        {
-          id: "item_014",
-          product_id: "prod_014",
-          product_name: "Cherry Tomatoes",
-          sku: "TOM-CHE-001",
-          quantity: 25,
-          unit_price: 5.99,
-          total_price: 149.75,
-          unit_of_measurement: "pint",
-          image_url:
-            "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=400&h=400&fit=crop&crop=center",
-        },
-      ],
-      notes: "For Saturday farmers market booth. Pickup at 6 AM.",
-      estimated_delivery: "2024-01-27T06:00:00Z",
-      created_at: "2024-01-20T11:30:00Z",
-      updated_at: "2024-01-20T12:00:00Z",
-      confirmed_at: "2024-01-20T12:00:00Z",
-    },
-  ];
-
   // Initialize with API data instead of demo
   useEffect(() => {
     setOrders([]);
@@ -466,70 +134,6 @@ export default function SellerOrdersPage() {
   });
 
   const [showFilters, setShowFilters] = useState(false);
-
-  // Fetch orders from API
-  async function fetchOrders(page: number) {
-    try {
-      setLoading(true);
-      setError(null);
-      const client = getApiClient(() => {
-        if (typeof window === "undefined") return null;
-        try {
-          const raw = localStorage.getItem("auth");
-          if (!raw) return null;
-          return (
-            (JSON.parse(raw) as { accessToken?: string }).accessToken ?? null
-          );
-        } catch {
-          return null;
-        }
-      });
-
-      const params: Record<string, unknown> = {
-        page,
-        limit: itemsPerPage,
-        sort_by: filters.sort_by,
-        sort_order: filters.sort_order,
-      };
-
-      if (filters.status) params.status = filters.status;
-      if (filters.payment_status)
-        params.payment_status = filters.payment_status;
-      if (filters.search) params.order_number = filters.search;
-
-      if (filters.date_range) {
-        const now = new Date();
-        let from: Date | null = null;
-        switch (filters.date_range) {
-          case "today":
-            from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            break;
-          case "7d":
-            from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-            break;
-          case "30d":
-            from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-            break;
-          case "90d":
-            from = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-            break;
-          default:
-            from = null;
-        }
-        if (from) params.from_date = from.toISOString();
-      }
-
-      const { data } = await client.get("/sellers/orders", { params });
-      setOrders((data.orders as Order[]) || []);
-      setTotalOrders((data.total as number) || 0);
-    } catch (e: unknown) {
-      setError("Failed to load orders.");
-      setOrders([]);
-      setTotalOrders(0);
-    } finally {
-      setLoading(false);
-    }
-  }
 
   const dispatch = useAppDispatch();
   const ordersState = useAppSelector((s) => s.sellerOrders);
@@ -670,34 +274,88 @@ export default function SellerOrdersPage() {
     }
   };
 
-  const handleStatusChange = (orderId: string, newStatus: OrderStatus) => {
-    // Update status in demo data
-    const orderIndex = demoOrders.findIndex((o) => o.id === orderId);
-    if (orderIndex !== -1) {
-      demoOrders[orderIndex].status = newStatus;
-      demoOrders[orderIndex].updated_at = new Date().toISOString();
+  const handleBulkExport = () => {
+    if (selectedOrders.length === 0) return;
 
-      // Set timestamps based on status
-      if (
-        newStatus === OrderStatus.CONFIRMED &&
-        !demoOrders[orderIndex].confirmed_at
-      ) {
-        demoOrders[orderIndex].confirmed_at = new Date().toISOString();
-      } else if (
-        newStatus === OrderStatus.IN_TRANSIT &&
-        !demoOrders[orderIndex].shipped_at
-      ) {
-        demoOrders[orderIndex].shipped_at = new Date().toISOString();
-      } else if (
-        newStatus === OrderStatus.DELIVERED &&
-        !demoOrders[orderIndex].delivered_at
-      ) {
-        demoOrders[orderIndex].delivered_at = new Date().toISOString();
-      }
-    }
+    const selected = orders.filter((o) => selectedOrders.includes(o.id));
+    if (selected.length === 0) return;
 
-    // Refresh UI (server data is source of truth in production)
-    setOrders([...orders]);
+    const headers = [
+      "Order Number",
+      "Customer",
+      "Email",
+      "Status",
+      "Payment Status",
+      "Total Amount",
+      "Currency",
+      "Created At",
+    ];
+
+    const rows = selected.map((o) => [
+      o.order_number,
+      o.customer_name,
+      o.customer_email,
+      o.status,
+      o.payment_status,
+      o.total_amount?.toString() ?? "",
+      o.currency ?? "USD",
+      o.created_at,
+    ]);
+
+    const csv = [headers, ...rows]
+      .map((row) =>
+        row.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")
+      )
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "orders_export.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleBulkPrintLabels = () => {
+    if (selectedOrders.length === 0) return;
+
+    const selected = orders.filter((o) => selectedOrders.includes(o.id));
+    if (selected.length === 0) return;
+
+    const printContent = selected
+      .map(
+        (o) => `
+        <div style="padding:12px;border-bottom:1px solid #eee;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;">
+          <h2>Order ${o.order_number}</h2>
+          <p><strong>Customer:</strong> ${o.customer_name}</p>
+          <p><strong>Email:</strong> ${o.customer_email}</p>
+          <p><strong>Destination:</strong> ${
+            o.shipping_address
+              ? [
+                  o.shipping_address.street,
+                  o.shipping_address.city,
+                  o.shipping_address.state,
+                  o.shipping_address.zip,
+                ]
+                  .filter(Boolean)
+                  .join(", ")
+              : ""
+          }</p>
+        </div>
+      `
+      )
+      .join("");
+
+    const win = window.open("", "_blank", "width=800,height=600");
+    if (!win) return;
+
+    win.document.write(
+      `<html><head><title>Shipping Labels</title></head><body>${printContent}</body></html>`
+    );
+    win.document.close();
+    win.focus();
+    win.print();
   };
 
   // Calculate summary statistics
@@ -1035,15 +693,19 @@ export default function SellerOrdersPage() {
                 <span className="text-[var(--primary-accent2)]">
                   ({selectedOrders.length} selected)
                 </span>
-                <button className="text-[var(--primary-base)] hover:text-[var(--primary-accent2)]">
+                <button
+                  onClick={handleBulkExport}
+                  className="text-[var(--primary-base)] hover:text-[var(--primary-accent2)]"
+                >
                   Export
                 </button>
-                <button className="text-[var(--primary-base)] hover:text-[var(--primary-accent2)]">
+                <button
+                  onClick={handleBulkPrintLabels}
+                  className="text-[var(--primary-base)] hover:text-[var(--primary-accent2)]"
+                >
                   Print Labels
                 </button>
-                <button className="text-[var(--primary-base)] hover:text-[var(--primary-accent2)]">
-                  Mark Shipped
-                </button>
+                {/* Status changes are admin-only; no Mark Shipped action here */}
               </>
             )}
           </div>

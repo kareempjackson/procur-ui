@@ -375,8 +375,9 @@ export default function OrderProcessingClient({
         <p className="text-sm text-[var(--secondary-muted-edge)] text-center mt-6">
           Order status updates (processing, shipped, delivered) are managed
           internally by the Procur admin team. You can use this page to review
-          packing and shipping details, but status changes will be applied by
-          admin.
+          packing and shipping details. Once ready, go to the Shipping tab to
+          request a status update for this order so admin can mark it as
+          shipped.
         </p>
       </main>
     </div>

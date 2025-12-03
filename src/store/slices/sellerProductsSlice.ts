@@ -81,16 +81,7 @@ const initialState: ProductsState = {
 };
 
 function getClient() {
-  return getApiClient(() => {
-    if (typeof window === "undefined") return null;
-    try {
-      const raw = localStorage.getItem("auth");
-      if (!raw) return null;
-      return (JSON.parse(raw) as { accessToken?: string }).accessToken ?? null;
-    } catch {
-      return null;
-    }
-  });
+  return getApiClient();
 }
 
 export const fetchSellerProducts = createAsyncThunk(
@@ -149,6 +140,7 @@ export type CreateSellerProductInput = {
     display_order?: number;
     is_primary?: boolean;
   }>;
+  admin_product_id?: string;
 };
 
 export const createSellerProduct = createAsyncThunk(

@@ -1250,7 +1250,7 @@ export default function BuyerClient() {
                 </Link>
               </section>
 
-              {/* Quick Stats */}
+              {/* Quick Stats - Live Marketplace Data */}
               <section className="bg-gradient-to-br from-[var(--primary-accent2)] to-[var(--primary-accent3)] rounded-2xl p-4 text-white">
                 <h3 className="text-sm font-semibold mb-3">
                   Marketplace Stats
@@ -1258,19 +1258,37 @@ export default function BuyerClient() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs opacity-90">Active Harvests</span>
-                    <span className="text-base font-bold">1,247</span>
+                    <span className="text-base font-bold">
+                      {stats
+                        ? stats.total_products.toLocaleString()
+                        : status === "loading"
+                          ? "—"
+                          : "0"}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-xs opacity-90">
                       Verified Suppliers
                     </span>
-                    <span className="text-base font-bold">342</span>
+                    <span className="text-base font-bold">
+                      {stats
+                        ? stats.total_sellers.toLocaleString()
+                        : status === "loading"
+                          ? "—"
+                          : "0"}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-xs opacity-90">
                       This Week&apos;s Orders
                     </span>
-                    <span className="text-base font-bold">8,923</span>
+                    <span className="text-base font-bold">
+                      {stats
+                        ? stats.new_products_this_week.toLocaleString()
+                        : status === "loading"
+                          ? "—"
+                          : "0"}
+                    </span>
                   </div>
                 </div>
               </section>

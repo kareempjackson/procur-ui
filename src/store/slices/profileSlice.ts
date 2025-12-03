@@ -34,6 +34,8 @@ export interface UserProfile {
     logoUrl?: string;
     farmersIdUrl?: string;
     farmersIdPath?: string;
+    farmersIdVerified?: boolean;
+    farmVerified?: boolean;
     accountType: string;
     address?: string;
     city?: string;

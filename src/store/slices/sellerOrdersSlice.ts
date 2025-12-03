@@ -105,16 +105,7 @@ const initialState: OrdersState = {
 };
 
 function getClient() {
-  return getApiClient(() => {
-    if (typeof window === "undefined") return null;
-    try {
-      const raw = localStorage.getItem("auth");
-      if (!raw) return null;
-      return (JSON.parse(raw) as { accessToken?: string }).accessToken ?? null;
-    } catch {
-      return null;
-    }
-  });
+  return getApiClient();
 }
 
 export const fetchSellerOrders = createAsyncThunk(

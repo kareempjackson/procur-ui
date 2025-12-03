@@ -14,8 +14,6 @@ import {
   PaperClipIcon,
   FaceSmileIcon,
   PaperAirplaneIcon,
-  EllipsisVerticalIcon,
-  PhoneIcon,
   InformationCircleIcon,
 } from "@heroicons/react/24/outline";
 import { StarIcon } from "@heroicons/react/24/solid";
@@ -543,20 +541,12 @@ export default function SellerMessagesPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-2">
-                  <button className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200">
-                    <PhoneIcon className="h-5 w-5 text-gray-600" />
-                  </button>
-                  <button
-                    onClick={() => setShowDetails(!showDetails)}
-                    className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
-                  >
-                    <InformationCircleIcon className="h-5 w-5 text-gray-600" />
-                  </button>
-                  <button className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200">
-                    <EllipsisVerticalIcon className="h-5 w-5 text-gray-600" />
-                  </button>
-                </div>
+                <button
+                  onClick={() => setShowDetails(!showDetails)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
+                >
+                  <InformationCircleIcon className="h-5 w-5 text-gray-600" />
+                </button>
               </div>
 
               {/* Messages */}

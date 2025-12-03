@@ -18,12 +18,14 @@ type AccountSetupLoaderProps = {
   completedCount?: number;
   totalCount?: number;
   onOpen?: () => void;
+  farmVerified?: boolean;
 };
 
 export default function AccountSetupLoader({
   completedCount,
   totalCount,
   onOpen,
+  farmVerified,
 }: AccountSetupLoaderProps) {
   const [flags, setFlags] = useState({
     business: false,
@@ -39,14 +41,28 @@ export default function AccountSetupLoader({
         !!localStorage.getItem("onboarding:business_profile_completed");
       const payout =
         hasWindow && !!localStorage.getItem("onboarding:payments_completed");
-      const farmVisit =
+      let farmVisit =
         hasWindow && !!localStorage.getItem("onboarding:farm_visit_booked");
+
+      // If the farm is verified by an admin, treat the "Book Farm Visit"
+      // onboarding step as completed, even if it wasn't explicitly marked
+      // in localStorage before.
+      if (farmVerified) {
+        farmVisit = true;
+        if (hasWindow) {
+          try {
+            localStorage.setItem("onboarding:farm_visit_booked", "true");
+          } catch {
+            // ignore storage write errors
+          }
+        }
+      }
 
       setFlags({ business, farmVisit, payout });
     } catch (_) {
       // ignore
     }
-  }, []);
+  }, [farmVerified]);
 
   const steps = useMemo(
     () => [

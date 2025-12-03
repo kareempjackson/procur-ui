@@ -90,6 +90,17 @@ interface CreateProductData {
   is_organic?: boolean;
 }
 
+type CatalogProduct = {
+  id: string;
+  name: string;
+  category?: string | null;
+  unit: string;
+  basePrice: number;
+  minSellerPrice?: number | null;
+  maxSellerPrice?: number | null;
+  shortDescription?: string | null;
+};
+
 function classNames(...classes: (string | false | null | undefined)[]) {
   return classes.filter(Boolean).join(" ");
 }
@@ -128,6 +139,9 @@ export default function AddProductPage() {
     Array(5).fill(null)
   );
   const [imageError, setImageError] = useState<string | null>(null);
+  const [catalogProducts, setCatalogProducts] = useState<CatalogProduct[]>([]);
+  const [selectedCatalogId, setSelectedCatalogId] = useState<string | "">("");
+  const [catalogError, setCatalogError] = useState<string | null>(null);
 
   const handleInputChange = (
     e: React.ChangeEvent<
@@ -168,6 +182,27 @@ export default function AddProductPage() {
       }
     }
   }, []);
+
+  // Load catalog products for seller to reference
+  useEffect(() => {
+    const loadCatalog = async () => {
+      try {
+        const client = getApiClient(() => accessToken);
+        const { data } = await client.get<CatalogProduct[]>(
+          "/sellers/catalog-products"
+        );
+        setCatalogProducts(data ?? []);
+      } catch (e) {
+        // Non-fatal; seller can still create products without catalog mapping
+        console.error("Failed to load catalog products", e);
+        setCatalogError(
+          "Catalog products could not be loaded. You can still create a product without linking to one."
+        );
+      }
+    };
+
+    void loadCatalog();
+  }, [accessToken]);
 
   // Auto-save draft to localStorage
   useEffect(() => {
@@ -314,8 +349,32 @@ export default function AddProductPage() {
         status: desiredStatus,
       };
 
+      const catalog = catalogProducts.find((p) => p.id === selectedCatalogId);
+      if (catalog) {
+        const price = payload.base_price;
+        if (catalog.minSellerPrice != null && price < catalog.minSellerPrice) {
+          throw new Error(
+            `Price must be at least ${catalog.minSellerPrice.toFixed(
+              2
+            )} XCD for ${catalog.name}.`
+          );
+        }
+        if (catalog.maxSellerPrice != null && price > catalog.maxSellerPrice) {
+          throw new Error(
+            `Price must be at most ${catalog.maxSellerPrice.toFixed(
+              2
+            )} XCD for ${catalog.name}.`
+          );
+        }
+      }
+
       // Create product using Redux thunk
-      const result = await dispatch(createSellerProduct(payload));
+      const result = await dispatch(
+        createSellerProduct({
+          ...payload,
+          admin_product_id: selectedCatalogId || undefined,
+        })
+      );
 
       // Check if creation was successful
       if (createSellerProduct.fulfilled.match(result)) {
@@ -486,6 +545,12 @@ export default function AddProductPage() {
           </div>
         )}
 
+        {catalogError && (
+          <div className="mb-6 p-3 bg-yellow-50 border border-yellow-200 rounded-xl text-xs text-yellow-800">
+            {catalogError}
+          </div>
+        )}
+
         {/* Form */}
         <div className="grid grid-cols-1 xl:grid-cols-5 gap-8">
           {/* Left Column - Form */}
@@ -606,6 +671,56 @@ export default function AddProductPage() {
                   Basic Information
                 </h2>
 
+                {/* Catalog product selector – treated as Category */}
+                <div className="mb-6">
+                  <label
+                    htmlFor="catalog-product"
+                    className="block text-sm font-medium text-[var(--secondary-black)] mb-2"
+                  >
+                    Category *
+                  </label>
+                  <select
+                    id="catalog-product"
+                    className="input w-full"
+                    required
+                    value={selectedCatalogId}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setSelectedCatalogId(value);
+
+                      const selected = catalogProducts.find(
+                        (p) => p.id === value
+                      );
+                      // Use the catalog product's category if available, otherwise fall back to its name
+                      if (selected) {
+                        setFormData((prev) => ({
+                          ...prev,
+                          category: selected.category || selected.name,
+                        }));
+                      } else {
+                        setFormData((prev) => ({
+                          ...prev,
+                          category: "",
+                        }));
+                      }
+                    }}
+                  >
+                    <option value="" disabled>
+                      Select a category
+                    </option>
+                    {catalogProducts.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                        {p.category ? ` – ${p.category}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-[var(--primary-base)]">
+                    Selecting a category links this product to a catalog item
+                    and may enforce a price range if defined.
+                  </p>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="md:col-span-2">
                     <label
@@ -625,32 +740,6 @@ export default function AddProductPage() {
                       className="input w-full"
                       placeholder="e.g., Organic Roma Tomatoes"
                     />
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="category"
-                      className="block text-sm font-medium text-[var(--secondary-black)] mb-2"
-                    >
-                      Category *
-                    </label>
-                    <select
-                      id="category"
-                      name="category"
-                      required
-                      value={formData.category}
-                      onChange={handleInputChange}
-                      className="input w-full"
-                    >
-                      <option value="" disabled>
-                        Select a category
-                      </option>
-                      {CATEGORY_OPTIONS.map((opt) => (
-                        <option key={opt} value={opt}>
-                          {opt}
-                        </option>
-                      ))}
-                    </select>
                   </div>
 
                   <div className="md:col-span-2">
@@ -723,6 +812,34 @@ export default function AddProductPage() {
                         placeholder="0.00"
                       />
                     </div>
+                    {selectedCatalogId && (
+                      <p className="mt-1 text-xs text-[var(--primary-base)]">
+                        {(() => {
+                          const catalog = catalogProducts.find(
+                            (p) => p.id === selectedCatalogId
+                          );
+                          if (!catalog) return null;
+                          const min = catalog.minSellerPrice;
+                          const max = catalog.maxSellerPrice;
+                          if (min == null && max == null) {
+                            return "No specific price range enforced for the selected catalog product.";
+                          }
+                          if (min != null && max != null) {
+                            return `Required range for this catalog product: ${min.toFixed(
+                              2
+                            )} – ${max.toFixed(2)} XCD per unit.`;
+                          }
+                          if (min != null) {
+                            return `Price must be at least ${min.toFixed(
+                              2
+                            )} XCD per unit for this catalog product.`;
+                          }
+                          return `Price must be at most ${max!.toFixed(
+                            2
+                          )} XCD per unit for this catalog product.`;
+                        })()}
+                      </p>
+                    )}
                   </div>
 
                   <div className="md:col-span-2">

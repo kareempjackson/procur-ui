@@ -35,17 +35,7 @@ const initialState: NotificationsState = {
 };
 
 function getClient() {
-  return getApiClient(() => {
-    if (typeof window === "undefined") return null;
-    try {
-      const raw = localStorage.getItem("auth");
-      if (!raw) return null;
-      const parsed = JSON.parse(raw) as { accessToken?: string };
-      return parsed.accessToken ?? null;
-    } catch {
-      return null;
-    }
-  });
+  return getApiClient();
 }
 
 function extractErrorMessage(error: unknown, fallback: string): string {

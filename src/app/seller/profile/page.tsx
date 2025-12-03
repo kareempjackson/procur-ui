@@ -271,10 +271,14 @@ export default function SellerProfilePage() {
                   <input
                     type="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    disabled
+                    readOnly
                     placeholder="you@example.com"
-                    className={inputClassName}
+                    className={`${inputClassName} bg-gray-50 text-gray-500 cursor-not-allowed`}
                   />
+                  <p className="mt-1 text-[11px] text-[var(--secondary-muted-edge)]">
+                    Contact support if you need to change your login email.
+                  </p>
                 </div>
 
                 <div>

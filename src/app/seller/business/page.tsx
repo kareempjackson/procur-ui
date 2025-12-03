@@ -101,11 +101,14 @@ export default function SellerBusinessSettingsPage() {
   }, [activeTab, user?.organizationId]);
 
   // Team Management State
-  const [teamMembers] = useState<TeamMember[]>([]);
-  const [invitations] = useState<Invitation[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [teamLoading, setTeamLoading] = useState(false);
+  const [teamError, setTeamError] = useState<string | null>(null);
+  const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("member");
+  const [inviteSubmitting, setInviteSubmitting] = useState(false);
 
   // Payment Settings State (backed by API)
   const [bankInfoLoading, setBankInfoLoading] = useState(false);
@@ -298,27 +301,135 @@ export default function SellerBusinessSettingsPage() {
     }
   };
 
-  const handleInviteUser = async () => {
-    if (!inviteEmail.trim()) return;
+  const loadInvitations = async () => {
+    if (!user?.organizationId) return;
+    try {
+      const client = getApiClient();
+      const { data } = await client.get<
+        {
+          id: string;
+          email: string;
+          role_id: string;
+          inviter_user_id: string;
+          created_at: string;
+          expires_at: string;
+        }[]
+      >("/users/org-invitations");
 
-    // TODO: Implement API call to send invitation
-    console.log("Inviting user:", inviteEmail, inviteRole);
+      const mapped: Invitation[] =
+        (data || []).map((inv) => ({
+          id: inv.id,
+          email: inv.email,
+          role: "Member", // Role name is not yet joined; can be enhanced later
+          invitedBy: inv.inviter_user_id,
+          createdAt: inv.created_at,
+          expiresAt: inv.expires_at,
+        })) ?? [];
 
-    setShowInviteModal(false);
-    setInviteEmail("");
-    setInviteRole("member");
+      setInvitations(mapped);
+    } catch (err) {
+      // Non-fatal for now
+      console.error("Failed to load invitations", err);
+    }
   };
 
-  // const handleRemoveUser = async (userId: string) => {
-  //   if (!confirm("Are you sure you want to remove this team member?")) return;
-  //   // TODO: Implement API call to remove user
-  //   console.log("Removing user:", userId);
-  // };
+  const loadTeamMembers = async () => {
+    setTeamLoading(true);
+    setTeamError(null);
+    try {
+      const client = getApiClient();
+      const { data } = await client.get<TeamMember[]>("/users/org-members");
+      setTeamMembers(data ?? []);
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to load team members.";
+      setTeamError(message);
+    } finally {
+      setTeamLoading(false);
+    }
+  };
+
+  const handleInviteUser = async () => {
+    const email = inviteEmail.trim();
+    if (!email) return;
+
+    setInviteSubmitting(true);
+    try {
+      const client = getApiClient();
+      await client.post("/users/org-members/invite", {
+        email,
+        roleName: inviteRole || undefined,
+      });
+      show("Invitation sent");
+      setShowInviteModal(false);
+      setInviteEmail("");
+      setInviteRole("member");
+      void loadInvitations();
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to add team member. Please try again.";
+      show(message);
+    } finally {
+      setInviteSubmitting(false);
+    }
+  };
+
+  const handleRemoveTeamMember = async (orgUserId: string) => {
+    if (
+      !confirm(
+        "Are you sure you want to remove this team member from your organization?"
+      )
+    )
+      return;
+
+    try {
+      const client = getApiClient();
+      await client.delete(`/users/org-members/${orgUserId}`);
+      setTeamMembers((prev) => prev.filter((m) => m.id !== orgUserId));
+      show("Team member removed");
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to remove team member.";
+      show(message);
+    }
+  };
 
   const handleRevokeInvitation = async (invitationId: string) => {
-    // TODO: Implement API call to revoke invitation
-    console.log("Revoking invitation:", invitationId);
+    if (
+      !confirm(
+        "Are you sure you want to revoke this invitation? The link will stop working."
+      )
+    )
+      return;
+
+    try {
+      const client = getApiClient();
+      await client.delete(`/users/org-invitations/${invitationId}`);
+      setInvitations((prev) => prev.filter((i) => i.id !== invitationId));
+      show("Invitation revoked");
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to revoke invitation.";
+      show(message);
+    }
   };
+
+  // When switching to Team tab, load members + invitations
+  useEffect(() => {
+    if (activeTab === "team") {
+      void loadTeamMembers();
+      void loadInvitations();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, user?.organizationId]);
 
   const inputClassName =
     "w-full px-4 py-2.5 text-sm rounded-full border border-gray-200 bg-white outline-none focus:border-[var(--primary-accent2)] transition-colors text-[var(--secondary-black)]";
@@ -722,13 +833,68 @@ export default function SellerBusinessSettingsPage() {
                   </div>
                 </div>
 
-                {teamMembers.length === 0 && (
-                  <div className="text-center py-12 text-[var(--secondary-muted-edge)]">
-                    <UserGroupIcon className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                    <p className="text-sm font-medium">No team members yet</p>
-                    <p className="text-xs mt-1">
-                      Invite users to collaborate on your organization
-                    </p>
+                {teamLoading && (
+                  <div className="text-center py-6 text-sm text-[var(--secondary-muted-edge)]">
+                    Loading team members...
+                  </div>
+                )}
+                {teamError && (
+                  <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+                    {teamError}
+                  </div>
+                )}
+
+                {!teamLoading && !teamError && (
+                  <div className="space-y-2 mt-2">
+                    {teamMembers
+                      .filter((m) => m.email !== user?.email)
+                      .map((member) => (
+                        <div
+                          key={member.id}
+                          className="flex items-center justify-between p-3 border border-[var(--secondary-soft-highlight)]/30 rounded-xl bg-white"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-[var(--primary-accent1)] flex items-center justify-center text-[var(--secondary-black)] font-semibold text-sm">
+                              {member.fullname?.charAt(0) ||
+                                member.email?.charAt(0) ||
+                                "?"}
+                            </div>
+                            <div>
+                              <div className="text-sm font-medium text-[var(--secondary-black)]">
+                                {member.fullname || member.email}
+                              </div>
+                              <div className="text-xs text-[var(--secondary-muted-edge)]">
+                                {member.email}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="px-2.5 py-0.5 bg-gray-100 text-gray-800 rounded-full text-xs font-medium capitalize">
+                              {member.role}
+                            </div>
+                            <button
+                              onClick={() => handleRemoveTeamMember(member.id)}
+                              className="text-xs text-red-600 hover:text-red-700 px-2 py-1 rounded-full hover:bg-red-50 transition-colors"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+
+                    {teamMembers.filter((m) => m.email !== user?.email)
+                      .length === 0 &&
+                      !teamLoading && (
+                        <div className="text-center py-8 text-[var(--secondary-muted-edge)]">
+                          <UserGroupIcon className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+                          <p className="text-sm font-medium">
+                            No additional team members yet
+                          </p>
+                          <p className="text-xs mt-1">
+                            Invite users to collaborate on your organization
+                          </p>
+                        </div>
+                      )}
                   </div>
                 )}
               </div>
@@ -969,9 +1135,10 @@ export default function SellerBusinessSettingsPage() {
                 </button>
                 <button
                   onClick={handleInviteUser}
-                  className="flex-1 px-4 py-2 text-sm bg-[var(--primary-accent2)] text-white rounded-full hover:bg-[var(--primary-accent3)] transition-colors font-medium"
+                  disabled={inviteSubmitting || !inviteEmail.trim()}
+                  className="flex-1 px-4 py-2 text-sm bg-[var(--primary-accent2)] text-white rounded-full hover:bg-[var(--primary-accent3)] disabled:opacity-60 disabled:cursor-not-allowed transition-colors font-medium"
                 >
-                  Send Invitation
+                  {inviteSubmitting ? "Sending..." : "Send Invitation"}
                 </button>
               </div>
             </div>
