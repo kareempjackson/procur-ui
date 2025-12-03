@@ -68,6 +68,7 @@ export default function SellerDashboardPage() {
   const isFarmVerified = Boolean(profile?.organization?.farmVerified);
 
   const [showPaymentLinkModal, setShowPaymentLinkModal] = useState(false);
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
 
   // Buyer details
   const [buyerNameForLink, setBuyerNameForLink] = useState("");
@@ -270,6 +271,14 @@ export default function SellerDashboardPage() {
     return orders.filter((o) => o.status === statusMap[orderTab]);
   }, [orderTab, orders]);
 
+  const requireSellerVerified = (action?: () => void) => {
+    if (!isFarmVerified) {
+      setShowVerificationModal(true);
+      return;
+    }
+    action?.();
+  };
+
   const handleCreatePaymentLink = async () => {
     if (!buyerNameForLink.trim()) {
       show("Enter the buyer name for this order.");
@@ -440,12 +449,22 @@ export default function SellerDashboardPage() {
               </p>
             </div>
             <div className="flex gap-3">
-              <Link
-                href="/seller/harvest-update"
-                className="inline-flex items-center justify-center rounded-full bg-[var(--primary-accent2)] text-white px-5 py-2.5 text-sm font-medium hover:bg-[var(--primary-accent3)] transition-colors focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:ring-offset-2"
-              >
-                Post Harvest Update
-              </Link>
+              {isFarmVerified ? (
+                <Link
+                  href="/seller/harvest-update"
+                  className="inline-flex items-center justify-center rounded-full bg-[var(--primary-accent2)] text-white px-5 py-2.5 text-sm font-medium hover:bg-[var(--primary-accent3)] transition-colors focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:ring-offset-2"
+                >
+                  Post Harvest Update
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowVerificationModal(true)}
+                  className="inline-flex items-center justify-center rounded-full bg-gray-200 text-gray-500 px-5 py-2.5 text-sm font-medium cursor-not-allowed"
+                >
+                  Post Harvest Update
+                </button>
+              )}
             </div>
           </div>
           <div className="mt-6">
@@ -568,22 +587,35 @@ export default function SellerDashboardPage() {
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => router.push("/seller/add/product")}
+                onClick={() =>
+                  requireSellerVerified(() =>
+                    router.push("/seller/add/product")
+                  )
+                }
                 className="inline-flex items-center justify-center rounded-full border border-[color:var(--secondary-soft-highlight)] bg-white px-4 py-2 text-xs font-medium text-[color:var(--secondary-black)] hover:bg-gray-50 transition-colors"
               >
                 Add product
               </button>
               <button
                 type="button"
-                onClick={() => router.push("/seller/orders")}
+                onClick={() =>
+                  requireSellerVerified(() => router.push("/seller/orders"))
+                }
                 className="inline-flex items-center justify-center rounded-full border border-[color:var(--secondary-soft-highlight)] bg-white px-4 py-2 text-xs font-medium text-[color:var(--secondary-black)] hover:bg-gray-50 transition-colors"
               >
                 View orders
               </button>
               <button
                 type="button"
-                onClick={() => setShowPaymentLinkModal(true)}
-                className="inline-flex items-center justify-center rounded-full bg-[var(--primary-accent2)] text-white px-4 py-2 text-xs font-medium hover:bg-[var(--primary-accent3)] transition-colors focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:ring-offset-2"
+                onClick={() =>
+                  requireSellerVerified(() => setShowPaymentLinkModal(true))
+                }
+                className={classNames(
+                  "inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:ring-offset-2 transition-colors",
+                  isFarmVerified
+                    ? "bg-[var(--primary-accent2)] text-white hover:bg-[var(--primary-accent3)]"
+                    : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                )}
               >
                 Create payment link
               </button>
@@ -644,8 +676,16 @@ export default function SellerDashboardPage() {
               }))}
               actions={
                 <button
-                  onClick={() => router.push("/seller/orders")}
-                  className="inline-flex items-center justify-center rounded-full bg-[var(--primary-accent2)] text-white px-4 py-2 text-xs font-medium hover:bg-[var(--primary-accent3)] transition-colors focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:ring-offset-2"
+                  type="button"
+                  onClick={() =>
+                    requireSellerVerified(() => router.push("/seller/orders"))
+                  }
+                  className={classNames(
+                    "inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:ring-offset-2 transition-colors",
+                    isFarmVerified
+                      ? "bg-[var(--primary-accent2)] text-white hover:bg-[var(--primary-accent3)]"
+                      : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                  )}
                 >
                   View all orders
                 </button>
@@ -1224,6 +1264,60 @@ export default function SellerDashboardPage() {
                 className="inline-flex items-center rounded-full border border-[color:var(--secondary-soft-highlight)] bg-white px-4 py-2 text-xs font-medium text-[color:var(--secondary-black)] hover:bg-gray-50 transition-colors"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Verification Required Modal */}
+      {showVerificationModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-[color:var(--secondary-soft-highlight)]">
+            <div className="px-6 py-4 border-b border-[color:var(--secondary-soft-highlight)]/60 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-[color:var(--secondary-black)]">
+                  Verification required
+                </h2>
+                <p className="mt-1 text-xs text-[color:var(--secondary-muted-edge)]">
+                  Your seller account must be verified by an admin before you
+                  can use features like adding products, creating payment links,
+                  or managing orders from this dashboard.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowVerificationModal(false)}
+                className="text-[color:var(--secondary-muted-edge)] hover:text-[color:var(--secondary-black)] text-xs"
+              >
+                Close
+              </button>
+            </div>
+            <div className="px-6 py-4 space-y-3">
+              <p className="text-[11px] text-[color:var(--secondary-muted-edge)]">
+                To get verified, complete your{" "}
+                <span className="font-medium">Business Settings</span> and, if
+                you are a farmer, request a farm visit so an admin can review
+                and activate your account.
+              </p>
+            </div>
+            <div className="px-6 py-3 border-t border-[color:var(--secondary-soft-highlight)]/60 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowVerificationModal(false)}
+                className="inline-flex items-center rounded-full border border-[color:var(--secondary-soft-highlight)] bg-white px-4 py-2 text-xs font-medium text-[color:var(--secondary-black)] hover:bg-gray-50 transition-colors"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowVerificationModal(false);
+                  router.push("/seller/business");
+                }}
+                className="inline-flex items-center rounded-full bg-[var(--primary-accent2)] text-white px-4 py-2 text-xs font-medium hover:bg-[var(--primary-accent3)] transition-colors"
+              >
+                Go to Business Settings
               </button>
             </div>
           </div>

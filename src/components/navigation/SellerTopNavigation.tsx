@@ -92,8 +92,9 @@ const SellerTopNavigation: React.FC = () => {
       displayName
     )}&background=407178&color=fff`;
 
-  // Business type from profile to gate farmer-only features
+  // Business type and verification state from profile
   const businessType = profile?.organization?.businessType;
+  const isFarmVerified = Boolean(profile?.organization?.farmVerified);
 
   // Click outside to close dropdowns
   useEffect(() => {
@@ -181,53 +182,58 @@ const SellerTopNavigation: React.FC = () => {
                 <span className="relative">Requests</span>
               </Link> */}
 
-              {/* Orders Link */}
-              <Link
-                href="/seller/orders"
-                className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
-                  pathname?.startsWith("/seller/orders")
-                    ? "text-[var(--primary-accent2)] border-[var(--primary-accent2)]"
-                    : "text-gray-800 hover:text-black border-transparent"
-                }`}
-              >
-                <span className="relative">Orders</span>
-              </Link>
+              {/* Core seller nav links (hidden until verified) */}
+              {isFarmVerified && (
+                <>
+                  {/* Orders Link */}
+                  <Link
+                    href="/seller/orders"
+                    className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
+                      pathname?.startsWith("/seller/orders")
+                        ? "text-[var(--primary-accent2)] border-[var(--primary-accent2)]"
+                        : "text-gray-800 hover:text-black border-transparent"
+                    }`}
+                  >
+                    <span className="relative">Orders</span>
+                  </Link>
 
-              {/* Transactions Link */}
-              <Link
-                href="/seller/transactions"
-                className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
-                  pathname?.startsWith("/seller/transactions")
-                    ? "text-[var(--primary-accent2)] border-[var(--primary-accent2)]"
-                    : "text-gray-800 hover:text-black border-transparent"
-                }`}
-              >
-                <span className="relative">Transactions</span>
-              </Link>
+                  {/* Transactions Link */}
+                  <Link
+                    href="/seller/transactions"
+                    className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
+                      pathname?.startsWith("/seller/transactions")
+                        ? "text-[var(--primary-accent2)] border-[var(--primary-accent2)]"
+                        : "text-gray-800 hover:text-black border-transparent"
+                    }`}
+                  >
+                    <span className="relative">Transactions</span>
+                  </Link>
 
-              {/* Inventory Link */}
-              <Link
-                href="/seller/products"
-                className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
-                  pathname?.startsWith("/seller/products")
-                    ? "text-[var(--primary-accent2)] border-[var(--primary-accent2)]"
-                    : "text-gray-800 hover:text-black border-transparent"
-                }`}
-              >
-                <span className="relative">Inventory</span>
-              </Link>
+                  {/* Inventory Link */}
+                  <Link
+                    href="/seller/products"
+                    className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
+                      pathname?.startsWith("/seller/products")
+                        ? "text-[var(--primary-accent2)] border-[var(--primary-accent2)]"
+                        : "text-gray-800 hover:text-black border-transparent"
+                    }`}
+                  >
+                    <span className="relative">Inventory</span>
+                  </Link>
 
-              {/* Messages Link */}
-              <Link
-                href="/seller/messages"
-                className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
-                  pathname?.startsWith("/seller/messages")
-                    ? "text-[var(--primary-accent2)] border-[var(--primary-accent2)]"
-                    : "text-gray-800 hover:text-black border-transparent"
-                }`}
-              >
-                <span className="relative">Messages</span>
-              </Link>
+                  {/* Messages Link */}
+                  <Link
+                    href="/seller/messages"
+                    className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
+                      pathname?.startsWith("/seller/messages")
+                        ? "text-[var(--primary-accent2)] border-[var(--primary-accent2)]"
+                        : "text-gray-800 hover:text-black border-transparent"
+                    }`}
+                  >
+                    <span className="relative">Messages</span>
+                  </Link>
+                </>
+              )}
             </div>
 
             {/* Mobile menu button */}
@@ -387,16 +393,27 @@ const SellerTopNavigation: React.FC = () => {
               )} */}
 
               {/* Add Product Button */}
-              <Link
-                href="/seller/add/product"
-                className={`px-6 py-2.5 rounded-full font-medium text-[15px] transition-colors flex items-center ${
-                  pathname?.startsWith("/seller/add")
-                    ? "bg-[var(--primary-accent2)] text-white"
-                    : "bg-black text-white hover:bg-gray-800"
-                }`}
-              >
-                {t("seller.addProduct")}
-              </Link>
+              {isFarmVerified ? (
+                <Link
+                  href="/seller/add/product"
+                  className={`px-6 py-2.5 rounded-full font-medium text-[15px] transition-colors flex items-center ${
+                    pathname?.startsWith("/seller/add")
+                      ? "bg-[var(--primary-accent2)] text-white"
+                      : "bg-black text-white hover:bg-gray-800"
+                  }`}
+                >
+                  {t("seller.addProduct")}
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="px-6 py-2.5 rounded-full font-medium text-[15px] bg-gray-300 text-gray-600 cursor-not-allowed flex items-center"
+                  title="Your seller account must be verified before you can add products."
+                >
+                  {t("seller.addProduct")}
+                </button>
+              )}
 
               {/* User Profile Dropdown */}
               <div className="relative">
@@ -535,30 +552,34 @@ const SellerTopNavigation: React.FC = () => {
               >
                 Requests
               </Link>
-              <Link
-                href="/seller/orders"
-                className="block text-gray-800 font-medium py-2"
-              >
-                Orders
-              </Link>
-              <Link
-                href="/seller/transactions"
-                className="block text-gray-800 font-medium py-2"
-              >
-                Transactions
-              </Link>
-              <Link
-                href="/seller/products"
-                className="block text-gray-800 font-medium py-2"
-              >
-                Inventory
-              </Link>
-              <Link
-                href="/seller/messages"
-                className="block text-gray-800 font-medium py-2"
-              >
-                Messages
-              </Link>
+              {isFarmVerified && (
+                <>
+                  <Link
+                    href="/seller/orders"
+                    className="block text-gray-800 font-medium py-2"
+                  >
+                    Orders
+                  </Link>
+                  <Link
+                    href="/seller/transactions"
+                    className="block text-gray-800 font-medium py-2"
+                  >
+                    Transactions
+                  </Link>
+                  <Link
+                    href="/seller/products"
+                    className="block text-gray-800 font-medium py-2"
+                  >
+                    Inventory
+                  </Link>
+                  <Link
+                    href="/seller/messages"
+                    className="block text-gray-800 font-medium py-2"
+                  >
+                    Messages
+                  </Link>
+                </>
+              )}
               <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                 <div className="flex items-center space-x-4">
                   <Link

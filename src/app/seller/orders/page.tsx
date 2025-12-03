@@ -151,6 +151,9 @@ export default function SellerOrdersPage() {
 
   const [paymentLinks, setPaymentLinks] = useState<PaymentLinkSummary[]>([]);
   const [paymentLinksLoading, setPaymentLinksLoading] = useState(false);
+  const [editingPaymentLink, setEditingPaymentLink] =
+    useState<PaymentLinkSummary | null>(null);
+  const [isSavingPaymentLink, setIsSavingPaymentLink] = useState(false);
 
   async function runFetch(page: number) {
     const params: any = {
@@ -777,15 +780,26 @@ export default function SellerOrdersPage() {
                           : "—"}
                       </td>
                       <td className="py-2 px-2 text-right">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            navigator.clipboard.writeText(pl.public_url)
-                          }
-                          className="inline-flex items-center rounded-full border border-[var(--secondary-soft-highlight)] px-3 py-1 text-[11px] text-[var(--secondary-black)] hover:bg-[var(--primary-background)] transition-colors"
-                        >
-                          Copy link
-                        </button>
+                        <div className="inline-flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              navigator.clipboard.writeText(pl.public_url)
+                            }
+                            className="inline-flex items-center rounded-full border border-[var(--secondary-soft-highlight)] px-3 py-1 text-[11px] text-[var(--secondary-black)] hover:bg-[var(--primary-background)] transition-colors"
+                          >
+                            Copy link
+                          </button>
+                          {pl.status === "active" && (
+                            <button
+                              type="button"
+                              onClick={() => setEditingPaymentLink(pl)}
+                              className="inline-flex items-center rounded-full border border-[var(--secondary-soft-highlight)] px-3 py-1 text-[11px] text-[var(--secondary-black)] hover:bg-[var(--primary-background)] transition-colors"
+                            >
+                              Edit
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

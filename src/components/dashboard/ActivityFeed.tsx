@@ -15,6 +15,8 @@ export default function ActivityFeed() {
   const dispatch = useAppDispatch();
   const feed = useAppSelector((s) => s.harvestFeed);
   const isBuyer = useAppSelector((s) => s.auth.user?.accountType === "buyer");
+  const profile = useAppSelector((s) => s.profile.profile);
+  const isFarmVerified = Boolean(profile?.organization?.farmVerified);
   const { show } = useToast();
   const [commentDraft, setCommentDraft] = useState<Record<string, string>>({});
   const [requestDraft, setRequestDraft] = useState<
@@ -39,12 +41,23 @@ export default function ActivityFeed() {
             Harvest updates, comments, and buyer requests
           </p>
         </div>
-        <Link
-          href="/seller/harvest-update"
-          className="inline-flex items-center justify-center rounded-full bg-[var(--primary-accent2)] text-white px-4 py-2 text-xs font-medium hover:bg-[var(--primary-accent3)] transition-colors focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:ring-offset-2"
-        >
-          Post update
-        </Link>
+        {isFarmVerified ? (
+          <Link
+            href="/seller/harvest-update"
+            className="inline-flex items-center justify-center rounded-full bg-[var(--primary-accent2)] text-white px-4 py-2 text-xs font-medium hover:bg-[var(--primary-accent3)] transition-colors focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:ring-offset-2"
+          >
+            Post update
+          </Link>
+        ) : (
+          <button
+            type="button"
+            disabled
+            className="inline-flex items-center justify-center rounded-full bg-gray-200 text-gray-500 px-4 py-2 text-xs font-medium cursor-not-allowed"
+            title="Complete your seller verification to post updates."
+          >
+            Post update
+          </button>
+        )}
       </div>
 
       {feed.status === "loading" ? (
