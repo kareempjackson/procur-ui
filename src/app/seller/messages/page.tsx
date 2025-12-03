@@ -66,6 +66,7 @@ export default function SellerMessagesPage() {
   const [typingUsers, setTypingUsers] = useState<Record<string, boolean>>({});
   const [contextItem, setContextItem] = useState<any | null>(null);
   const [contextLoading, setContextLoading] = useState<boolean>(false);
+  const [contextError, setContextError] = useState<string | null>(null);
   const listEndRef = useRef<HTMLDivElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -220,9 +221,11 @@ export default function SellerMessagesPage() {
         conversations.find((c) => c.id === activeConversationId) || null;
       if (!conv || !conv.context_type || !conv.context_id) {
         setContextItem(null);
+        setContextError(null);
         return;
       }
       setContextLoading(true);
+      setContextError(null);
       try {
         let path = "";
         switch ((conv.context_type || "").toLowerCase()) {
@@ -242,6 +245,7 @@ export default function SellerMessagesPage() {
         }
         if (!path) {
           setContextItem(null);
+          setContextError(null);
         } else {
           const { data } = await client.get(path);
           setContextItem(data || null);
@@ -250,6 +254,9 @@ export default function SellerMessagesPage() {
         }
       } catch {
         setContextItem(null);
+        setContextError(
+          "Failed to load the linked item. It may have been removed or is temporarily unavailable."
+        );
       } finally {
         setContextLoading(false);
       }
@@ -689,9 +696,11 @@ export default function SellerMessagesPage() {
               {activeConv.context_type ? "Item" : "Details"}
             </h3>
 
-            {/* Context Loader / Empty */}
+            {/* Context Loader / Empty / Error */}
             {contextLoading ? (
               <div className="text-sm text-gray-500">Loading item…</div>
+            ) : contextError ? (
+              <div className="text-sm text-red-500">{contextError}</div>
             ) : !activeConv.context_type || !contextItem ? (
               <div className="text-sm text-gray-500">
                 No linked item for this conversation.

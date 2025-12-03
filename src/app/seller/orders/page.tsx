@@ -84,6 +84,17 @@ interface Order {
   delivered_at?: string;
 }
 
+interface PaymentLinkSummary {
+  id: string;
+  code: string;
+  status: string;
+  total_amount: number;
+  currency: string;
+  created_at: string;
+  expires_at: string | null;
+  public_url: string;
+}
+
 interface OrderFilters {
   search: string;
   status: OrderStatus | "";
@@ -137,6 +148,9 @@ export default function SellerOrdersPage() {
 
   const dispatch = useAppDispatch();
   const ordersState = useAppSelector((s) => s.sellerOrders);
+
+  const [paymentLinks, setPaymentLinks] = useState<PaymentLinkSummary[]>([]);
+  const [paymentLinksLoading, setPaymentLinksLoading] = useState(false);
 
   async function runFetch(page: number) {
     const params: any = {
@@ -192,6 +206,22 @@ export default function SellerOrdersPage() {
       setLoading(false);
     }
   }, [ordersState]);
+
+  useEffect(() => {
+    const loadPaymentLinks = async () => {
+      try {
+        setPaymentLinksLoading(true);
+        const api = getApiClient();
+        const { data } = await api.get<PaymentLinkSummary[]>("/payment-links");
+        setPaymentLinks(data || []);
+      } catch (e) {
+        console.error("Failed to load payment links", e);
+      } finally {
+        setPaymentLinksLoading(false);
+      }
+    };
+    void loadPaymentLinks();
+  }, []);
 
   const handleFilterChange = (key: keyof OrderFilters, value: any) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -681,6 +711,89 @@ export default function SellerOrdersPage() {
             </div>
           </div>
         )}
+
+        {/* Payment Links section */}
+        <section className="mt-6 bg-white rounded-2xl border border-[var(--secondary-soft-highlight)] p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h2 className="text-sm font-semibold text-[var(--secondary-black)]">
+                Payment links
+              </h2>
+              <p className="text-xs text-[var(--secondary-muted-edge)]">
+                All payment links created from this seller account.
+              </p>
+            </div>
+          </div>
+          {paymentLinksLoading ? (
+            <div className="py-4 text-xs text-[var(--secondary-muted-edge)]">
+              Loading payment links...
+            </div>
+          ) : paymentLinks.length === 0 ? (
+            <div className="py-4 text-xs text-[var(--secondary-muted-edge)]">
+              No payment links created yet.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-xs">
+                <thead>
+                  <tr className="border-b border-[var(--secondary-soft-highlight)] text-[var(--secondary-muted-edge)]">
+                    <th className="py-2 px-2 text-left font-medium">Code</th>
+                    <th className="py-2 px-2 text-left font-medium">Status</th>
+                    <th className="py-2 px-2 text-left font-medium">Amount</th>
+                    <th className="py-2 px-2 text-left font-medium">Created</th>
+                    <th className="py-2 px-2 text-left font-medium">Expires</th>
+                    <th className="py-2 px-2 text-right font-medium">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paymentLinks.map((pl) => (
+                    <tr
+                      key={pl.id}
+                      className="border-b border-[var(--secondary-soft-highlight)]/60 last:border-b-0"
+                    >
+                      <td className="py-2 px-2 font-mono text-[11px]">
+                        {pl.code}
+                      </td>
+                      <td className="py-2 px-2">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-[var(--primary-background)] text-[10px] capitalize">
+                          {pl.status.replace(/_/g, " ")}
+                        </span>
+                      </td>
+                      <td className="py-2 px-2">
+                        {pl.total_amount.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}{" "}
+                        {pl.currency}
+                      </td>
+                      <td className="py-2 px-2 text-[color:var(--secondary-muted-edge)]">
+                        {new Date(pl.created_at).toLocaleString()}
+                      </td>
+                      <td className="py-2 px-2 text-[color:var(--secondary-muted-edge)]">
+                        {pl.expires_at
+                          ? new Date(pl.expires_at).toLocaleDateString()
+                          : "—"}
+                      </td>
+                      <td className="py-2 px-2 text-right">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            navigator.clipboard.writeText(pl.public_url)
+                          }
+                          className="inline-flex items-center rounded-full border border-[var(--secondary-soft-highlight)] px-3 py-1 text-[11px] text-[var(--secondary-black)] hover:bg-[var(--primary-background)] transition-colors"
+                        >
+                          Copy link
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
 
         {/* Orders Count and Bulk Actions */}
         <div className="flex items-center justify-between mb-4">

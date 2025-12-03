@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useMemo, useEffect } from "react";
+import { useMemo, useEffect, useState } from "react";
 import AccountSetupLoader from "@/components/dashboard/AccountSetupLoader";
 import MetricCard from "@/components/dashboard/MetricCard";
 import ActivityFeed from "@/components/dashboard/ActivityFeed";
@@ -66,6 +66,55 @@ export default function SellerDashboardPage() {
   const sellerInsights = useAppSelector((s) => s.sellerInsights);
   const latestFarmVisit = sellerHome.data?.latest_farm_visit_request;
   const isFarmVerified = Boolean(profile?.organization?.farmVerified);
+
+  const [showPaymentLinkModal, setShowPaymentLinkModal] = useState(false);
+
+  // Buyer details
+  const [buyerNameForLink, setBuyerNameForLink] = useState("");
+  const [buyerCompanyForLink, setBuyerCompanyForLink] = useState("");
+  const [buyerEmailForLink, setBuyerEmailForLink] = useState("");
+  const [buyerPhoneForLink, setBuyerPhoneForLink] = useState("");
+  const [buyerBusinessTypeForLink, setBuyerBusinessTypeForLink] =
+    useState("general");
+
+  // Shipping address (simple one-block address for now)
+  const [buyerAddressLine1, setBuyerAddressLine1] = useState("");
+  const [buyerAddressCity, setBuyerAddressCity] = useState("");
+
+  // Product / line item
+  type DraftLineItem = {
+    id: string;
+    name: string;
+    unit: string;
+    quantity: string;
+    unitPrice: string;
+  };
+  const [lineItemsForLink, setLineItemsForLink] = useState<DraftLineItem[]>([
+    {
+      id: "item-1",
+      name: "",
+      unit: "kg",
+      quantity: "",
+      unitPrice: "",
+    },
+  ]);
+
+  const sellerCountry = (profile?.organization as any)?.country || "Grenada";
+
+  const [allowedMethods, setAllowedMethods] = useState<{
+    bank_transfer: boolean;
+    cash_on_delivery: boolean;
+    cheque_on_delivery: boolean;
+  }>({
+    bank_transfer: true,
+    cash_on_delivery: false,
+    cheque_on_delivery: false,
+  });
+  const [expiresAt, setExpiresAt] = useState("");
+  const [isCreatingLink, setIsCreatingLink] = useState(false);
+  const [createdLinkUrl, setCreatedLinkUrl] = useState<string | null>(null);
+  const [showLinkResultModal, setShowLinkResultModal] = useState(false);
+  const [linkResultUrl, setLinkResultUrl] = useState<string | null>(null);
 
   useEffect(() => {
     dispatch(fetchSellerHome({ period: "last_30_days" }));
@@ -220,6 +269,84 @@ export default function SellerDashboardPage() {
     };
     return orders.filter((o) => o.status === statusMap[orderTab]);
   }, [orderTab, orders]);
+
+  const handleCreatePaymentLink = async () => {
+    if (!buyerNameForLink.trim()) {
+      show("Enter the buyer name for this order.");
+      return;
+    }
+    if (!buyerAddressLine1.trim()) {
+      show("Enter at least the first line of the buyer address.");
+      return;
+    }
+    const validItems = lineItemsForLink
+      .map((li) => ({
+        ...li,
+        quantityNum: Number(li.quantity),
+        unitPriceNum: Number(li.unitPrice),
+      }))
+      .filter(
+        (li) =>
+          li.name.trim() && li.unit && li.quantityNum > 0 && li.unitPriceNum > 0
+      );
+
+    if (validItems.length === 0) {
+      show(
+        "Add at least one product with name, unit, quantity and cost per unit."
+      );
+      return;
+    }
+
+    const methods = Object.entries(allowedMethods)
+      .filter(([, v]) => v)
+      .map(([k]) => k);
+    if (methods.length === 0) {
+      show("Select at least one payment method.");
+      return;
+    }
+    try {
+      setIsCreatingLink(true);
+      setCreatedLinkUrl(null);
+      const { getApiClient } = await import("@/lib/apiClient");
+      const api = getApiClient();
+      const { data } = await api.post("/payment-links/offline-order", {
+        buyer_name: buyerNameForLink.trim(),
+        buyer_company: buyerCompanyForLink.trim() || undefined,
+        buyer_email: buyerEmailForLink.trim() || undefined,
+        buyer_phone: buyerPhoneForLink.trim() || undefined,
+        buyer_business_type: buyerBusinessTypeForLink,
+        shipping_address: {
+          line1: buyerAddressLine1.trim(),
+          city: buyerAddressCity.trim() || undefined,
+          country: sellerCountry,
+        },
+        line_items: validItems.map((li) => ({
+          product_name: li.name.trim(),
+          unit: li.unit,
+          quantity: li.quantityNum,
+          unit_price: li.unitPriceNum,
+        })),
+        allowed_payment_methods: methods,
+        expires_at: expiresAt || undefined,
+      });
+      const url = data?.payment_link?.public_url || null;
+      setCreatedLinkUrl(url);
+      if (url) {
+        setShowPaymentLinkModal(false);
+        setLinkResultUrl(url);
+        setShowLinkResultModal(true);
+      }
+      show("Offline order and payment link created successfully.");
+    } catch (e: any) {
+      console.error("Failed to create payment link", e);
+      const msg =
+        e?.response?.data?.message ||
+        "We couldn't create the payment link. Check the details and try again.";
+      show(msg);
+    } finally {
+      setIsCreatingLink(false);
+    }
+  };
 
   const insights: Array<{
     id: string;
@@ -432,40 +559,70 @@ export default function SellerDashboardPage() {
             </div>
           </section>
         )}
-        {/* KPI Cards Row */}
-        <section className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {kpis.length === 0 ? (
-            <div className="col-span-4 text-xs text-[color:var(--secondary-muted-edge)]">
-              No metrics yet.
+        {/* KPI Cards Row + quick actions */}
+        <section className="mt-10 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <h2 className="text-sm font-semibold text-[color:var(--secondary-black)]">
+              Sales overview
+            </h2>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => router.push("/seller/add/product")}
+                className="inline-flex items-center justify-center rounded-full border border-[color:var(--secondary-soft-highlight)] bg-white px-4 py-2 text-xs font-medium text-[color:var(--secondary-black)] hover:bg-gray-50 transition-colors"
+              >
+                Add product
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push("/seller/orders")}
+                className="inline-flex items-center justify-center rounded-full border border-[color:var(--secondary-soft-highlight)] bg-white px-4 py-2 text-xs font-medium text-[color:var(--secondary-black)] hover:bg-gray-50 transition-colors"
+              >
+                View orders
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowPaymentLinkModal(true)}
+                className="inline-flex items-center justify-center rounded-full bg-[var(--primary-accent2)] text-white px-4 py-2 text-xs font-medium hover:bg-[var(--primary-accent3)] transition-colors focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:ring-offset-2"
+              >
+                Create payment link
+              </button>
             </div>
-          ) : (
-            <>
-              <MetricCard
-                label="Revenue"
-                value={kpis[0]?.value || "$0"}
-                hint="last 30 days"
-                icon={<CurrencyDollarIcon className="h-5 w-5" />}
-              />
-              <MetricCard
-                label="Orders"
-                value={kpis[1]?.value || 0}
-                hint="completed + active"
-                icon={<ShoppingBagIcon className="h-5 w-5" />}
-              />
-              <MetricCard
-                label="Active products"
-                value={kpis[2]?.value || 0}
-                hint="in catalog"
-                icon={<CubeIcon className="h-5 w-5" />}
-              />
-              <MetricCard
-                label="Pending"
-                value={kpis[3]?.value || 0}
-                hint="awaiting action"
-                icon={<ClockIcon className="h-5 w-5" />}
-              />
-            </>
-          )}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {kpis.length === 0 ? (
+              <div className="col-span-4 text-xs text-[color:var(--secondary-muted-edge)]">
+                No metrics yet.
+              </div>
+            ) : (
+              <>
+                <MetricCard
+                  label="Revenue"
+                  value={kpis[0]?.value || "$0"}
+                  hint="last 30 days"
+                  icon={<CurrencyDollarIcon className="h-5 w-5" />}
+                />
+                <MetricCard
+                  label="Orders"
+                  value={kpis[1]?.value || 0}
+                  hint="completed + active"
+                  icon={<ShoppingBagIcon className="h-5 w-5" />}
+                />
+                <MetricCard
+                  label="Active products"
+                  value={kpis[2]?.value || 0}
+                  hint="in catalog"
+                  icon={<CubeIcon className="h-5 w-5" />}
+                />
+                <MetricCard
+                  label="Pending"
+                  value={kpis[3]?.value || 0}
+                  hint="awaiting action"
+                  icon={<ClockIcon className="h-5 w-5" />}
+                />
+              </>
+            )}
+          </div>
         </section>
         {/* Analytics Tabs */}
         <AnalyticsTabs
@@ -611,6 +768,467 @@ export default function SellerDashboardPage() {
           </aside>
         </div>
       </main>
+
+      {/* Create Payment Link Modal */}
+      {showPaymentLinkModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-6xl max-h-[80vh] rounded-2xl bg-white shadow-2xl border border-[color:var(--secondary-soft-highlight)] flex flex-col">
+            <div className="px-6 py-4 border-b border-[color:var(--secondary-soft-highlight)]/60 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-[color:var(--secondary-black)]">
+                  Create payment link
+                </h2>
+                <p className="mt-1 text-xs text-[color:var(--secondary-muted-edge)]">
+                  Enter buyer details and products to generate a payment link
+                  for this offline order.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPaymentLinkModal(false);
+                  setCreatedLinkUrl(null);
+                  setIsCreatingLink(false);
+                }}
+                className="text-[color:var(--secondary-muted-edge)] hover:text-[color:var(--secondary-black)] text-xs"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="px-6 py-4 space-y-5 flex-1 overflow-y-auto">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Left column: Buyer details */}
+                <div className="rounded-xl border border-[color:var(--secondary-soft-highlight)] bg-white shadow-sm px-6 py-5 space-y-4">
+                  <h3 className="text-xs font-semibold text-[color:var(--secondary-black)] tracking-wide uppercase">
+                    Buyer details
+                  </h3>
+                  {/* Buyer info */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-[color:var(--secondary-black)] mb-1.5">
+                        Buyer name
+                      </label>
+                      <input
+                        type="text"
+                        value={buyerNameForLink}
+                        onChange={(e) => setBuyerNameForLink(e.target.value)}
+                        placeholder="e.g. Spice Bay Hotel"
+                        className="w-full rounded-lg border border-[color:var(--secondary-soft-highlight)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-[color:var(--secondary-black)] mb-1.5">
+                        Company (optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={buyerCompanyForLink}
+                        onChange={(e) => setBuyerCompanyForLink(e.target.value)}
+                        placeholder="Legal company name"
+                        className="w-full rounded-lg border border-[color:var(--secondary-soft-highlight)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-[color:var(--secondary-black)] mb-1.5">
+                        Buyer business type
+                      </label>
+                      <select
+                        value={buyerBusinessTypeForLink}
+                        onChange={(e) =>
+                          setBuyerBusinessTypeForLink(e.target.value)
+                        }
+                        className="w-full rounded-lg border border-[color:var(--secondary-soft-highlight)] px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:border-transparent"
+                      >
+                        <option value="general">General</option>
+                        <option value="hotels">Hotels</option>
+                        <option value="restaurants">Restaurants</option>
+                        <option value="supermarkets">Supermarkets</option>
+                        <option value="exporters">Exporters</option>
+                      </select>
+                      <p className="mt-1 text-[10px] text-[color:var(--secondary-muted-edge)]">
+                        Helps Procur categorize this buyer (used for reporting
+                        and programs).
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-[color:var(--secondary-black)] mb-1.5">
+                        Buyer email (optional)
+                      </label>
+                      <input
+                        type="email"
+                        value={buyerEmailForLink}
+                        onChange={(e) => setBuyerEmailForLink(e.target.value)}
+                        placeholder="for receipts/updates"
+                        className="w-full rounded-lg border border-[color:var(--secondary-soft-highlight)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-[color:var(--secondary-black)] mb-1.5">
+                        Buyer phone / WhatsApp (optional)
+                      </label>
+                      <input
+                        type="tel"
+                        value={buyerPhoneForLink}
+                        onChange={(e) => setBuyerPhoneForLink(e.target.value)}
+                        placeholder="+1 473 ..."
+                        className="w-full rounded-lg border border-[color:var(--secondary-soft-highlight)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Address */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-[color:var(--secondary-soft-highlight)]/60">
+                    <div>
+                      <label className="block text-xs font-medium text-[color:var(--secondary-black)] mb-1.5">
+                        Buyer address line 1
+                      </label>
+                      <input
+                        type="text"
+                        value={buyerAddressLine1}
+                        onChange={(e) => setBuyerAddressLine1(e.target.value)}
+                        placeholder="Street / building"
+                        className="w-full rounded-lg border border-[color:var(--secondary-soft-highlight)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-[color:var(--secondary-black)] mb-1.5">
+                        City (optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={buyerAddressCity}
+                        onChange={(e) => setBuyerAddressCity(e.target.value)}
+                        placeholder="City / parish"
+                        className="w-full rounded-lg border border-[color:var(--secondary-soft-highlight)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-[color:var(--secondary-black)] mb-1.5">
+                        Country
+                      </label>
+                      <div className="w-full rounded-lg border border-[color:var(--secondary-soft-highlight)] px-3 py-2 text-sm bg-gray-50 text-[color:var(--secondary-black)]">
+                        {sellerCountry}
+                      </div>
+                      <p className="mt-1 text-[10px] text-[color:var(--secondary-muted-edge)]">
+                        Uses your business country by default.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right column: Order & payment */}
+                <div className="rounded-xl border border-[color:var(--secondary-soft-highlight)] bg-white shadow-sm px-6 py-5 space-y-4">
+                  <h3 className="text-xs font-semibold text-[color:var(--secondary-black)] tracking-wide uppercase">
+                    Order &amp; payment
+                  </h3>
+                  {/* Products / line items */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-medium text-[color:var(--secondary-black)]">
+                        Products
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setLineItemsForLink((prev) => [
+                            ...prev,
+                            {
+                              id: `item-${prev.length + 1}`,
+                              name: "",
+                              unit: "kg",
+                              quantity: "",
+                              unitPrice: "",
+                            },
+                          ])
+                        }
+                        className="inline-flex items-center rounded-full border border-[color:var(--secondary-soft-highlight)] bg-white px-3 py-1.5 text-[11px] font-medium text-[color:var(--secondary-black)] hover:bg-gray-50 transition-colors"
+                      >
+                        + Add product
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {lineItemsForLink.map((item) => (
+                        <div
+                          key={item.id}
+                          className="border border-[color:var(--secondary-soft-highlight)] rounded-xl p-3 bg-white space-y-3"
+                        >
+                          {/* First line: product name */}
+                          <div>
+                            <label className="block text-xs font-medium text-[color:var(--secondary-black)] mb-1.5">
+                              Product name
+                            </label>
+                            <input
+                              type="text"
+                              value={item.name}
+                              onChange={(e) =>
+                                setLineItemsForLink((prev) =>
+                                  prev.map((li) =>
+                                    li.id === item.id
+                                      ? { ...li, name: e.target.value }
+                                      : li
+                                  )
+                                )
+                              }
+                              placeholder="e.g. Tomatoes (Grade A)"
+                              className="w-full rounded-lg border border-[color:var(--secondary-soft-highlight)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:border-transparent"
+                            />
+                          </div>
+
+                          {/* Second line: qty, unit, cost/unit */}
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div>
+                              <label className="block text-xs font-medium text-[color:var(--secondary-black)] mb-1.5">
+                                Qty
+                              </label>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={item.quantity}
+                                onChange={(e) =>
+                                  setLineItemsForLink((prev) =>
+                                    prev.map((li) =>
+                                      li.id === item.id
+                                        ? { ...li, quantity: e.target.value }
+                                        : li
+                                    )
+                                  )
+                                }
+                                placeholder="Qty"
+                                className="w-full rounded-lg border border-[color:var(--secondary-soft-highlight)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:border-transparent"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-[color:var(--secondary-black)] mb-1.5">
+                                Unit
+                              </label>
+                              <select
+                                value={item.unit}
+                                onChange={(e) =>
+                                  setLineItemsForLink((prev) =>
+                                    prev.map((li) =>
+                                      li.id === item.id
+                                        ? { ...li, unit: e.target.value }
+                                        : li
+                                    )
+                                  )
+                                }
+                                className="w-full sm:w-24 md:w-28 max-w-[7rem] rounded-lg border border-[color:var(--secondary-soft-highlight)] px-2 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:border-transparent"
+                              >
+                                <option value="kg">kg</option>
+                                <option value="lb">lb</option>
+                                <option value="piece">piece</option>
+                                <option value="dozen">dozen</option>
+                                <option value="box">box</option>
+                                <option value="bag">bag</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-[color:var(--secondary-black)] mb-1.5">
+                                Cost / unit
+                              </label>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={item.unitPrice}
+                                onChange={(e) =>
+                                  setLineItemsForLink((prev) =>
+                                    prev.map((li) =>
+                                      li.id === item.id
+                                        ? { ...li, unitPrice: e.target.value }
+                                        : li
+                                    )
+                                  )
+                                }
+                                placeholder="$/unit"
+                                className="w-full rounded-lg border border-[color:var(--secondary-soft-highlight)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:border-transparent"
+                              />
+                            </div>
+                          </div>
+
+                          {lineItemsForLink.length > 1 && (
+                            <div className="flex justify-end">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setLineItemsForLink((prev) =>
+                                    prev.filter((li) => li.id !== item.id)
+                                  )
+                                }
+                                className="mt-1 text-[10px] text-[color:var(--secondary-muted-edge)] hover:text-[color:var(--dark-error)]"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-[color:var(--secondary-soft-highlight)]/60">
+                    {/* Payment link options */}
+                    <div>
+                      <p className="block text-xs font-medium text-[color:var(--secondary-black)] mb-1.5">
+                        Allowed payment methods
+                      </p>
+                      <div className="flex flex-col gap-1.5 text-xs">
+                        <label className="inline-flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            className="h-3.5 w-3.5 rounded border-[color:var(--secondary-soft-highlight)]"
+                            checked={allowedMethods.bank_transfer}
+                            onChange={(e) =>
+                              setAllowedMethods((prev) => ({
+                                ...prev,
+                                bank_transfer: e.target.checked,
+                              }))
+                            }
+                          />
+                          <span className="text-[color:var(--secondary-black)]">
+                            Bank transfer
+                          </span>
+                        </label>
+                        <label className="inline-flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            className="h-3.5 w-3.5 rounded border-[color:var(--secondary-soft-highlight)]"
+                            checked={allowedMethods.cash_on_delivery}
+                            onChange={(e) =>
+                              setAllowedMethods((prev) => ({
+                                ...prev,
+                                cash_on_delivery: e.target.checked,
+                              }))
+                            }
+                          />
+                          <span className="text-[color:var(--secondary-black)]">
+                            Cash on delivery
+                          </span>
+                        </label>
+                        <label className="inline-flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            className="h-3.5 w-3.5 rounded border-[color:var(--secondary-soft-highlight)]"
+                            checked={allowedMethods.cheque_on_delivery}
+                            onChange={(e) =>
+                              setAllowedMethods((prev) => ({
+                                ...prev,
+                                cheque_on_delivery: e.target.checked,
+                              }))
+                            }
+                          />
+                          <span className="text-[color:var(--secondary-black)]">
+                            Cheque on delivery
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-[color:var(--secondary-black)] mb-1.5">
+                        Expiry date (optional)
+                      </label>
+                      <input
+                        type="date"
+                        value={expiresAt}
+                        onChange={(e) => setExpiresAt(e.target.value)}
+                        className="w-full rounded-lg border border-[color:var(--secondary-soft-highlight)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-[color:var(--secondary-soft-highlight)]/60 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPaymentLinkModal(false);
+                  setCreatedLinkUrl(null);
+                  setIsCreatingLink(false);
+                }}
+                className="inline-flex items-center justify-center rounded-full border border-[color:var(--secondary-soft-highlight)] bg-white px-4 py-2 text-xs font-medium text-[color:var(--secondary-black)] hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleCreatePaymentLink}
+                disabled={isCreatingLink}
+                className="inline-flex items-center justify-center rounded-full bg-[var(--primary-accent2)] text-white px-4 py-2 text-xs font-medium hover:bg-[var(--primary-accent3)] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {isCreatingLink ? "Creating..." : "Create link"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Link Result Modal */}
+      {showLinkResultModal && linkResultUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-[color:var(--secondary-soft-highlight)]">
+            <div className="px-6 py-4 border-b border-[color:var(--secondary-soft-highlight)]/60 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-[color:var(--secondary-black)]">
+                  Payment link created
+                </h2>
+                <p className="mt-1 text-xs text-[color:var(--secondary-muted-edge)]">
+                  Copy this link and send it to your buyer by WhatsApp, email,
+                  or SMS.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowLinkResultModal(false);
+                  setLinkResultUrl(null);
+                }}
+                className="text-[color:var(--secondary-muted-edge)] hover:text-[color:var(--secondary-black)] text-xs"
+              >
+                Close
+              </button>
+            </div>
+            <div className="px-6 py-4 space-y-3">
+              <div className="text-[11px] text-[color:var(--secondary-muted-edge)]">
+                Payment link URL
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    readOnly
+                    value={linkResultUrl}
+                    className="w-full rounded-lg border border-[color:var(--secondary-soft-highlight)] px-3 py-2 text-xs bg-[var(--primary-background)] text-[color:var(--secondary-black)]"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigator.clipboard.writeText(linkResultUrl)}
+                  className="inline-flex items-center rounded-full bg-[var(--primary-accent2)] text-white px-3 py-1.5 text-[11px] font-medium hover:bg-[var(--primary-accent3)] transition-colors"
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
+            <div className="px-6 py-3 border-t border-[color:var(--secondary-soft-highlight)]/60 flex items-center justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowLinkResultModal(false);
+                  setLinkResultUrl(null);
+                }}
+                className="inline-flex items-center rounded-full border border-[color:var(--secondary-soft-highlight)] bg-white px-4 py-2 text-xs font-medium text-[color:var(--secondary-black)] hover:bg-gray-50 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
