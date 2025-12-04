@@ -100,6 +100,38 @@ const currency = (value: number) =>
     maximumFractionDigits: 2,
   })}`;
 
+// Tailwind v4 can emit color values using lab() inside @supports blocks.
+// html2canvas does not understand lab(), so we proactively strip those
+// fallback rules from runtime stylesheets before capturing.
+const stripLabColorRules = () => {
+  if (typeof document === "undefined") return;
+
+  const styleSheets = Array.from(document.styleSheets || []);
+
+  for (const sheet of styleSheets) {
+    const cssSheet = sheet as CSSStyleSheet;
+    let rules: CSSRuleList;
+
+    try {
+      rules = cssSheet.cssRules;
+    } catch {
+      // Ignore cross-origin or locked stylesheets
+      continue;
+    }
+
+    for (let i = rules.length - 1; i >= 0; i -= 1) {
+      const rule = rules[i];
+      // Narrow supports rules that declare lab() colors
+      if (
+        rule instanceof CSSSupportsRule &&
+        rule.conditionText.includes("color: lab(")
+      ) {
+        cssSheet.deleteRule(i);
+      }
+    }
+  }
+};
+
 const InvoiceTestPage: React.FC = () => {
   const classicRef = useRef<HTMLDivElement | null>(null);
   const softRef = useRef<HTMLDivElement | null>(null);
@@ -126,13 +158,49 @@ const InvoiceTestPage: React.FC = () => {
 
     if (!targetRef.current) return;
 
-    // Ensure we capture the full invoice at high quality
     const element = targetRef.current;
-    const canvas = await html2canvas(element, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: "#ffffff",
-    });
+
+    // Remove any @supports blocks that redefine palette variables using lab()
+    // so html2canvas doesn't attempt to parse unsupported color functions.
+    stripLabColorRules();
+
+    // Tailwind v4 can emit color functions like lab() which html2canvas
+    // cannot parse. Temporarily wrap getComputedStyle so any lab() values
+    // are stripped before html2canvas processes styles.
+    const originalGetComputedStyle = window.getComputedStyle;
+    (window as any).getComputedStyle = (
+      elt: Element,
+      pseudoElt?: string | null
+    ) => {
+      const style = originalGetComputedStyle.call(
+        window,
+        elt,
+        pseudoElt as any
+      );
+      if (!style) return style;
+
+      const originalGetPropertyValue = style.getPropertyValue.bind(style);
+      (style as any).getPropertyValue = (prop: string) => {
+        const value = originalGetPropertyValue(prop);
+        if (typeof value === "string" && value.includes("lab(")) {
+          return "";
+        }
+        return value;
+      };
+
+      return style;
+    };
+
+    let canvas: HTMLCanvasElement;
+    try {
+      canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+      });
+    } finally {
+      (window as any).getComputedStyle = originalGetComputedStyle;
+    }
 
     const imgData = canvas.toDataURL("image/png");
     const pdf = new jsPDF("p", "mm", "a4");

@@ -519,20 +519,6 @@ const TopNavigation: React.FC = () => {
                 </div>
                 <div className="space-y-1">
                   <Link
-                    href="/buyer"
-                    className="block text-gray-700 px-2 py-1 rounded hover:bg-gray-50"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Buyer Central
-                  </Link>
-                  <Link
-                    href="/help/support"
-                    className="block text-gray-700 px-2 py-1 rounded hover:bg-gray-50"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Help Center
-                  </Link>
-                  <Link
                     href="/suppliers/join"
                     className="block text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)] font-semibold px-2 py-1 rounded"
                     onClick={() => setMobileMenuOpen(false)}

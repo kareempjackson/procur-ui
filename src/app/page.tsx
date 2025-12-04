@@ -42,8 +42,11 @@ export default function Home() {
 
       <main>
         {/* Hero: large image + calm beta story */}
-        <section className="py-6 px-4 sm:px-6 relative" aria-label="Hero">
-          <div className="relative h-[60vh] md:h-[70vh] overflow-hidden rounded-2xl">
+        <section
+          className="py-4 sm:py-6 px-4 sm:px-6 relative"
+          aria-label="Hero"
+        >
+          <div className="relative min-h-[420px] sm:min-h-[480px] md:h-[70vh] overflow-hidden rounded-2xl">
             <Image
               src={hero.image}
               alt="Regional producers and buyers working together"
@@ -51,21 +54,21 @@ export default function Home() {
               className="object-cover rounded-2xl"
               priority
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/65 via-black/45 to-transparent rounded-2xl" />
-            <div className="absolute inset-0 flex items-center">
-              <div className="max-w-[1280px] mx-auto px-6 sm:px-12 w-full">
-                <div className="text-white max-w-3xl">
+            <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/70 to-black/10 rounded-2xl" />
+            <div className="absolute inset-0 flex items-end md:items-center">
+              <div className="max-w-[1280px] mx-auto px-6 sm:px-12 w-full pb-10 sm:pb-14">
+                <div className="text-white max-w-3xl space-y-3 sm:space-y-4">
                   <div className="flex items-center text-white/85 mb-3 gap-2">
                     <span className="inline-block w-2 h-2 rounded-full bg-[var(--primary-accent2)]" />
                     <span className="text-sm">Early regional beta</span>
                   </div>
-                  <h1 className="text-4xl sm:text-5xl md:text-6xl font-semibold leading-tight text-balance">
+                  <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight tracking-tight text-balance">
                     {hero.headline}
                   </h1>
-                  <p className="mt-3 sm:mt-4 text-base sm:text-lg md:text-xl text-white/90 text-pretty">
+                  <p className="mt-3 sm:mt-4 text-base sm:text-lg md:text-xl text-white/95 text-pretty font-medium">
                     {hero.subcopy}
                   </p>
-                  <p className="mt-4 text-sm sm:text-base md:text-lg text-white/85 max-w-2xl">
+                  <p className="mt-4 text-sm sm:text-base md:text-lg text-white/90 max-w-2xl">
                     {hero.supportingText}
                   </p>
                   <div className="mt-6 flex flex-col sm:flex-row gap-3">
