@@ -46,7 +46,7 @@ export default function Home() {
           className="py-4 sm:py-6 px-4 sm:px-6 relative"
           aria-label="Hero"
         >
-          <div className="relative min-h-[420px] sm:min-h-[480px] md:min-h-[70vh] rounded-2xl">
+          <div className="relative min-h-[420px] sm:min-h-[480px] md:h-[70vh] rounded-2xl">
             {/* Background image + gradient, safely clipped to rounded container */}
             <div className="absolute inset-0 overflow-hidden rounded-2xl">
               <Image
@@ -60,10 +60,10 @@ export default function Home() {
             </div>
 
             {/* Foreground content (not clipped on small screens) */}
-            <div className="relative z-10 flex h-full items-end md:items-center">
-              <div className="max-w-[1280px] mx-auto px-6 sm:px-12 w-full pb-10 sm:pb-14">
+            <div className="relative z-10 flex h-full items-center">
+              <div className="max-w-[1280px] mx-auto px-6 sm:px-12 w-full py-10 sm:py-14">
                 <div className="text-white max-w-3xl space-y-3 sm:space-y-4">
-                  <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs sm:text-sm font-semibold text-white/90 backdrop-blur-sm">
+                  <div className="mt-3 sm:mt-0 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs sm:text-sm font-semibold text-white/90 backdrop-blur-sm">
                     <span className="inline-block w-2 h-2 rounded-full bg-[var(--primary-accent2)]" />
                     <span>Early regional beta</span>
                   </div>
