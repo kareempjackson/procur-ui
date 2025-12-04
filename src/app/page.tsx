@@ -19,7 +19,7 @@ export default function Home() {
     subcopy:
       "Procur is building trusted connections between producers and buyers, starting locally and scaling responsibly.",
     supportingText:
-      "We’re launching in beta to work closely with early suppliers and buyers to build a more reliable, transparent food system.",
+      "We’re opening a private early access program with a small group of regional suppliers and buyers to build a more reliable, transparent food system.",
     image: "/images/backgrounds/jacopo-maiarelli--gOUx23DNks-unsplash (1).jpg",
   };
 
@@ -27,8 +27,8 @@ export default function Home() {
     <div className="min-h-screen bg-[var(--primary-background)]">
       {/* Top Notice Bar */}
       <div className="bg-[var(--secondary-muted-edge)] text-white text-center py-2 text-sm">
-        Procur is in limited beta — partnering closely with regional buyers and
-        suppliers.
+        Procur is in limited early access — partnering closely with regional
+        buyers and suppliers.
       </div>
 
       {/* Keep existing navigation */}
@@ -41,7 +41,7 @@ export default function Home() {
       )}
 
       <main>
-        {/* Hero: large image + calm beta story */}
+        {/* Hero: large image + calm early access story */}
         <section
           className="py-4 sm:py-6 px-4 sm:px-6 relative"
           aria-label="Hero"
@@ -65,7 +65,7 @@ export default function Home() {
                 <div className="text-white max-w-3xl space-y-3 sm:space-y-4">
                   <div className="mt-3 sm:mt-0 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs sm:text-sm font-semibold text-white/90 backdrop-blur-sm">
                     <span className="inline-block w-2 h-2 rounded-full bg-[var(--primary-accent2)]" />
-                    <span>Early regional beta</span>
+                    <span>Founders & partners edition</span>
                   </div>
                   <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight tracking-tight text-balance">
                     {hero.headline}
@@ -81,7 +81,7 @@ export default function Home() {
                       href="/signup"
                       className="inline-flex items-center justify-center rounded-full bg-[var(--primary-accent2)] text-white px-6 py-3 text-sm sm:text-base font-medium hover:bg-[var(--primary-accent3)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)] focus:ring-offset-2 focus:ring-offset-[var(--primary-background)] transition"
                     >
-                      Apply for Beta Access
+                      Request Early Access
                       <ArrowRightIcon className="ml-2 h-5 w-5" />
                     </Link>
                     <Link
@@ -103,7 +103,7 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 text-sm sm:text-base text-[var(--secondary-muted-edge)] justify-start sm:justify-center">
               <span className="inline-flex items-center gap-2">
                 <span className="h-1.5 w-1.5 rounded-full bg-[var(--secondary-muted-edge)]" />
-                Beta launch • Limited access
+                Private launch • Limited access
               </span>
               <span className="inline-flex items-center gap-2">
                 <span className="h-1.5 w-1.5 rounded-full bg-[var(--secondary-muted-edge)]" />
@@ -158,38 +158,70 @@ export default function Home() {
               A simpler way to build trusted supply relationships
             </h2>
             <p className="mt-4 text-[var(--secondary-muted-edge)] text-base sm:text-lg leading-relaxed">
-              Procur is not a public marketplace yet. During beta, we focus on
-              curated relationships, verified participants, and clear
-              procurement workflows instead of empty listings and simulated
-              activity.
+              Procur is not a public marketplace yet. During this private early
+              access phase, we focus on curated relationships, verified
+              participants, and clear procurement workflows so you spend less
+              time firefighting stockouts, surprises, and missed handoffs.
             </p>
-            <div className="mt-8 grid gap-6 sm:grid-cols-3">
+            <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               <div className="rounded-2xl bg-white border border-[var(--secondary-soft-highlight)]/40 p-5 sm:p-6">
                 <h3 className="text-base sm:text-lg font-semibold text-[var(--secondary-black)]">
-                  Curated onboarding
+                  Predictable supply
                 </h3>
                 <p className="mt-3 text-sm sm:text-base text-[var(--secondary-muted-edge)] leading-relaxed">
-                  We manually review every buyer and supplier, understanding
-                  real volumes, constraints, and standards before making
-                  introductions.
+                  We verify real volumes, seasons, and constraints up front so
+                  you&apos;re not scrambling after last‑minute shortages or
+                  unfilled orders.
                 </p>
               </div>
               <div className="rounded-2xl bg-white border border-[var(--secondary-soft-highlight)]/40 p-5 sm:p-6">
                 <h3 className="text-base sm:text-lg font-semibold text-[var(--secondary-black)]">
-                  Direct connections
+                  Transparent pricing & terms
                 </h3>
                 <p className="mt-3 text-sm sm:text-base text-[var(--secondary-muted-edge)] leading-relaxed">
-                  We facilitate direct buyer–producer relationships instead of
-                  anonymous, transactional matches.
+                  No more opaque quotes or shifting terms. Pricing, payment
+                  timing, and conditions are made explicit so both sides can
+                  plan.
                 </p>
               </div>
               <div className="rounded-2xl bg-white border border-[var(--secondary-soft-highlight)]/40 p-5 sm:p-6">
                 <h3 className="text-base sm:text-lg font-semibold text-[var(--secondary-black)]">
-                  Clear expectations
+                  Reliable fulfillment
                 </h3>
                 <p className="mt-3 text-sm sm:text-base text-[var(--secondary-muted-edge)] leading-relaxed">
-                  Quality, pricing, and fulfillment expectations are made
-                  explicit so both sides know how to show up and plan.
+                  We align on quality, volumes, and delivery windows, then
+                  support early orders so products arrive when and how
+                  they&apos;re expected.
+                </p>
+              </div>
+              <div className="rounded-2xl bg-white border border-[var(--secondary-soft-highlight)]/40 p-5 sm:p-6">
+                <h3 className="text-base sm:text-lg font-semibold text-[var(--secondary-black)]">
+                  Direct, accountable relationships
+                </h3>
+                <p className="mt-3 text-sm sm:text-base text-[var(--secondary-muted-edge)] leading-relaxed">
+                  Instead of faceless marketplaces and one‑off brokers, we match
+                  you with vetted partners and stay involved so issues get
+                  surfaced and solved quickly.
+                </p>
+              </div>
+              <div className="rounded-2xl bg-white border border-[var(--secondary-soft-highlight)]/40 p-5 sm:p-6">
+                <h3 className="text-base sm:text-lg font-semibold text-[var(--secondary-black)]">
+                  Less coordination chaos
+                </h3>
+                <p className="mt-3 text-sm sm:text-base text-[var(--secondary-muted-edge)] leading-relaxed">
+                  We reduce back‑and‑forth emails, calls, and spreadsheets by
+                  centralizing requests, confirmations, and updates in one
+                  shared workflow.
+                </p>
+              </div>
+              <div className="rounded-2xl bg-white border border-[var(--secondary-soft-highlight)]/40 p-5 sm:p-6">
+                <h3 className="text-base sm:text-lg font-semibold text-[var(--secondary-black)]">
+                  Better planning visibility
+                </h3>
+                <p className="mt-3 text-sm sm:text-base text-[var(--secondary-muted-edge)] leading-relaxed">
+                  With clearer demand signals and supply commitments, buyers and
+                  producers can plan seasons, staffing, and logistics with fewer
+                  surprises.
                 </p>
               </div>
             </div>
@@ -203,7 +235,7 @@ export default function Home() {
         >
           <div className="max-w-[960px] mx-auto px-6">
             <h2 className="text-3xl md:text-4xl font-light text-[var(--secondary-black)] tracking-tight">
-              How Procur works in beta
+              How Procur’s early access works
             </h2>
             <p className="mt-4 text-[var(--secondary-muted-edge)] text-base sm:text-lg leading-relaxed">
               No search bars, categories, or empty dashboards — just a clear,
@@ -222,9 +254,9 @@ export default function Home() {
                     Apply
                   </h3>
                   <p className="mt-2 text-sm sm:text-base text-[var(--secondary-muted-edge)] leading-relaxed">
-                    Buyers and suppliers apply to join the beta, sharing enough
-                    context for us to understand their role in the regional food
-                    system.
+                    Buyers and suppliers apply to join our early access program,
+                    sharing enough context for us to understand their role in
+                    the regional food system.
                   </p>
                 </div>
               </li>
@@ -347,11 +379,11 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Beta callout */}
+        {/* Early access callout */}
         <section className="py-16 sm:py-20 bg-white border-t border-[var(--secondary-soft-highlight)]/40">
           <div className="max-w-[960px] mx-auto px-6">
             <h2 className="text-2xl sm:text-3xl font-light text-[var(--secondary-black)] tracking-tight">
-              Why beta?
+              Why early access?
             </h2>
             <p className="mt-4 text-[var(--secondary-muted-edge)] text-base sm:text-lg leading-relaxed max-w-2xl">
               Procur is intentionally launching small. We&apos;re working with a
