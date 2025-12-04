@@ -210,8 +210,11 @@ export default function Home() {
               intentional process to get the right people working together.
             </p>
             <ol className="mt-8 space-y-6">
-              <li className="flex gap-4">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--primary-accent2)] text-white text-sm font-medium">
+              <li className="flex items-start gap-4">
+                <div
+                  className="inline-flex flex-none items-center justify-center rounded-full bg-[var(--primary-accent2)] text-white text-sm font-medium leading-none"
+                  style={{ width: "2.25rem", height: "2.25rem" }}
+                >
                   1
                 </div>
                 <div>
@@ -225,8 +228,11 @@ export default function Home() {
                   </p>
                 </div>
               </li>
-              <li className="flex gap-4">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--primary-accent2)] text-white text-sm font-medium">
+              <li className="flex items-start gap-4">
+                <div
+                  className="inline-flex flex-none items-center justify-center rounded-full bg-[var(--primary-accent2)] text-white text-sm font-medium leading-none"
+                  style={{ width: "2.25rem", height: "2.25rem" }}
+                >
                   2
                 </div>
                 <div>
@@ -240,8 +246,11 @@ export default function Home() {
                   </p>
                 </div>
               </li>
-              <li className="flex gap-4">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--primary-accent2)] text-white text-sm font-medium">
+              <li className="flex items-start gap-4">
+                <div
+                  className="inline-flex flex-none items-center justify-center rounded-full bg-[var(--primary-accent2)] text-white text-sm font-medium leading-none"
+                  style={{ width: "2.25rem", height: "2.25rem" }}
+                >
                   3
                 </div>
                 <div>
