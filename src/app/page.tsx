@@ -301,7 +301,7 @@ export default function Home() {
               </ul>
               <div className="mt-6">
                 <Link
-                  href="/signup?role=buyer"
+                  href="/signup?accountType=buyer&step=business"
                   className="inline-flex items-center justify-center rounded-full bg-[var(--secondary-black)] text-white px-5 py-3 text-sm sm:text-base font-medium hover:bg-[var(--secondary-muted-edge)] focus:outline-none focus:ring-2 focus:ring-[var(--secondary-black)] focus:ring-offset-2 focus:ring-offset-[var(--primary-background)] transition"
                 >
                   Apply as a Buyer
@@ -337,7 +337,7 @@ export default function Home() {
               </ul>
               <div className="mt-6">
                 <Link
-                  href="/signup?role=supplier"
+                  href="/signup?accountType=seller&step=business"
                   className="inline-flex items-center justify-center rounded-full bg-white text-[var(--secondary-black)] px-5 py-3 text-sm sm:text-base font-medium border border-[var(--secondary-soft-highlight)] hover:bg-[var(--primary-background)] focus:outline-none focus:ring-2 focus:ring-[var(--secondary-black)] focus:ring-offset-2 focus:ring-offset-[var(--primary-background)] transition"
                 >
                   Apply as a Supplier
