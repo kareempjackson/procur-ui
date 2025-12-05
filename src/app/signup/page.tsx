@@ -441,14 +441,14 @@ const SignUpPage: React.FC = () => {
                 <p className="text-sm text-gray-600">
                   By creating an account, you agree to Procur&apos;s{" "}
                   <a
-                    href="/terms"
+                    href="/legal/terms"
                     className="font-medium text-black hover:text-gray-700 underline transition-colors duration-200"
                   >
                     Terms of Service
                   </a>{" "}
                   and{" "}
                   <a
-                    href="/privacy-policy"
+                    href="/legal/privacy"
                     className="font-medium text-black hover:text-gray-700 underline transition-colors duration-200"
                   >
                     Privacy Policy

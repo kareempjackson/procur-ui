@@ -3,7 +3,6 @@
 import TopNavigation from "@/components/navigation/TopNavigation";
 import Footer from "@/components/footer/Footer";
 import type { Metadata } from "next";
-import Image from "next/image";
 import { useState } from "react";
 
 // Note: This would typically be handled server-side with proper metadata export
@@ -14,7 +13,6 @@ const metadata = {
 };
 
 export default function FAQPage() {
-  const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [expandedItems, setExpandedItems] = useState<number[]>([]);
 
@@ -208,11 +206,7 @@ export default function FAQPage() {
   const filteredFAQs = faqs.filter((faq) => {
     const matchesCategory =
       selectedCategory === "all" || faq.category === selectedCategory;
-    const matchesSearch =
-      searchQuery === "" ||
-      faq.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      faq.answer.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
+    return matchesCategory;
   });
 
   return (
@@ -229,47 +223,6 @@ export default function FAQPage() {
             Find quick answers to the most common questions about Procur. Can't
             find what you&apos;re looking for? Our support team is here to help.
           </p>
-
-          {/* Search Bar */}
-          <div className="mt-8 max-w-2xl mx-auto">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search frequently asked questions..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="input w-full pl-12 pr-4 py-4 text-base"
-                style={{ borderRadius: "9999px", height: "auto" }}
-              />
-              <div className="absolute left-4 top-1/2 transform -translate-y-1/2">
-                <svg
-                  className="h-5 w-5 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-10">
-            <div className="relative mx-auto rounded-3xl overflow-hidden shadow-xl border border-black/5 w-full max-w-6xl h-96 md:h-[520px]">
-              <Image
-                src="/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg"
-                alt="FAQ and support resources"
-                fill
-                priority
-                className="object-cover"
-              />
-            </div>
-          </div>
         </div>
       </section>
 
@@ -340,11 +293,10 @@ export default function FAQPage() {
             ) : (
               <div className="text-center py-12">
                 <p className="text-gray-600 mb-4">
-                  No questions found matching your search.
+                  No questions found for this category.
                 </p>
                 <button
                   onClick={() => {
-                    setSearchQuery("");
                     setSelectedCategory("all");
                   }}
                   className="btn btn-ghost px-6 py-2"
@@ -353,117 +305,6 @@ export default function FAQPage() {
                 </button>
               </div>
             )}
-          </div>
-        </section>
-
-        {/* Popular Topics */}
-        <section className="mb-20">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-[var(--secondary-black)] mb-4">
-              Popular topics
-            </h2>
-            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-              Quick links to the most searched topics and common questions from
-              our community.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              {
-                title: "Getting Started",
-                description: "Account setup and verification",
-                questions: 6,
-                href: "#getting-started",
-              },
-              {
-                title: "Quality Standards",
-                description: "Food safety and compliance",
-                questions: 8,
-                href: "/help/quality-compliance",
-              },
-              {
-                title: "Payment Processing",
-                description: "Billing and transaction fees",
-                questions: 5,
-                href: "#payments",
-              },
-              {
-                title: "Shipping & Logistics",
-                description: "Delivery and cold chain",
-                questions: 4,
-                href: "#logistics",
-              },
-            ].map((topic, index) => (
-              <a
-                key={index}
-                href={topic.href}
-                className="card hover:shadow-lg transition-all duration-200 text-center group"
-              >
-                <h3 className="font-semibold mb-2 text-[var(--secondary-black)] group-hover:text-[var(--primary-accent2)] transition-colors">
-                  {topic.title}
-                </h3>
-                <p className="text-gray-600 text-sm mb-3 leading-relaxed">
-                  {topic.description}
-                </p>
-                <span className="text-xs text-[var(--primary-accent2)] font-medium">
-                  {topic.questions} questions
-                </span>
-              </a>
-            ))}
-          </div>
-        </section>
-
-        {/* Still Need Help */}
-        <section>
-          <div className="relative overflow-hidden rounded-3xl border border-black/10 bg-gradient-to-br from-black to-black/90 text-white px-8 md:px-14 py-12 md:py-16">
-            <div className="max-w-5xl">
-              <h3 className="text-3xl md:text-4xl font-semibold tracking-tight">
-                Still have questions?
-              </h3>
-              <p className="mt-4 md:mt-5 text-base md:text-lg text-white/80 max-w-2xl">
-                Can't find the answer you&apos;re looking for? Our support team is
-                standing by to help. Get personalized assistance from our
-                produce procurement experts.
-              </p>
-              <div className="mt-8 flex flex-wrap items-center gap-3 md:gap-4">
-                <a
-                  href="mailto:support@procur.com"
-                  className="btn btn-primary px-8 md:px-10 py-3 md:py-4 text-base md:text-lg"
-                >
-                  Contact Support
-                </a>
-                <a
-                  href="/help/support"
-                  className="btn btn-ghost text-white border-white px-8 md:px-10 py-3 md:py-4 text-base md:text-lg"
-                >
-                  Visit Support Center
-                </a>
-              </div>
-
-              {/* FAQ Stats */}
-              <div className="mt-12 grid md:grid-cols-3 gap-6">
-                <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm">
-                  <div className="text-2xl font-bold mb-1">24+</div>
-                  <div className="text-sm text-white/80">
-                    Questions answered
-                  </div>
-                </div>
-                <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm">
-                  <div className="text-2xl font-bold mb-1">95%</div>
-                  <div className="text-sm text-white/80">
-                    Self-service success rate
-                  </div>
-                </div>
-                <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm">
-                  <div className="text-2xl font-bold mb-1">Updated</div>
-                  <div className="text-sm text-white/80">
-                    Weekly content updates
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="pointer-events-none absolute -right-20 -bottom-20 h-64 w-64 rounded-full bg-white/5 blur-2xl" />
           </div>
         </section>
       </main>

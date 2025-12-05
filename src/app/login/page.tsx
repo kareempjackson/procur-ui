@@ -354,7 +354,7 @@ const LoginPage: React.FC = () => {
                 <p className="text-sm text-gray-600">
                   By continuing, you acknowledge Procur's{" "}
                   <a
-                    href="/privacy-policy"
+                    href="/legal/privacy"
                     className="font-medium text-black hover:text-gray-700 underline transition-colors duration-200"
                   >
                     Privacy Policy

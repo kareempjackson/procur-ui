@@ -5,41 +5,25 @@ import Image from "next/image";
 
 const Footer: React.FC = () => {
   const footerSections: Record<string, { title: string; href: string }[]> = {
-    "For Purchasers": [
-      { title: "Marketplace", href: "/purchasers/marketplace" },
-      { title: "Request Quotes", href: "/purchasers/quotes" },
-      { title: "Order Management", href: "/purchasers/orders" },
-      { title: "Quality Assurance", href: "/purchasers/quality" },
-      { title: "Logistics Support", href: "/purchasers/logistics" },
-      { title: "Payment Solutions", href: "/purchasers/payments" },
-      { title: "Buyer Portal", href: "/purchasers/portal" },
-    ],
-    "For Suppliers": [
-      { title: "Supplier Portal", href: "/suppliers/portal" },
-      { title: "Product Catalog", href: "/suppliers/catalog" },
-      { title: "Order Fulfillment", href: "/suppliers/orders" },
-      { title: "Analytics Dashboard", href: "/suppliers/analytics" },
-      { title: "Marketing Tools", href: "/suppliers/marketing" },
-    ],
-    "For Government": [
-      { title: "Reporting & Analytics", href: "/gov/reporting" },
-      { title: "Vendor Management", href: "/gov/vendors" },
+    "Use Cases": [
+      { title: "Suppliers", href: "/suppliers/portal" },
+      { title: "Purchasers", href: "/purchasers/portal" },
     ],
     Company: [
       { title: "About Procur", href: "/company/about" },
-      { title: "Careers", href: "/company/careers" },
+      // { title: "Careers", href: "/company/careers" },
       { title: "Contact Us", href: "/company/contact" },
-      { title: "Newsroom", href: "/blog" },
+      { title: "Newsroom", href: "/newsroom" },
     ],
     Help: [
-      { title: "Support Center", href: "/help/support" },
+      // { title: "Support Center", href: "/help/support" },
       { title: "FAQ", href: "/help/faq" },
     ],
     "Terms & Policies": [
       { title: "Privacy Policy", href: "/legal/privacy" },
       { title: "Terms of Service", href: "/legal/terms" },
-      { title: "Cookie Policy", href: "/legal/cookies" },
-      { title: "Usage Policy", href: "/legal/usage" },
+      // { title: "Cookie Policy", href: "/legal/cookies" },
+      // { title: "Usage Policy", href: "/legal/usage" },
     ],
   };
 
@@ -86,7 +70,7 @@ const Footer: React.FC = () => {
             </p>
             <div className="flex space-x-4 mt-6 -ml-4">
               <a
-                href="https://linkedin.com/company/procur"
+                href="https://www.linkedin.com/company/procurinc"
                 className="text-gray-400 hover:text-white transition-colors duration-200"
                 aria-label="LinkedIn"
               >
@@ -99,6 +83,19 @@ const Footer: React.FC = () => {
                 </svg>
               </a>
               <a
+                href="https://www.facebook.com/procurapp"
+                className="text-gray-400 hover:text-white transition-colors duration-200"
+                aria-label="Facebook"
+              >
+                <svg
+                  className="h-5 w-5"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M22.675 0h-21.35C.597 0 0 .597 0 1.326v21.348C0 23.403.597 24 1.326 24h11.495v-9.294H9.691V11.01h3.13V8.414c0-3.1 1.894-4.788 4.659-4.788 1.325 0 2.464.099 2.795.143v3.24l-1.918.001c-1.504 0-1.796.715-1.796 1.764v2.313h3.587l-.467 3.696h-3.12V24h6.116C23.403 24 24 23.403 24 22.674V1.326C24 .597 23.403 0 22.675 0z" />
+                </svg>
+              </a>
+              {/* <a
                 href="https://twitter.com/procur"
                 className="text-gray-400 hover:text-white transition-colors duration-200"
                 aria-label="Twitter"
@@ -110,8 +107,8 @@ const Footer: React.FC = () => {
                 >
                   <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                 </svg>
-              </a>
-              <a
+              </a> */}
+              {/* <a
                 href="https://youtube.com/procur"
                 className="text-gray-400 hover:text-white transition-colors duration-200"
                 aria-label="YouTube"
@@ -123,22 +120,14 @@ const Footer: React.FC = () => {
                 >
                   <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
                 </svg>
-              </a>
+              </a> */}
             </div>
           </div>
 
-          {/* Footer Links - two rows: 4 on top, 3 on bottom, right-aligned */}
-          <div className="lg:col-span-9 flex flex-col w-full items-end text-right">
-            {/* Top row (4 sections) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-12 w-full lg:w-[88%]">
-              {["For Purchasers", "For Suppliers", "For Government"].map(
-                (key) => renderSection(key, footerSections[key])
-              )}
-            </div>
-
-            {/* Bottom row (3 sections) */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 gap-8 lg:gap-12 mt-8 w-full lg:w-[70%]">
-              {["Company", "Help", "Terms & Policies"].map((key) =>
+          {/* Footer Links - simplified layout */}
+          <div className="lg:col-span-9 flex w-full justify-start text-left">
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12 w-full lg:w-[80%]">
+              {["Use Cases", "Company", "Help", "Terms & Policies"].map((key) =>
                 renderSection(key, footerSections[key])
               )}
             </div>
@@ -149,7 +138,7 @@ const Footer: React.FC = () => {
         <div className="mt-16">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center">
             <div className="text-gray-400 text-sm">
-              2025 Procur. All Rights Reserved.
+              2025 Procur Grenada Ltd. All Rights Reserved.
             </div>
           </div>
         </div>
