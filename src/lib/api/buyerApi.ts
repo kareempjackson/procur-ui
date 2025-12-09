@@ -57,12 +57,17 @@ export interface ToggleHarvestLikeDto {
   is_like: boolean;
 }
 
-// Get token function
+// Get token function - reuse the same storage shape as auth slice (`auth` key)
 const getToken = () => {
-  if (typeof window !== "undefined") {
-    return localStorage.getItem("access_token");
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem("auth");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { accessToken?: string };
+    return parsed.accessToken ?? null;
+  } catch {
+    return null;
   }
-  return null;
 };
 
 // API Client Functions
@@ -92,11 +97,17 @@ export const buyerApi = {
     return response.data;
   },
 
-  getSellerProducts: async (sellerId: string, params?: MarketplaceProductQuery) => {
+  getSellerProducts: async (
+    sellerId: string,
+    params?: MarketplaceProductQuery
+  ) => {
     const api = getApiClient(getToken);
-    const response = await api.get(`/buyers/marketplace/sellers/${sellerId}/products`, {
-      params,
-    });
+    const response = await api.get(
+      `/buyers/marketplace/sellers/${sellerId}/products`,
+      {
+        params,
+      }
+    );
     return response.data;
   },
 
@@ -128,7 +139,9 @@ export const buyerApi = {
 
   getHarvestComments: async (harvestId: string) => {
     const api = getApiClient(getToken);
-    const response = await api.get(`/buyers/harvest-updates/${harvestId}/comments`);
+    const response = await api.get(
+      `/buyers/harvest-updates/${harvestId}/comments`
+    );
     return response.data;
   },
 
@@ -214,6 +227,18 @@ export const buyerApi = {
     return response.data;
   },
 
+  getPreferences: async () => {
+    const api = getApiClient(getToken);
+    const response = await api.get("/buyers/preferences");
+    return response.data;
+  },
+
+  updatePreferences: async (data: any) => {
+    const api = getApiClient(getToken);
+    const response = await api.patch("/buyers/preferences", data);
+    return response.data;
+  },
+
   getAddresses: async () => {
     const api = getApiClient(getToken);
     const response = await api.get("/buyers/addresses");
@@ -246,4 +271,3 @@ export const buyerApi = {
     return response.data;
   },
 };
-

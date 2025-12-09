@@ -44,6 +44,8 @@ type SignupPayload = {
   country?: string;
   businessType?: string;
   businessName?: string;
+  website?: string;
+  captchaToken: string;
 };
 
 function getClient() {

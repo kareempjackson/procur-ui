@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -29,6 +29,8 @@ import {
 import { getApiClient } from "@/lib/apiClient";
 import ProcurLoader from "@/components/ProcurLoader";
 import { useToast } from "@/components/ui/Toast";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 // Demo order data with full tracking
 const order = {
@@ -184,6 +186,114 @@ export default function OrderDetailPage({
   const [cancelReason, setCancelReason] = useState("");
   const [isStartingConversation, setIsStartingConversation] = useState(false);
   const [cancellingOrder, setCancellingOrder] = useState(false);
+  const [downloadingInvoice, setDownloadingInvoice] = useState(false);
+  const invoiceRef = useRef<HTMLDivElement | null>(null);
+
+  // Tailwind v4 can emit color values using lab() inside @supports blocks.
+  // html2canvas does not understand lab(), so we proactively strip those
+  // fallback rules from runtime stylesheets before capturing.
+  const stripLabColorRules = () => {
+    if (typeof document === "undefined") return;
+
+    try {
+      const styleSheets = Array.from(document.styleSheets || []);
+
+      for (const sheet of styleSheets) {
+        const cssSheet = sheet as CSSStyleSheet;
+        let rules: CSSRuleList;
+
+        try {
+          rules = cssSheet.cssRules;
+        } catch {
+          // Ignore cross-origin or locked stylesheets
+          continue;
+        }
+
+        for (let i = rules.length - 1; i >= 0; i -= 1) {
+          const rule = rules[i];
+          // Narrow supports rules that declare lab() colors
+          if (
+            typeof CSSSupportsRule !== "undefined" &&
+            rule instanceof CSSSupportsRule &&
+            rule.conditionText.includes("color: lab(")
+          ) {
+            cssSheet.deleteRule(i);
+          }
+        }
+      }
+    } catch (e) {
+      // Fail-safe: never block invoice generation if stylesheet inspection fails
+      console.warn("stripLabColorRules failed, continuing without strip:", e);
+    }
+  };
+
+  const handleDownloadInvoice = async () => {
+    if (!order || !invoiceRef.current) return;
+
+    setDownloadingInvoice(true);
+    const element = invoiceRef.current;
+
+    try {
+      // Remove any @supports blocks that redefine palette variables using lab()
+      // so html2canvas doesn't attempt to parse unsupported color functions.
+      stripLabColorRules();
+
+      // Tailwind v4 can emit color functions like lab() which html2canvas
+      // cannot parse. Temporarily wrap getComputedStyle so any lab() values
+      // are stripped before html2canvas processes styles.
+      const originalGetComputedStyle = window.getComputedStyle;
+      (window as any).getComputedStyle = (
+        elt: Element,
+        pseudoElt?: string | null
+      ) => {
+        const style = originalGetComputedStyle.call(
+          window,
+          elt,
+          pseudoElt as any
+        );
+        if (!style) return style;
+
+        const originalGetPropertyValue = style.getPropertyValue.bind(style);
+        (style as any).getPropertyValue = (prop: string) => {
+          const value = originalGetPropertyValue(prop);
+          if (typeof value === "string" && value.includes("lab(")) {
+            return "";
+          }
+          return value;
+        };
+
+        return style;
+      };
+
+      let canvas: HTMLCanvasElement;
+      try {
+        canvas = await html2canvas(element, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: "#ffffff",
+        });
+      } finally {
+        (window as any).getComputedStyle = originalGetComputedStyle;
+      }
+
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      const invoiceNumber =
+        (order as any)?.invoice_number ||
+        order.order_number ||
+        `ORDER-${order.id || ""}`;
+      pdf.save(`procur-invoice-${invoiceNumber}.pdf`);
+    } catch (error) {
+      console.error("Failed to download invoice:", error);
+      show("Failed to generate invoice. Please try again.");
+    } finally {
+      setDownloadingInvoice(false);
+    }
+  };
 
   // Next.js 15: unwrap params if it's a Promise
   const unwrappedParams =
@@ -313,6 +423,31 @@ export default function OrderDetailPage({
   // Transform order data for UI (use real order data)
   const canCancel = order.status === "pending" || order.status === "accepted";
   const canReview = order.status === "delivered";
+  const currencyCode =
+    (order as any)?.currency || (order as any)?.currency_code || "USD";
+  const formatCurrency = (value: number) =>
+    `${currencyCode} ${value.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  const invoiceLineSubtotal = Array.isArray(order.items)
+    ? order.items.reduce((sum: number, item: any) => {
+        const qty = Number(item.quantity || 0);
+        const unitPrice = Number(item.unit_price || 0);
+        return sum + qty * unitPrice;
+      }, 0)
+    : 0;
+  const invoiceShipping = Number((order as any)?.shipping_cost || 0);
+  const invoiceTax = Number((order as any)?.tax || 0);
+  const invoicePlatformFee = Number((order as any)?.platform_fee || 0);
+  const invoiceDiscount = Number((order as any)?.discount_amount || 0);
+  const invoiceTotal =
+    Number((order as any)?.total_amount) ||
+    invoiceLineSubtotal +
+      invoiceShipping +
+      invoicePlatformFee +
+      invoiceTax -
+      invoiceDiscount;
   const steps = [
     {
       key: "placed",
@@ -351,6 +486,268 @@ export default function OrderDetailPage({
 
   return (
     <div className="min-h-screen bg-white">
+      {/* Classic balance invoice template (off-screen for PDF capture) */}
+      <div className="fixed -left-[9999px] top-0 z-[-1]">
+        <div
+          ref={invoiceRef}
+          className="bg-white rounded-3xl border border-gray-200 shadow-[0_18px_40px_rgba(15,23,42,0.06)] p-8 sm:p-10 w-[900px] max-w-[900px]"
+        >
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6 mb-8 border-b border-gray-100 pb-6">
+            <div className="space-y-3">
+              <div className="inline-flex items-center gap-2 rounded-full bg-[var(--primary-background)] px-3 py-1">
+                <span className="w-2 h-2 rounded-full bg-[var(--primary-accent2)]" />
+                <span className="text-xs font-medium tracking-wide text-[var(--primary-base)]">
+                  Procur marketplace
+                </span>
+              </div>
+              <div>
+                <h2 className="text-2xl font-semibold tracking-tight text-[var(--secondary-black)]">
+                  Tax invoice
+                </h2>
+                <p className="text-sm text-[var(--primary-base)] mt-1">
+                  Official summary of your order on Procur.
+                </p>
+              </div>
+              <div className="text-xs text-[var(--primary-base)] space-y-0.5">
+                <p>{order.seller_name}</p>
+                {order.seller_location && <p>{order.seller_location}</p>}
+                {(order as any).seller_email && (
+                  <p>{(order as any).seller_email}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-3 text-sm sm:text-right">
+              <div className="inline-flex items-center gap-2 rounded-full bg-[var(--secondary-soft-highlight)]/40 px-3 py-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <span className="text-xs font-medium text-[var(--secondary-black)]">
+                  Payment {order.payment_status || "status"}
+                </span>
+              </div>
+              <dl className="grid grid-cols-2 sm:grid-cols-1 gap-x-6 gap-y-1 text-xs text-[var(--primary-base)]">
+                <div className="flex justify-between sm:justify-end gap-3">
+                  <dt className="uppercase tracking-[0.16em]">Invoice</dt>
+                  <dd className="font-medium text-[var(--secondary-black)]">
+                    {(order as any)?.invoice_number ||
+                      order.order_number ||
+                      `ORDER-${order.id}`}
+                  </dd>
+                </div>
+                <div className="flex justify-between sm:justify-end gap-3">
+                  <dt className="uppercase tracking-[0.16em]">Issued</dt>
+                  <dd className="font-medium text-[var(--secondary-black)]">
+                    {new Date(order.created_at).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "2-digit",
+                      year: "numeric",
+                    })}
+                  </dd>
+                </div>
+                {order.estimated_delivery_date && (
+                  <div className="flex justify-between sm:justify-end gap-3">
+                    <dt className="uppercase tracking-[0.16em]">Due</dt>
+                    <dd className="font-medium text-[var(--secondary-black)]">
+                      {new Date(
+                        order.estimated_delivery_date
+                      ).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "2-digit",
+                        year: "numeric",
+                      })}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          </div>
+
+          {/* Parties */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
+            <div className="space-y-3">
+              <p className="text-xs uppercase tracking-[0.16em] text-[var(--primary-base)]">
+                Billed to
+              </p>
+              {order.shipping_address && (
+                <div className="space-y-0.5 text-sm">
+                  <p className="font-medium text-[var(--secondary-black)]">
+                    {(order.shipping_address as any).name ||
+                      (order as any)?.buyer_name ||
+                      ""}
+                  </p>
+                  <p className="text-[var(--primary-base)]">
+                    {order.shipping_address.address_line1}
+                  </p>
+                  {order.shipping_address.address_line2 && (
+                    <p className="text-[var(--primary-base)]">
+                      {order.shipping_address.address_line2}
+                    </p>
+                  )}
+                  <p className="text-[var(--primary-base)]">
+                    {order.shipping_address.city},{" "}
+                    {order.shipping_address.state}{" "}
+                    {order.shipping_address.postal_code}
+                  </p>
+                  <p className="text-[var(--primary-base)]">
+                    {order.shipping_address.country}
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className="space-y-3">
+              <p className="text-xs uppercase tracking-[0.16em] text-[var(--primary-base)]">
+                Order reference
+              </p>
+              <div className="space-y-1 text-sm text-[var(--primary-base)]">
+                <p>Order: {order.order_number}</p>
+                {order.estimated_delivery_date && (
+                  <p>
+                    Estimated delivery:{" "}
+                    {new Date(order.estimated_delivery_date).toLocaleDateString(
+                      "en-US",
+                      {
+                        month: "short",
+                        day: "2-digit",
+                        year: "numeric",
+                      }
+                    )}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Line items */}
+          <div className="rounded-2xl border border-gray-100 overflow-hidden mb-8">
+            <table className="w-full border-collapse text-xs">
+              <thead className="bg-[var(--primary-background)]">
+                <tr className="text-[var(--primary-base)] text-left">
+                  <th className="px-4 py-3 font-medium">Item</th>
+                  <th className="px-4 py-3 font-medium hidden sm:table-cell">
+                    Details
+                  </th>
+                  <th className="px-4 py-3 font-medium text-right">Qty</th>
+                  <th className="px-4 py-3 font-medium text-right">
+                    Unit price
+                  </th>
+                  <th className="px-4 py-3 font-medium text-right">
+                    Line total
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {order.items.map((item: any, index: number) => {
+                  const qty = Number(item.quantity || 0);
+                  const unitPrice = Number(item.unit_price || 0);
+                  const lineTotal = qty * unitPrice;
+                  const unit =
+                    item.unit ||
+                    (item as any)?.product_snapshot?.unit_of_measurement ||
+                    "";
+                  return (
+                    <tr
+                      key={item.id || `${item.product_id}-${index}`}
+                      className={index % 2 === 0 ? "bg-white" : "bg-gray-50/60"}
+                    >
+                      <td className="px-4 py-3 align-top">
+                        <p className="font-medium text-[var(--secondary-black)]">
+                          {item.product_name}
+                        </p>
+                        <p className="text-[var(--primary-base)] sm:hidden mt-1">
+                          {unit && `Unit: ${unit}`}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3 align-top text-[var(--primary-base)] hidden sm:table-cell">
+                        {unit && `Unit: ${unit}`}
+                      </td>
+                      <td className="px-4 py-3 align-top text-right text-[var(--secondary-black)]">
+                        {qty.toLocaleString("en-US")}
+                      </td>
+                      <td className="px-4 py-3 align-top text-right text-[var(--secondary-black)]">
+                        {formatCurrency(unitPrice)}
+                      </td>
+                      <td className="px-4 py-3 align-top text-right font-medium text-[var(--secondary-black)]">
+                        {formatCurrency(lineTotal)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Totals */}
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
+            <div className="text-xs text-[var(--primary-base)] max-w-sm">
+              <p className="font-medium text-[var(--secondary-black)] mb-1">
+                Payment instructions
+              </p>
+              <ul className="list-disc list-inside space-y-1">
+                <li>Payment is processed via Procur secure settlement.</li>
+                <li>
+                  Include the invoice or order number as the payment reference.
+                </li>
+              </ul>
+            </div>
+
+            <div className="w-full sm:max-w-xs">
+              <dl className="space-y-1 text-xs">
+                <div className="flex justify-between gap-4">
+                  <dt className="text-[var(--primary-base)]">Subtotal</dt>
+                  <dd className="font-medium text-[var(--secondary-black)]">
+                    {formatCurrency(invoiceLineSubtotal)}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-[var(--primary-base)]">
+                    Shipping &amp; handling
+                  </dt>
+                  <dd className="font-medium text-[var(--secondary-black)]">
+                    {formatCurrency(invoiceShipping)}
+                  </dd>
+                </div>
+                {invoicePlatformFee > 0 && (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-[var(--primary-base)]">Platform fee</dt>
+                    <dd className="font-medium text-[var(--secondary-black)]">
+                      {formatCurrency(invoicePlatformFee)}
+                    </dd>
+                  </div>
+                )}
+                {invoiceTax > 0 && (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-[var(--primary-base)]">Tax</dt>
+                    <dd className="font-medium text-[var(--secondary-black)]">
+                      {formatCurrency(invoiceTax)}
+                    </dd>
+                  </div>
+                )}
+                {invoiceDiscount > 0 && (
+                  <div className="flex justify-between gap-4 pt-2 border-t border-dashed border-gray-200 mt-1">
+                    <dt className="text-[var(--primary-base)]">Discount</dt>
+                    <dd className="font-medium text-emerald-600">
+                      -{formatCurrency(invoiceDiscount)}
+                    </dd>
+                  </div>
+                )}
+                <div className="flex justify-between gap-4 pt-2 border-t border-gray-900/10 mt-2">
+                  <dt className="text-xs font-semibold text-[var(--secondary-black)] uppercase tracking-[0.16em]">
+                    Amount due
+                  </dt>
+                  <dd className="text-base font-semibold text-[var(--secondary-black)]">
+                    {formatCurrency(invoiceTotal)}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          </div>
+
+          <p className="mt-8 text-[0.68rem] text-[var(--primary-base)] leading-relaxed">
+            Thank you for sourcing fresh produce through Procur. Payments help
+            us keep farmers on the land and buyers fully supplied.
+          </p>
+        </div>
+      </div>
+
       <main className="max-w-7xl mx-auto px-6 py-10">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -364,9 +761,17 @@ export default function OrderDetailPage({
             </Link>
           </div>
           <div className="flex items-center gap-3">
-            <button className="flex items-center gap-2 px-5 py-2 border border-[var(--secondary-soft-highlight)]/30 text-[var(--secondary-black)] rounded-full hover:bg-white transition-all">
+            <button
+              onClick={handleDownloadInvoice}
+              disabled={downloadingInvoice}
+              className="flex items-center gap-2 px-5 py-2 border border-[var(--secondary-soft-highlight)]/30 text-[var(--secondary-black)] rounded-full hover:bg-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               <ArrowDownTrayIcon className="h-4 w-4" />
-              <span className="text-sm font-medium">Download Invoice</span>
+              <span className="text-sm font-medium">
+                {downloadingInvoice
+                  ? "Preparing Invoice..."
+                  : "Download Invoice"}
+              </span>
             </button>
             {canReview && (
               <Link

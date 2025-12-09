@@ -200,7 +200,7 @@ const BuyerTopNavigation: React.FC = () => {
             {/* Right Side Actions - Right Section */}
             <div className="hidden lg:flex items-center justify-end space-x-5 flex-[1.4]">
               {/* Analytics */}
-              <Link
+              {/* <Link
                 href="/buyer/analytics"
                 className={`relative transition-colors duration-200 flex items-center ${
                   pathname?.startsWith("/buyer/analytics")
@@ -214,10 +214,10 @@ const BuyerTopNavigation: React.FC = () => {
                 ) : (
                   <ChartBarIcon className="h-6 w-6 stroke-2" />
                 )}
-              </Link>
+              </Link> */}
 
               {/* Saved Suppliers */}
-              <Link
+              {/* <Link
                 href="/buyer/saved-suppliers"
                 className={`relative transition-colors duration-200 flex items-center ${
                   pathname?.startsWith("/buyer/saved-suppliers")
@@ -231,7 +231,7 @@ const BuyerTopNavigation: React.FC = () => {
                 ) : (
                   <HeartIcon className="h-6 w-6 stroke-2" />
                 )}
-              </Link>
+              </Link> */}
 
               {/* Notifications */}
               <div className="relative flex items-center">
@@ -357,8 +357,8 @@ const BuyerTopNavigation: React.FC = () => {
                 )}
               </Link>
 
-              {/* Make Request Button */}
-              <Link
+              {/* Make Request Button (temporarily disabled) */}
+              {/* <Link
                 href="/buyer/request"
                 className={`px-6 py-2.5 rounded-full font-medium text-[15px] transition-all duration-200 flex items-center ${
                   pathname?.startsWith("/buyer/request")
@@ -367,7 +367,7 @@ const BuyerTopNavigation: React.FC = () => {
                 }`}
               >
                 Make Request
-              </Link>
+              </Link> */}
 
               {/* User Profile Dropdown */}
               <div className="relative flex items-center">
@@ -446,12 +446,13 @@ const BuyerTopNavigation: React.FC = () => {
         {mobileMenuOpen && (
           <div className="lg:hidden bg-white border-t border-gray-100">
             <div className="px-6 py-4 space-y-4">
-              <Link
+              {/* Make Request Button (temporarily disabled - mobile) */}
+              {/* <Link
                 href="/buyer/request"
                 className="block w-full bg-black text-white px-6 py-2.5 rounded-full font-medium text-center hover:bg-gray-800 transition-colors duration-200"
               >
                 Make Request
-              </Link>
+              </Link> */}
               <Link
                 href="/buyer/suppliers"
                 className="block text-gray-800 font-medium py-2"

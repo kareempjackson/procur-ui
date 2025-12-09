@@ -4,15 +4,12 @@ import React, { useState, useEffect, Suspense } from "react";
 import Image from "next/image";
 import TopNavigation from "@/components/navigation/TopNavigation";
 import Footer from "@/components/footer/Footer";
-import {
-  ShoppingCartIcon,
-  TagIcon,
-  BuildingLibraryIcon,
-} from "@heroicons/react/24/outline";
+import { ShoppingCartIcon, TagIcon } from "@heroicons/react/24/outline";
 import { useAppDispatch } from "@/store";
 import { signup as signupThunk } from "@/store/slices/authSlice";
 import { useRouter } from "next/navigation";
 import ProcurLoader from "@/components/ProcurLoader";
+import ReCAPTCHA from "react-google-recaptcha";
 
 const SignUpPage: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -24,10 +21,12 @@ const SignUpPage: React.FC = () => {
     businessName: "",
     phoneNumber: "",
     country: "Grenada",
+    website: "",
   });
   const [step, setStep] = useState<1 | 2>(1);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const dispatch = useAppDispatch();
   const router = useRouter();
 
@@ -82,6 +81,11 @@ const SignUpPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (!captchaToken) {
+      setError("Please complete the bot verification.");
+      return;
+    }
+
     setIsLoading(true);
     try {
       // Require business type for buyer/seller
@@ -122,6 +126,8 @@ const SignUpPage: React.FC = () => {
               : undefined,
           phoneNumber: formData.phoneNumber || undefined,
           country: formData.country || undefined,
+          website: formData.website || undefined,
+          captchaToken,
         })
       ).unwrap();
       router.push("/check-email");
@@ -425,9 +431,32 @@ const SignUpPage: React.FC = () => {
                       </select>
                     </div>
 
+                    {/* Honeypot field - hidden from real users */}
+                    <div className="sr-only" aria-hidden="true">
+                      <label htmlFor="website">Business website</label>
+                      <input
+                        id="website"
+                        name="website"
+                        type="text"
+                        autoComplete="off"
+                        value={formData.website}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+
+                    {/* CAPTCHA */}
+                    <div className="flex justify-center">
+                      <ReCAPTCHA
+                        sitekey={
+                          process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY as string
+                        }
+                        onChange={(token) => setCaptchaToken(token || null)}
+                      />
+                    </div>
+
                     <button
                       type="submit"
-                      disabled={isLoading}
+                      disabled={isLoading || !captchaToken}
                       className="btn btn-secondary !rounded-full w-full flex justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isLoading ? "Creating account..." : "Create Account"}

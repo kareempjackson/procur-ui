@@ -4,24 +4,15 @@ import React, { useState } from "react";
 import {
   MagnifyingGlassIcon,
   QuestionMarkCircleIcon,
-  ChatBubbleLeftRightIcon,
   EnvelopeIcon,
   PhoneIcon,
-  DocumentTextIcon,
   ChevronDownIcon,
   ChevronUpIcon,
 } from "@heroicons/react/24/outline";
-import { useToast } from "@/components/ui/Toast";
 
 export default function HelpClient() {
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
-  const [contactForm, setContactForm] = useState({
-    subject: "",
-    category: "general",
-    message: "",
-  });
-  const { show } = useToast();
 
   const faqs = [
     {
@@ -80,15 +71,8 @@ export default function HelpClient() {
       faq.answer.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleContactSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log("Contact form submitted:", contactForm);
-    show("Your message has been sent! We'll get back to you within 24 hours.");
-    setContactForm({ subject: "", category: "general", message: "" });
-  };
-
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
+    <div className="min-h-screen bg-white">
       <div className="max-w-6xl mx-auto px-6 py-6">
         {/* Header */}
         <div className="text-center mb-8">
@@ -114,23 +98,8 @@ export default function HelpClient() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Quick Contact Options */}
-          <div className="bg-white rounded-2xl p-5 border border-[var(--secondary-soft-highlight)]/20 text-center hover:shadow-md transition-shadow duration-200">
-            <div className="w-12 h-12 mx-auto mb-3 bg-[var(--primary-accent2)]/10 rounded-full flex items-center justify-center">
-              <ChatBubbleLeftRightIcon className="h-6 w-6 text-[var(--primary-accent2)]" />
-            </div>
-            <h3 className="text-lg font-semibold text-[var(--secondary-black)] mb-1">
-              Live Chat
-            </h3>
-            <p className="text-sm text-[var(--secondary-muted-edge)] mb-3">
-              Chat with our support team
-            </p>
-            <button className="px-4 py-2 bg-[var(--primary-accent2)] text-white rounded-full text-sm font-medium hover:bg-[var(--primary-accent3)] transition-all duration-200">
-              Start Chat
-            </button>
-          </div>
-
           <div className="bg-white rounded-2xl p-5 border border-[var(--secondary-soft-highlight)]/20 text-center hover:shadow-md transition-shadow duration-200">
             <div className="w-12 h-12 mx-auto mb-3 bg-[var(--primary-accent2)]/10 rounded-full flex items-center justify-center">
               <EnvelopeIcon className="h-6 w-6 text-[var(--primary-accent2)]" />
@@ -168,141 +137,49 @@ export default function HelpClient() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* FAQs */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-2xl p-5 border border-[var(--secondary-soft-highlight)]/20">
-              <div className="flex items-center gap-2 mb-4">
-                <QuestionMarkCircleIcon className="h-6 w-6 text-[var(--primary-accent2)]" />
-                <h2 className="text-xl font-semibold text-[var(--secondary-black)]">
-                  Frequently Asked Questions
-                </h2>
-              </div>
-
-              <div className="space-y-3">
-                {filteredFaqs.length === 0 ? (
-                  <div className="text-center py-8 text-[var(--secondary-muted-edge)]">
-                    No results found. Try a different search term.
-                  </div>
-                ) : (
-                  filteredFaqs.map((faq) => (
-                    <div
-                      key={faq.id}
-                      className="border border-[var(--secondary-soft-highlight)]/30 rounded-xl overflow-hidden"
-                    >
-                      <button
-                        onClick={() =>
-                          setExpandedFaq(expandedFaq === faq.id ? null : faq.id)
-                        }
-                        className="w-full flex items-center justify-between p-4 text-left hover:bg-[var(--primary-background)] transition-colors duration-200"
-                      >
-                        <span className="font-medium text-[var(--secondary-black)] text-sm">
-                          {faq.question}
-                        </span>
-                        {expandedFaq === faq.id ? (
-                          <ChevronUpIcon className="h-5 w-5 text-[var(--secondary-muted-edge)] flex-shrink-0" />
-                        ) : (
-                          <ChevronDownIcon className="h-5 w-5 text-[var(--secondary-muted-edge)] flex-shrink-0" />
-                        )}
-                      </button>
-                      {expandedFaq === faq.id && (
-                        <div className="px-4 pb-4 text-sm text-[var(--secondary-muted-edge)] border-t border-[var(--secondary-soft-highlight)]/30">
-                          <p className="pt-3">{faq.answer}</p>
-                        </div>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
+        <div className="grid grid-cols-1 gap-6">
+          <div className="bg-white rounded-2xl p-5 border border-[var(--secondary-soft-highlight)]/20">
+            <div className="flex items-center gap-2 mb-4">
+              <QuestionMarkCircleIcon className="h-6 w-6 text-[var(--primary-accent2)]" />
+              <h2 className="text-xl font-semibold text-[var(--secondary-black)]">
+                Frequently Asked Questions
+              </h2>
             </div>
-          </div>
 
-          {/* Contact Form */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-2xl p-5 border border-[var(--secondary-soft-highlight)]/20">
-              <div className="flex items-center gap-2 mb-4">
-                <DocumentTextIcon className="h-6 w-6 text-[var(--primary-accent2)]" />
-                <h2 className="text-xl font-semibold text-[var(--secondary-black)]">
-                  Contact Us
-                </h2>
-              </div>
-
-              <form onSubmit={handleContactSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-medium text-[var(--secondary-black)] mb-1.5">
-                    Subject *
-                  </label>
-                  <input
-                    type="text"
-                    value={contactForm.subject}
-                    onChange={(e) =>
-                      setContactForm((prev) => ({
-                        ...prev,
-                        subject: e.target.value,
-                      }))
-                    }
-                    placeholder="Brief description"
-                    className="w-full px-4 py-2.5 text-sm rounded-full border border-[var(--secondary-soft-highlight)]/30 bg-[var(--primary-background)] outline-none focus:border-[var(--primary-accent2)] transition-colors text-[var(--secondary-black)]"
-                    required
-                  />
+            <div className="space-y-3">
+              {filteredFaqs.length === 0 ? (
+                <div className="text-center py-8 text-[var(--secondary-muted-edge)]">
+                  No results found. Try a different search term.
                 </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-[var(--secondary-black)] mb-1.5">
-                    Category
-                  </label>
-                  <select
-                    value={contactForm.category}
-                    onChange={(e) =>
-                      setContactForm((prev) => ({
-                        ...prev,
-                        category: e.target.value,
-                      }))
-                    }
-                    className="w-full px-4 py-2.5 text-sm rounded-full border border-[var(--secondary-soft-highlight)]/30 bg-[var(--primary-background)] outline-none focus:border-[var(--primary-accent2)] transition-colors text-[var(--secondary-black)]"
+              ) : (
+                filteredFaqs.map((faq) => (
+                  <div
+                    key={faq.id}
+                    className="border border-[var(--secondary-soft-highlight)]/30 rounded-xl overflow-hidden"
                   >
-                    <option value="general">General Question</option>
-                    <option value="order">Order Issue</option>
-                    <option value="payment">Payment Issue</option>
-                    <option value="technical">Technical Support</option>
-                    <option value="account">Account Issue</option>
-                    <option value="feedback">Feedback</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-[var(--secondary-black)] mb-1.5">
-                    Message *
-                  </label>
-                  <textarea
-                    value={contactForm.message}
-                    onChange={(e) =>
-                      setContactForm((prev) => ({
-                        ...prev,
-                        message: e.target.value,
-                      }))
-                    }
-                    rows={5}
-                    placeholder="Describe your issue or question..."
-                    className="w-full px-4 py-2.5 text-sm rounded-2xl border border-[var(--secondary-soft-highlight)]/30 bg-[var(--primary-background)] outline-none focus:border-[var(--primary-accent2)] transition-colors text-[var(--secondary-black)] resize-none"
-                    required
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full py-2.5 bg-[var(--primary-accent2)] text-white rounded-full text-sm font-medium hover:bg-[var(--primary-accent3)] transition-all duration-200"
-                >
-                  Send Message
-                </button>
-              </form>
-
-              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-xl">
-                <p className="text-xs text-blue-800">
-                  <strong>Response Time:</strong> We typically respond within 24
-                  hours during business days.
-                </p>
-              </div>
+                    <button
+                      onClick={() =>
+                        setExpandedFaq(expandedFaq === faq.id ? null : faq.id)
+                      }
+                      className="w-full flex items-center justify-between p-4 text-left hover:bg-[var(--primary-background)] transition-colors duration-200"
+                    >
+                      <span className="font-medium text-[var(--secondary-black)] text-sm">
+                        {faq.question}
+                      </span>
+                      {expandedFaq === faq.id ? (
+                        <ChevronUpIcon className="h-5 w-5 text-[var(--secondary-muted-edge)] flex-shrink-0" />
+                      ) : (
+                        <ChevronDownIcon className="h-5 w-5 text-[var(--secondary-muted-edge)] flex-shrink-0" />
+                      )}
+                    </button>
+                    {expandedFaq === faq.id && (
+                      <div className="px-4 pb-4 text-sm text-[var(--secondary-muted-edge)] border-t border-[var(--secondary-soft-highlight)]/30">
+                        <p className="pt-3">{faq.answer}</p>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
