@@ -428,7 +428,13 @@ const TopNavigation: React.FC = () => {
             <div className="hidden lg:flex items-center space-x-6 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
               {!showCompactSearch && (
                 <>
-                  {/* Marketplace, Solutions, and Resources temporarily hidden for beta homepage */}
+                  {/* Primary public navigation */}
+                  <Link
+                    href="/marketplace"
+                    className="text-[15px] font-medium text-gray-800 hover:text-black transition-colors duration-200"
+                  >
+                    Marketplace
+                  </Link>
                 </>
               )}
 
@@ -511,7 +517,17 @@ const TopNavigation: React.FC = () => {
         {mobileMenuOpen && (
           <div className="lg:hidden bg-white border-t border-gray-100 max-h-[calc(100vh-64px)] overflow-y-auto">
             <div className="px-6 py-4 space-y-4">
-              {/* Marketplace temporarily hidden for beta homepage */}
+              {/* Primary mobile links */}
+              <div className="space-y-1">
+                <Link
+                  href="/marketplace"
+                  className="block text-gray-900 hover:text-black font-medium px-2 py-1 rounded"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Marketplace
+                </Link>
+              </div>
+
               {/* Quick links for mobile */}
               <div className="pt-1">
                 <div className="text-sm font-semibold text-gray-500 px-1 py-1">
