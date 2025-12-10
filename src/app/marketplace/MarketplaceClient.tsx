@@ -6,6 +6,7 @@ import Link from "next/link";
 import TopNavigation from "@/components/navigation/TopNavigation";
 import Footer from "@/components/footer/Footer";
 import { getApiClient } from "@/lib/apiClient";
+import ProcurLoader from "@/components/ProcurLoader";
 import {
   MagnifyingGlassIcon,
   ChevronDownIcon,
@@ -49,7 +50,9 @@ export default function MarketplaceClient() {
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
+  const [selectedLocations, setSelectedLocations] = useState<string[]>([
+    "Grenada",
+  ]);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 100]);
   const [minRating, setMinRating] = useState<number>(0);
   const [sortBy, setSortBy] = useState<
@@ -270,66 +273,9 @@ export default function MarketplaceClient() {
     },
   ];
 
-  // Products dataset: starts with mock data, replaced with real API data when available
-  const [allProducts, setAllProducts] = useState<MarketplaceCardProduct[]>(
-    () => [
-      {
-        id: "101",
-        name: "Organic Tomatoes",
-        category: "Vegetables",
-        tags: ["Organic"],
-        price: 3.5,
-        location: "Jamaica",
-        rating: 4.7,
-        image:
-          "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      },
-      {
-        id: "102",
-        name: "Premium Avocados",
-        category: "Fresh Fruits",
-        tags: ["Tropical"],
-        price: 4.25,
-        location: "Dominican Republic",
-        rating: 4.9,
-        image:
-          "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      },
-      {
-        id: "103",
-        name: "Sweet Bell Peppers",
-        category: "Vegetables",
-        tags: ["Bulk"],
-        price: 3.75,
-        location: "Barbados",
-        rating: 4.6,
-        image:
-          "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      },
-      {
-        id: "104",
-        name: "Dragon Fruit",
-        category: "Fresh Fruits",
-        tags: ["Exotic"],
-        price: 8.99,
-        location: "Panama",
-        rating: 4.7,
-        image:
-          "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      },
-      {
-        id: "105",
-        name: "Coconuts",
-        category: "Tropical Fruits",
-        tags: ["Tropical"],
-        price: 2.5,
-        location: "Jamaica",
-        rating: 4.8,
-        image:
-          "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      },
-    ]
-  );
+  // Products dataset: populated from the public API only (no demo seed data)
+  const [allProducts, setAllProducts] = useState<MarketplaceCardProduct[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Limit location filter options to Grenada only for initial launch
   const allLocations = ["Grenada"];
@@ -395,7 +341,7 @@ export default function MarketplaceClient() {
       return 0; // relevance default (no-op for demo)
     });
 
-  // Load real marketplace products from public API (fallback to mock data if API fails)
+  // Load marketplace products from public API
   useEffect(() => {
     let cancelled = false;
     const api = getApiClient(() => null);
@@ -413,11 +359,7 @@ export default function MarketplaceClient() {
         });
 
         const productsFromApi = (data?.products ?? []) as any[];
-        if (
-          !cancelled &&
-          Array.isArray(productsFromApi) &&
-          productsFromApi.length > 0
-        ) {
+        if (!cancelled && Array.isArray(productsFromApi)) {
           const mapped: MarketplaceCardProduct[] = productsFromApi.map((p) => ({
             id: String(p.id),
             name: p.name,
@@ -433,8 +375,11 @@ export default function MarketplaceClient() {
           setAllProducts(mapped);
         }
       } catch (error) {
-        // Swallow errors for logged-out users or API issues; mock data remains
         console.error("Failed to load marketplace products", error);
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       }
     };
 
@@ -509,15 +454,10 @@ export default function MarketplaceClient() {
           <div className="max-w-4xl mx-auto mb-8">
             <form
               role="search"
-              className="flex items-center bg-white rounded-full shadow-lg border border-[var(--secondary-soft-highlight)]/30 overflow-hidden"
+              className="flex items-center bg-white rounded-full shadow-lg border border-[var(--secondary-soft-highlight)]/30"
               onSubmit={(e) => {
+                // Prevent full page reload; filtering is driven by controlled inputs.
                 e.preventDefault();
-                console.log(
-                  "Search:",
-                  searchQuery,
-                  "Category:",
-                  selectedCategories
-                );
               }}
             >
               <div className="relative">
@@ -594,7 +534,11 @@ export default function MarketplaceClient() {
                 Filters
               </button>
               <div className="text-sm text-[var(--secondary-muted-edge)]">
-                {filteredResults.length} results
+                {isLoading
+                  ? "Loading products..."
+                  : allProducts.length > 0
+                    ? `${filteredResults.length} results`
+                    : "No products available yet"}
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -797,82 +741,98 @@ export default function MarketplaceClient() {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredResults.map((p) => {
-                  const countrySlug = createCountrySlug(p.location);
-                  const productSlug = createProductSlug(p.name, p.id);
-                  const productHref = `/products/${countrySlug}/${productSlug}`;
+              {isLoading && (
+                <div className="flex justify-center items-center py-16">
+                  <ProcurLoader
+                    size="md"
+                    text="Loading marketplace products..."
+                  />
+                </div>
+              )}
 
-                  return (
-                    <Link
-                      key={p.id}
-                      href={productHref}
-                      className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300 group"
-                    >
-                      <div className="relative h-44">
-                        <Image
-                          src={p.image}
-                          alt={p.name}
-                          fill
-                          className="object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            toggleFavorite(p.id);
-                          }}
-                          className="absolute top-3 right-3 p-2 bg-white/90 rounded-full hover:bg-white transition-colors"
-                        >
-                          {favorites.has(p.id) ? (
-                            <HeartIconSolid className="h-5 w-5 text-red-500" />
-                          ) : (
-                            <HeartIcon className="h-5 w-5 text-gray-600" />
-                          )}
-                        </button>
-                      </div>
-                      <div className="p-4">
-                        <h3 className="font-semibold text-[var(--secondary-black)] mb-1 group-hover:text-[var(--primary-accent2)] transition-colors">
-                          {p.name}
-                        </h3>
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-lg font-bold text-[var(--secondary-black)]">
-                            ${p.price.toFixed(2)}
-                          </span>
-                          <span className="flex items-center gap-1 text-sm text-gray-500">
-                            <MapPinIcon className="h-4 w-4" />
-                            {p.location}
-                          </span>
+              {!isLoading && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredResults.map((p) => {
+                    const countrySlug = createCountrySlug(p.location);
+                    const productSlug = createProductSlug(p.name, p.id);
+                    const productHref = `/products/${countrySlug}/${productSlug}`;
+
+                    return (
+                      <Link
+                        key={p.id}
+                        href={productHref}
+                        className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300 group"
+                      >
+                        <div className="relative h-44">
+                          <Image
+                            src={p.image}
+                            alt={p.name}
+                            fill
+                            className="object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              toggleFavorite(p.id);
+                            }}
+                            className="absolute top-3 right-3 p-2 bg-white/90 rounded-full hover:bg-white transition-colors"
+                          >
+                            {favorites.has(p.id) ? (
+                              <HeartIconSolid className="h-5 w-5 text-red-500" />
+                            ) : (
+                              <HeartIcon className="h-5 w-5 text-gray-600" />
+                            )}
+                          </button>
                         </div>
-                        <div className="flex items-center gap-1 mb-3">
-                          <StarIconSolid className="h-4 w-4 text-yellow-400" />
-                          <span className="text-sm font-medium">
-                            {p.rating}
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap gap-1 mb-3">
-                          {p.tags.map((t) => (
-                            <span
-                              key={t}
-                              className="text-xs bg-[var(--primary-background)] text-[var(--secondary-black)] px-2 py-1 rounded-full"
-                            >
-                              {t}
+                        <div className="p-4">
+                          <h3 className="font-semibold text-[var(--secondary-black)] mb-1 group-hover:text-[var(--primary-accent2)] transition-colors">
+                            {p.name}
+                          </h3>
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-lg font-bold text-[var(--secondary-black)]">
+                              ${p.price.toFixed(2)}
                             </span>
-                          ))}
+                            <span className="flex items-center gap-1 text-sm text-gray-500">
+                              <MapPinIcon className="h-4 w-4" />
+                              {p.location}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 mb-3">
+                            <StarIconSolid className="h-4 w-4 text-yellow-400" />
+                            <span className="text-sm font-medium">
+                              {p.rating}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-1 mb-3">
+                            {p.tags.map((t) => (
+                              <span
+                                key={t}
+                                className="text-xs bg-[var(--primary-background)] text-[var(--secondary-black)] px-2 py-1 rounded-full"
+                              >
+                                {t}
+                              </span>
+                            ))}
+                          </div>
+                          <div className="w-full bg-[var(--primary-accent2)] text-white py-2 px-4 rounded-lg font-medium text-center group-hover:bg-[var(--primary-accent3)] transition-colors">
+                            View details & sign up to buy
+                          </div>
                         </div>
-                        <div className="w-full bg-[var(--primary-accent2)] text-white py-2 px-4 rounded-lg font-medium text-center group-hover:bg-[var(--primary-accent3)] transition-colors">
-                          View details & sign up to buy
-                        </div>
-                      </div>
-                    </Link>
-                  );
-                })}
-                {filteredResults.length === 0 && (
-                  <div className="col-span-full text-center text-[var(--secondary-muted-edge)] py-12">
-                    No products match your filters.
-                  </div>
-                )}
-              </div>
+                      </Link>
+                    );
+                  })}
+                  {allProducts.length === 0 && (
+                    <div className="col-span-full text-center text-[var(--secondary-muted-edge)] py-12">
+                      No products available yet. Please check back soon.
+                    </div>
+                  )}
+                  {allProducts.length > 0 && filteredResults.length === 0 && (
+                    <div className="col-span-full text-center text-[var(--secondary-muted-edge)] py-12">
+                      No products match your filters.
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
