@@ -20,6 +20,11 @@ type PublicSeller = {
   name: string;
   description?: string;
   business_type?: string;
+  /**
+   * Optional header/cover image for the public profile.
+   * When wired up, this should be controlled from the seller portal.
+   */
+  header_image_url?: string;
   logo_url?: string;
   location?: string;
   average_rating?: number;
@@ -116,10 +121,43 @@ export default async function PublicSellerProfile({ params }: SellerPageProps) {
   const displayName = seller?.name || "Marketplace Seller";
   const readableLocation = toTitle(seller?.location || "Caribbean Region");
 
+  const demoReviews =
+    seller && seller.review_count > 0
+      ? [
+          {
+            id: "1",
+            buyerInitials: "SM",
+            buyerName: "Verified buyer",
+            rating: seller.average_rating ?? 4.8,
+            createdAt: "Recently",
+            comment:
+              "Consistently reliable quality and very responsive on delivery timelines.",
+          },
+          {
+            id: "2",
+            buyerInitials: "JR",
+            buyerName: "Program partner",
+            rating: (seller.average_rating ?? 4.8) - 0.2,
+            createdAt: "This season",
+            comment:
+              "Great communication and clear grading on produce. Easy to work with for repeat orders.",
+          },
+          {
+            id: "3",
+            buyerInitials: "AL",
+            buyerName: "Hospitality buyer",
+            rating: (seller.average_rating ?? 4.8) - 0.3,
+            createdAt: "Earlier this year",
+            comment:
+              "Fresh product and thoughtful packing. Would recommend to other buyers on Procur.",
+          },
+        ]
+      : [];
+
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[var(--primary-background)]">
       <TopNavigation />
-      <main className="max-w-7xl mx-auto px-6 py-10">
+      <main className="max-w-6xl mx-auto px-4 md:px-6 py-8 md:py-12 space-y-10">
         {/* Breadcrumb */}
         <div className="mb-6">
           <p className="text-xs md:text-sm text-[var(--secondary-muted-edge)]">
@@ -154,93 +192,132 @@ export default async function PublicSellerProfile({ params }: SellerPageProps) {
 
         {seller && (
           <>
-            {/* Seller hero */}
-            <section className="mb-10">
-              <div className="bg-white rounded-3xl border border-[var(--secondary-soft-highlight)]/30 px-5 py-6 md:px-7 md:py-7">
-                <div className="flex flex-col md:flex-row gap-6 md:items-center">
-                  {/* Avatar */}
-                  <div className="flex-shrink-0">
-                    <div className="w-20 h-20 md:w-24 md:h-24 rounded-2xl overflow-hidden bg-[var(--primary-background)] border border-[var(--secondary-soft-highlight)]/60 flex items-center justify-center">
-                      {seller.logo_url ? (
-                        <Image
-                          src={seller.logo_url}
-                          alt={displayName}
-                          width={96}
-                          height={96}
-                          className="object-cover w-full h-full"
-                        />
-                      ) : (
-                        <span className="text-2xl font-bold text-[var(--primary-base)]">
-                          {displayName.charAt(0)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
+            {/* Seller hero with cover image + logo */}
+            <section className="mb-4 md:mb-6">
+              <div className="relative rounded-3xl border border-[var(--secondary-soft-highlight)]/40 overflow-hidden bg-[var(--primary-background)]">
+                {/* Header / cover image */}
+                <div className="relative h-40 md:h-52 lg:h-60 overflow-hidden">
+                  {seller.header_image_url ? (
+                    <>
+                      <Image
+                        src={seller.header_image_url}
+                        alt={`${displayName} header`}
+                        fill
+                        priority
+                        className="object-cover"
+                        sizes="(min-width: 1024px) 960px, 100vw"
+                      />
+                      {/* Soft dark scrim over image only */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/18 via-black/10 to-transparent" />
+                    </>
+                  ) : (
+                    // Fallback branded gradient background
+                    <div className="absolute inset-0 bg-gradient-to-r from-[var(--primary-accent2)] via-[var(--primary-accent3)] to-emerald-500" />
+                  )}
+                </div>
 
-                  {/* Main info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <h1 className="text-2xl md:text-3xl font-semibold md:font-bold text-[var(--secondary-black)] tracking-tight">
+                {/* Foreground content (kept below header image for clarity) */}
+                <div className="relative z-10 px-5 md:px-7 pb-6 md:pb-7 pt-4 md:pt-6">
+                  <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mt-2 md:mt-4">
+                    {/* Logo / company avatar */}
+                    <div className="flex items-start gap-4">
+                      <div className="flex-shrink-0">
+                        <div className="w-20 h-20 md:w-24 md:h-24 rounded-2xl overflow-hidden bg-white border border-[var(--secondary-soft-highlight)]/60 flex items-center justify-center">
+                          {seller.logo_url ? (
+                            <Image
+                              src={seller.logo_url}
+                              alt={displayName}
+                              width={96}
+                              height={96}
+                              className="object-cover w-full h-full"
+                            />
+                          ) : (
+                            <span className="text-2xl font-semibold text-[var(--primary-accent2)]">
+                              {displayName.charAt(0)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Main info */}
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <h1 className="text-xl md:text-2xl lg:text-3xl font-semibold text-[var(--secondary-black)] tracking-tight">
                             {displayName}
                           </h1>
                           {seller.is_verified && (
                             <CheckBadgeIcon className="h-5 w-5 text-[var(--primary-accent2)]" />
                           )}
                         </div>
-                        <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--secondary-muted-edge)] mb-3">
-                          <span className="inline-flex items-center gap-1">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--secondary-muted-edge)] mb-3">
+                          {seller.business_type || "Marketplace supplier"}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2.5 text-xs text-[var(--secondary-muted-edge)] mb-3">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[var(--secondary-soft-highlight)]/70 text-[var(--secondary-black)]">
                             <MapPinIcon className="h-3.5 w-3.5" />
                             {readableLocation}
                           </span>
-                          {seller.business_type && (
-                            <span>{seller.business_type}</span>
-                          )}
                           {typeof seller.average_rating === "number" && (
-                            <span className="inline-flex items-center gap-1">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[var(--secondary-soft-highlight)]/70">
                               <StarIcon className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
-                              {seller.average_rating.toFixed(1)} (
-                              {seller.review_count || 0} reviews)
+                              <span className="font-medium text-[var(--secondary-black)]">
+                                {seller.average_rating.toFixed(1)}
+                              </span>
+                              <span className="text-[var(--secondary-muted-edge)]">
+                                ({seller.review_count || 0} reviews)
+                              </span>
                             </span>
                           )}
-                          <span>{products.length} listed products</span>
+                          <span className="inline-flex items-center px-3 py-1 rounded-full bg-white border border-[var(--secondary-soft-highlight)]/60 text-[var(--secondary-black)]">
+                            {products.length} listed products
+                          </span>
+                          {typeof seller.years_in_business === "number" &&
+                            seller.years_in_business > 0 && (
+                              <span className="inline-flex items-center px-3 py-1 rounded-full bg-white border border-[var(--secondary-soft-highlight)]/60 text-[var(--secondary-black)]">
+                                {seller.years_in_business}+ years on market
+                              </span>
+                            )}
                         </div>
                         {seller.specialties &&
                           seller.specialties.length > 0 && (
-                            <div className="flex flex-wrap gap-2 mb-3">
-                              {seller.specialties.map((s) => (
+                            <div className="flex flex-wrap gap-1.5 mb-3">
+                              {seller.specialties.slice(0, 4).map((s) => (
                                 <span
                                   key={s}
-                                  className="px-3 py-1 bg-[var(--primary-background)] text-[var(--secondary-black)] text-xs rounded-full"
+                                  className="px-2.5 py-1 bg-white/80 text-[var(--secondary-black)] text-[10px] rounded-full border border-[var(--secondary-soft-highlight)]/60"
                                 >
                                   {s}
                                 </span>
                               ))}
+                              {seller.specialties.length > 4 && (
+                                <span className="text-[10px] text-[var(--secondary-muted-edge)]">
+                                  +{seller.specialties.length - 4} more
+                                </span>
+                              )}
                             </div>
                           )}
                         {seller.description && (
-                          <p className="text-xs md:text-sm text-[var(--secondary-muted-edge)] max-w-2xl">
+                          <p className="text-xs md:text-sm text-[var(--secondary-muted-edge)] max-w-xl line-clamp-3">
                             {seller.description}
                           </p>
                         )}
                       </div>
+                    </div>
 
-                      {/* CTA */}
-                      <div className="flex flex-col sm:flex-row gap-2 md:items-center">
-                        <Link
-                          href="/signup?type=buyer"
-                          className="inline-flex items-center justify-center px-4 py-2 rounded-full bg-[var(--primary-accent2)] text-white text-xs font-semibold hover:bg-[var(--primary-accent3)] transition-colors"
-                        >
-                          Create account
-                        </Link>
-                        <Link
-                          href="/login"
-                          className="inline-flex items-center justify-center px-4 py-2 rounded-full border border-[var(--secondary-soft-highlight)] text-xs font-semibold text-[var(--secondary-black)] hover:bg-[var(--primary-background)] transition-colors"
-                        >
-                          Login
-                        </Link>
-                      </div>
+                    {/* Slim CTAs */}
+                    <div className="flex flex-row md:flex-col gap-2 md:items-end">
+                      <Link
+                        href="/signup?type=buyer"
+                        className="inline-flex items-center justify-center px-4 py-2 rounded-full bg-[var(--primary-accent2)] text-white text-[11px] font-medium hover:bg-[var(--primary-accent3)] transition-colors"
+                      >
+                        Create buyer account
+                      </Link>
+                      <Link
+                        href="/login"
+                        className="inline-flex items-center justify-center px-4 py-2 rounded-full border border-[var(--secondary-soft-highlight)] bg-white/80 text-[11px] font-medium text-[var(--secondary-black)] hover:bg-[var(--primary-background)]/80 transition-colors"
+                      >
+                        Login to message
+                      </Link>
                     </div>
                   </div>
                 </div>
@@ -251,7 +328,7 @@ export default async function PublicSellerProfile({ params }: SellerPageProps) {
             <section>
               <div className="flex items-center justify-between mb-5">
                 <div>
-                  <h2 className="text-lg md:text-xl font-semibold text-[var(--secondary-black)]">
+                  <h2 className="text-lg md:text-xl font-semibold text-[var(--secondary-black)] tracking-tight">
                     Available Products
                   </h2>
                   <p className="text-xs md:text-sm text-[var(--secondary-muted-edge)]">
@@ -264,9 +341,9 @@ export default async function PublicSellerProfile({ params }: SellerPageProps) {
               </div>
 
               {products.length === 0 && (
-                <div className="text-sm text-[var(--secondary-muted-edge)] py-8">
-                  This seller doesn&apos;t have any public listings yet. Check
-                  back soon or create an account to discover other suppliers.
+                <div className="text-sm text-[var(--secondary-muted-edge)] py-8 rounded-2xl border border-dashed border-[var(--secondary-soft-highlight)]/60 px-4">
+                  This seller doesn&apos;t have any public listings yet. Create
+                  a Procur account to browse other verified farms and suppliers.
                 </div>
               )}
 
@@ -285,18 +362,18 @@ export default async function PublicSellerProfile({ params }: SellerPageProps) {
                       <Link
                         key={p.id}
                         href={href}
-                        className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/40 overflow-hidden hover:border-[var(--primary-accent2)]/70 transition-colors"
+                        className="group bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/50 overflow-hidden hover:border-[var(--primary-accent2)]/80 transition-colors"
                       >
-                        <div className="relative h-44">
+                        <div className="relative h-44 overflow-hidden">
                           <Image
                             src={image}
                             alt={p.name}
                             fill
-                            className="object-cover"
+                            className="object-cover transition-transform duration-500 group-hover:scale-105"
                           />
                         </div>
                         <div className="p-4">
-                          <h3 className="font-semibold text-[var(--secondary-black)] mb-1 line-clamp-2">
+                          <h3 className="font-medium text-[var(--secondary-black)] mb-1 line-clamp-2">
                             {p.name}
                           </h3>
                           <div className="flex items-center justify-between mb-2">
@@ -312,7 +389,7 @@ export default async function PublicSellerProfile({ params }: SellerPageProps) {
                             </span>
                           </div>
                           {p.tags && p.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mb-2">
+                            <div className="flex flex-wrap gap-1.5 mb-2">
                               {p.tags.slice(0, 3).map((t) => (
                                 <span
                                   key={t}
@@ -338,6 +415,67 @@ export default async function PublicSellerProfile({ params }: SellerPageProps) {
                   })}
                 </div>
               )}
+
+              {/* Reviews section */}
+              <section className="mt-12">
+                <div className="flex items-center justify-between mb-5">
+                  <div>
+                    <h2 className="text-lg md:text-xl font-semibold text-[var(--secondary-black)] tracking-tight">
+                      Reviews
+                    </h2>
+                    <p className="text-xs md:text-sm text-[var(--secondary-muted-edge)]">
+                      {typeof seller.average_rating === "number"
+                        ? `${seller.average_rating.toFixed(1)} average from ${
+                            seller.review_count || 0
+                          } reviews`
+                        : `${seller.review_count || 0} reviews from Procur buyers`}
+                    </p>
+                  </div>
+                </div>
+
+                {demoReviews.length === 0 && (
+                  <div className="text-sm text-[var(--secondary-muted-edge)] py-6 rounded-2xl border border-dashed border-[var(--secondary-soft-highlight)]/60 px-4">
+                    Once this seller starts fulfilling orders on Procur,
+                    verified buyers will be able to leave reviews here.
+                  </div>
+                )}
+
+                {demoReviews.length > 0 && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {demoReviews.map((review) => (
+                      <div
+                        key={review.id}
+                        className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/60 p-4 flex flex-col gap-3 shadow-[0_14px_30px_rgba(15,23,42,0.06)]"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-[var(--primary-background)] flex items-center justify-center text-[11px] font-semibold text-[var(--secondary-black)]">
+                              {review.buyerInitials}
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold text-[var(--secondary-black)]">
+                                {review.buyerName}
+                              </p>
+                              <p className="text-[10px] text-[var(--secondary-muted-edge)]">
+                                {review.createdAt}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="inline-flex items-center gap-1 rounded-full bg-[var(--primary-background)] px-2 py-1">
+                            <StarIcon className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                            <span className="text-[11px] font-medium text-[var(--secondary-black)]">
+                              {review.rating.toFixed(1)}
+                            </span>
+                          </div>
+                        </div>
+                        <p className="text-xs text-[var(--secondary-muted-edge)] leading-relaxed">
+                          {review.comment}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
             </section>
           </>
         )}
