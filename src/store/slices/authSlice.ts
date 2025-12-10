@@ -234,6 +234,33 @@ const authSlice = createSlice({
         // ignore
       }
     },
+    setAuthState(
+      state,
+      action: PayloadAction<{
+        accessToken: string;
+        tokenType: string;
+        expiresIn: number | null;
+        user: AuthUser;
+      }>
+    ) {
+      state.accessToken = action.payload.accessToken;
+      state.tokenType = action.payload.tokenType;
+      state.expiresIn = action.payload.expiresIn;
+      state.user = action.payload.user;
+      state.status = "succeeded";
+      state.error = null;
+      if (typeof window !== "undefined") {
+        localStorage.setItem(
+          "auth",
+          JSON.stringify({
+            accessToken: state.accessToken,
+            tokenType: state.tokenType,
+            expiresIn: state.expiresIn,
+            user: state.user,
+          })
+        );
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -424,7 +451,7 @@ const authSlice = createSlice({
   },
 });
 
-export const { signout, hydrateFromStorage } = authSlice.actions;
+export const { signout, hydrateFromStorage, setAuthState } = authSlice.actions;
 
 export const selectAuthToken = (state: RootState) => state.auth.accessToken;
 export const selectAuthUser = (state: RootState) => state.auth.user;

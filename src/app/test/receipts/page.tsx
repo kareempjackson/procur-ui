@@ -4,7 +4,11 @@ import React, { useRef } from "react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
-type ReceiptVariant = "compact" | "summary" | "statement";
+type ReceiptVariant = "compact";
+
+const EMAIL_LOGO_URL =
+  "https://dbuxyviftwahgrgiftrw.supabase.co/storage/v1/object/public/public/main-logo/procur-logo.svg";
+const CURRENT_YEAR = new Date().getFullYear();
 
 const sampleReceipt = {
   receiptNumber: "RCT-2025-00491",
@@ -41,6 +45,21 @@ const receiptCurrency = (value: number) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
+
+const BrandHeader: React.FC = () => (
+  <div className="border border-gray-200 rounded-2xl bg-white px-6 py-4 flex items-center justify-center">
+    <img src={EMAIL_LOGO_URL} alt="Procur logo" className="h-9 w-auto" />
+  </div>
+);
+
+const BrandFooter: React.FC = () => (
+  <div className="border border-gray-200 rounded-2xl bg-[#fafafa] px-6 py-3 text-[0.68rem] text-[var(--primary-base)] text-center">
+    <p>© {CURRENT_YEAR} Procur Grenada Ltd. All rights reserved.</p>
+    <p>
+      Procur Grenada Ltd. Annandale, St. Georges, Grenada W.I., 473-538-4365
+    </p>
+  </div>
+);
 
 // Tailwind v4 can emit color values using lab() inside @supports blocks.
 // html2canvas does not understand lab(), so we proactively strip those
@@ -85,38 +104,15 @@ const computeReceiptTotals = () => {
 
 const ReceiptTestPage: React.FC = () => {
   const compactRef = useRef<HTMLDivElement | null>(null);
-  const summaryRef = useRef<HTMLDivElement | null>(null);
-  const statementRef = useRef<HTMLDivElement | null>(null);
-
   const { tax, total } = computeReceiptTotals();
 
   const downloadAsPdf = async (variant: ReceiptVariant) => {
-    let targetRef: React.RefObject<HTMLDivElement | null>;
+    if (variant !== "compact" || !compactRef.current) return;
 
-    switch (variant) {
-      case "compact":
-        targetRef = compactRef;
-        break;
-      case "summary":
-        targetRef = summaryRef;
-        break;
-      case "statement":
-        targetRef = statementRef;
-        break;
-      default:
-        return;
-    }
+    const element = compactRef.current;
 
-    if (!targetRef.current) return;
-
-    const element = targetRef.current;
-
-    // Remove any @supports blocks that redefine palette variables using lab()
-    // so html2canvas doesn't attempt to parse unsupported color functions.
     stripLabColorRules();
 
-    // Tailwind v4 may output color functions like lab() which html2canvas
-    // cannot parse. Wrap getComputedStyle to strip unsupported values.
     const originalGetComputedStyle = window.getComputedStyle;
     (window as any).getComputedStyle = (
       elt: Element,
@@ -158,7 +154,7 @@ const ReceiptTestPage: React.FC = () => {
     const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
 
     pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-    pdf.save(`procur-receipt-${variant}.pdf`);
+    pdf.save("procur-receipt-compact.pdf");
   };
 
   const renderHeader = (title: string, description: string) => (
@@ -199,10 +195,9 @@ const ReceiptTestPage: React.FC = () => {
                 Payment receipt gallery
               </h1>
               <p className="text-sm sm:text-base text-[var(--primary-base)] max-w-2xl">
-                Explore different receipt layouts that confirm payment for
-                Procur orders. These can be used for email receipts, PDF
-                downloads, or embedded confirmations in the buyer and seller
-                dashboards.
+                Preview a simple Procur payment receipt with branded header and
+                footer. This layout can be reused for email receipts and PDF
+                downloads.
               </p>
             </div>
             <div className="hidden sm:flex flex-col items-end gap-2 text-right">
@@ -229,294 +224,123 @@ const ReceiptTestPage: React.FC = () => {
               )}
               {renderDownloadButton("compact")}
             </div>
-            <div
-              ref={compactRef}
-              className="max-w-2xl bg-white rounded-3xl border border-gray-200 shadow-[0_18px_40px_rgba(15,23,42,0.06)] px-6 py-7"
-            >
-              <div className="flex items-start justify-between gap-4 border-b border-dashed border-gray-200 pb-4 mb-4">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.16em] text-[var(--primary-base)] mb-1">
-                    Procur
-                  </p>
-                  <p className="text-lg font-semibold text-[var(--secondary-black)]">
-                    Payment receipt
-                  </p>
-                  <p className="text-xs text-[var(--primary-base)] mt-1">
-                    Thank you for paying your Procur order.
-                  </p>
-                </div>
-                <div className="text-xs text-right text-[var(--primary-base)] space-y-0.5">
-                  <p>
-                    Receipt:{" "}
-                    <span className="font-medium text-[var(--secondary-black)]">
-                      {sampleReceipt.receiptNumber}
-                    </span>
-                  </p>
-                  <p>{sampleReceipt.paymentDate}</p>
-                  <p>Order: {sampleReceipt.orderNumber}</p>
-                </div>
-              </div>
 
-              <div className="flex items-start justify-between gap-4 text-xs mb-4">
-                <div className="space-y-0.5">
-                  <p className="uppercase tracking-[0.16em] text-[var(--primary-base)]">
-                    Paid by
-                  </p>
-                  <p className="text-[var(--secondary-black)] font-medium">
-                    {sampleReceipt.buyer.name}
-                  </p>
-                  <p className="text-[var(--primary-base)]">
-                    {sampleReceipt.buyer.email}
-                  </p>
-                  <p className="text-[var(--primary-base)]">
-                    Contact: {sampleReceipt.buyer.contact}
-                  </p>
-                </div>
-                <div className="space-y-0.5 text-right">
-                  <p className="uppercase tracking-[0.16em] text-[var(--primary-base)]">
-                    Payment
-                  </p>
-                  <p className="text-[var(--secondary-black)] font-medium">
-                    {sampleReceipt.payment.method}
-                  </p>
-                  <p className="text-[var(--primary-base)]">
-                    Ref: {sampleReceipt.payment.reference}
-                  </p>
-                  <p className="text-[var(--primary-base)]">
-                    Status:{" "}
-                    <span className="capitalize">
-                      {sampleReceipt.payment.status}
-                    </span>
-                  </p>
-                </div>
-              </div>
+            <div ref={compactRef} className="space-y-4">
+              <BrandHeader />
 
-              <div className="rounded-2xl border border-gray-100 p-4 text-xs mb-4">
-                <dl className="space-y-1">
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-[var(--primary-base)]">Subtotal</dt>
-                    <dd className="font-medium text-[var(--secondary-black)]">
-                      {receiptCurrency(sampleReceipt.amounts.subtotal)}
-                    </dd>
+              <div className="w-full bg-white rounded-3xl border border-gray-200 shadow-[0_18px_40px_rgba(15,23,42,0.06)] px-6 py-7">
+                <div className="flex items-start justify-between gap-4 border-b border-dashed border-gray-200 pb-4 mb-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.16em] text-[var(--primary-base)] mb-1">
+                      Procur
+                    </p>
+                    <p className="text-lg font-semibold text-[var(--secondary-black)]">
+                      Payment receipt
+                    </p>
+                    <p className="text-xs text-[var(--primary-base)] mt-1">
+                      Thank you for paying your Procur order.
+                    </p>
                   </div>
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-[var(--primary-base)]">Delivery</dt>
-                    <dd className="font-medium text-[var(--secondary-black)]">
-                      {receiptCurrency(sampleReceipt.amounts.delivery)}
-                    </dd>
+                  <div className="text-xs text-right text-[var(--primary-base)] space-y-0.5">
+                    <p>
+                      Receipt:{" "}
+                      <span className="font-medium text-[var(--secondary-black)]">
+                        {sampleReceipt.receiptNumber}
+                      </span>
+                    </p>
+                    <p>{sampleReceipt.paymentDate}</p>
+                    <p>Order: {sampleReceipt.orderNumber}</p>
                   </div>
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-[var(--primary-base)]">Platform fee</dt>
-                    <dd className="font-medium text-[var(--secondary-black)]">
-                      {receiptCurrency(sampleReceipt.amounts.platformFee)}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-[var(--primary-base)]">
-                      Tax ({(sampleReceipt.amounts.taxRate * 100).toFixed(0)}
-                      %)
-                    </dt>
-                    <dd className="font-medium text-[var(--secondary-black)]">
-                      {receiptCurrency(tax)}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between gap-4 pt-1 border-t border-dashed border-gray-200 mt-1">
-                    <dt className="text-[var(--primary-base)]">Discount</dt>
-                    <dd className="font-medium text-emerald-600">
-                      -{receiptCurrency(sampleReceipt.amounts.discount)}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between gap-4 pt-2 border-t border-gray-900/10 mt-2">
-                    <dt className="text-[0.7rem] font-semibold text-[var(--secondary-black)] uppercase tracking-[0.16em]">
-                      Total paid
-                    </dt>
-                    <dd className="text-base font-semibold text-[var(--secondary-black)]">
-                      {receiptCurrency(total)}
-                    </dd>
-                  </div>
-                </dl>
-              </div>
+                </div>
 
-              <p className="text-[0.68rem] text-[var(--primary-base)] leading-relaxed">
-                {sampleReceipt.note}
-              </p>
-            </div>
-          </section>
-
-          {/* Summary card receipt */}
-          <section>
-            <div className="flex items-center justify-between gap-4 mb-4">
-              {renderHeader(
-                "Summary card",
-                "A card-style receipt that we can show inside the dashboard or attach as a PDF in email confirmations."
-              )}
-              {renderDownloadButton("summary")}
-            </div>
-            <div
-              ref={summaryRef}
-              className="bg-gradient-to-br from-[var(--primary-background)] via-white to-[var(--secondary-soft-highlight)]/40 rounded-3xl border border-gray-200 shadow-[0_18px_40px_rgba(15,23,42,0.06)] p-8 sm:p-10"
-            >
-              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6 mb-6">
-                <div className="space-y-2">
-                  <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 border border-gray-200/70">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    <span className="text-xs font-medium tracking-[0.18em] uppercase text-[var(--secondary-black)]">
-                      Payment received
-                    </span>
+                <div className="flex items-start justify-between gap-4 text-xs mb-4">
+                  <div className="space-y-0.5">
+                    <p className="uppercase tracking-[0.16em] text-[var(--primary-base)]">
+                      Paid by
+                    </p>
+                    <p className="text-[var(--secondary-black)] font-medium">
+                      {sampleReceipt.buyer.name}
+                    </p>
+                    <p className="text-[var(--primary-base)]">
+                      {sampleReceipt.buyer.email}
+                    </p>
+                    <p className="text-[var(--primary-base)]">
+                      Contact: {sampleReceipt.buyer.contact}
+                    </p>
                   </div>
-                  <h2 className="text-2xl font-semibold text-[var(--secondary-black)]">
-                    Procur receipt
-                  </h2>
-                  <p className="text-sm text-[var(--primary-base)]">
-                    This confirms that payment has been received in full for
-                    order {sampleReceipt.orderNumber}.
-                  </p>
+                  <div className="space-y-0.5 text-right">
+                    <p className="uppercase tracking-[0.16em] text-[var(--primary-base)]">
+                      Payment
+                    </p>
+                    <p className="text-[var(--secondary-black)] font-medium">
+                      {sampleReceipt.payment.method}
+                    </p>
+                    <p className="text-[var(--primary-base)]">
+                      Ref: {sampleReceipt.payment.reference}
+                    </p>
+                    <p className="text-[var(--primary-base)]">
+                      Status:{" "}
+                      <span className="capitalize">
+                        {sampleReceipt.payment.status}
+                      </span>
+                    </p>
+                  </div>
                 </div>
-                <div className="space-y-1 text-xs text-[var(--primary-base)] sm:text-right">
-                  <p>
-                    Receipt:{" "}
-                    <span className="font-medium text-[var(--secondary-black)]">
-                      {sampleReceipt.receiptNumber}
-                    </span>
-                  </p>
-                  <p>{sampleReceipt.paymentDate}</p>
-                  <p>Method: {sampleReceipt.payment.method}</p>
-                  <p>Ref: {sampleReceipt.payment.reference}</p>
-                </div>
-              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6 text-xs">
-                <div className="space-y-1">
-                  <p className="text-[0.7rem] uppercase tracking-[0.16em] text-[var(--primary-base)]">
-                    Buyer
-                  </p>
-                  <p className="text-sm font-medium text-[var(--secondary-black)]">
-                    {sampleReceipt.buyer.name}
-                  </p>
-                  <p className="text-[var(--primary-base)]">
-                    {sampleReceipt.buyer.email}
-                  </p>
-                  <p className="text-[var(--primary-base)]">
-                    Contact: {sampleReceipt.buyer.contact}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[0.7rem] uppercase tracking-[0.16em] text-[var(--primary-base)]">
-                    Processed by
-                  </p>
-                  <p className="text-sm font-medium text-[var(--secondary-black)]">
-                    {sampleReceipt.seller.name}
-                  </p>
-                  <p className="text-[var(--primary-base)]">
-                    {sampleReceipt.seller.email}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[0.7rem] uppercase tracking-[0.16em] text-[var(--primary-base)]">
-                    Payment status
-                  </p>
-                  <p className="text-sm font-medium text-emerald-600">
-                    Settled
-                  </p>
-                  <p className="text-[var(--primary-base)]">
-                    Account ending • {sampleReceipt.payment.accountEnding}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
-                <div className="text-[0.7rem] text-[var(--primary-base)] max-w-md">
-                  <p className="font-medium text-[var(--secondary-black)] mb-1">
-                    Internal matching
-                  </p>
-                  <p>
-                    Match this receipt to your internal records using the order,
-                    receipt number, and payment reference above. For any
-                    questions, contact billing@procur.ag.
-                  </p>
-                </div>
-                <div className="w-full sm:max-w-xs">
-                  <dl className="space-y-1 text-xs">
+                <div className="rounded-2xl border border-gray-100 p-4 text-xs mb-4">
+                  <dl className="space-y-1">
                     <div className="flex justify-between gap-4">
-                      <dt className="text-[var(--primary-base)]">
-                        Amount paid
-                      </dt>
-                      <dd className="font-semibold text-[var(--secondary-black)]">
-                        {receiptCurrency(total)}
+                      <dt className="text-[var(--primary-base)]">Subtotal</dt>
+                      <dd className="font-medium text-[var(--secondary-black)]">
+                        {receiptCurrency(sampleReceipt.amounts.subtotal)}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <dt className="text-[var(--primary-base)]">Delivery</dt>
+                      <dd className="font-medium text-[var(--secondary-black)]">
+                        {receiptCurrency(sampleReceipt.amounts.delivery)}
                       </dd>
                     </div>
                     <div className="flex justify-between gap-4">
                       <dt className="text-[var(--primary-base)]">
-                        Includes tax
+                        Platform fee
+                      </dt>
+                      <dd className="font-medium text-[var(--secondary-black)]">
+                        {receiptCurrency(sampleReceipt.amounts.platformFee)}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <dt className="text-[var(--primary-base)]">
+                        Tax ({(sampleReceipt.amounts.taxRate * 100).toFixed(0)}
+                        %)
                       </dt>
                       <dd className="font-medium text-[var(--secondary-black)]">
                         {receiptCurrency(tax)}
                       </dd>
                     </div>
+                    <div className="flex justify-between gap-4 pt-1 border-t border-dashed border-gray-200 mt-1">
+                      <dt className="text-[var(--primary-base)]">Discount</dt>
+                      <dd className="font-medium text-emerald-600">
+                        -{receiptCurrency(sampleReceipt.amounts.discount)}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between gap-4 pt-2 border-t border-gray-900/10 mt-2">
+                      <dt className="text-[0.7rem] font-semibold text-[var(--secondary-black)] uppercase tracking-[0.16em]">
+                        Total paid
+                      </dt>
+                      <dd className="text-base font-semibold text-[var(--secondary-black)]">
+                        {receiptCurrency(total)}
+                      </dd>
+                    </div>
                   </dl>
                 </div>
-              </div>
-            </div>
-          </section>
 
-          {/* Statement style receipt */}
-          <section>
-            <div className="flex items-center justify-between gap-4 mb-4">
-              {renderHeader(
-                "Statement row",
-                "Ledger-style confirmation that could sit alongside other transactions in a statement export."
-              )}
-              {renderDownloadButton("statement")}
-            </div>
-            <div
-              ref={statementRef}
-              className="bg-white rounded-3xl border border-gray-200 shadow-[0_18px_40px_rgba(15,23,42,0.06)] overflow-hidden"
-            >
-              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.16em] text-[var(--primary-base)]">
-                    Procur · Receipt
-                  </p>
-                  <p className="text-sm font-medium text-[var(--secondary-black)]">
-                    {sampleReceipt.receiptNumber}
-                  </p>
-                </div>
-                <div className="text-xs text-right text-[var(--primary-base)]">
-                  <p>{sampleReceipt.paymentDate}</p>
-                  <p>Method: {sampleReceipt.payment.method}</p>
-                </div>
-              </div>
-
-              <div className="px-6 py-4">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-[0.7rem]">
-                  <div className="space-y-0.5">
-                    <p className="text-[var(--primary-base)]">
-                      Buyer:{" "}
-                      <span className="font-medium text-[var(--secondary-black)]">
-                        {sampleReceipt.buyer.name}
-                      </span>
-                    </p>
-                    <p className="text-[var(--primary-base)]">
-                      Order: {sampleReceipt.orderNumber}
-                    </p>
-                  </div>
-                  <div className="space-y-0.5 text-right">
-                    <p className="text-[var(--primary-base)]">
-                      Amount paid:{" "}
-                      <span className="font-semibold text-[var(--secondary-black)]">
-                        {receiptCurrency(total)}
-                      </span>
-                    </p>
-                    <p className="text-[var(--primary-base)]">
-                      Tax included: {receiptCurrency(tax)}
-                    </p>
-                  </div>
-                </div>
-
-                <p className="mt-3 text-[0.68rem] text-[var(--primary-base)] leading-relaxed">
+                <p className="text-[0.68rem] text-[var(--primary-base)] leading-relaxed">
                   {sampleReceipt.note}
                 </p>
               </div>
+
+              <BrandFooter />
             </div>
           </section>
         </div>
