@@ -35,6 +35,8 @@ enum MeasurementUnit {
   G = "g",
   LB = "lb",
   OZ = "oz",
+  BAG = "bag",
+  BUCKET = "bucket",
   PIECE = "piece",
   DOZEN = "dozen",
   LITER = "liter",
@@ -54,6 +56,7 @@ enum ProductCategory {
   BEVERAGES = "Beverages",
   DAIRY = "Dairy",
   MEAT = "Meat",
+  MEAT_POULTRY = "Meat & Poultry",
   SEAFOOD = "Seafood",
   OTHER = "Other",
 }
@@ -865,6 +868,8 @@ export default function AddProductPage() {
                         onChange={handleInputChange}
                         className="input w-full"
                       >
+                        <option value={MeasurementUnit.BAG}>Bag</option>
+                        <option value={MeasurementUnit.BUCKET}>Bucket</option>
                         <option value={MeasurementUnit.PIECE}>Piece</option>
                         <option value={MeasurementUnit.DOZEN}>Dozen</option>
                         <option value={MeasurementUnit.KG}>Kilogram</option>

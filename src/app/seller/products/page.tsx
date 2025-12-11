@@ -369,6 +369,7 @@ export default function SellerProductsPage() {
                   <option value="Fruits">Fruits</option>
                   <option value="Dairy & Eggs">Dairy & Eggs</option>
                   <option value="Meat">Meat</option>
+                  <option value="Meat & Poultry">Meat & Poultry</option>
                   <option value="Bakery">Bakery</option>
                   <option value="Pantry">Pantry</option>
                 </select>

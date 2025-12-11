@@ -75,6 +75,7 @@ export default function BuyerClient() {
     { name: "Grains", icon: "🌾" },
     { name: "Legumes", icon: "🫘" },
     { name: "Root Crops", icon: "🥔" },
+    { name: "Meat & Poultry", icon: "🍗" },
     { name: "Leafy Greens", icon: "🥗" },
     { name: "Organic", icon: "✨" },
     { name: "Export Ready", icon: "🌍" },

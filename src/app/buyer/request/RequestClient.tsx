@@ -42,6 +42,7 @@ export default function RequestClient() {
     "Legumes",
     "Root Crops",
     "Leafy Greens",
+    "Meat & Poultry",
   ];
 
   const handleInputChange = (

@@ -263,7 +263,11 @@ export default function PublicPaymentLinkPage({
   const deliveryAmount = amounts.delivery_fee;
   const platformFeeAmount = amounts.platform_fee;
   const subtotalAmount = amounts.subtotal;
-  const computedPlatformFromSubtotal = subtotalAmount * 0.05;
+  const computedPlatformFromSubtotal = subtotalAmount
+    ? (platformFeeAmount / subtotalAmount) * subtotalAmount
+    : 0;
+  const effectivePlatformPercent =
+    subtotalAmount > 0 ? (platformFeeAmount / subtotalAmount) * 100 : 0;
   const totalFromParts = subtotalAmount + deliveryAmount + platformFeeAmount;
   const shipping = order?.shipping_address || {};
 
@@ -472,7 +476,8 @@ export default function PublicPaymentLinkPage({
                           </span>
                         </div>
                         <p className="text-[11px] text-gray-500">
-                          5% of items subtotal:{" "}
+                          {effectivePlatformPercent.toFixed(2)}% of items
+                          subtotal:{" "}
                           {computedPlatformFromSubtotal.toLocaleString(
                             undefined,
                             {

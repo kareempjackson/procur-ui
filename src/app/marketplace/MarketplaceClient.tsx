@@ -454,23 +454,23 @@ export default function MarketplaceClient() {
           <div className="max-w-4xl mx-auto mb-8">
             <form
               role="search"
-              className="flex items-center bg-white rounded-full shadow-lg border border-[var(--secondary-soft-highlight)]/30"
+              className="flex flex-col sm:flex-row sm:items-center gap-2 bg-white rounded-2xl sm:rounded-full shadow-lg border border-[var(--secondary-soft-highlight)]/30 px-3 py-3 sm:p-0"
               onSubmit={(e) => {
                 // Prevent full page reload; filtering is driven by controlled inputs.
                 e.preventDefault();
               }}
             >
-              <div className="relative">
+              <div className="relative w-full sm:w-auto">
                 <button
                   type="button"
-                  className="flex items-center px-6 py-4 text-base font-medium text-[var(--secondary-black)] hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)] focus:ring-inset rounded-l-full transition-colors duration-200"
+                  className="flex w-full sm:w-auto items-center justify-between sm:justify-center px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium text-[var(--secondary-black)] hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)] focus:ring-inset rounded-xl sm:rounded-l-full transition-colors duration-200"
                   onClick={() => setShowSearchDropdown(!showSearchDropdown)}
                 >
                   {primaryCategoryLabel}
                   <ChevronDownIcon className="ml-2 h-5 w-5 text-[var(--secondary-muted-edge)]" />
                 </button>
                 {showSearchDropdown && (
-                  <div className="absolute top-full left-0 w-48 bg-white border border-gray-200 rounded-xl z-20 mt-2 shadow-lg">
+                  <div className="absolute top-full left-0 w-full sm:w-56 bg-white border border-gray-200 rounded-xl z-20 mt-2 shadow-lg">
                     <div className="py-2">
                       {categories.map((cat) => {
                         const isAll = cat.name === "All Categories";
@@ -502,17 +502,17 @@ export default function MarketplaceClient() {
                   </div>
                 )}
               </div>
-              <div className="w-px h-8 bg-gray-200"></div>
+              <div className="hidden sm:block w-px h-8 bg-gray-200" />
               <input
                 type="text"
                 placeholder="Search for fresh produce, sellers, or brands..."
-                className="flex-1 px-6 py-4 text-base outline-none bg-transparent placeholder:text-[var(--secondary-muted-edge)] text-[var(--secondary-black)]"
+                className="flex-1 w-full px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base outline-none bg-transparent placeholder:text-[var(--secondary-muted-edge)] text-[var(--secondary-black)]"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
               <button
                 type="submit"
-                className="p-4 m-1 bg-[var(--primary-accent2)] text-white rounded-full hover:bg-[var(--primary-accent3)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent1)] focus:ring-offset-2 transition-all duration-200 group"
+                className="w-full sm:w-auto flex items-center justify-center mt-1 sm:mt-0 px-4 py-3 sm:p-4 bg-[var(--primary-accent2)] text-white rounded-xl sm:rounded-full hover:bg-[var(--primary-accent3)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent1)] focus:ring-offset-2 transition-all duration-200 group"
               >
                 <MagnifyingGlassIcon className="h-6 w-6 group-hover:scale-110 transition-transform duration-200" />
               </button>
