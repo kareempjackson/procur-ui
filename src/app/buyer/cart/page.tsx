@@ -1,12 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
   TrashIcon,
-  PlusIcon,
-  MinusIcon,
   HeartIcon,
   ArrowLeftIcon,
   ShoppingBagIcon,
@@ -35,7 +33,7 @@ const demoCartData = {
       estimatedDelivery: "Oct 15, 2025",
       shippingCost: 25.0,
       minOrderMet: true,
-      minOrderAmount: 50.0,
+      minOrderAmount: 30.0,
       items: [
         {
           id: "item_1",
@@ -75,7 +73,7 @@ const demoCartData = {
       estimatedDelivery: "Oct 12, 2025",
       shippingCost: 30.0,
       minOrderMet: false,
-      minOrderAmount: 100.0,
+      minOrderAmount: 30.0,
       items: [
         {
           id: "item_3",
@@ -100,7 +98,7 @@ const demoCartData = {
       estimatedDelivery: "Oct 18, 2025",
       shippingCost: 20.0,
       minOrderMet: true,
-      minOrderAmount: 75.0,
+      minOrderAmount: 30.0,
       items: [
         {
           id: "item_4",
@@ -150,9 +148,6 @@ export default function BuyerCartPage() {
   const dispatch = useAppDispatch();
   const { cart, status, error } = useAppSelector((state) => state.buyerCart);
 
-  const [promoCode, setPromoCode] = useState("");
-  const [promoApplied, setPromoApplied] = useState(false);
-
   // Fetch cart on mount
   useEffect(() => {
     dispatch(fetchCart());
@@ -166,16 +161,12 @@ export default function BuyerCartPage() {
     dispatch(removeCartItemAsync(itemId));
   };
 
-  const applyPromo = () => {
-    if (promoCode.toLowerCase() === "save10") {
-      setPromoApplied(true);
-    }
-  };
-
   const moveToCart = (itemId: string) => {
     // TODO: Implement move to cart functionality
     console.log("Moving item to cart:", itemId);
   };
+
+  const minOrderThreshold = 30;
 
   // Transform Redux cart to UI format
   const cartData = cart
@@ -188,7 +179,7 @@ export default function BuyerCartPage() {
           estimatedDelivery: "Oct 15-20, 2025", // TODO: Calculate from API
           shippingCost: group.estimated_shipping,
           minOrderMet: true, // TODO: Get from API
-          minOrderAmount: 50.0, // TODO: Get from API
+          minOrderAmount: minOrderThreshold, // TODO: Get from API
           items: group.items.map((item) => ({
             id: item.id,
             productId: item.product_id,
@@ -213,23 +204,28 @@ export default function BuyerCartPage() {
     return items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   };
 
+  const platformFeeRate = 0.05;
+  const shippingFlat = 10;
   const totals = cart
     ? {
         subtotal: cart.subtotal || 0,
-        shipping: cart.estimated_shipping || 0,
-        tax: cart.estimated_tax || 0,
-        discount: promoApplied ? (cart.subtotal || 0) * 0.1 : 0,
-        total: promoApplied
-          ? (cart.total || 0) - (cart.subtotal || 0) * 0.1
-          : cart.total || 0,
+        platformFee: shippingFlat + (cart.subtotal || 0) * platformFeeRate,
+        total:
+          (cart.subtotal || 0) +
+          shippingFlat +
+          (cart.subtotal || 0) * platformFeeRate,
       }
-    : { subtotal: 0, shipping: 0, tax: 0, discount: 0, total: 0 };
+    : { subtotal: 0, platformFee: 0, total: 0 };
 
   const totalItems = cart?.total_items || 0;
   const hasStockIssues = cartData.sellers.some((seller) =>
     seller.items.some((item) => !item.inStock)
   );
-  const hasMinOrderIssues = false; // TODO: Implement min order logic
+  const hasMinOrderIssues = totals.subtotal < minOrderThreshold;
+  const minOrderShortfall = Math.max(
+    0,
+    minOrderThreshold - (totals.subtotal || 0)
+  );
 
   // Loading state
   if (status === "loading" && !cart) {
@@ -315,11 +311,10 @@ export default function BuyerCartPage() {
                   <ExclamationTriangleIcon className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
                   <div>
                     <h3 className="font-semibold text-yellow-900 text-sm">
-                      Minimum Order Not Met
+                      Minimum order: ${minOrderThreshold.toFixed(2)}
                     </h3>
                     <p className="text-yellow-700 text-sm mt-1">
-                      Some sellers have minimum order requirements. Add more
-                      items or remove these sellers from your cart.
+                      Add ${minOrderShortfall.toFixed(2)} more to checkout.
                     </p>
                   </div>
                 </div>
@@ -441,9 +436,6 @@ export default function BuyerCartPage() {
                                   >
                                     {item.name}
                                   </Link>
-                                  <p className="text-sm text-[var(--secondary-muted-edge)] mt-1">
-                                    Min order: {item.minOrder} {item.unit}
-                                  </p>
                                 </div>
 
                                 {/* Price */}
@@ -461,38 +453,11 @@ export default function BuyerCartPage() {
                                 </div>
                               </div>
 
-                              {/* Quantity Controls & Actions */}
+                              {/* Quantity & Actions */}
                               <div className="flex items-center justify-between mt-4">
-                                {/* Quantity */}
-                                <div className="flex items-center gap-3">
-                                  <button
-                                    onClick={() =>
-                                      updateQuantity(item.id, item.quantity - 1)
-                                    }
-                                    disabled={
-                                      !item.inStock ||
-                                      item.quantity <= item.minOrder
-                                    }
-                                    className="w-8 h-8 rounded-full border border-[var(--secondary-soft-highlight)] flex items-center justify-center text-[var(--secondary-black)] hover:bg-[var(--primary-background)] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                                  >
-                                    <MinusIcon className="h-4 w-4" />
-                                  </button>
-                                  <span className="text-sm font-semibold text-[var(--secondary-black)] min-w-[3rem] text-center">
-                                    {item.quantity} {item.unit}
-                                  </span>
-                                  <button
-                                    onClick={() =>
-                                      updateQuantity(item.id, item.quantity + 1)
-                                    }
-                                    disabled={
-                                      !item.inStock ||
-                                      item.quantity >= item.maxStock
-                                    }
-                                    className="w-8 h-8 rounded-full border border-[var(--secondary-soft-highlight)] flex items-center justify-center text-[var(--secondary-black)] hover:bg-[var(--primary-background)] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                                  >
-                                    <PlusIcon className="h-4 w-4" />
-                                  </button>
-                                </div>
+                                <span className="text-sm font-semibold text-[var(--secondary-black)]">
+                                  Qty: {item.quantity} {item.unit}
+                                </span>
 
                                 {/* Item Actions */}
                                 <div className="flex items-center gap-2">
@@ -572,39 +537,6 @@ export default function BuyerCartPage() {
             {/* Order Summary - Right Side (1/3) */}
             <div className="lg:col-span-1">
               <div className="sticky top-24 space-y-6">
-                {/* Promo Code */}
-                <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/30 p-6">
-                  <h3 className="font-semibold text-[var(--secondary-black)] mb-4">
-                    Promo Code
-                  </h3>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="Enter code"
-                      value={promoCode}
-                      onChange={(e) => setPromoCode(e.target.value)}
-                      disabled={promoApplied}
-                      className="flex-1 px-4 py-2.5 border border-[var(--secondary-soft-highlight)]/30 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)] focus:border-transparent disabled:bg-gray-50"
-                    />
-                    <button
-                      onClick={applyPromo}
-                      disabled={!promoCode || promoApplied}
-                      className="px-4 py-2.5 bg-[var(--primary-accent2)] text-white rounded-lg text-sm font-medium hover:bg-[var(--primary-accent3)] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                    >
-                      Apply
-                    </button>
-                  </div>
-                  {promoApplied && (
-                    <p className="text-green-600 text-sm mt-2 flex items-center gap-1">
-                      <CheckBadgeIcon className="h-4 w-4" />
-                      10% discount applied!
-                    </p>
-                  )}
-                  <p className="text-xs text-[var(--secondary-muted-edge)] mt-2">
-                    Try "SAVE10" for 10% off
-                  </p>
-                </div>
-
                 {/* Order Summary */}
                 <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/30 p-6">
                   <h3 className="font-semibold text-[var(--secondary-black)] mb-4">
@@ -623,29 +555,10 @@ export default function BuyerCartPage() {
 
                     <div className="flex justify-between text-sm">
                       <span className="text-[var(--secondary-muted-edge)]">
-                        Shipping ({cartData.sellers.length}{" "}
-                        {cartData.sellers.length === 1 ? "seller" : "sellers"})
+                        Platform Fee (includes $10 shipping + 5%)
                       </span>
                       <span className="font-medium text-[var(--secondary-black)]">
-                        ${totals.shipping.toFixed(2)}
-                      </span>
-                    </div>
-
-                    {promoApplied && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-green-600">Discount (10%)</span>
-                        <span className="font-medium text-green-600">
-                          -${totals.discount.toFixed(2)}
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="flex justify-between text-sm">
-                      <span className="text-[var(--secondary-muted-edge)]">
-                        Estimated Tax (8%)
-                      </span>
-                      <span className="font-medium text-[var(--secondary-black)]">
-                        ${totals.tax.toFixed(2)}
+                        ${totals.platformFee.toFixed(2)}
                       </span>
                     </div>
 

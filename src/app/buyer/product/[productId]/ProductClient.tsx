@@ -36,6 +36,7 @@ export default function ProductClient({ productId }: ProductClientProps) {
   const dispatch = useAppDispatch();
   const router = useRouter();
   const { show } = useToast();
+  const MIN_ORDER_AMOUNT = 30;
   const {
     currentProduct: product,
     productDetailStatus,
@@ -47,12 +48,31 @@ export default function ProductClient({ productId }: ProductClientProps) {
   const [selectedImage, setSelectedImage] = useState(0);
   const [isStartingConversation, setIsStartingConversation] = useState(false);
 
+  const getMinOrderQuantity = () => {
+    if (!product || !product.current_price) return 1;
+    return Math.max(1, Math.ceil(MIN_ORDER_AMOUNT / product.current_price));
+  };
+
+  useEffect(() => {
+    if (product?.current_price) {
+      setQuantity((prev) => Math.max(prev, getMinOrderQuantity()));
+    }
+  }, [product?.current_price]);
+
   // Fetch product details on mount
   useEffect(() => {
     dispatch(fetchProductDetail(productId));
   }, [dispatch, productId]);
 
+  const meetsMinOrder =
+    !!product && product.current_price * quantity >= MIN_ORDER_AMOUNT;
+
   const handleAddToCart = () => {
+    if (!product) return;
+    if (!meetsMinOrder) {
+      show(`Minimum order is $${MIN_ORDER_AMOUNT.toFixed(2)}.`);
+      return;
+    }
     dispatch(addToCartAsync({ productId, quantity }));
     show(
       `Added ${quantity} ${product?.unit_of_measurement || "items"} to cart!`
@@ -60,6 +80,11 @@ export default function ProductClient({ productId }: ProductClientProps) {
   };
 
   const handleBuyNow = () => {
+    if (!product) return;
+    if (!meetsMinOrder) {
+      show(`Minimum order is $${MIN_ORDER_AMOUNT.toFixed(2)}.`);
+      return;
+    }
     dispatch(addToCartAsync({ productId, quantity }));
     // Navigate to checkout
     window.location.href = "/buyer/checkout";
@@ -105,7 +130,7 @@ export default function ProductClient({ productId }: ProductClientProps) {
   };
 
   const decrementQuantity = () => {
-    const minOrder = 1; // Default min order
+    const minOrder = getMinOrderQuantity();
     if (quantity > minOrder) {
       setQuantity(quantity - 1);
     }
@@ -152,13 +177,6 @@ export default function ProductClient({ productId }: ProductClientProps) {
         : []) || [];
   const fallbackImage =
     "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg";
-  const sellerLocation =
-    (product.seller.location && product.seller.location.trim()) || "";
-  const mapSrc = sellerLocation
-    ? `https://www.google.com/maps?q=${encodeURIComponent(
-        sellerLocation
-      )}&output=embed`
-    : `https://www.google.com/maps?q=Caribbean&output=embed`;
 
   return (
     <div className="min-h-screen bg-white">
@@ -314,7 +332,7 @@ export default function ProductClient({ productId }: ProductClientProps) {
                 <div className="flex items-center gap-3">
                   <button
                     onClick={decrementQuantity}
-                    disabled={quantity <= 1}
+                    disabled={quantity <= getMinOrderQuantity()}
                     className="p-2 rounded-full border border-[var(--secondary-soft-highlight)]/30 hover:bg-[var(--primary-background)] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                   >
                     <MinusIcon className="h-5 w-5 text-[var(--secondary-black)]" />
@@ -324,13 +342,13 @@ export default function ProductClient({ productId }: ProductClientProps) {
                     value={quantity}
                     onChange={(e) => {
                       const val = parseInt(e.target.value);
-                      const minOrder = 1;
+                      const minOrder = getMinOrderQuantity();
                       const maxOrder = product.stock_quantity || 5000;
                       if (!isNaN(val) && val >= minOrder && val <= maxOrder) {
                         setQuantity(val);
                       }
                     }}
-                    min={1}
+                    min={getMinOrderQuantity()}
                     max={product.stock_quantity || 5000}
                     className="w-24 px-4 py-2 text-center rounded-full border border-[var(--secondary-soft-highlight)]/30 bg-white outline-none focus:border-[var(--primary-accent2)] transition-colors text-[var(--secondary-black)] font-medium"
                   />
@@ -347,20 +365,41 @@ export default function ProductClient({ productId }: ProductClientProps) {
                     </span>
                   </div>
                 </div>
+
+                {/* Minimum order notice */}
+                {!meetsMinOrder && (
+                  <div className="mt-2 text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+                    Minimum order: ${MIN_ORDER_AMOUNT.toFixed(2)} — Add $
+                    {(MIN_ORDER_AMOUNT - product.current_price * quantity).toFixed(
+                      2
+                    )}{" "}
+                    more to checkout.
+                  </div>
+                )}
               </div>
 
               {/* Action Buttons */}
               <div className="flex gap-3">
                 <button
                   onClick={handleAddToCart}
-                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-[var(--secondary-black)] text-white rounded-full font-semibold hover:bg-[var(--secondary-muted-edge)] transition-all duration-200"
+                  disabled={!meetsMinOrder}
+                  className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-full font-semibold transition-all duration-200 ${
+                    !meetsMinOrder
+                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                      : "bg-[var(--secondary-black)] text-white hover:bg-[var(--secondary-muted-edge)]"
+                  }`}
                 >
                   <ShoppingCartIcon className="h-5 w-5" />
                   Add to Cart
                 </button>
                 <button
                   onClick={handleBuyNow}
-                  className="flex-1 px-6 py-3 bg-[var(--primary-accent2)] text-white rounded-full font-semibold hover:bg-[var(--primary-accent3)] transition-all duration-200 shadow-md hover:shadow-lg"
+                  disabled={!meetsMinOrder}
+                  className={`flex-1 px-6 py-3 rounded-full font-semibold transition-all duration-200 shadow-md ${
+                    !meetsMinOrder
+                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                      : "bg-[var(--primary-accent2)] text-white hover:bg-[var(--primary-accent3)] hover:shadow-lg"
+                  }`}
                 >
                   Buy Now
                 </button>
@@ -369,9 +408,8 @@ export default function ProductClient({ productId }: ProductClientProps) {
           </div>
         </div>
 
-        {/* Supplier Information & Location */}
+        {/* Supplier Information */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {/* Supplier Information */}
           <div className="bg-white rounded-2xl p-4 border border-[var(--secondary-soft-highlight)]/20">
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-start gap-3">
@@ -455,34 +493,6 @@ export default function ProductClient({ productId }: ProductClientProps) {
                 <p className="text-xs text-[var(--secondary-muted-edge)]">
                   Reviews
                 </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Location Map */}
-          <div className="bg-white rounded-2xl p-4 border border-[var(--secondary-soft-highlight)]/20">
-            <h2 className="text-base font-semibold text-[var(--secondary-black)] mb-3">
-              Product Location
-            </h2>
-            <div className="aspect-video rounded-xl overflow-hidden border border-[var(--secondary-soft-highlight)]/20">
-              <iframe
-                src={mapSrc}
-                width="100%"
-                height="100%"
-                style={{ border: 0 }}
-                allowFullScreen
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                title="Product Location Map"
-              />
-            </div>
-            <div className="mt-3 flex items-start gap-2 text-sm text-[var(--secondary-muted-edge)]">
-              <MapPinIcon className="h-4 w-4 flex-shrink-0 mt-0.5 text-[var(--primary-accent2)]" />
-              <div>
-                <p className="font-medium text-[var(--secondary-black)]">
-                  {product.seller.location || "Caribbean Region"}
-                </p>
-                <p className="text-xs">Supplier</p>
               </div>
             </div>
           </div>

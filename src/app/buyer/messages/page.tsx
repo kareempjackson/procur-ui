@@ -197,7 +197,9 @@ export default function BuyerMessagesPage() {
     // Fetch participants
     client
       .get(`/conversations/${activeConversationId}/participants`)
-      .then(({ data }) => setParticipants(data || []))
+      .then(({ data }) => {
+        setParticipants(data || []);
+      })
       .catch(() => setParticipants([]));
   }, [activeConversationId, fetchMessages, client]);
 

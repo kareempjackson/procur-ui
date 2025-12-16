@@ -263,9 +263,7 @@ export default function PublicPaymentLinkPage({
   const deliveryAmount = amounts.delivery_fee;
   const platformFeeAmount = amounts.platform_fee;
   const subtotalAmount = amounts.subtotal;
-  const computedPlatformFromSubtotal = subtotalAmount
-    ? (platformFeeAmount / subtotalAmount) * subtotalAmount
-    : 0;
+  const computedPlatformFromSubtotal = platformFeeAmount;
   const effectivePlatformPercent =
     subtotalAmount > 0 ? (platformFeeAmount / subtotalAmount) * 100 : 0;
   const totalFromParts = subtotalAmount + deliveryAmount + platformFeeAmount;
