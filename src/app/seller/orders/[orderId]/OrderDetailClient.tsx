@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { ArrowDownTrayIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
 import { useAppDispatch, useAppSelector } from "@/store";
 import {
   fetchOrderDetail,
@@ -13,6 +14,8 @@ import {
   clearCurrentOrder,
 } from "@/store/slices/sellerOrdersSlice";
 import ProcurLoader from "@/components/ProcurLoader";
+import { useToast } from "@/components/ui/Toast";
+import { getApiClient } from "@/lib/apiClient";
 
 interface OrderDetailClientProps {
   orderId: string;
@@ -22,13 +25,35 @@ function classNames(...classes: (string | false | null | undefined)[]) {
   return classes.filter(Boolean).join(" ");
 }
 
+function normalizeAddressToLines(address: any): string[] {
+  if (!address) return [];
+  const line1 =
+    address.line1 ||
+    address.address_line1 ||
+    address.street ||
+    address.street_address ||
+    "";
+  const line2 = address.line2 || address.address_line2 || address.apartment || "";
+  const city = address.city || "";
+  const state = address.state || "";
+  const postal = address.postal_code || address.postalCode || address.zip || "";
+  const country = address.country || "";
+
+  return [line1, line2, [city, state, postal].filter(Boolean).join(", "), country]
+    .map((v) => String(v || "").trim())
+    .filter(Boolean);
+}
+
 export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const { show } = useToast();
   const { currentOrder, currentOrderStatus, timeline, timelineStatus, error } =
     useAppSelector((state) => state.sellerOrders);
+  const authToken = useAppSelector((state) => state.auth.accessToken);
 
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [downloadingReceipt, setDownloadingReceipt] = useState(false);
 
   // Reject form state
   const [rejectForm, setRejectForm] = useState({
@@ -157,85 +182,162 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
   const canAccept = currentOrder.status === "pending";
   // Order status updates are now handled internally by the admin team
 
+  const paymentStatus = (currentOrder.payment_status || "").toLowerCase();
+  const canDownloadReceipt = ["paid", "settled"].includes(paymentStatus);
+  const receiptBuyerName =
+    currentOrder.buyer_info?.organization_name ||
+    currentOrder.buyer_info?.business_name ||
+    currentOrder.buyer_org_id ||
+    "Buyer";
+
+  const handleDownloadReceipt = async () => {
+    if (!currentOrder) return;
+    setDownloadingReceipt(true);
+    try {
+      if (!canDownloadReceipt) {
+        show("Receipt is available once payment is complete.");
+        return;
+      }
+      if (!authToken) throw new Error("Missing auth token");
+
+      const fallbackFilename = `procur-receipt-${
+        (currentOrder as any)?.invoice_number || currentOrder.order_number || orderId
+      }.pdf`;
+
+      const parseFilenameFromContentDisposition = (headerValue?: string) => {
+        if (!headerValue) return null;
+        // Supports:
+        // - filename="file.pdf"
+        // - filename=file.pdf
+        // - filename*=UTF-8''file%20name.pdf
+        const utf8Match = headerValue.match(/filename\*\s*=\s*UTF-8''([^;]+)/i);
+        if (utf8Match?.[1]) {
+          try {
+            return decodeURIComponent(utf8Match[1].replace(/(^"|"$)/g, ""));
+          } catch {
+            return utf8Match[1].replace(/(^"|"$)/g, "");
+          }
+        }
+
+        const asciiMatch = headerValue.match(/filename\s*=\s*("?)([^";]+)\1/i);
+        if (asciiMatch?.[2]) return asciiMatch[2];
+
+        return null;
+      };
+
+      const downloadBlob = (blob: Blob, filename: string) => {
+        const url = window.URL.createObjectURL(blob);
+        try {
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = filename;
+          a.rel = "noopener";
+          a.style.display = "none";
+          document.body.appendChild(a);
+
+          // iOS Safari can be unreliable with `download` for blob URLs; open in a new tab as a fallback.
+          if (typeof (a as any).download === "undefined") {
+            window.open(url, "_blank", "noopener,noreferrer");
+          } else {
+            a.click();
+          }
+          a.remove();
+        } finally {
+          // Delay revoke slightly to avoid Safari cancelling the download.
+          setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+        }
+      };
+
+      const client = getApiClient(() => authToken);
+      const res = await client.get(`/sellers/orders/${orderId}/invoice`, {
+        responseType: "blob",
+        headers: { Accept: "application/pdf" },
+      });
+
+      const contentType =
+        (res.headers?.["content-type"] as string | undefined) || "";
+      const blob = res.data as Blob;
+
+      // If backend returns JSON error, don't silently download it as a .pdf.
+      if (!contentType.toLowerCase().includes("application/pdf")) {
+        let message = "Receipt download failed.";
+        try {
+          const text = await blob.text();
+          message = text || message;
+        } catch {
+          // ignore
+        }
+        throw new Error(message);
+      }
+
+      const contentDisposition = res.headers?.[
+        "content-disposition"
+      ] as string | undefined;
+      const filename =
+        parseFilenameFromContentDisposition(contentDisposition) ||
+        fallbackFilename;
+
+      downloadBlob(blob, filename);
+    } catch (e) {
+      console.error("Failed to download receipt:", e);
+      show("Failed to download receipt. Please try again.");
+    } finally {
+      setDownloadingReceipt(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white">
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* Header */}
-        <div className="mb-6">
-          <nav className="text-sm text-[var(--primary-base)] mb-4">
-            <ol className="flex items-center space-x-2">
-              <li>
-                <Link
-                  href="/seller"
-                  className="px-2 py-1 rounded-full hover:bg-white"
-                >
-                  Seller
-                </Link>
-              </li>
-              <li className="text-gray-400">/</li>
-              <li>
-                <Link
-                  href="/seller/orders"
-                  className="px-2 py-1 rounded-full hover:bg-white"
-                >
-                  Orders
-                </Link>
-              </li>
-              <li className="text-gray-400">/</li>
-              <li>
-                <span className="px-2 py-1 rounded-full bg-white text-[var(--secondary-black)]">
-                  {currentOrder.order_number}
-                </span>
-              </li>
-            </ol>
-          </nav>
+      <main className="max-w-7xl mx-auto px-6 py-10">
+        {/* Top Bar (match buyer styling) */}
+        <div className="flex items-center justify-between mb-8">
+          <Link
+            href="/seller/orders"
+            className="flex items-center gap-2 text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)]"
+          >
+            <ArrowLeftIcon className="h-4 w-4" />
+            <span className="font-medium">Back to Orders</span>
+          </Link>
 
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-3xl font-semibold text-[var(--secondary-black)] mb-2">
-                Order {currentOrder.order_number}
-              </h1>
-              <div className="flex items-center gap-3">
-                <span
-                  className={classNames(
-                    "inline-flex items-center px-3 py-1 rounded-full text-sm font-medium",
-                    getStatusColor(currentOrder.status)
-                  )}
-                >
-                  {currentOrder.status.replace(/_/g, " ").toUpperCase()}
-                </span>
-                <span
-                  className={classNames(
-                    "inline-flex items-center px-3 py-1 rounded-full text-sm font-medium",
-                    getPaymentStatusColor(currentOrder.payment_status)
-                  )}
-                >
-                  {currentOrder.payment_status?.toUpperCase() || "UNKNOWN"}
-                </span>
-              </div>
-            </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleDownloadReceipt}
+              disabled={!canDownloadReceipt || downloadingReceipt}
+              className="flex items-center gap-2 px-5 py-2 border border-[var(--secondary-soft-highlight)]/30 text-[var(--secondary-black)] rounded-full hover:bg-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              title={
+                canDownloadReceipt
+                  ? "Download Receipt"
+                  : "Receipt available once payment is complete"
+              }
+            >
+              <ArrowDownTrayIcon className="h-4 w-4" />
+              <span className="text-sm font-medium">
+                {downloadingReceipt ? "Preparing Receipt..." : "Download Receipt"}
+              </span>
+            </button>
 
-            <div className="flex items-center gap-3">
-              {canAccept && (
-                <>
-                  <button
-                    onClick={handleAcceptOrder}
-                    className="px-6 py-3 bg-[var(--primary-base)] text-white rounded-full text-sm font-medium hover:opacity-90 transition-all duration-200"
-                    disabled={currentOrderStatus === "loading"}
-                  >
-                    {currentOrderStatus === "loading"
-                      ? "Accepting..."
-                      : "Accept Order"}
-                  </button>
-                  <button
-                    onClick={() => setShowRejectModal(true)}
-                    className="px-6 py-3 bg-white border border-[var(--secondary-soft-highlight)] text-[var(--secondary-black)] rounded-full text-sm font-medium hover:bg-[var(--primary-background)] transition-all duration-200"
-                  >
-                    Reject Order
-                  </button>
-                </>
-              )}
-            </div>
+            {canAccept && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleAcceptOrder}
+                  className="px-5 py-2 bg-[var(--primary-base)] text-white rounded-full text-sm font-medium hover:opacity-90 transition-all duration-200"
+                  disabled={currentOrderStatus === "loading"}
+                >
+                  {currentOrderStatus === "loading"
+                    ? "Accepting..."
+                    : "Accept Order"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowRejectModal(true)}
+                  className="px-5 py-2 bg-white border border-[var(--secondary-soft-highlight)]/30 text-[var(--secondary-black)] rounded-full text-sm font-medium hover:bg-white transition-all duration-200"
+                >
+                  Reject Order
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -247,17 +349,66 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
         )}
 
         {/* Main Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column - Order Details */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Order Header (match buyer styling) */}
+            <div className="bg-white rounded-3xl border border-[var(--secondary-soft-highlight)]/20 p-6">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h1 className="text-2xl font-bold text-[var(--secondary-black)] mb-2">
+                    Order {currentOrder.order_number}
+                  </h1>
+                  <div className="flex items-center gap-3 text-sm text-[var(--secondary-muted-edge)]">
+                    <div>
+                      Placed on{" "}
+                      {new Date(currentOrder.created_at).toLocaleDateString(
+                        "en-US",
+                        {
+                          month: "long",
+                          day: "numeric",
+                          year: "numeric",
+                        }
+                      )}
+                    </div>
+                    <div className="text-[var(--secondary-muted-edge)]">•</div>
+                    <div className="truncate">
+                      Buyer:{" "}
+                      <span className="text-[var(--secondary-black)] font-medium">
+                        {receiptBuyerName}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                  <span
+                    className={classNames(
+                      "inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold",
+                      getStatusColor(currentOrder.status)
+                    )}
+                  >
+                    {currentOrder.status.replace(/_/g, " ").toUpperCase()}
+                  </span>
+                  <span
+                    className={classNames(
+                      "inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold",
+                      getPaymentStatusColor(currentOrder.payment_status)
+                    )}
+                  >
+                    {currentOrder.payment_status?.toUpperCase() || "UNKNOWN"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
             {/* Order Items */}
-            <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)] overflow-hidden">
-              <div className="p-6 border-b border-[var(--secondary-soft-highlight)]">
+            <div className="bg-white rounded-3xl border border-[var(--secondary-soft-highlight)]/20 overflow-hidden">
+              <div className="p-6 border-b border-[var(--secondary-soft-highlight)]/20">
                 <h2 className="text-lg font-semibold text-[var(--secondary-black)]">
                   Order Items
                 </h2>
               </div>
-              <div className="divide-y divide-[var(--secondary-soft-highlight)]">
+              <div className="divide-y divide-[var(--secondary-soft-highlight)]/20">
                 {currentOrder.items?.map((item) => {
                   const imageUrl =
                     (item as any)?.product_image ||
@@ -269,7 +420,7 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
 
                   return (
                     <div key={item.id} className="p-6 flex items-center gap-4">
-                      <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                      <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
                         {imageUrl && (
                           <Image
                             src={imageUrl}
@@ -315,7 +466,7 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
               </div>
 
               {/* Order Summary */}
-              <div className="p-6 bg-[var(--primary-background)] border-t border-[var(--secondary-soft-highlight)]">
+              <div className="p-6 bg-[var(--primary-background)] border-t border-[var(--secondary-soft-highlight)]/20">
                 <div className="space-y-2 max-w-md ml-auto">
                   <div className="flex justify-between text-sm">
                     <span className="text-[var(--secondary-muted-edge)]">
@@ -378,7 +529,7 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
             </div>
 
             {/* Shipping Information */}
-            <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)] p-6">
+            <div className="bg-white rounded-3xl border border-[var(--secondary-soft-highlight)]/20 p-6">
               <h2 className="text-lg font-semibold text-[var(--secondary-black)] mb-4">
                 Shipping Information
               </h2>
@@ -463,10 +614,10 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
                   )}
                 </div>
 
-                {/* Delivery & Packaging Details */}
+                {/* Delivery details */}
                 <div>
                   <h3 className="text-sm font-medium text-[var(--secondary-muted-edge)] mb-2">
-                    Delivery &amp; Packaging Details
+                    Delivery Details
                   </h3>
                   <div className="space-y-2 text-sm">
                     {currentOrder.shipping_method && (
@@ -497,9 +648,16 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
                         <span className="text-[var(--secondary-muted-edge)]">
                           Tracking:{" "}
                         </span>
-                        <span className="text-[var(--secondary-black)] font-medium">
+                        <a
+                          className="text-[var(--primary-accent2)] font-medium hover:underline"
+                          href={`https://parcelsapp.com/en/tracking/${encodeURIComponent(
+                            currentOrder.tracking_number
+                          )}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           {currentOrder.tracking_number}
-                        </span>
+                        </a>
                       </div>
                     )}
                     {currentOrder.estimated_delivery_date && (
@@ -522,6 +680,51 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
                         </span>
                       </div>
                     )}
+                    {currentOrder.buyer_notes && (
+                      <div className="pt-2">
+                        <span className="block text-[var(--secondary-muted-edge)] mb-1">
+                          Delivery instructions
+                        </span>
+                        <p className="text-[var(--secondary-black)] bg-[var(--primary-background)] rounded-xl p-3">
+                          {currentOrder.buyer_notes}
+                        </p>
+                      </div>
+                    )}
+                    {/* Billing address (if different) */}
+                    {currentOrder.billing_address && (
+                      <div className="pt-2">
+                        <span className="block text-[var(--secondary-muted-edge)] mb-1">
+                          Billing address
+                        </span>
+                        {(() => {
+                          const shippingLines = normalizeAddressToLines(
+                            currentOrder.shipping_address
+                          );
+                          const billingLines = normalizeAddressToLines(
+                            currentOrder.billing_address
+                          );
+                          const isSame =
+                            shippingLines.join(" | ") ===
+                            billingLines.join(" | ");
+
+                          if (isSame) {
+                            return (
+                              <p className="text-xs text-[var(--secondary-muted-edge)]">
+                                Same as shipping address
+                              </p>
+                            );
+                          }
+
+                          return (
+                            <div className="text-sm text-[var(--secondary-black)] space-y-1">
+                              {billingLines.map((line, idx) => (
+                                <p key={`${line}-${idx}`}>{line}</p>
+                              ))}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
                     {currentOrder.internal_notes && (
                       <div className="pt-2">
                         <span className="block text-[var(--secondary-muted-edge)] mb-1">
@@ -532,23 +735,6 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
                         </p>
                       </div>
                     )}
-                    {!currentOrder.internal_notes && (
-                      <div className="pt-2 text-xs text-[var(--secondary-muted-edge)] space-y-1">
-                        <p className="font-medium text-[var(--secondary-black)]">
-                          Demo Packaging Details
-                        </p>
-                        <p>
-                          Example: Packed in a reusable produce crate with
-                          insulated liner and ice packs to maintain freshness
-                          during transit.
-                        </p>
-                        <p>
-                          Example: Clearly labeled with order number and buyer
-                          name; include handling note: “Keep refrigerated on
-                          arrival”.
-                        </p>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
@@ -556,7 +742,7 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
 
             {/* Notes */}
             {(currentOrder.buyer_notes || currentOrder.seller_notes) && (
-              <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)] p-6">
+              <div className="bg-white rounded-3xl border border-[var(--secondary-soft-highlight)]/20 p-6">
                 <h2 className="text-lg font-semibold text-[var(--secondary-black)] mb-4">
                   Notes
                 </h2>
@@ -589,7 +775,7 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
           {/* Right Column - Timeline & Quick Info */}
           <div className="space-y-6">
             {/* Quick Info */}
-            <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)] p-6">
+            <div className="bg-white rounded-3xl border border-[var(--secondary-soft-highlight)]/20 p-6">
               <h2 className="text-lg font-semibold text-[var(--secondary-black)] mb-4">
                 Order Information
               </h2>
@@ -636,7 +822,7 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
             </div>
 
             {/* Timeline */}
-            <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)] p-6">
+            <div className="bg-white rounded-3xl border border-[var(--secondary-soft-highlight)]/20 p-6">
               <h2 className="text-lg font-semibold text-[var(--secondary-black)] mb-4">
                 Order Timeline
               </h2>

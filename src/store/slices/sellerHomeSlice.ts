@@ -1,5 +1,6 @@
 import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { getApiClient } from "@/lib/apiClient";
+import axios from "axios";
 
 export type SellerHomeMetrics = {
   total_revenue: number;
@@ -26,6 +27,11 @@ export type SellerHomeOrder = {
   order_number: string;
   status: string;
   total_amount: number;
+  currency?: string;
+  buyer_info?: {
+    organization_name?: string;
+    business_name?: string;
+  };
   items?: Array<{ id: string; quantity: number; unit_price: number }>;
   created_at: string;
 };
@@ -65,12 +71,14 @@ export type SellerHomeState = {
   data: SellerHomeResponse | null;
   status: "idle" | "loading" | "succeeded" | "failed";
   error: string | null;
+  errorStatus: number | null;
 };
 
 const initialState: SellerHomeState = {
   data: null,
   status: "idle",
   error: null,
+  errorStatus: null,
 };
 
 function getClient() {
@@ -90,9 +98,22 @@ export const fetchSellerHome = createAsyncThunk(
       });
       return data as SellerHomeResponse;
     } catch (err: unknown) {
-      return rejectWithValue(
-        (err as { message?: string })?.message || "Failed to load seller home"
-      );
+      if (axios.isAxiosError(err)) {
+        const status = err.response?.status ?? null;
+        const msg = (err.response?.data as { message?: string | string[] })
+          ?.message;
+        const message = Array.isArray(msg)
+          ? msg.join(", ")
+          : typeof msg === "string" && msg.trim()
+            ? msg
+            : err.message || "Failed to load seller home";
+        return rejectWithValue({ message, status });
+      }
+      return rejectWithValue({
+        message:
+          (err as { message?: string })?.message || "Failed to load seller home",
+        status: null,
+      });
     }
   }
 );
@@ -106,18 +127,31 @@ const sellerHomeSlice = createSlice({
       .addCase(fetchSellerHome.pending, (state) => {
         state.status = "loading";
         state.error = null;
+        state.errorStatus = null;
       })
       .addCase(
         fetchSellerHome.fulfilled,
         (state, action: PayloadAction<SellerHomeResponse>) => {
           state.status = "succeeded";
           state.data = action.payload;
+          state.error = null;
+          state.errorStatus = null;
         }
       )
       .addCase(fetchSellerHome.rejected, (state, action) => {
         state.status = "failed";
-        state.error =
-          (action.payload as string) || "Failed to load seller home";
+        const payload = action.payload as unknown as
+          | { message?: string; status?: number | null }
+          | string
+          | undefined;
+        if (typeof payload === "string") {
+          state.error = payload || "Failed to load seller home";
+          state.errorStatus = null;
+        } else {
+          state.error = payload?.message || "Failed to load seller home";
+          state.errorStatus =
+            typeof payload?.status === "number" ? payload.status : null;
+        }
         state.data = null;
       });
   },

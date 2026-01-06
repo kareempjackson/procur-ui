@@ -1,15 +1,17 @@
 "use client";
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import React, { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   ArrowLeftIcon,
   StarIcon,
   PhotoIcon,
   XMarkIcon,
   CheckCircleIcon,
+  ShoppingBagIcon,
 } from "@heroicons/react/24/outline";
 import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
 import { useAppDispatch, useAppSelector } from "@/store";
@@ -26,7 +28,6 @@ export default function OrderReviewPage({
 }: {
   params: { orderId: string };
 }) {
-  const router = useRouter();
   const dispatch = useAppDispatch();
   const { show } = useToast();
   const {
@@ -72,7 +73,7 @@ export default function OrderReviewPage({
     if (Array.isArray(raw)) return raw;
     if (Array.isArray((raw as any)?.data)) return (raw as any).data;
     return [];
-  }, [order]);
+  }, [order, orderId, orderList]);
 
   const sellerName =
     (order as any)?.seller_name ||
@@ -81,11 +82,17 @@ export default function OrderReviewPage({
     "";
   const orderNumber =
     (order as any)?.order_number || (order as any)?.orderNumber || orderId;
+  const currencyCode =
+    (order as any)?.currency || (order as any)?.currency_code || "USD";
+  const formatMoney = (value: number) =>
+    `${currencyCode} ${value.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
-      // In a real app, would upload to server
       const newPhotos = Array.from(files).map((file) =>
         URL.createObjectURL(file)
       );
@@ -105,10 +112,18 @@ export default function OrderReviewPage({
       await dispatch(
         submitOrderReview({
           orderId,
-          rating: overallRating,
-          comment: reviewComment || reviewTitle,
+          overall_rating: overallRating,
+          product_quality_rating:
+            productQualityRating > 0 ? productQualityRating : undefined,
+          delivery_rating: deliveryRating > 0 ? deliveryRating : undefined,
+          service_rating: serviceRating > 0 ? serviceRating : undefined,
+          title: reviewTitle?.trim() ? reviewTitle.trim() : undefined,
+          comment: reviewComment?.trim() ? reviewComment.trim() : undefined,
+          is_public: true,
         })
       ).unwrap();
+      // Refresh order detail so other pages / state reflect the new review.
+      dispatch(fetchOrderDetail(orderId));
       setSubmitted(true);
       show("Review submitted. Thank you!");
     } catch (err) {
@@ -252,10 +267,11 @@ export default function OrderReviewPage({
             <h3 className="font-semibold text-[var(--secondary-black)] mb-4">
               Items in this order
             </h3>
-            <div className="flex gap-3">
+            <div className="space-y-3">
               {baseItems.length > 0 ? (
                 baseItems.map((item: any) => {
                   const imageSrc =
+                    item.image_url ||
                     item.product_image ||
                     item.image ||
                     item.thumbnail ||
@@ -263,24 +279,81 @@ export default function OrderReviewPage({
                       (img: any) => img?.is_primary
                     )?.image_url ||
                     (item as any)?.product_snapshot?.image_url ||
-                    "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg";
+                    null;
                   const name =
                     item.product_name ||
                     item.name ||
                     (item as any)?.product_snapshot?.product_name ||
                     (item as any)?.product_snapshot?.name ||
-                    "Item";
+                    (item.product_id
+                      ? `Product ${String(item.product_id).slice(0, 8)}`
+                      : "Product");
+                  const qty = Number(item.quantity || 0);
+                  const unitPrice = Number(
+                    item.unit_price ?? item.price_per_unit ?? item.price ?? 0
+                  );
+                  const lineTotal = Number(
+                    item.total_price ?? item.subtotal ?? item.line_total ?? 0
+                  );
+                  const computedLineTotal =
+                    lineTotal > 0 ? lineTotal : qty * unitPrice;
+
                   return (
                     <div
-                      key={item.id}
-                      className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-100"
+                      key={item.id || `${item.product_id || "item"}-${name}`}
+                      className="flex items-center justify-between gap-4 rounded-2xl border border-[var(--secondary-soft-highlight)]/20 bg-white p-4"
                     >
-                      <Image
-                        src={imageSrc}
-                        alt={name}
-                        fill
-                        className="object-cover"
-                      />
+                      <div className="flex items-center gap-4 min-w-0">
+                        {typeof imageSrc === "string" && imageSrc ? (
+                          <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-[var(--primary-background)]/40 border border-[var(--secondary-soft-highlight)]/20 shrink-0">
+                            <Image
+                              src={imageSrc}
+                              alt={name}
+                              fill
+                              className="object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-14 h-14 rounded-xl bg-[var(--primary-background)]/40 border border-[var(--secondary-soft-highlight)]/20 flex items-center justify-center shrink-0">
+                            <ShoppingBagIcon className="h-6 w-6 text-[var(--secondary-muted-edge)]" />
+                          </div>
+                        )}
+
+                        <div className="min-w-0">
+                          <p className="font-semibold text-[var(--secondary-black)] truncate">
+                            {name}
+                          </p>
+                          <p className="text-xs text-[var(--secondary-muted-edge)] mt-0.5">
+                            Qty{" "}
+                            <span className="text-[var(--secondary-black)] font-medium">
+                              {Number.isFinite(qty)
+                                ? qty.toLocaleString("en-US")
+                                : "—"}
+                            </span>
+                            {Number.isFinite(unitPrice) && unitPrice > 0 && (
+                              <>
+                                {" "}
+                                • Unit{" "}
+                                <span className="text-[var(--secondary-black)] font-medium">
+                                  {formatMoney(unitPrice)}
+                                </span>
+                              </>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+
+                      {Number.isFinite(computedLineTotal) &&
+                        computedLineTotal > 0 && (
+                          <div className="text-right shrink-0">
+                            <p className="text-[10px] text-[var(--secondary-muted-edge)]">
+                              Line total
+                            </p>
+                            <p className="text-sm font-semibold text-[var(--secondary-black)]">
+                              {formatMoney(computedLineTotal)}
+                            </p>
+                          </div>
+                        )}
                     </div>
                   );
                 })
@@ -426,7 +499,7 @@ export default function OrderReviewPage({
               <li>Focus on your experience with the products and seller</li>
               <li>Be honest and constructive in your feedback</li>
               <li>Avoid profanity or inappropriate content</li>
-              <li>Don't include personal information</li>
+              <li>Don&apos;t include personal information</li>
             </ul>
           </div>
 

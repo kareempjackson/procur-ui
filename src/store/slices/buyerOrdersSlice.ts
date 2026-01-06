@@ -246,9 +246,23 @@ export const submitOrderReview = createAsyncThunk(
   async (
     {
       orderId,
-      rating,
+      overall_rating,
+      product_quality_rating,
+      delivery_rating,
+      service_rating,
+      title,
       comment,
-    }: { orderId: string; rating: number; comment: string },
+      is_public,
+    }: {
+      orderId: string;
+      overall_rating: number;
+      product_quality_rating?: number;
+      delivery_rating?: number;
+      service_rating?: number;
+      title?: string;
+      comment?: string;
+      is_public?: boolean;
+    },
     { rejectWithValue }
   ) => {
     try {
@@ -256,11 +270,20 @@ export const submitOrderReview = createAsyncThunk(
       const response = await apiClient.post(
         `/buyers/orders/${orderId}/review`,
         {
-          rating,
+          overall_rating,
+          product_quality_rating,
+          delivery_rating,
+          service_rating,
+          title,
           comment,
+          is_public,
         }
       );
-      return response.data;
+      // Backend returns 201 with an empty body (void) on success. Return a safe
+      // fallback so reducers don't assume a full Order shape.
+      const data = response?.data as unknown;
+      if (data && typeof data === "object") return data;
+      return { id: orderId, success: true };
     } catch (error) {
       return rejectWithValue(extractErrorMessage(error));
     }
@@ -298,21 +321,28 @@ const buyerOrdersSlice = createSlice({
       })
       .addCase(fetchOrders.fulfilled, (state, action) => {
         state.status = "succeeded";
-        const payload = action.payload as any;
+        const payload = action.payload as unknown as {
+          orders?: unknown;
+          data?: unknown;
+          pagination?: BuyerOrdersState["pagination"];
+          total?: unknown;
+          page?: unknown;
+          limit?: unknown;
+        };
         // API returns { orders, total, page, limit } for buyers
         // Some endpoints may return { data, pagination }
-        const orders = payload?.orders ?? payload?.data ?? [];
-        state.orders = Array.isArray(orders) ? orders : [];
+        const orders = payload.orders ?? payload.data ?? [];
+        state.orders = Array.isArray(orders) ? (orders as Order[]) : [];
 
         // Normalize pagination
-        if (payload?.pagination) {
+        if (payload.pagination) {
           state.pagination = payload.pagination;
         } else {
           const total = Number(
-            payload?.total ?? state.pagination.totalItems ?? 0
+            payload.total ?? state.pagination.totalItems ?? 0
           );
-          const page = Number(payload?.page ?? state.pagination.page ?? 1);
-          const limit = Number(payload?.limit ?? state.pagination.limit ?? 20);
+          const page = Number(payload.page ?? state.pagination.page ?? 1);
+          const limit = Number(payload.limit ?? state.pagination.limit ?? 20);
           state.pagination.page = page;
           state.pagination.limit = limit;
           state.pagination.totalItems = total;
@@ -332,16 +362,29 @@ const buyerOrdersSlice = createSlice({
       })
       .addCase(fetchOrderDetail.fulfilled, (state, action) => {
         state.orderDetailStatus = "succeeded";
-        const payload = action.payload as any;
-        // Unwrap common shapes: { order }, { data: { order } }, { data }
+        const payload = action.payload as unknown;
+        const asObj =
+          payload && typeof payload === "object"
+            ? (payload as Record<string, unknown>)
+            : null;
+        const dataObj =
+          asObj?.data && typeof asObj.data === "object"
+            ? (asObj.data as Record<string, unknown>)
+            : null;
+        const dataDataObj =
+          dataObj?.data && typeof dataObj.data === "object"
+            ? (dataObj.data as Record<string, unknown>)
+            : null;
+
+        // Unwrap common shapes: { order }, { data: { order } }, { data: { data } }, { data }, raw object
         const unwrapped =
-          payload?.order ??
-          payload?.data?.order ??
-          payload?.data?.data ??
-          payload?.data ??
+          (asObj?.order as unknown) ??
+          (dataObj?.order as unknown) ??
+          (dataDataObj as unknown) ??
+          (asObj?.data as unknown) ??
           payload ??
           null;
-        state.currentOrder = unwrapped;
+        state.currentOrder = (unwrapped as Order) ?? null;
       })
       .addCase(fetchOrderDetail.rejected, (state, action) => {
         state.orderDetailStatus = "failed";
@@ -394,14 +437,20 @@ const buyerOrdersSlice = createSlice({
 
     // Submit Order Review
     builder.addCase(submitOrderReview.fulfilled, (state, action) => {
-      // Update order in the list
-      const index = state.orders.findIndex((o) => o.id === action.payload.id);
+      const payload = action.payload as unknown;
+      if (!payload || typeof payload !== "object") return;
+      const maybeId = (payload as { id?: unknown }).id;
+      if (typeof maybeId !== "string" || !maybeId) return;
+
+      // Best-effort merge if API returns partial or full updated order.
+      const patch = payload as Partial<Order> & { id: string };
+
+      const index = state.orders.findIndex((o) => o.id === maybeId);
       if (index !== -1) {
-        state.orders[index] = action.payload;
+        state.orders[index] = { ...state.orders[index], ...patch } as Order;
       }
-      // Update current order
-      if (state.currentOrder?.id === action.payload.id) {
-        state.currentOrder = action.payload;
+      if (state.currentOrder?.id === maybeId) {
+        state.currentOrder = { ...state.currentOrder, ...patch } as Order;
       }
     });
   },

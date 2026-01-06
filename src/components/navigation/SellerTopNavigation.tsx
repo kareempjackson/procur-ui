@@ -197,18 +197,6 @@ const SellerTopNavigation: React.FC = () => {
                     <span className="relative">Orders</span>
                   </Link>
 
-                  {/* Transactions Link */}
-                  <Link
-                    href="/seller/transactions"
-                    className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
-                      pathname?.startsWith("/seller/transactions")
-                        ? "text-[var(--primary-accent2)] border-[var(--primary-accent2)]"
-                        : "text-gray-800 hover:text-black border-transparent"
-                    }`}
-                  >
-                    <span className="relative">Transactions</span>
-                  </Link>
-
                   {/* Inventory Link */}
                   <Link
                     href="/seller/products"
@@ -559,12 +547,6 @@ const SellerTopNavigation: React.FC = () => {
                     className="block text-gray-800 font-medium py-2"
                   >
                     Orders
-                  </Link>
-                  <Link
-                    href="/seller/transactions"
-                    className="block text-gray-800 font-medium py-2"
-                  >
-                    Transactions
                   </Link>
                   <Link
                     href="/seller/products"

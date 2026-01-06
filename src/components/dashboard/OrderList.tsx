@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ReactNode } from "react";
 
 export type OrderListItem = {
-  id: string;
+  orderId: string;
   buyer: string;
   date: string; // ISO string
   status: "new" | "preparing" | "in_transit" | "delivered" | "issue";
@@ -62,24 +62,25 @@ export default function OrderList({
         <div className="divide-y divide-[color:var(--secondary-soft-highlight)]/30">
           {items.map((order) => {
             const conf = statusConfig[order.status];
+            const buyerLabel = (order.buyer || "Buyer").trim() || "Buyer";
             return (
               <div
-                key={order.id}
+                key={order.orderId}
                 className="px-5 py-4 grid grid-cols-1 sm:grid-cols-2 gap-3 items-center hover:bg-black/[0.02] transition-colors"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="h-8 w-8 rounded-full bg-[var(--primary-accent1)]/20 flex items-center justify-center text-xs font-medium text-[color:var(--primary-accent3)]">
-                    {order.buyer.charAt(0)}
+                    {buyerLabel.charAt(0)}
                   </div>
                   <div className="min-w-0">
                     <Link
-                      href={`/seller/orders/${order.id.replace("#", "")}`}
+                      href={`/seller/orders/${order.orderId}`}
                       className="text-sm text-[color:var(--secondary-black)] font-medium hover:text-[var(--primary-accent2)] truncate"
                     >
-                      {order.id}
+                      {buyerLabel}
                     </Link>
                     <div className="text-xs text-[color:var(--secondary-muted-edge)] truncate">
-                      {order.buyer}
+                      View order details
                     </div>
                   </div>
                 </div>

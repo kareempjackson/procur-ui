@@ -67,6 +67,8 @@ export default function SellerDashboardPage() {
   const sellerInsights = useAppSelector((s) => s.sellerInsights);
   const latestFarmVisit = sellerHome.data?.latest_farm_visit_request;
   const isFarmVerified = Boolean(profile?.organization?.farmVerified);
+  const isVerificationBlocked =
+    sellerHome.status === "failed" && sellerHome.errorStatus === 403;
 
   const [showPaymentLinkModal, setShowPaymentLinkModal] = useState(false);
   const [showVerificationModal, setShowVerificationModal] = useState(false);
@@ -226,6 +228,32 @@ export default function SellerDashboardPage() {
     );
   }, [sellerHome]);
 
+  const inventoryProducts = useMemo<FeaturedProductPreview[]>(() => {
+    const homeData = sellerHome.data;
+    return (
+      homeData?.inventory?.map((p: SellerHomeProduct) => ({
+        name: p.name,
+        price:
+          p.sale_price != null
+            ? p.sale_price.toLocaleString("en-US", {
+                style: "currency",
+                currency: p.currency || "USD",
+              })
+            : p.base_price != null
+              ? p.base_price.toLocaleString("en-US", {
+                  style: "currency",
+                  currency: p.currency || "USD",
+                })
+              : "",
+        image:
+          p.images?.find(
+            (i: { image_url: string; is_primary?: boolean }) => i.is_primary
+          )?.image_url || p.images?.[0]?.image_url,
+        status: undefined as string | undefined,
+      })) ?? []
+    );
+  }, [sellerHome]);
+
   const handleBookFarmVisit = async () => {
     try {
       const { getApiClient } = await import("@/lib/apiClient");
@@ -249,14 +277,18 @@ export default function SellerDashboardPage() {
     const apiOrders =
       (sellerHome.data?.recent_orders as SellerHomeOrder[]) ?? [];
     return apiOrders.map((o) => {
-      const extra = o as unknown as { buyer_name?: string; currency?: string };
+      const buyerName =
+        o.buyer_info?.business_name ||
+        o.buyer_info?.organization_name ||
+        "Buyer";
       return {
-        id: o.order_number || o.id,
-        buyer: extra.buyer_name || "Buyer",
+        // IMPORTANT: use the real order UUID for routing to `/seller/orders/[id]`
+        id: o.id,
+        buyer: buyerName,
         items: o.items?.reduce((sum, i) => sum + (i.quantity ?? 0), 0) ?? 0,
         total: (o.total_amount ?? 0).toLocaleString("en-US", {
           style: "currency",
-          currency: extra.currency || "USD",
+          currency: o.currency || "USD",
         }),
         eta: o.created_at,
         status: (() => {
@@ -415,15 +447,14 @@ export default function SellerDashboardPage() {
       {/* Navigation is provided by seller layout */}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16">
-        {sellerHome.status === "failed" && (
+        {isVerificationBlocked && (
           <section className="mb-8 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             <h2 className="font-semibold">
               Your seller account is not fully verified yet.
             </h2>
-            <p className="mt-1 text-xs text-amber-800">
-              An admin needs to review and approve your business before you can
-              list products, accept orders, or receive payments.
-            </p>
+            {sellerHome.error && (
+              <p className="mt-1 text-xs text-amber-800">{sellerHome.error}</p>
+            )}
             <p className="mt-1 text-xs text-amber-800">
               {authUser?.accountType === "seller"
                 ? "If you are a farmer, make sure you've uploaded your Farmer ID and farm details so an admin can verify your account."
@@ -447,6 +478,23 @@ export default function SellerDashboardPage() {
                 className="inline-flex items-center rounded-full bg-amber-900 text-amber-50 px-3 py-1 font-medium hover:bg-amber-800 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-700 focus:ring-offset-2"
               >
                 Book farm visit
+              </button>
+            </div>
+          </section>
+        )}
+        {sellerHome.status === "failed" && !isVerificationBlocked && (
+          <section className="mb-8 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+            <h2 className="font-semibold">We couldn&apos;t load your dashboard</h2>
+            <p className="mt-1 text-xs text-red-800">
+              {sellerHome.error || "Please try again in a moment."}
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => dispatch(fetchSellerHome({ period: "last_30_days" }))}
+                className="inline-flex items-center rounded-full bg-red-900 text-red-50 px-3 py-1 font-medium hover:bg-red-800 transition-colors focus:outline-none focus:ring-2 focus:ring-red-700 focus:ring-offset-2"
+              >
+                Retry
               </button>
             </div>
           </section>
@@ -487,16 +535,28 @@ export default function SellerDashboardPage() {
           </div>
           <div className="mt-6">
             <div className="text-xs text-[color:var(--secondary-muted-edge)] mb-2 font-medium">
-              Featured products
+              {featuredProducts.length > 0 ? "Featured products" : "Inventory"}
             </div>
             <div className="relative -mx-2 overflow-x-auto">
               <div className="flex gap-3 px-2 snap-x">
-                {featuredProducts.length === 0 ? (
+                {(featuredProducts.length > 0
+                  ? featuredProducts
+                  : inventoryProducts
+                ).length === 0 ? (
                   <div className="text-xs text-[color:var(--secondary-muted-edge)] px-2">
-                    No featured products yet.
+                    No products yet.{" "}
+                    <Link href="/seller/products" className="underline">
+                      Add a product
+                    </Link>
+                    .
                   </div>
                 ) : (
-                  featuredProducts.map((product, idx) => (
+                  (featuredProducts.length > 0
+                    ? featuredProducts
+                    : inventoryProducts
+                  )
+                    .slice(0, 10)
+                    .map((product, idx) => (
                     <div
                       key={idx}
                       className="w-56 shrink-0 snap-start overflow-hidden rounded-xl bg-white border border-[color:var(--secondary-soft-highlight)]"
@@ -687,7 +747,7 @@ export default function SellerDashboardPage() {
 
             <OrderList
               items={filteredOrders.map<OrderListItem>((o) => ({
-                id: o.id,
+                orderId: o.id,
                 buyer: o.buyer,
                 date: o.eta,
                 status: o.status,
