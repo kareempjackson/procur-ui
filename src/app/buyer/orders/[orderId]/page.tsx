@@ -105,12 +105,94 @@ export default function OrderDetailPage({
   };
 
   const handleDownloadInvoice = async () => {
-    if (!order || !invoiceRef.current) return;
+    if (!order) return;
 
-    setDownloadingInvoice(true);
-    const element = invoiceRef.current;
+    const fallbackFilename = `procur-invoice-${
+      (order as any)?.invoice_number || order.order_number || orderId
+    }.pdf`;
 
-    try {
+    const parseFilenameFromContentDisposition = (headerValue?: string) => {
+      if (!headerValue) return null;
+      // Supports:
+      // - filename="file.pdf"
+      // - filename=file.pdf
+      // - filename*=UTF-8''file%20name.pdf
+      const utf8Match = headerValue.match(/filename\*\s*=\s*UTF-8''([^;]+)/i);
+      if (utf8Match?.[1]) {
+        try {
+          return decodeURIComponent(utf8Match[1].replace(/(^"|"$)/g, ""));
+        } catch {
+          return utf8Match[1].replace(/(^"|"$)/g, "");
+        }
+      }
+
+      const asciiMatch = headerValue.match(/filename\s*=\s*("?)([^";]+)\1/i);
+      if (asciiMatch?.[2]) return asciiMatch[2];
+
+      return null;
+    };
+
+    const downloadBlob = (blob: Blob, filename: string) => {
+      const url = window.URL.createObjectURL(blob);
+      try {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.rel = "noopener";
+        a.style.display = "none";
+        document.body.appendChild(a);
+
+        // iOS Safari can be unreliable with `download` for blob URLs; open in a new tab as a fallback.
+        if (typeof (a as any).download === "undefined") {
+          window.open(url, "_blank", "noopener,noreferrer");
+        } else {
+          a.click();
+        }
+        a.remove();
+      } finally {
+        // Delay revoke slightly to avoid Safari cancelling the download.
+        setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+      }
+    };
+
+    const downloadFromApi = async () => {
+      if (!authToken) throw new Error("Missing auth token");
+      const client = getApiClient(() => authToken);
+      const res = await client.get(`/buyers/orders/${orderId}/invoice`, {
+        responseType: "blob",
+        headers: { Accept: "application/pdf" },
+      });
+
+      const contentType =
+        (res.headers?.["content-type"] as string | undefined) || "";
+      const blob = res.data as Blob;
+
+      // If backend returns JSON error, don't silently download it as a .pdf.
+      if (!contentType.toLowerCase().includes("application/pdf")) {
+        let message = "Invoice download failed.";
+        try {
+          const text = await blob.text();
+          message = text || message;
+        } catch {
+          // ignore
+        }
+        throw new Error(message);
+      }
+
+      const contentDisposition = res.headers?.[
+        "content-disposition"
+      ] as string | undefined;
+      const filename =
+        parseFilenameFromContentDisposition(contentDisposition) ||
+        fallbackFilename;
+
+      downloadBlob(blob, filename);
+    };
+
+    const downloadFromDomFallback = async () => {
+      if (!invoiceRef.current) throw new Error("Invoice template not ready");
+      const element = invoiceRef.current;
+
       // Remove any @supports blocks that redefine palette variables using lab()
       // so html2canvas doesn't attempt to parse unsupported color functions.
       stripLabColorRules();
@@ -159,14 +241,24 @@ export default function OrderDetailPage({
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
 
       pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-      const invoiceNumber =
-        (order as any)?.invoice_number ||
-        order.order_number ||
-        `ORDER-${order.id || ""}`;
-      pdf.save(`procur-invoice-${invoiceNumber}.pdf`);
+      pdf.save(fallbackFilename);
+    };
+
+    setDownloadingInvoice(true);
+    try {
+      // Prefer backend-generated PDF; it’s more reliable than DOM capture.
+      await downloadFromApi();
     } catch (error) {
-      console.error("Failed to download invoice:", error);
-      show("Failed to generate invoice. Please try again.");
+      console.warn(
+        "Invoice API download failed; falling back to client generation:",
+        error
+      );
+      try {
+        await downloadFromDomFallback();
+      } catch (fallbackError) {
+        console.error("Failed to download invoice:", fallbackError);
+        show("Failed to generate invoice. Please try again.");
+      }
     } finally {
       setDownloadingInvoice(false);
     }

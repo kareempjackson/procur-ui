@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useAppDispatch, useAppSelector } from "@/store";
 import { fetchOrders } from "@/store/slices/buyerOrdersSlice";
@@ -281,16 +282,66 @@ export default function BuyerOrdersPage() {
                       <td className="py-4 px-6">
                         <Link
                           href={`/buyer/orders/${order.id}`}
-                          className="text-xs text-[var(--primary-base)] truncate max-w-[360px] hover:text-[var(--primary-accent2)]"
+                          className="block text-xs text-[var(--primary-base)] hover:text-[var(--primary-accent2)]"
                           aria-label={`View items in order ${order.order_number || order.id}`}
                         >
-                          {order.items && order.items.length > 0
-                            ? `${order.items[0]?.product_name || "Item"}${
-                                order.items.length > 1
-                                  ? ` +${order.items.length - 1} more`
-                                  : ""
-                              }`
-                            : "—"}
+                          {order.items && order.items.length > 0 ? (
+                            <div className="space-y-2 max-h-28 overflow-y-auto pr-2">
+                              {order.items.map((item: any, idx: number) => {
+                                const name =
+                                  item.product_name ||
+                                  item?.product_snapshot?.product_name ||
+                                  item?.product_snapshot?.name ||
+                                  "Item";
+                                const qty = Number(item.quantity || 0);
+                                const unitPrice = Number(
+                                  item.unit_price ??
+                                    item.price_per_unit ??
+                                    item.price ??
+                                    0
+                                );
+                                const imageUrl =
+                                  item.product_image ||
+                                  item.image_url ||
+                                  item?.product_snapshot?.image_url ||
+                                  null;
+                                return (
+                                  <div
+                                    key={item.id || `${item.product_id || "i"}-${idx}`}
+                                    className="flex items-center justify-between gap-3"
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      {typeof imageUrl === "string" && imageUrl ? (
+                                        <div className="relative h-8 w-8 rounded-lg overflow-hidden border border-[var(--secondary-soft-highlight)]/20 bg-[var(--primary-background)]/30 shrink-0">
+                                          <Image
+                                            src={imageUrl}
+                                            alt={name}
+                                            fill
+                                            className="object-cover"
+                                          />
+                                        </div>
+                                      ) : (
+                                        <div className="h-8 w-8 rounded-lg border border-[var(--secondary-soft-highlight)]/20 bg-[var(--primary-background)]/30 shrink-0" />
+                                      )}
+                                      <div className="min-w-0">
+                                        <div className="text-[var(--secondary-black)] font-medium truncate max-w-[260px]">
+                                          {name}
+                                        </div>
+                                        <div className="text-[10px] text-[var(--secondary-muted-edge)]">
+                                          Qty {qty.toLocaleString("en-US")}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="text-[10px] font-medium text-[var(--secondary-black)] shrink-0">
+                                      {formatCurrency(unitPrice)}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            "—"
+                          )}
                         </Link>
                       </td>
                       <td className="py-4 px-6">
