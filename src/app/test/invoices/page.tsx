@@ -3,12 +3,12 @@
 import React, { useRef } from "react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { ClassicInvoice } from "@/components/invoices/ClassicInvoice";
 
 type InvoiceVariant = "classic";
 
 const EMAIL_LOGO_URL =
   "https://dbuxyviftwahgrgiftrw.supabase.co/storage/v1/object/public/public/main-logo/procur-logo.svg";
-const CURRENT_YEAR = new Date().getFullYear();
 
 const sampleInvoice = {
   invoiceNumber: "INV-2025-00127",
@@ -73,45 +73,6 @@ const sampleInvoice = {
   ],
 };
 
-const computeTotals = () => {
-  const lineSubtotal = sampleInvoice.items.reduce(
-    (sum, item) => sum + item.quantity * item.unitPrice,
-    0
-  );
-  const tax =
-    (lineSubtotal + sampleInvoice.charges.delivery) *
-    sampleInvoice.charges.taxRate;
-  const gross =
-    lineSubtotal +
-    sampleInvoice.charges.delivery +
-    sampleInvoice.charges.platformFee +
-    tax;
-  const total = gross - sampleInvoice.charges.discount;
-
-  return { lineSubtotal, tax, total };
-};
-
-const currency = (value: number) =>
-  `${sampleInvoice.charges.currency} ${value.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-
-const BrandHeader: React.FC = () => (
-  <div className="border border-gray-200 rounded-2xl bg-white px-6 py-4 flex items-center justify-center">
-    <img src={EMAIL_LOGO_URL} alt="Procur logo" className="h-9 w-auto" />
-  </div>
-);
-
-const BrandFooter: React.FC = () => (
-  <div className="border border-gray-200 rounded-2xl bg-[#fafafa] px-6 py-3 text-[0.68rem] text-[var(--primary-base)] text-center">
-    <p>© {CURRENT_YEAR} Procur Grenada Ltd. All rights reserved.</p>
-    <p>
-      Procur Grenada Ltd. Annandale, St. Georges, Grenada W.I., 473-538-4365
-    </p>
-  </div>
-);
-
 // Tailwind v4 can emit lab() colors in @supports blocks that html2canvas
 // doesn't understand; we strip those rules out before capture.
 const stripLabColorRules = () => {
@@ -141,7 +102,6 @@ const stripLabColorRules = () => {
 
 const InvoiceTestPage: React.FC = () => {
   const classicRef = useRef<HTMLDivElement | null>(null);
-  const { lineSubtotal, tax, total } = computeTotals();
 
   const downloadAsPdf = async (variant: InvoiceVariant) => {
     if (variant !== "classic" || !classicRef.current) return;
@@ -259,229 +219,49 @@ const InvoiceTestPage: React.FC = () => {
               {renderDownloadButton("classic")}
             </div>
 
-            <div ref={classicRef} className="space-y-4">
-              <BrandHeader />
-
-              <div className="bg-white rounded-3xl border border-gray-200 shadow-[0_18px_40px_rgba(15,23,42,0.06)] p-8 sm:p-10">
-                {/* Top meta */}
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6 mb-8 border-b border-gray-100 pb-6">
-                  <div className="space-y-3">
-                    <div className="inline-flex items-center gap-2 rounded-full bg-[var(--primary-background)] px-3 py-1">
-                      <span className="w-2 h-2 rounded-full bg-[var(--primary-accent2)]" />
-                      <span className="text-xs font-medium tracking-wide text-[var(--primary-base)]">
-                        Procur marketplace
-                      </span>
-                    </div>
-                    <div>
-                      <h2 className="text-2xl font-semibold tracking-tight text-[var(--secondary-black)]">
-                        Tax invoice
-                      </h2>
-                      <p className="text-sm text-[var(--primary-base)] mt-1">
-                        Official summary of your order on Procur.
-                      </p>
-                    </div>
-                    <div className="text-xs text-[var(--primary-base)] space-y-0.5">
-                      <p>{sampleInvoice.seller.address}</p>
-                      <p>{sampleInvoice.seller.country}</p>
-                      <p>{sampleInvoice.seller.email}</p>
-                      <p>{sampleInvoice.seller.phone}</p>
-                      <p>{sampleInvoice.seller.taxId}</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3 text-sm sm:text-right">
-                    <div className="inline-flex items-center gap-2 rounded-full bg-[var(--secondary-soft-highlight)]/40 px-3 py-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                      <span className="text-xs font-medium text-[var(--secondary-black)]">
-                        Payment pending
-                      </span>
-                    </div>
-                    <dl className="grid grid-cols-2 sm:grid-cols-1 gap-x-6 gap-y-1 text-xs text-[var(--primary-base)]">
-                      <div className="flex justify-between sm:justify-end gap-3">
-                        <dt className="uppercase tracking-[0.16em]">Invoice</dt>
-                        <dd className="font-medium text-[var(--secondary-black)]">
-                          {sampleInvoice.invoiceNumber}
-                        </dd>
-                      </div>
-                      <div className="flex justify-between sm:justify-end gap-3">
-                        <dt className="uppercase tracking-[0.16em]">Issued</dt>
-                        <dd className="font-medium text-[var(--secondary-black)]">
-                          {sampleInvoice.issueDate}
-                        </dd>
-                      </div>
-                      <div className="flex justify-between sm:justify-end gap-3">
-                        <dt className="uppercase tracking-[0.16em]">Due</dt>
-                        <dd className="font-medium text-[var(--secondary-black)]">
-                          {sampleInvoice.dueDate}
-                        </dd>
-                      </div>
-                      <div className="flex justify_between sm:justify-end gap-3">
-                        <dt className="uppercase tracking-[0.16em]">PO</dt>
-                        <dd className="font-medium text-[var(--secondary-black)]">
-                          {sampleInvoice.meta.purchaseOrder}
-                        </dd>
-                      </div>
-                    </dl>
-                  </div>
-                </div>
-
-                {/* Parties */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
-                  <div className="space-y-3">
-                    <p className="text-xs uppercase tracking-[0.16em] text-[var(--primary-base)]">
-                      Billed to
-                    </p>
-                    <div className="space-y-0.5 text-sm">
-                      <p className="font-medium text-[var(--secondary-black)]">
-                        {sampleInvoice.buyer.name}
-                      </p>
-                      <p className="text-[var(--primary-base)]">
-                        Attn: {sampleInvoice.buyer.contact}
-                      </p>
-                      <p className="text-[var(--primary-base)]">
-                        {sampleInvoice.buyer.address}
-                      </p>
-                      <p className="text-[var(--primary-base)]">
-                        {sampleInvoice.buyer.country}
-                      </p>
-                      <p className="text-[var(--primary-base)]">
-                        {sampleInvoice.buyer.email}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <p className="text-xs uppercase tracking-[0.16em] text-[var(--primary-base)]">
-                      Order reference
-                    </p>
-                    <div className="space-y-1 text-sm text-[var(--primary-base)]">
-                      <p>Payment terms: {sampleInvoice.meta.paymentTerms}</p>
-                      <p>Reference: {sampleInvoice.meta.reference}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Line items */}
-                <div className="rounded-2xl border border-gray-100 overflow-hidden mb-8">
-                  <table className="w-full border-collapse text-xs">
-                    <thead className="bg-[var(--primary-background)]">
-                      <tr className="text-[var(--primary-base)] text-left">
-                        <th className="px-4 py-3 font-medium">Item</th>
-                        <th className="px-4 py-3 font-medium hidden sm:table-cell">
-                          Details
-                        </th>
-                        <th className="px-4 py-3 font-medium text-right">
-                          Qty ({sampleInvoice.items[0].unit})
-                        </th>
-                        <th className="px-4 py-3 font-medium text-right">
-                          Unit price
-                        </th>
-                        <th className="px-4 py-3 font-medium text-right">
-                          Line total
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sampleInvoice.items.map((item) => {
-                        const lineTotal = item.quantity * item.unitPrice;
-                        return (
-                          <tr key={item.description}>
-                            <td className="px-4 py-3 align-top">
-                              <p className="font-medium text-[var(--secondary-black)]">
-                                {item.description}
-                              </p>
-                              <p className="text-[var(--primary-base)] sm:hidden mt-1">
-                                {item.details}
-                              </p>
-                            </td>
-                            <td className="px-4 py-3 align-top text-[var(--primary-base)] hidden sm:table-cell">
-                              {item.details}
-                            </td>
-                            <td className="px-4 py-3 align-top text-right text-[var(--secondary-black)]">
-                              {item.quantity.toLocaleString("en-US")}
-                            </td>
-                            <td className="px-4 py-3 align-top text-right text-[var(--secondary-black)]">
-                              {currency(item.unitPrice)}
-                            </td>
-                            <td className="px-4 py-3 align-top text-right font-medium text-[var(--secondary-black)]">
-                              {currency(lineTotal)}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Totals */}
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
-                  <div className="text-xs text-[var(--primary-base)] max-w-sm">
-                    <p className="font-medium text-[var(--secondary-black)] mb-1">
-                      Payment instructions
-                    </p>
-                    <ul className="list-disc list-inside space-y-1">
-                      {sampleInvoice.paymentInstructions.map((line) => (
-                        <li key={line}>{line}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div className="w-full sm:max-w-xs">
-                    <dl className="space-y-1 text-xs">
-                      <div className="flex justify-between gap-4">
-                        <dt className="text-[var(--primary-base)]">Subtotal</dt>
-                        <dd className="font-medium text-[var(--secondary-black)]">
-                          {currency(lineSubtotal)}
-                        </dd>
-                      </div>
-                      <div className="flex justify-between gap-4">
-                        <dt className="text-[var(--primary-base)]">
-                          Delivery &amp; handling
-                        </dt>
-                        <dd className="font-medium text-[var(--secondary-black)]">
-                          {currency(sampleInvoice.charges.delivery)}
-                        </dd>
-                      </div>
-                      <div className="flex justify-between gap-4">
-                        <dt className="text-[var(--primary-base)]">
-                          Platform fee
-                        </dt>
-                        <dd className="font-medium text-[var(--secondary-black)]">
-                          {currency(sampleInvoice.charges.platformFee)}
-                        </dd>
-                      </div>
-                      <div className="flex justify-between gap-4">
-                        <dt className="text-[var(--primary-base)]">
-                          Tax (
-                          {(sampleInvoice.charges.taxRate * 100).toFixed(0)}
-                          %)
-                        </dt>
-                        <dd className="font-medium text-[var(--secondary-black)]">
-                          {currency(tax)}
-                        </dd>
-                      </div>
-                      <div className="flex justify-between gap-4 pt-2 border-t border-dashed border-gray-200 mt-1">
-                        <dt className="text-[var(--primary-base)]">Discount</dt>
-                        <dd className="font-medium text-emerald-600">
-                          -{currency(sampleInvoice.charges.discount)}
-                        </dd>
-                      </div>
-                      <div className="flex justify-between gap-4 pt-2 border-t border-gray-900/10 mt-2">
-                        <dt className="text-xs font-semibold text-[var(--secondary-black)] uppercase tracking-[0.16em]">
-                          Amount due
-                        </dt>
-                        <dd className="text-base font-semibold text-[var(--secondary-black)]">
-                          {currency(total)}
-                        </dd>
-                      </div>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-
-              <p className="mt-8 text-[0.68rem] text-[var(--primary-base)] leading-relaxed">
-                {sampleInvoice.footerNote}
-              </p>
-              <BrandFooter />
-            </div>
+            <ClassicInvoice
+              ref={classicRef}
+              logoUrl={EMAIL_LOGO_URL}
+              invoiceNumber={sampleInvoice.invoiceNumber}
+              issueDate={sampleInvoice.issueDate}
+              dueDate={sampleInvoice.dueDate}
+              purchaseOrder={sampleInvoice.meta.purchaseOrder}
+              paymentStatusLabel="Payment pending"
+              seller={{
+                addressLines: [sampleInvoice.seller.address],
+                country: sampleInvoice.seller.country,
+                email: sampleInvoice.seller.email,
+                phone: sampleInvoice.seller.phone,
+                taxId: sampleInvoice.seller.taxId,
+              }}
+              buyer={{
+                name: sampleInvoice.buyer.name,
+                contact: sampleInvoice.buyer.contact,
+                addressLines: [sampleInvoice.buyer.address],
+                country: sampleInvoice.buyer.country,
+                email: sampleInvoice.buyer.email,
+              }}
+              metaLines={[
+                `Payment terms: ${sampleInvoice.meta.paymentTerms}`,
+                `Reference: ${sampleInvoice.meta.reference}`,
+              ]}
+              items={sampleInvoice.items.map((item) => ({
+                description: item.description,
+                details: item.details,
+                unit: item.unit,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+              }))}
+              charges={{
+                currency: sampleInvoice.charges.currency,
+                delivery: sampleInvoice.charges.delivery,
+                platformFee: sampleInvoice.charges.platformFee,
+                discount: sampleInvoice.charges.discount,
+                taxRate: sampleInvoice.charges.taxRate,
+              }}
+              paymentInstructions={sampleInvoice.paymentInstructions}
+              footerNote={sampleInvoice.footerNote}
+            />
           </section>
         </div>
       </div>
