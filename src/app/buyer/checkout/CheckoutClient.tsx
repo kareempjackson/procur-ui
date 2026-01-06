@@ -9,10 +9,8 @@ import {
   ArrowRightIcon,
   CheckIcon,
   MapPinIcon,
-  CreditCardIcon,
   BanknotesIcon,
   TruckIcon,
-  ShieldCheckIcon,
   CheckBadgeIcon,
   PencilIcon,
   PlusIcon,
@@ -27,13 +25,6 @@ import {
 } from "@/store/slices/buyerOrdersSlice";
 import ProcurLoader from "@/components/ProcurLoader";
 import { getApiClient } from "@/lib/apiClient";
-import { loadStripe } from "@stripe/stripe-js";
-import {
-  Elements,
-  PaymentElement,
-  useStripe,
-  useElements,
-} from "@stripe/react-stripe-js";
 
 // Demo data - will come from cart in real implementation
 const demoOrderData = {
@@ -119,27 +110,6 @@ const demoAddresses = [
   },
 ];
 
-const demoPaymentMethods = [
-  {
-    id: "pm_1",
-    type: "card",
-    cardBrand: "Visa",
-    last4: "4242",
-    expiryMonth: "12",
-    expiryYear: "2025",
-    isDefault: true,
-  },
-  {
-    id: "pm_2",
-    type: "card",
-    cardBrand: "Mastercard",
-    last4: "5555",
-    expiryMonth: "08",
-    expiryYear: "2026",
-    isDefault: false,
-  },
-];
-
 type CheckoutStep = "shipping" | "review" | "payment";
 
 export default function CheckoutClient() {
@@ -156,136 +126,19 @@ export default function CheckoutClient() {
   // Local state
   const [currentStep, setCurrentStep] = useState<CheckoutStep>("shipping");
   const [selectedAddress, setSelectedAddress] = useState<string>("");
-  const [selectedPayment, setSelectedPayment] = useState(
-    demoPaymentMethods[0].id
-  );
   const [deliveryInstructions, setDeliveryInstructions] = useState("");
   const [showAddressForm, setShowAddressForm] = useState(false);
-  const [showPaymentForm, setShowPaymentForm] = useState(false);
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [orderIds, setOrderIds] = useState<string[]>([]);
-  const [isStartingPayment, setIsStartingPayment] = useState(false);
-  const [isConfirming, setIsConfirming] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
-  const [autoConfirm, setAutoConfirm] = useState(false);
-  const [paymentElementReady, setPaymentElementReady] = useState(false);
-  const [intentValid, setIntentValid] = useState<boolean>(false);
 
-  // Payment method: card (Stripe), bank_transfer, cash
+  // Payment method: offline-only (no card payments)
   const [paymentMethod, setPaymentMethod] = useState<
-    "card" | "bank_transfer" | "cash"
-  >("card");
-
-  // Stripe publishable key handling (env or backend fallback)
-  const envPublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
-  const [publishableKey, setPublishableKey] = useState<string | null>(
-    envPublishableKey || null
-  );
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      if (publishableKey) return;
-      try {
-        const api = getApiClient();
-        const { data } = await api.get("/payments/config");
-        const key = data?.publishable_key as string | undefined;
-        if (!cancelled && key) setPublishableKey(key);
-      } catch {
-        // ignore; UI will show non-configured state
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [publishableKey]);
-  const stripePromise = React.useMemo(() => {
-    return publishableKey ? loadStripe(publishableKey) : null;
-  }, [publishableKey]);
-
-  // Auto-create a PaymentIntent when on card payment step
-  useEffect(() => {
-    console.log(
-      "[Checkout] step=%s method=%s publishableKey=%s selectedAddress=%s clientSecret?=%s",
-      currentStep,
-      paymentMethod,
-      !!publishableKey,
-      selectedAddress,
-      !!clientSecret
-    );
-    if (
-      currentStep === "payment" &&
-      paymentMethod === "card" &&
-      publishableKey &&
-      selectedAddress &&
-      !clientSecret &&
-      !isStartingPayment
-    ) {
-      console.log("[Checkout] Trigger startPayment()");
-      startPayment();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentStep, paymentMethod, publishableKey, selectedAddress]);
-
-  // Reset PaymentElement readiness when the intent changes
-  useEffect(() => {
-    setPaymentElementReady(false);
-    setIntentValid(false);
-  }, [clientSecret]);
-
-  // Verify client secret is valid for this publishable key before mounting PaymentElement
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      if (!clientSecret || !stripePromise) return;
-      console.log(
-        "[Checkout] Verifying clientSecret with Stripe.retrievePaymentIntent"
-      );
-      const stripe = await stripePromise;
-      if (!stripe) return;
-      const res = await stripe.retrievePaymentIntent(clientSecret);
-      if (cancelled) return;
-      if (res.error) {
-        console.error("[Checkout] retrievePaymentIntent error", res.error);
-        setIntentValid(false);
-        setPaymentError(
-          res.error.message || "Invalid payment session. Please try again."
-        );
-      } else {
-        console.log(
-          "[Checkout] PaymentIntent retrieved OK",
-          res.paymentIntent?.id
-        );
-        setIntentValid(true);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [clientSecret, stripePromise]);
+    "bank_transfer" | "cash"
+  >("bank_transfer");
 
   // Unified Pay handler
   const handlePay = async () => {
     console.log("[Checkout] handlePay clicked; method=%s", paymentMethod);
-    if (paymentMethod === "card") {
-      if (!publishableKey) {
-        setPaymentError("Payments are not configured.");
-        return;
-      }
-      if (!clientSecret) {
-        console.log("[Checkout] No clientSecret yet; calling startPayment()");
-        await startPayment();
-      }
-      // Optimistically refresh cart and orders so UI reflects changes after redirect
-      dispatch(fetchCart());
-      dispatch(fetchOrders({ page: 1, limit: 20 } as any));
-      console.log(
-        "[Checkout] Redirecting to Stripe confirm via StripeConfirmButton"
-      );
-      setAutoConfirm(true);
-      return;
-    }
-
     if (!cart || !selectedAddress) return;
     setPaymentError(null);
     setIsPlacingOrder(true);
@@ -352,7 +205,7 @@ export default function CheckoutClient() {
   const steps = [
     { id: "shipping", label: "Shipping", icon: TruckIcon },
     { id: "review", label: "Review", icon: CheckIcon },
-    { id: "payment", label: "Payment", icon: CreditCardIcon },
+    { id: "payment", label: "Payment", icon: BanknotesIcon },
   ];
 
   const getStepIndex = (step: CheckoutStep) =>
@@ -412,40 +265,8 @@ export default function CheckoutClient() {
   };
 
   const totals = calculateTotals();
-
-  const startPayment = async () => {
-    if (!cart || !selectedAddress) return;
-    setPaymentError(null);
-    setIsStartingPayment(true);
-    try {
-      console.log("[Checkout] POST /buyers/checkout/payment-intent", {
-        shipping_address_id: selectedAddress,
-        billing_address_id: selectedAddress,
-      });
-      const api = getApiClient();
-      const { data } = await api.post("/buyers/checkout/payment-intent", {
-        shipping_address_id: selectedAddress,
-        billing_address_id: selectedAddress,
-        buyer_notes: deliveryInstructions || undefined,
-      });
-      console.log("[Checkout] payment-intent created", {
-        client_secret_present: !!data.client_secret,
-        order_ids_count: (data.order_ids || []).length,
-      });
-      setClientSecret(data.client_secret);
-      setOrderIds(data.order_ids || []);
-    } catch (e: any) {
-      console.error("[Checkout] startPayment failed", e);
-      setPaymentError(e?.message || "Failed to start payment");
-    } finally {
-      setIsStartingPayment(false);
-    }
-  };
   const selectedAddressData = demoAddresses.find(
     (addr) => addr.id === selectedAddress
-  );
-  const selectedPaymentData = demoPaymentMethods.find(
-    (pm) => pm.id === selectedPayment
   );
 
   const saveAddressIfNeeded = async (): Promise<boolean> => {
@@ -985,25 +806,7 @@ export default function CheckoutClient() {
                 </h2>
 
                 {/* Payment method selector */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
-                  <button
-                    onClick={() => setPaymentMethod("card")}
-                    className={`flex items-center gap-3 p-4 rounded-xl border transition-all ${
-                      paymentMethod === "card"
-                        ? "border-[var(--primary-accent2)] bg-[var(--primary-accent2)]/5"
-                        : "border-[var(--secondary-soft-highlight)]/30 hover:border-[var(--primary-accent2)]/50"
-                    }`}
-                  >
-                    <CreditCardIcon className="h-5 w-5 text-[var(--secondary-black)]" />
-                    <div className="text-left">
-                      <p className="font-medium text-[var(--secondary-black)] text-sm">
-                        Credit Card
-                      </p>
-                      <p className="text-xs text-[var(--secondary-muted-edge)]">
-                        Pay securely with Stripe
-                      </p>
-                    </div>
-                  </button>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
                   <button
                     onClick={() => setPaymentMethod("bank_transfer")}
                     className={`flex items-center gap-3 p-4 rounded-xl border transition-all ${
@@ -1042,68 +845,17 @@ export default function CheckoutClient() {
                   </button>
                 </div>
 
-                {/* For non-card methods show simple instructions; card uses Stripe Payment Element below */}
-                {paymentMethod !== "card" && (
-                  <div className="space-y-3">
-                    <div className="p-4 border border-[var(--secondary-soft-highlight)]/30 rounded-xl bg-[var(--primary-background)]">
-                      <p className="text-sm font-medium text-[var(--secondary-black)]">
-                        {paymentMethod === "bank_transfer"
-                          ? "Bank Transfer Instructions"
-                          : "Cash on Delivery"}
-                      </p>
-                      <p className="text-xs text-[var(--secondary-muted-edge)] mt-1">
-                        {paymentMethod === "bank_transfer"
-                          ? "Place the order to receive bank details and reference number. Your order will be pending until payment is verified."
-                          : "Place the order and pay the courier upon delivery. Exact cash may be required depending on region."}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Stripe Elements (render after clientSecret) */}
-                {paymentMethod === "card" && clientSecret && stripePromise && (
-                  <div className="mt-6">
-                    <Elements
-                      key={clientSecret}
-                      stripe={stripePromise}
-                      options={{ clientSecret }}
-                    >
-                      <div className="p-4 border border-[var(--secondary-soft-highlight)]/30 rounded-xl">
-                        <PaymentElement
-                          onReady={() => setPaymentElementReady(true)}
-                        />
-                      </div>
-                      <StripeConfirmButton
-                        orderId={orderIds[0]}
-                        setError={setPaymentError}
-                        isConfirming={isConfirming}
-                        setIsConfirming={setIsConfirming}
-                        autoConfirm={autoConfirm}
-                        ready={paymentElementReady}
-                        renderButton={false}
-                      />
-                    </Elements>
-                  </div>
-                )}
-                {paymentMethod === "card" &&
-                  (!publishableKey || !clientSecret) && (
-                    <div className="mt-4 p-3 border border-yellow-200 bg-yellow-50 rounded text-xs text-yellow-900">
-                      {!publishableKey
-                        ? "Payments are not configured. Missing Stripe publishable key."
-                        : "Creating a secure payment session... If this takes longer than a few seconds, refresh and try again."}
-                    </div>
-                  )}
-
-                {/* Security Notice */}
-                <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start gap-3">
-                  <ShieldCheckIcon className="h-5 w-5 text-green-600 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium text-green-900">
-                      Secure Payment
+                <div className="space-y-3">
+                  <div className="p-4 border border-[var(--secondary-soft-highlight)]/30 rounded-xl bg-[var(--primary-background)]">
+                    <p className="text-sm font-medium text-[var(--secondary-black)]">
+                      {paymentMethod === "bank_transfer"
+                        ? "Bank Transfer Instructions"
+                        : "Cash on Delivery"}
                     </p>
-                    <p className="text-xs text-green-700 mt-1">
-                      Your payment information is encrypted and secure. We never
-                      store your full card details.
+                    <p className="text-xs text-[var(--secondary-muted-edge)] mt-1">
+                      {paymentMethod === "bank_transfer"
+                        ? "Place the order to receive bank details and a reference number. Your order will remain pending until payment is verified."
+                        : "Place the order and pay the courier upon delivery. Exact cash may be required depending on region."}
                     </p>
                   </div>
                 </div>
@@ -1142,20 +894,14 @@ export default function CheckoutClient() {
                   <button
                     onClick={handlePay}
                     disabled={
-                      isStartingPayment ||
                       isPlacingOrder ||
                       !selectedAddress ||
-                      !cart ||
-                      (paymentMethod === "card" && !publishableKey)
+                      !cart
                     }
                     className="flex items-center gap-2 px-8 py-3 bg-[var(--primary-accent2)] text-white rounded-full hover:bg-[var(--primary-accent3)] transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isStartingPayment || isPlacingOrder ? (
+                    {isPlacingOrder ? (
                       <span>Processing...</span>
-                    ) : paymentMethod === "card" ? (
-                      <>
-                        <CreditCardIcon className="h-5 w-5" /> Pay Now
-                      </>
                     ) : (
                       <>
                         <TruckIcon className="h-5 w-5" /> Place Order
@@ -1260,76 +1006,5 @@ export default function CheckoutClient() {
         </div>
       </main>
     </div>
-  );
-}
-
-function StripeConfirmButton(props: {
-  orderId?: string;
-  setError: (s: string | null) => void;
-  isConfirming: boolean;
-  setIsConfirming: (b: boolean) => void;
-  autoConfirm?: boolean;
-  ready?: boolean;
-  renderButton?: boolean;
-}) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const router = useRouter();
-  const dispatch = useAppDispatch();
-  const {
-    orderId,
-    setError,
-    isConfirming,
-    setIsConfirming,
-    autoConfirm,
-    ready,
-    renderButton = true,
-  } = props;
-
-  const onConfirm = async () => {
-    if (!stripe || !elements) return;
-    setError(null);
-    setIsConfirming(true);
-    try {
-      // Optimistically refresh store so UI reflects cleared cart and new orders
-      dispatch(fetchCart());
-      dispatch(fetchOrders({ page: 1, limit: 20 } as any));
-      const { error } = await stripe.confirmPayment({
-        elements,
-        confirmParams: {
-          return_url: `${window.location.origin}/buyer/order-confirmation/${orderId || ""}`,
-        },
-      });
-      if (error) {
-        setError(error.message || "Payment failed");
-      }
-    } finally {
-      setIsConfirming(false);
-    }
-  };
-
-  useEffect(() => {
-    if (autoConfirm && ready && stripe && elements && !isConfirming) {
-      onConfirm();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoConfirm, ready, stripe, elements]);
-
-  if (!renderButton) return null;
-
-  return (
-    <button
-      onClick={onConfirm}
-      disabled={!stripe || !elements || isConfirming}
-      className="flex items-center gap-2 px-8 py-3 bg-green-600 text-white rounded-full hover:bg-green-700 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-    >
-      {isConfirming ? (
-        <span>Processing...</span>
-      ) : (
-        <>
-          <CheckIcon className="h-5 w-5" /> Pay Now
-        </>
-      )}
-    </button>
   );
 }

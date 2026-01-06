@@ -46,89 +46,154 @@ export default function BuyerOrdersPage() {
       (o.status || "").toLowerCase().includes("pending")
     ).length;
     const totalPaid = ordersList
-      .filter((o) => o.status?.toLowerCase() === "completed")
+      .filter((o) => (o.payment_status || "").toLowerCase() === "paid")
       .reduce((sum, o) => sum + (o.total_amount || 0), 0);
     return { completed, pending, totalPaid };
   }, [ordersList]);
 
   const loading = status === "loading";
   const total = pagination?.totalItems || 0;
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+    }).format(amount);
 
   return (
     <div className="min-h-screen bg-white">
       <main className="max-w-7xl mx-auto px-6 py-10">
-        {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl leading-tight text-[var(--secondary-black)] font-medium">
-              Your Orders
-            </h1>
-            <p className="text-sm text-[var(--secondary-muted-edge)]">
-              Track your purchases and deliveries
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link href="/buyer" className="btn btn-ghost h-8 px-3 text-sm">
-              Browse Marketplace
-            </Link>
-          </div>
-        </div>
+        {/* Header + Summary */}
+        <section className="relative overflow-hidden rounded-3xl border border-[var(--secondary-soft-highlight)]/30 bg-gradient-to-br from-[var(--primary-background)] via-white to-white p-6 sm:p-8 mb-6">
+          {/* decorative glow */}
+          <div className="pointer-events-none absolute -top-24 -right-24 h-56 w-56 rounded-full bg-[var(--primary-accent2)]/10 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-24 -left-24 h-56 w-56 rounded-full bg-[#A6B1E7]/15 blur-3xl" />
 
-        {/* Summary */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {/* Completed Orders */}
-          <div className="bg-gradient-to-br from-[#C0D1C7] to-[#407178] rounded-2xl p-6 text-white shadow-lg">
-            <div className="flex items-center justify-between mb-2">
-              <CheckCircleIcon className="h-8 w-8 opacity-80" />
-              <div className="text-xs bg-white/20 px-2 py-1 rounded-full">
-                Completed
+          <div className="relative flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+            <div className="max-w-2xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[var(--secondary-soft-highlight)]/30 bg-white/70 px-3 py-1 text-xs text-[var(--secondary-muted-edge)] backdrop-blur">
+                <span className="h-1.5 w-1.5 rounded-full bg-[var(--primary-accent2)]" />
+                Orders dashboard
               </div>
+              <h1 className="mt-3 text-3xl sm:text-4xl leading-[1.1] text-[var(--secondary-black)] font-semibold tracking-tight">
+                Your Orders
+              </h1>
+              <p className="mt-2 text-sm sm:text-base text-[var(--secondary-muted-edge)]">
+                Track deliveries, payment status, and purchase history.
+              </p>
             </div>
-            <div className="text-3xl font-bold mb-1">{summary.completed}</div>
-            <div className="text-xs opacity-80">Orders delivered</div>
-          </div>
 
-          {/* Pending Orders */}
-          <div className="bg-gradient-to-br from-[#E0A374] to-[#CB5927] rounded-2xl p-6 text-white shadow-lg">
-            <div className="flex items-center justify-between mb-2">
-              <ClockIcon className="h-8 w-8 opacity-80" />
-              <div className="text-xs bg-white/20 px-2 py-1 rounded-full">
-                Pending
-              </div>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/buyer"
+                className="inline-flex items-center justify-center rounded-full border border-[var(--secondary-soft-highlight)]/40 bg-white/70 px-4 py-2 text-sm font-medium text-[var(--secondary-black)] hover:bg-white transition-colors backdrop-blur"
+              >
+                Browse Marketplace
+              </Link>
             </div>
-            <div className="text-3xl font-bold mb-1">{summary.pending}</div>
-            <div className="text-xs opacity-80">In progress</div>
           </div>
 
-          {/* Total Paid */}
-          <div className="bg-gradient-to-br from-[#CB5927] to-[#653011] rounded-2xl p-6 text-white shadow-lg">
-            <div className="flex items-center justify-between mb-2">
-              <BanknotesIcon className="h-8 w-8 opacity-80" />
-              <div className="text-xs bg-white/20 px-2 py-1 rounded-full">
-                Paid
+          <div className="relative mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Delivered */}
+            <div className="group rounded-2xl border border-[var(--secondary-soft-highlight)]/30 bg-white/70 p-5 shadow-sm backdrop-blur hover:shadow-md transition-shadow">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-[#C0D1C7]/40 flex items-center justify-center">
+                    <CheckCircleIcon className="h-5 w-5 text-[#407178]" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium text-[var(--secondary-muted-edge)]">
+                      Delivered
+                    </div>
+                    <div className="mt-1 text-3xl font-semibold text-[var(--secondary-black)] tabular-nums">
+                      {summary.completed}
+                    </div>
+                  </div>
+                </div>
+                <span className="text-[11px] font-medium rounded-full bg-[#C0D1C7]/35 text-[#407178] px-2.5 py-1">
+                  Completed
+                </span>
+              </div>
+              <div className="mt-2 text-xs text-[var(--secondary-muted-edge)]">
+                Orders delivered
               </div>
             </div>
-            <div className="text-3xl font-bold mb-1">
-              {new Intl.NumberFormat("en-US", {
-                style: "currency",
-                currency: "USD",
-              }).format(summary.totalPaid)}
-            </div>
-            <div className="text-xs opacity-80">This page</div>
-          </div>
 
-          {/* Total Orders */}
-          <div className="bg-gradient-to-br from-[#A6B1E7] to-[#8091D5] rounded-2xl p-6 text-white shadow-lg">
-            <div className="flex items-center justify-between mb-2">
-              <ShoppingCartIcon className="h-8 w-8 opacity-80" />
-              <div className="text-xs bg-white/20 px-2 py-1 rounded-full">
-                Total
+            {/* Pending */}
+            <div className="group rounded-2xl border border-[var(--secondary-soft-highlight)]/30 bg-white/70 p-5 shadow-sm backdrop-blur hover:shadow-md transition-shadow">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-[#E0A374]/30 flex items-center justify-center">
+                    <ClockIcon className="h-5 w-5 text-[#CB5927]" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium text-[var(--secondary-muted-edge)]">
+                      Pending
+                    </div>
+                    <div className="mt-1 text-3xl font-semibold text-[var(--secondary-black)] tabular-nums">
+                      {summary.pending}
+                    </div>
+                  </div>
+                </div>
+                <span className="text-[11px] font-medium rounded-full bg-[#E0A374]/30 text-[#CB5927] px-2.5 py-1">
+                  In progress
+                </span>
+              </div>
+              <div className="mt-2 text-xs text-[var(--secondary-muted-edge)]">
+                Awaiting fulfillment
               </div>
             </div>
-            <div className="text-3xl font-bold mb-1">{total}</div>
-            <div className="text-xs opacity-80">All orders</div>
+
+            {/* Paid */}
+            <div className="group rounded-2xl border border-[var(--secondary-soft-highlight)]/30 bg-white/70 p-5 shadow-sm backdrop-blur hover:shadow-md transition-shadow">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-[#CB5927]/15 flex items-center justify-center">
+                    <BanknotesIcon className="h-5 w-5 text-[#653011]" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium text-[var(--secondary-muted-edge)]">
+                      Paid
+                    </div>
+                    <div className="mt-1 text-3xl font-semibold text-[var(--secondary-black)] tabular-nums">
+                      {formatCurrency(summary.totalPaid)}
+                    </div>
+                  </div>
+                </div>
+                <span className="text-[11px] font-medium rounded-full bg-[#CB5927]/15 text-[#653011] px-2.5 py-1">
+                  This page
+                </span>
+              </div>
+              <div className="mt-2 text-xs text-[var(--secondary-muted-edge)]">
+                Value of paid orders
+              </div>
+            </div>
+
+            {/* Total */}
+            <div className="group rounded-2xl border border-[var(--secondary-soft-highlight)]/30 bg-white/70 p-5 shadow-sm backdrop-blur hover:shadow-md transition-shadow">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-[#A6B1E7]/25 flex items-center justify-center">
+                    <ShoppingCartIcon className="h-5 w-5 text-[#8091D5]" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium text-[var(--secondary-muted-edge)]">
+                      Total orders
+                    </div>
+                    <div className="mt-1 text-3xl font-semibold text-[var(--secondary-black)] tabular-nums">
+                      {total}
+                    </div>
+                  </div>
+                </div>
+                <span className="text-[11px] font-medium rounded-full bg-[#A6B1E7]/25 text-[#8091D5] px-2.5 py-1">
+                  All time
+                </span>
+              </div>
+              <div className="mt-2 text-xs text-[var(--secondary-muted-edge)]">
+                All orders
+              </div>
+            </div>
           </div>
-        </div>
+        </section>
 
         {/* Error */}
         {error && (
@@ -230,10 +295,7 @@ export default function BuyerOrdersPage() {
                       </td>
                       <td className="py-4 px-6">
                         <div className="font-bold text-sm text-[var(--secondary-black)]">
-                          {new Intl.NumberFormat("en-US", {
-                            style: "currency",
-                            currency: "USD",
-                          }).format(order.total_amount || 0)}
+                          {formatCurrency(order.total_amount || 0)}
                         </div>
                       </td>
                       <td className="py-4 px-6">

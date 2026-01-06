@@ -147,7 +147,7 @@ export default function BuyerTransactionsPage() {
           <div className="flex items-center justify-between mb-2">
             <div>
               <h1 className="text-3xl font-bold text-[var(--secondary-black)] mb-1">
-                Transactions
+                Transaction History
               </h1>
               <p className="text-sm text-[var(--secondary-muted-edge)]">
                 View and manage your payment history

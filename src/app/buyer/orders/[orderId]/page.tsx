@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -10,10 +12,7 @@ import {
   TruckIcon,
   MapPinIcon,
   ClockIcon,
-  EnvelopeIcon,
-  PhoneIcon,
   CheckBadgeIcon,
-  ExclamationCircleIcon,
   ArrowDownTrayIcon,
   ChatBubbleLeftIcon,
   XCircleIcon,
@@ -32,130 +31,7 @@ import { useToast } from "@/components/ui/Toast";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
-// Demo order data with full tracking
-const order = {
-  id: "ord_abc123",
-  orderNumber: "#10245",
-  status: "shipped",
-  paymentStatus: "paid",
-  createdAt: "2025-10-05T14:30:00Z",
-  acceptedAt: "2025-10-05T16:00:00Z",
-  shippedAt: "2025-10-06T10:00:00Z",
-  estimatedDelivery: "2025-10-15",
-  total: 245.83,
-  currency: "USD",
-  canCancel: false,
-  canReview: false,
-  tracking: {
-    carrier: "FedEx",
-    trackingNumber: "789456123098",
-    trackingUrl: "https://fedex.com/track/789456123098",
-    currentStatus: "In Transit",
-    lastLocation: "Miami, FL Distribution Center",
-    lastUpdate: "2025-10-07T08:30:00Z",
-    events: [
-      {
-        id: 1,
-        status: "Delivered",
-        location: "Miami, FL 33101",
-        date: null,
-        description: "Estimated delivery",
-        isEstimate: true,
-      },
-      {
-        id: 2,
-        status: "In Transit",
-        location: "Miami, FL Distribution Center",
-        date: "2025-10-07T08:30:00Z",
-        description: "Package arrived at facility",
-        isEstimate: false,
-      },
-      {
-        id: 3,
-        status: "In Transit",
-        location: "Atlanta, GA Hub",
-        date: "2025-10-06T18:45:00Z",
-        description: "Package departed facility",
-        isEstimate: false,
-      },
-      {
-        id: 4,
-        status: "Picked Up",
-        location: "Kingston, Jamaica",
-        date: "2025-10-06T10:00:00Z",
-        description: "Package picked up by carrier",
-        isEstimate: false,
-      },
-      {
-        id: 5,
-        status: "Accepted",
-        location: "Caribbean Farms Co.",
-        date: "2025-10-05T16:00:00Z",
-        description: "Order accepted by seller",
-        isEstimate: false,
-      },
-      {
-        id: 6,
-        status: "Order Placed",
-        location: "Procur Platform",
-        date: "2025-10-05T14:30:00Z",
-        description: "Order successfully placed",
-        isEstimate: false,
-      },
-    ],
-  },
-  seller: {
-    id: "seller_1",
-    name: "Caribbean Farms Co.",
-    email: "orders@caribbeanfarms.com",
-    phone: "(876) 555-0123",
-    location: "Kingston, Jamaica",
-    verified: true,
-    rating: 4.8,
-    totalReviews: 234,
-  },
-  items: [
-    {
-      id: "item_1",
-      productId: "prod_1",
-      name: "Organic Cherry Tomatoes",
-      quantity: 10,
-      unit: "lb",
-      price: 3.5,
-      total: 35.0,
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-    },
-    {
-      id: "item_2",
-      productId: "prod_2",
-      name: "Fresh Basil",
-      quantity: 5,
-      unit: "bunch",
-      price: 8.5,
-      total: 42.5,
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-    },
-  ],
-  shippingAddress: {
-    name: "John Smith",
-    street: "123 Main Street",
-    apartment: "Apt 4B",
-    city: "Miami",
-    state: "FL",
-    zipCode: "33101",
-    country: "United States",
-    phone: "(305) 555-0123",
-  },
-  paymentMethod: {
-    type: "card",
-    brand: "Visa",
-    last4: "4242",
-  },
-  subtotal: 77.5,
-  shipping: 25.0,
-  tax: 6.2,
-  notes: "Please leave at door if no one is home. Ring doorbell twice.",
-};
+// Demo order data removed; this page uses live order data from the API.
 
 const statusColors: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800",
@@ -408,7 +284,8 @@ export default function OrderDetailPage({
             Order Not Found
           </h2>
           <p className="text-[var(--secondary-muted-edge)] mb-4">
-            The order you're looking for doesn't exist or has been removed.
+            The order you&apos;re looking for doesn&apos;t exist or has been
+            removed.
           </p>
           <button
             onClick={() => router.push("/buyer/orders")}
@@ -443,11 +320,6 @@ export default function OrderDetailPage({
     (fallbackOrder as any)?.line_items ??
     [];
   const orderItems = normalizeItems(rawItems);
-  const firstItemName =
-    orderItems[0]?.product_name ||
-    (orderItems[0] as any)?.product_snapshot?.product_name ||
-    (orderItems[0] as any)?.product_snapshot?.name ||
-    undefined;
   const canCancel = order.status === "pending" || order.status === "accepted";
   const canReview = order.status === "delivered";
   const currencyCode =
@@ -467,16 +339,18 @@ export default function OrderDetailPage({
     );
     return sum + lineTotal;
   }, 0);
-  const invoiceShipping = Number((order as any)?.shipping_cost || 0);
-  const invoiceTax = Number((order as any)?.tax || 0);
-  const invoicePlatformFee = Number((order as any)?.platform_fee || 0);
+  const invoiceDeliveryFee = Number(
+    (order as any)?.shipping_amount ?? (order as any)?.shipping_cost ?? 0
+  );
+  const invoicePlatformFee = Number(
+    (order as any)?.platform_fee_amount ?? (order as any)?.platform_fee ?? 0
+  );
   const invoiceDiscount = Number((order as any)?.discount_amount || 0);
   const invoiceTotal =
     Number((order as any)?.total_amount) ||
     invoiceLineSubtotal +
-      invoiceShipping +
-      invoicePlatformFee +
-      invoiceTax -
+      invoiceDeliveryFee +
+      invoicePlatformFee -
       invoiceDiscount;
   const statusOrder = [
     "pending",
@@ -617,26 +491,42 @@ export default function OrderDetailPage({
               {order.shipping_address && (
                 <div className="space-y-0.5 text-sm">
                   <p className="font-medium text-[var(--secondary-black)]">
-                    {(order.shipping_address as any).name ||
+                    (order.shipping_address as any).contact_name ||
+                      (order.shipping_address as any).name ||
                       (order as any)?.buyer_name ||
-                      ""}
+                      ""
                   </p>
                   <p className="text-[var(--primary-base)]">
-                    {order.shipping_address.address_line1}
+                    {(order.shipping_address as any).line1 ||
+                      (order.shipping_address as any).address_line1 ||
+                      (order.shipping_address as any).street_address ||
+                      ""}
                   </p>
-                  {order.shipping_address.address_line2 && (
+                  {((order.shipping_address as any).line2 ||
+                    (order.shipping_address as any).address_line2) && (
                     <p className="text-[var(--primary-base)]">
-                      {order.shipping_address.address_line2}
+                      {(order.shipping_address as any).line2 ||
+                        (order.shipping_address as any).address_line2}
                     </p>
                   )}
                   <p className="text-[var(--primary-base)]">
-                    {order.shipping_address.city},{" "}
-                    {order.shipping_address.state}{" "}
-                    {order.shipping_address.postal_code}
+                    {(order.shipping_address as any).city}
+                    {((order.shipping_address as any).state ||
+                      (order.shipping_address as any).postal_code) &&
+                      ", "}
+                    {(order.shipping_address as any).state}{" "}
+                    {(order.shipping_address as any).postal_code}
                   </p>
                   <p className="text-[var(--primary-base)]">
-                    {order.shipping_address.country}
+                    {(order.shipping_address as any).country}
                   </p>
+                  {((order.shipping_address as any).phone ||
+                    (order.shipping_address as any).contact_phone) && (
+                    <p className="text-[var(--primary-base)]">
+                      {(order.shipping_address as any).phone ||
+                        (order.shipping_address as any).contact_phone}
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -763,10 +653,10 @@ export default function OrderDetailPage({
                 </div>
                 <div className="flex justify-between gap-4">
                   <dt className="text-[var(--primary-base)]">
-                    Shipping &amp; handling
+                    Delivery fee
                   </dt>
                   <dd className="font-medium text-[var(--secondary-black)]">
-                    {formatCurrency(invoiceShipping)}
+                    {formatCurrency(invoiceDeliveryFee)}
                   </dd>
                 </div>
                 {invoicePlatformFee > 0 && (
@@ -774,14 +664,6 @@ export default function OrderDetailPage({
                     <dt className="text-[var(--primary-base)]">Platform fee</dt>
                     <dd className="font-medium text-[var(--secondary-black)]">
                       {formatCurrency(invoicePlatformFee)}
-                    </dd>
-                  </div>
-                )}
-                {invoiceTax > 0 && (
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-[var(--primary-base)]">Tax</dt>
-                    <dd className="font-medium text-[var(--secondary-black)]">
-                      {formatCurrency(invoiceTax)}
                     </dd>
                   </div>
                 )}
@@ -892,6 +774,115 @@ export default function OrderDetailPage({
                   >
                     Cancel Order
                   </button>
+                </div>
+              )}
+            </div>
+
+            {/* Items Purchased */}
+            <div className="bg-white rounded-3xl border border-[var(--secondary-soft-highlight)]/20 p-6">
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="text-xl font-semibold text-[var(--secondary-black)]">
+                  Items Purchased
+                </h2>
+                <span className="text-sm text-[var(--secondary-muted-edge)]">
+                  {orderItems.length} item{orderItems.length === 1 ? "" : "s"}
+                </span>
+              </div>
+
+              {orderItems.length === 0 ? (
+                <div className="rounded-2xl border border-[var(--secondary-soft-highlight)]/30 bg-[var(--primary-background)]/40 p-5">
+                  <p className="text-sm text-[var(--secondary-muted-edge)]">
+                    No items found for this order.
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-[var(--secondary-soft-highlight)]/20 rounded-2xl border border-[var(--secondary-soft-highlight)]/20 overflow-hidden">
+                  {orderItems.map((item: any, index: number) => {
+                    const qty = Number(item.quantity || 0);
+                    const unitPrice = Number(
+                      item.unit_price ?? item.price_per_unit ?? item.price ?? 0
+                    );
+                    const lineTotal = Number(
+                      item.total_price ?? item.subtotal ?? qty * unitPrice
+                    );
+                    const unit =
+                      item.unit ||
+                      item.unit_of_measurement ||
+                      item?.product_snapshot?.unit_of_measurement ||
+                      item?.product_snapshot?.unit ||
+                      "";
+                    const name =
+                      item.product_name ||
+                      item?.product_snapshot?.product_name ||
+                      item?.product_snapshot?.name ||
+                      "Item";
+                    const imageUrl =
+                      item.product_image ||
+                      item.image_url ||
+                      item?.product_snapshot?.image_url ||
+                      null;
+
+                    return (
+                      <div
+                        key={item.id || `${item.product_id || "item"}-${index}`}
+                        className="flex items-start justify-between gap-4 p-4 bg-white"
+                      >
+                        <div className="flex items-start gap-4 min-w-0">
+                          {typeof imageUrl === "string" && imageUrl ? (
+                            <div className="relative h-14 w-14 rounded-xl overflow-hidden border border-[var(--secondary-soft-highlight)]/20 bg-[var(--primary-background)]/30 shrink-0">
+                              <Image
+                                src={imageUrl}
+                                alt={name}
+                                fill
+                                className="object-cover"
+                              />
+                            </div>
+                          ) : (
+                            <div className="h-14 w-14 rounded-xl border border-[var(--secondary-soft-highlight)]/20 bg-[var(--primary-background)]/30 flex items-center justify-center shrink-0">
+                              <ShoppingBagIcon className="h-6 w-6 text-[var(--secondary-muted-edge)]" />
+                            </div>
+                          )}
+
+                          <div className="min-w-0">
+                            <p className="font-semibold text-[var(--secondary-black)] truncate">
+                              {name}
+                            </p>
+                            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--secondary-muted-edge)]">
+                              <span>
+                                Qty:{" "}
+                                <span className="text-[var(--secondary-black)] font-medium">
+                                  {qty.toLocaleString("en-US")}
+                                </span>
+                              </span>
+                              {unit ? (
+                                <span>
+                                  Unit:{" "}
+                                  <span className="text-[var(--secondary-black)] font-medium">
+                                    {unit}
+                                  </span>
+                                </span>
+                              ) : null}
+                              <span>
+                                Unit price:{" "}
+                                <span className="text-[var(--secondary-black)] font-medium">
+                                  {formatCurrency(unitPrice)}
+                                </span>
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <p className="text-xs text-[var(--secondary-muted-edge)]">
+                            Line total
+                          </p>
+                          <p className="text-sm font-semibold text-[var(--secondary-black)]">
+                            {formatCurrency(lineTotal)}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1026,18 +1017,46 @@ export default function OrderDetailPage({
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-[var(--secondary-muted-edge)]">
-                    Shipping
+                    Delivery fee
                   </span>
                   <span className="font-medium text-[var(--secondary-black)]">
-                    ${Number(order.shipping_cost || 0).toFixed(2)}
+                    $
+                    {Number(
+                      (order as any)?.shipping_amount ??
+                        (order as any)?.shipping_cost ??
+                        0
+                    ).toFixed(2)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-[var(--secondary-muted-edge)]">
-                    Tax
+                    Platform fee
                   </span>
                   <span className="font-medium text-[var(--secondary-black)]">
-                    ${Number(order.tax || 0).toFixed(2)}
+                    $
+                    {(() => {
+                      const explicit = Number(
+                        (order as any)?.platform_fee_amount ??
+                          (order as any)?.platform_fee ??
+                          0
+                      );
+                      if (explicit > 0) return explicit.toFixed(2);
+
+                      // Fallback: for some offline/admin-created orders the platform fee
+                      // is baked into total_amount but not returned as its own field.
+                      const subtotal = Number((order as any)?.subtotal ?? 0);
+                      const delivery = Number(
+                        (order as any)?.shipping_amount ??
+                          (order as any)?.shipping_cost ??
+                          0
+                      );
+                      const discount = Number(
+                        (order as any)?.discount_amount ?? 0
+                      );
+                      const total = Number((order as any)?.total_amount ?? 0);
+                      const computed = total - subtotal - delivery + discount;
+                      return Math.max(0, computed).toFixed(2);
+                    })()}
                   </span>
                 </div>
                 <div className="border-t border-[var(--secondary-soft-highlight)]/30 pt-3">
@@ -1084,29 +1103,51 @@ export default function OrderDetailPage({
                 </div>
               </div>
 
-              {/* Shipping Address */}
+              {/* Delivery Address */}
               {order.shipping_address && (
                 <div className="pt-4 border-t border-[var(--secondary-soft-highlight)]/30 mt-4">
                   <h4 className="font-semibold text-[var(--secondary-black)] mb-3">
-                    Shipping Address
+                    Delivery Address
                   </h4>
                   <div className="text-sm text-[var(--secondary-black)]">
-                    <p className="text-[var(--secondary-muted-edge)]">
-                      {order.shipping_address.address_line1}
-                    </p>
-                    {order.shipping_address.address_line2 && (
-                      <p className="text-[var(--secondary-muted-edge)]">
-                        {order.shipping_address.address_line2}
+                    {((order.shipping_address as any).contact_name ||
+                      (order.shipping_address as any).name) && (
+                      <p className="font-medium text-[var(--secondary-black)]">
+                        {(order.shipping_address as any).contact_name ||
+                          (order.shipping_address as any).name}
                       </p>
                     )}
                     <p className="text-[var(--secondary-muted-edge)]">
-                      {order.shipping_address.city},{" "}
-                      {order.shipping_address.state}{" "}
-                      {order.shipping_address.postal_code}
+                      {(order.shipping_address as any).line1 ||
+                        (order.shipping_address as any).address_line1 ||
+                        (order.shipping_address as any).street_address ||
+                        ""}
+                    </p>
+                    {((order.shipping_address as any).line2 ||
+                      (order.shipping_address as any).address_line2) && (
+                      <p className="text-[var(--secondary-muted-edge)]">
+                        {(order.shipping_address as any).line2 ||
+                          (order.shipping_address as any).address_line2}
+                      </p>
+                    )}
+                    <p className="text-[var(--secondary-muted-edge)]">
+                      {(order.shipping_address as any).city}
+                      {((order.shipping_address as any).state ||
+                        (order.shipping_address as any).postal_code) &&
+                        ", "}
+                      {(order.shipping_address as any).state}{" "}
+                      {(order.shipping_address as any).postal_code}
                     </p>
                     <p className="text-[var(--secondary-muted-edge)]">
-                      {order.shipping_address.country}
+                      {(order.shipping_address as any).country}
                     </p>
+                    {((order.shipping_address as any).phone ||
+                      (order.shipping_address as any).contact_phone) && (
+                      <p className="text-[var(--secondary-muted-edge)]">
+                        {(order.shipping_address as any).phone ||
+                          (order.shipping_address as any).contact_phone}
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
@@ -1164,3 +1205,4 @@ export default function OrderDetailPage({
     </div>
   );
 }
+

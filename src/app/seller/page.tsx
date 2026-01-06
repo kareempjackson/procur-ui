@@ -23,6 +23,7 @@ import {
   setAnalyticsTab as setAnalyticsTabAction,
 } from "@/store/slices/sellerSlice";
 import { fetchSellerHome } from "@/store/slices/sellerHomeSlice";
+import { fetchSellerProducts } from "@/store/slices/sellerProductsSlice";
 import {
   fetchSellerInsights,
   executeSellerInsight,
@@ -85,6 +86,8 @@ export default function SellerDashboardPage() {
   // Product / line item
   type DraftLineItem = {
     id: string;
+    productId?: string;
+    productSku?: string;
     name: string;
     unit: string;
     quantity: string;
@@ -101,6 +104,7 @@ export default function SellerDashboardPage() {
   ]);
 
   const sellerCountry = (profile?.organization as any)?.country || "Grenada";
+  const sellerProducts = useAppSelector((s) => s.sellerProducts);
 
   const [allowedMethods, setAllowedMethods] = useState<{
     bank_transfer: boolean;
@@ -126,6 +130,14 @@ export default function SellerDashboardPage() {
       dispatch(fetchSellerInsights());
     }
   }, [dispatch, sellerInsights.status]);
+
+  // Load seller catalog products for the offline payment-link modal.
+  useEffect(() => {
+    if (!showPaymentLinkModal) return;
+    if (sellerProducts.status === "idle") {
+      dispatch(fetchSellerProducts({ page: 1, limit: 200, status: "active" }));
+    }
+  }, [dispatch, showPaymentLinkModal, sellerProducts.status]);
 
   // One-time welcome toast for new sellers
   useEffect(() => {
@@ -296,12 +308,16 @@ export default function SellerDashboardPage() {
       }))
       .filter(
         (li) =>
-          li.name.trim() && li.unit && li.quantityNum > 0 && li.unitPriceNum > 0
+          li.productId &&
+          li.name.trim() &&
+          li.unit &&
+          li.quantityNum > 0 &&
+          li.unitPriceNum > 0
       );
 
     if (validItems.length === 0) {
       show(
-        "Add at least one product with name, unit, quantity and cost per unit."
+        "Add at least one product from your catalog with unit, quantity and cost per unit."
       );
       return;
     }
@@ -330,6 +346,8 @@ export default function SellerDashboardPage() {
           country: sellerCountry,
         },
         line_items: validItems.map((li) => ({
+          product_id: li.productId,
+          product_sku: li.productSku,
           product_name: li.name.trim(),
           unit: li.unit,
           quantity: li.quantityNum,
@@ -993,6 +1011,56 @@ export default function SellerDashboardPage() {
                           key={item.id}
                           className="border border-[color:var(--secondary-soft-highlight)] rounded-xl p-3 bg-white space-y-3"
                         >
+                        {/* Catalog product selector */}
+                        <div>
+                          <label className="block text-xs font-medium text-[color:var(--secondary-black)] mb-1.5">
+                            Select product
+                          </label>
+                          <select
+                            value={item.productId || ""}
+                            onChange={(e) => {
+                              const productId = e.target.value || undefined;
+                              const product = productId
+                                ? sellerProducts.items.find((p) => p.id === productId)
+                                : undefined;
+
+                              setLineItemsForLink((prev) =>
+                                prev.map((li) =>
+                                  li.id === item.id
+                                    ? {
+                                        ...li,
+                                        productId,
+                                        productSku: product?.sku,
+                                        name: product?.name ?? li.name,
+                                        unit:
+                                          product?.unit_of_measurement ?? li.unit,
+                                        unitPrice:
+                                          product
+                                            ? String(
+                                                (product.sale_price ?? product.base_price) ??
+                                                  li.unitPrice
+                                              )
+                                            : li.unitPrice,
+                                      }
+                                    : li
+                                )
+                              );
+                            }}
+                            className="w-full rounded-lg border border-[color:var(--secondary-soft-highlight)] px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:border-transparent"
+                          >
+                            <option value="">Choose from catalog…</option>
+                            {(sellerProducts.items || []).map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.name}
+                              </option>
+                            ))}
+                          </select>
+                          <p className="mt-1 text-[10px] text-[color:var(--secondary-muted-edge)]">
+                            Required: offline payment links must reference a catalog
+                            product so orders store real product IDs.
+                          </p>
+                        </div>
+
                           {/* First line: product name */}
                           <div>
                             <label className="block text-xs font-medium text-[color:var(--secondary-black)] mb-1.5">

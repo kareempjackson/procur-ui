@@ -288,7 +288,7 @@ export default function SellerTransactionsPage() {
             <li className="text-gray-400">/</li>
             <li>
               <span className="px-2 py-1 rounded-full bg-white text-[var(--secondary-black)]">
-                Transactions
+                Transaction History
               </span>
             </li>
           </ol>
