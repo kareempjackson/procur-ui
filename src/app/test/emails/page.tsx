@@ -1,6 +1,7 @@
 "use client";
 
-import React from "react";
+import React, { useMemo, useState } from "react";
+import { getApiClient } from "@/lib/apiClient";
 
 type Audience = "buyer" | "seller" | "admin" | "platform";
 type Area = "account" | "organization" | "orders";
@@ -18,8 +19,7 @@ type EmailTemplate = {
 };
 
 const CURRENT_YEAR = new Date().getFullYear();
-const EMAIL_LOGO_URL =
-  "https://dbuxyviftwahgrgiftrw.supabase.co/storage/v1/object/public/public/main-logo/procur-logo.svg";
+const EMAIL_LOGO_URL = "/images/logos/procur_logo.png";
 
 const templates: EmailTemplate[] = [
   {
@@ -238,6 +238,56 @@ const BrandedEmailPreview: React.FC<{ subject: string; body: string }> = ({
 };
 
 const TestEmailsPage: React.FC = () => {
+  const testEmailsKey = useMemo(
+    () => process.env.NEXT_PUBLIC_TEST_EMAILS_KEY,
+    []
+  );
+  const [sendStateById, setSendStateById] = useState<
+    Record<
+      string,
+      | { state: "idle" }
+      | { state: "sending" }
+      | { state: "sent"; messageId?: string | null }
+      | { state: "error"; error: string }
+    >
+  >({});
+
+  const sendTest = async (tpl: EmailTemplate) => {
+    setSendStateById((prev) => ({ ...prev, [tpl.id]: { state: "sending" } }));
+    try {
+      // Force unauthenticated call (this endpoint is public and should not require login)
+      const api = getApiClient(() => null);
+      const res = await api.post(
+        "/email/test-template",
+        {
+          subject: tpl.subject,
+          body: tpl.body,
+          previewTitle: tpl.previewTitle,
+          templateId: tpl.id,
+        },
+        {
+          headers: testEmailsKey
+            ? { "x-test-emails-key": testEmailsKey }
+            : undefined,
+        }
+      );
+
+      setSendStateById((prev) => ({
+        ...prev,
+        [tpl.id]: { state: "sent", messageId: res?.data?.messageId ?? null },
+      }));
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to send test email";
+      setSendStateById((prev) => ({
+        ...prev,
+        [tpl.id]: { state: "error", error: String(message) },
+      }));
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[var(--primary-background)]">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
@@ -302,6 +352,9 @@ const TestEmailsPage: React.FC = () => {
               key={tpl.id}
               className="bg-white rounded-3xl border border-gray-200 p-6 sm:p-7"
             >
+              {(() => {
+                const sendState = sendStateById[tpl.id];
+                return (
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
                 <div className="space-y-1.5">
                   <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -327,7 +380,37 @@ const TestEmailsPage: React.FC = () => {
                     </p>
                   )}
                 </div>
+                <div className="flex flex-col items-start sm:items-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => sendTest(tpl)}
+                    disabled={sendState?.state === "sending"}
+                    className="inline-flex items-center justify-center rounded-full bg-[var(--secondary-black)] text-white px-4 py-2 text-xs font-medium hover:opacity-90 disabled:opacity-50"
+                  >
+                    Send test to kareem@procurapp.co
+                  </button>
+                  {sendState && sendState.state === "sending" && (
+                    <span className="text-xs text-[var(--primary-base)]">
+                      Sending…
+                    </span>
+                  )}
+                  {sendState && sendState.state === "sent" && (
+                    <span className="text-xs text-green-700">
+                      Sent
+                      {sendState.messageId
+                        ? ` (id: ${sendState.messageId})`
+                        : ""}
+                    </span>
+                  )}
+                  {sendState && sendState.state === "error" && (
+                    <span className="text-xs text-red-700">
+                      {sendState.error}
+                    </span>
+                  )}
+                </div>
               </div>
+                );
+              })()}
 
               <div className="space-y-3">
                 <div className="text-sm">

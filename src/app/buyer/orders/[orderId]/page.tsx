@@ -177,6 +177,7 @@ export default function OrderDetailPage({
   const { show } = useToast();
   const {
     currentOrder: order,
+    orders: orderList,
     orderDetailStatus,
     orderDetailError,
   } = useAppSelector((state) => state.buyerOrders);
@@ -421,6 +422,32 @@ export default function OrderDetailPage({
   }
 
   // Transform order data for UI (use real order data)
+  const normalizeItems = (items: any) => {
+    if (!items) return [];
+    if (Array.isArray(items)) return items;
+    if (Array.isArray(items?.data)) return items.data;
+    return [];
+  };
+
+  const fallbackOrder =
+    Array.isArray(orderList) && orderList.length > 0
+      ? orderList.find((o: any) => o.id === orderId)
+      : null;
+
+  const rawItems =
+    (order as any)?.items ??
+    (order as any)?.order_items ??
+    (order as any)?.line_items ??
+    (fallbackOrder as any)?.items ??
+    (fallbackOrder as any)?.order_items ??
+    (fallbackOrder as any)?.line_items ??
+    [];
+  const orderItems = normalizeItems(rawItems);
+  const firstItemName =
+    orderItems[0]?.product_name ||
+    (orderItems[0] as any)?.product_snapshot?.product_name ||
+    (orderItems[0] as any)?.product_snapshot?.name ||
+    undefined;
   const canCancel = order.status === "pending" || order.status === "accepted";
   const canReview = order.status === "delivered";
   const currencyCode =
@@ -430,13 +457,16 @@ export default function OrderDetailPage({
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })}`;
-  const invoiceLineSubtotal = Array.isArray(order.items)
-    ? order.items.reduce((sum: number, item: any) => {
-        const qty = Number(item.quantity || 0);
-        const unitPrice = Number(item.unit_price || 0);
-        return sum + qty * unitPrice;
-      }, 0)
-    : 0;
+  const invoiceLineSubtotal = orderItems.reduce((sum: number, item: any) => {
+    const qty = Number(item.quantity || 0);
+    const unitPrice = Number(
+      item.unit_price ?? item.price_per_unit ?? item.price ?? 0
+    );
+    const lineTotal = Number(
+      item.total_price ?? item.subtotal ?? item.line_total ?? qty * unitPrice
+    );
+    return sum + lineTotal;
+  }, 0);
   const invoiceShipping = Number((order as any)?.shipping_cost || 0);
   const invoiceTax = Number((order as any)?.tax || 0);
   const invoicePlatformFee = Number((order as any)?.platform_fee || 0);
@@ -448,6 +478,17 @@ export default function OrderDetailPage({
       invoicePlatformFee +
       invoiceTax -
       invoiceDiscount;
+  const statusOrder = [
+    "pending",
+    "accepted",
+    "processing",
+    "shipped",
+    "delivered",
+  ];
+  const currentStatusIndex = Math.max(
+    statusOrder.indexOf((order.status || "").toLowerCase()),
+    0
+  );
   const steps = [
     {
       key: "placed",
@@ -460,14 +501,18 @@ export default function OrderDetailPage({
       key: "accepted",
       label: "Accepted",
       date: acceptedAt,
-      done: Boolean(acceptedAt),
+      done:
+        currentStatusIndex >= statusOrder.indexOf("accepted") ||
+        Boolean(acceptedAt),
       icon: <CheckCircleIcon className="h-4 w-4" />,
     },
     {
       key: "shipped",
       label: "Shipped",
       date: shippedAt,
-      done: Boolean(shippedAt),
+      done:
+        currentStatusIndex >= statusOrder.indexOf("shipped") ||
+        Boolean(shippedAt),
       icon: <TruckIcon className="h-4 w-4" />,
     },
     {
@@ -475,7 +520,9 @@ export default function OrderDetailPage({
       label: "Delivered",
       date: (deliveredAt || actualDeliveryDate) as string | undefined,
       eta: order.estimated_delivery_date,
-      done: Boolean(deliveredAt || actualDeliveryDate),
+      done:
+        currentStatusIndex >= statusOrder.indexOf("delivered") ||
+        Boolean(deliveredAt || actualDeliveryDate),
       icon: <CheckBadgeIcon className="h-4 w-4" />,
     },
   ];
@@ -635,14 +682,31 @@ export default function OrderDetailPage({
                 </tr>
               </thead>
               <tbody>
-                {order.items.map((item: any, index: number) => {
+                {orderItems.map((item: any, index: number) => {
                   const qty = Number(item.quantity || 0);
-                  const unitPrice = Number(item.unit_price || 0);
-                  const lineTotal = qty * unitPrice;
+                  const unitPrice = Number(
+                    item.unit_price ??
+                      item.price_per_unit ??
+                      item.price ??
+                      item.unitPrice ??
+                      0
+                  );
+                  const lineTotal = Number(
+                    item.total_price ??
+                      item.subtotal ??
+                      item.line_total ??
+                      qty * unitPrice
+                  );
                   const unit =
                     item.unit ||
                     (item as any)?.product_snapshot?.unit_of_measurement ||
+                    (item as any)?.product_snapshot?.unit ||
                     "";
+                  const name =
+                    item.product_name ||
+                    (item as any)?.product_snapshot?.product_name ||
+                    (item as any)?.product_snapshot?.name ||
+                    "Item";
                   return (
                     <tr
                       key={item.id || `${item.product_id}-${index}`}
@@ -650,7 +714,7 @@ export default function OrderDetailPage({
                     >
                       <td className="px-4 py-3 align-top">
                         <p className="font-medium text-[var(--secondary-black)]">
-                          {item.product_name}
+                          {name}
                         </p>
                         <p className="text-[var(--primary-base)] sm:hidden mt-1">
                           {unit && `Unit: ${unit}`}
@@ -873,6 +937,16 @@ export default function OrderDetailPage({
                   {steps.map((step, index) => {
                     const isDone = step.done;
                     const isCurrent = !step.done && index === currentIndex + 1;
+                    const displayDate = step.date
+                      ? new Date(step.date).toLocaleString()
+                      : step.key === "delivered" && step.eta
+                        ? `ETA ${new Date(step.eta).toLocaleDateString()}`
+                        : isCurrent
+                          ? "In progress"
+                          : isDone
+                            ? "Completed"
+                            : "—";
+
                     return (
                       <li key={step.key} className="relative pl-8">
                         <span
@@ -913,146 +987,13 @@ export default function OrderDetailPage({
                             )}
                           </div>
                           <div className="text-xs text-[var(--secondary-muted-edge)]">
-                            {step.date
-                              ? new Date(step.date).toLocaleString()
-                              : step.key === "delivered" && step.eta
-                                ? `ETA ${new Date(step.eta).toLocaleDateString()}`
-                                : "Pending"}
+                            {displayDate}
                           </div>
                         </div>
                       </li>
                     );
                   })}
                 </ol>
-              </div>
-            </div>
-
-            {/* Delivery Map */}
-            {order.shipping_address && (
-              <div className="bg-white rounded-3xl border border-[var(--secondary-soft-highlight)]/20 p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold text-[var(--secondary-black)]">
-                    Delivery Map
-                  </h2>
-                  <div className="flex items-center gap-3">
-                    <a
-                      href={`https://www.google.com/maps/dir/?api=1${
-                        order.seller_location
-                          ? `&origin=${encodeURIComponent(order.seller_location)}`
-                          : ""
-                      }&destination=${encodeURIComponent(
-                        [
-                          order.shipping_address.address_line1,
-                          order.shipping_address.address_line2,
-                          `${order.shipping_address.city || ""} ${
-                            order.shipping_address.state || ""
-                          } ${order.shipping_address.postal_code || ""}`,
-                          order.shipping_address.country,
-                        ]
-                          .filter(Boolean)
-                          .join(", ")
-                      )}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)]"
-                    >
-                      Open Live Directions
-                    </a>
-                  </div>
-                </div>
-                <div className="aspect-[16/9] w-full rounded-xl overflow-hidden border border-[var(--secondary-soft-highlight)]/30">
-                  <iframe
-                    title="Delivery Map"
-                    src={`https://www.google.com/maps?q=${encodeURIComponent(
-                      [
-                        order.shipping_address.address_line1,
-                        order.shipping_address.address_line2,
-                        `${order.shipping_address.city || ""} ${
-                          order.shipping_address.state || ""
-                        } ${order.shipping_address.postal_code || ""}`,
-                        order.shipping_address.country,
-                      ]
-                        .filter(Boolean)
-                        .join(", ")
-                    )}&output=embed`}
-                    width="100%"
-                    height="100%"
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                    allowFullScreen
-                  />
-                </div>
-                <p className="mt-3 text-xs text-[var(--secondary-muted-edge)]">
-                  Tip: Use “Open Live Directions” to follow the driver’s route
-                  in real-time via Google Maps.
-                </p>
-              </div>
-            )}
-
-            {/* Order Items */}
-            <div className="bg-white rounded-3xl border border-[var(--secondary-soft-highlight)]/20 p-6">
-              <h2 className="text-xl font-semibold text-[var(--secondary-black)] mb-6">
-                Order Items
-              </h2>
-              <div className="space-y-4">
-                {order.items.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex gap-4 pb-4 border-b border-[var(--secondary-soft-highlight)]/30 last:border-0 last:pb-0"
-                  >
-                    <Link
-                      href={`/buyer/product/${item.product_id}`}
-                      className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 group"
-                    >
-                      <Image
-                        src={
-                          item.product_image ||
-                          "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg"
-                        }
-                        alt={item.product_name}
-                        fill
-                        className="object-cover group-hover:scale-110 transition-transform"
-                      />
-                    </Link>
-                    <div className="flex-1">
-                      <Link
-                        href={`/buyer/product/${item.product_id}`}
-                        className="font-semibold text-[var(--secondary-black)] hover:text-[var(--primary-accent2)] transition-colors"
-                      >
-                        {item.product_name}
-                      </Link>
-                      <p className="text-sm text-[var(--secondary-muted-edge)] mt-1">
-                        Quantity: {item.quantity}{" "}
-                        {item.unit ||
-                          (item as any)?.product_snapshot
-                            ?.unit_of_measurement ||
-                          ""}
-                      </p>
-                      <p className="text-sm text-[var(--secondary-muted-edge)]">
-                        ${Number(item.unit_price || 0).toFixed(2)} per{" "}
-                        {item.unit ||
-                          (item as any)?.product_snapshot
-                            ?.unit_of_measurement ||
-                          ""}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-[var(--secondary-black)]">
-                        $
-                        {Number(
-                          (item as any)?.total_price ??
-                            (item.unit_price || 0) * (item.quantity || 0)
-                        ).toFixed(2)}
-                      </p>
-                      <Link
-                        href={`/buyer/product/${item.product_id}`}
-                        className="text-sm text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)] mt-2 inline-block"
-                      >
-                        Buy Again
-                      </Link>
-                    </div>
-                  </div>
-                ))}
               </div>
             </div>
 

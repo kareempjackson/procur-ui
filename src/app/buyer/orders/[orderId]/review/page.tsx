@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeftIcon,
   StarIcon,
@@ -11,33 +12,30 @@ import {
   CheckCircleIcon,
 } from "@heroicons/react/24/outline";
 import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
-
-const demoOrder = {
-  orderNumber: "#10245",
-  seller: {
-    name: "Caribbean Farms Co.",
-    verified: true,
-  },
-  items: [
-    {
-      id: "item_1",
-      name: "Organic Cherry Tomatoes",
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-    },
-    {
-      id: "item_2",
-      name: "Fresh Basil",
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-    },
-  ],
-  deliveredAt: "2025-10-15T16:30:00Z",
-};
+import { useAppDispatch, useAppSelector } from "@/store";
+import {
+  clearCurrentOrder,
+  fetchOrderDetail,
+  submitOrderReview,
+} from "@/store/slices/buyerOrdersSlice";
+import ProcurLoader from "@/components/ProcurLoader";
+import { useToast } from "@/components/ui/Toast";
 
 export default function OrderReviewPage({
   params,
 }: {
   params: { orderId: string };
 }) {
+  const router = useRouter();
+  const dispatch = useAppDispatch();
+  const { show } = useToast();
+  const {
+    currentOrder: order,
+    orders: orderList,
+    orderDetailStatus,
+    orderDetailError,
+  } = useAppSelector((state) => state.buyerOrders);
+
   const [overallRating, setOverallRating] = useState(0);
   const [productQualityRating, setProductQualityRating] = useState(0);
   const [deliveryRating, setDeliveryRating] = useState(0);
@@ -46,6 +44,43 @@ export default function OrderReviewPage({
   const [reviewComment, setReviewComment] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const orderId = params.orderId;
+
+  useEffect(() => {
+    dispatch(fetchOrderDetail(orderId));
+    return () => {
+      dispatch(clearCurrentOrder());
+    };
+  }, [dispatch, orderId]);
+
+  const baseItems = useMemo(() => {
+    const fallbackOrder =
+      Array.isArray(orderList) && orderList.length > 0
+        ? orderList.find((o: any) => o.id === orderId)
+        : null;
+
+    const raw =
+      (order as any)?.items ??
+      (order as any)?.order_items ??
+      (order as any)?.line_items ??
+      (fallbackOrder as any)?.items ??
+      (fallbackOrder as any)?.order_items ??
+      (fallbackOrder as any)?.line_items ??
+      [];
+    if (Array.isArray(raw)) return raw;
+    if (Array.isArray((raw as any)?.data)) return (raw as any).data;
+    return [];
+  }, [order]);
+
+  const sellerName =
+    (order as any)?.seller_name ||
+    (order as any)?.seller?.name ||
+    (order as any)?.seller_name ||
+    "";
+  const orderNumber =
+    (order as any)?.order_number || (order as any)?.orderNumber || orderId;
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -62,19 +97,26 @@ export default function OrderReviewPage({
     setPhotos(photos.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Will handle review submission
-    console.log({
-      overallRating,
-      productQualityRating,
-      deliveryRating,
-      serviceRating,
-      reviewTitle,
-      reviewComment,
-      photos,
-    });
-    setSubmitted(true);
+    if (!order) return;
+    setSubmitting(true);
+    try {
+      await dispatch(
+        submitOrderReview({
+          orderId,
+          rating: overallRating,
+          comment: reviewComment || reviewTitle,
+        })
+      ).unwrap();
+      setSubmitted(true);
+      show("Review submitted. Thank you!");
+    } catch (err) {
+      console.error("Failed to submit review", err);
+      show("Failed to submit review. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const RatingInput = ({
@@ -130,7 +172,7 @@ export default function OrderReviewPage({
           </p>
           <div className="flex flex-col gap-3">
             <Link
-              href={`/buyer/orders/${params.orderId}`}
+              href={`/buyer/orders/${orderId}`}
               className="px-6 py-2.5 bg-[var(--primary-accent2)] text-white rounded-full font-medium hover:bg-[var(--primary-accent3)] transition-all shadow-sm"
             >
               View Order
@@ -147,13 +189,50 @@ export default function OrderReviewPage({
     );
   }
 
+  if (orderDetailStatus === "loading") {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <ProcurLoader size="lg" text="Loading order..." />
+      </div>
+    );
+  }
+
+  if (!order || orderDetailStatus === "failed") {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <h2 className="text-xl font-bold text-[var(--secondary-black)] mb-2">
+            {orderDetailError || "Order not found"}
+          </h2>
+          <p className="text-[var(--secondary-muted-edge)] mb-6">
+            We could not load this order to review.
+          </p>
+          <div className="flex gap-3 justify-center">
+            <Link
+              href="/buyer/orders"
+              className="px-6 py-3 bg-[var(--primary-accent2)] text-white rounded-full font-semibold hover:bg-[var(--primary-accent3)] transition-all duration-200"
+            >
+              Back to Orders
+            </Link>
+            <Link
+              href={`/buyer/orders/${orderId}`}
+              className="px-6 py-3 border border-[var(--secondary-soft-highlight)] text-[var(--secondary-black)] rounded-full font-semibold hover:bg-white transition-all duration-200"
+            >
+              View Order
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white">
       <main className="max-w-3xl mx-auto px-6 py-10">
         {/* Header */}
         <div className="mb-8">
           <Link
-            href={`/buyer/orders/${params.orderId}`}
+            href={`/buyer/orders/${orderId}`}
             className="flex items-center gap-2 text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)] mb-4"
           >
             <ArrowLeftIcon className="h-4 w-4" />
@@ -163,7 +242,7 @@ export default function OrderReviewPage({
             Write a Review
           </h1>
           <p className="text-[var(--secondary-muted-edge)]">
-            Order {demoOrder.orderNumber} from {demoOrder.seller.name}
+            Order {orderNumber} {sellerName && `from ${sellerName}`}
           </p>
         </div>
 
@@ -174,19 +253,42 @@ export default function OrderReviewPage({
               Items in this order
             </h3>
             <div className="flex gap-3">
-              {demoOrder.items.map((item) => (
-                <div
-                  key={item.id}
-                  className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-100"
-                >
-                  <Image
-                    src={item.image}
-                    alt={item.name}
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-              ))}
+              {baseItems.length > 0 ? (
+                baseItems.map((item: any) => {
+                  const imageSrc =
+                    item.product_image ||
+                    item.image ||
+                    item.thumbnail ||
+                    (item as any)?.product_snapshot?.product_images?.find(
+                      (img: any) => img?.is_primary
+                    )?.image_url ||
+                    (item as any)?.product_snapshot?.image_url ||
+                    "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg";
+                  const name =
+                    item.product_name ||
+                    item.name ||
+                    (item as any)?.product_snapshot?.product_name ||
+                    (item as any)?.product_snapshot?.name ||
+                    "Item";
+                  return (
+                    <div
+                      key={item.id}
+                      className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-100"
+                    >
+                      <Image
+                        src={imageSrc}
+                        alt={name}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="text-sm text-[var(--secondary-muted-edge)]">
+                  No items found for this order.
+                </p>
+              )}
             </div>
           </div>
 
@@ -338,10 +440,10 @@ export default function OrderReviewPage({
             </Link>
             <button
               type="submit"
-              disabled={overallRating === 0}
+              disabled={overallRating === 0 || submitting}
               className="flex-1 px-6 py-2.5 bg-[var(--primary-accent2)] text-white rounded-full font-medium hover:bg-[var(--primary-accent3)] disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
             >
-              Submit Review
+              {submitting ? "Submitting..." : "Submit Review"}
             </button>
           </div>
         </form>
