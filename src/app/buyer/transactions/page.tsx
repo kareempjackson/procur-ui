@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   MagnifyingGlassIcon,
@@ -19,9 +19,12 @@ import {
 import { useAppDispatch, useAppSelector } from "@/store";
 import { fetchTransactions } from "@/store/slices/buyerTransactionsSlice";
 import ProcurLoader from "@/components/ProcurLoader";
+import { Alert } from "@/components/ui/Alert";
+import { useToast } from "@/components/ui/Toast";
 
 export default function BuyerTransactionsPage() {
   const dispatch = useAppDispatch();
+  const { show } = useToast();
   const { transactions, summary, status, error, pagination } = useAppSelector(
     (state) => state.buyerTransactions
   );
@@ -31,6 +34,22 @@ export default function BuyerTransactionsPage() {
   const [selectedType, setSelectedType] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(false);
 
+  const requestFilters = useMemo(() => {
+    const filters: {
+      page: number;
+      limit: number;
+      search?: string;
+      status?: string;
+      type?: string;
+    } = { page: 1, limit: 20 };
+
+    if (searchQuery) filters.search = searchQuery;
+    if (selectedStatus !== "all") filters.status = selectedStatus;
+    if (selectedType !== "all") filters.type = selectedType;
+
+    return filters;
+  }, [searchQuery, selectedStatus, selectedType]);
+
   // Fetch transactions on mount
   useEffect(() => {
     dispatch(fetchTransactions({ page: 1, limit: 20 }));
@@ -39,26 +58,30 @@ export default function BuyerTransactionsPage() {
   // Fetch transactions when filters change (debounced)
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      const filters: {
-        page: number;
-        limit: number;
-        search?: string;
-        status?: string;
-        type?: string;
-      } = {
-        page: 1,
-        limit: 20,
-      };
-
-      if (searchQuery) filters.search = searchQuery;
-      if (selectedStatus !== "all") filters.status = selectedStatus;
-      if (selectedType !== "all") filters.type = selectedType;
-
-      dispatch(fetchTransactions(filters));
+      dispatch(fetchTransactions(requestFilters));
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [searchQuery, selectedStatus, selectedType, dispatch]);
+  }, [requestFilters, dispatch]);
+
+  // Toast on background refresh failures (keep stale data visible)
+  const lastToastErrorRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (status !== "failed" || !error) return;
+    if (transactions.length === 0) return; // page-level error UI handles initial load failure
+    if (lastToastErrorRef.current === error) return;
+    lastToastErrorRef.current = error;
+    show({
+      variant: "error",
+      title: "Couldn’t refresh transactions",
+      message: error,
+      actionLabel: "Retry",
+      onAction: () => dispatch(fetchTransactions(requestFilters)),
+    });
+  }, [status, error, transactions.length, show, dispatch, requestFilters]);
+  useEffect(() => {
+    if (status === "succeeded") lastToastErrorRef.current = null;
+  }, [status]);
 
   const getStatusIcon = (status?: string) => {
     if (!status) return <ClockIcon className="h-4 w-4" />;
@@ -118,22 +141,33 @@ export default function BuyerTransactionsPage() {
     return <ProcurLoader size="lg" text="Loading transactions..." />;
   }
 
-  // Error state
-  if (status === "failed" && error) {
+  // Page-level error state (only when we have nothing to show)
+  if (status === "failed" && error && transactions.length === 0) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center max-w-md">
-          <BanknotesIcon className="h-16 w-16 text-[var(--secondary-muted-edge)] mx-auto mb-4 opacity-50" />
-          <h2 className="text-xl font-bold text-[var(--secondary-black)] mb-2">
-            Failed to Load Transactions
-          </h2>
-          <p className="text-[var(--secondary-muted-edge)] mb-4">{error}</p>
-          <button
-            onClick={() => dispatch(fetchTransactions({ page: 1, limit: 20 }))}
-            className="px-6 py-3 bg-[var(--primary-accent2)] text-white rounded-full font-semibold hover:bg-[var(--primary-accent3)] transition-all duration-200"
-          >
-            Try Again
-          </button>
+        <div className="w-full max-w-lg px-6">
+          <Alert
+            variant="error"
+            title="Failed to load transactions"
+            description={error}
+            actions={
+              <>
+                <button
+                  type="button"
+                  onClick={() => dispatch(fetchTransactions(requestFilters))}
+                  className="inline-flex items-center rounded-full bg-[var(--primary-accent2)] text-white px-4 py-2 text-xs font-medium hover:bg-[var(--primary-accent3)] transition-colors"
+                >
+                  Retry
+                </button>
+                <Link
+                  href="/buyer/orders"
+                  className="inline-flex items-center rounded-full border border-[var(--secondary-soft-highlight)] bg-white px-4 py-2 text-xs font-medium text-[var(--secondary-black)] hover:bg-[var(--primary-background)] transition-colors"
+                >
+                  View orders
+                </Link>
+              </>
+            }
+          />
         </div>
       </div>
     );
@@ -142,6 +176,26 @@ export default function BuyerTransactionsPage() {
   return (
     <div className="min-h-screen bg-white">
       <main className="max-w-[1400px] mx-auto px-6 py-8">
+        {/* Inline error (keep content visible) */}
+        {status === "failed" && error && transactions.length > 0 && (
+          <div className="mb-6">
+            <Alert
+              variant="error"
+              title="Some data may be out of date"
+              description={error}
+              actions={
+                <button
+                  type="button"
+                  onClick={() => dispatch(fetchTransactions(requestFilters))}
+                  className="inline-flex items-center rounded-full bg-[var(--primary-accent2)] text-white px-4 py-2 text-xs font-medium hover:bg-[var(--primary-accent3)] transition-colors"
+                >
+                  Retry
+                </button>
+              }
+            />
+          </div>
+        )}
+
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">

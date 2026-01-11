@@ -41,7 +41,7 @@ export default function Error({
               <button type="button" className="btn btn-primary" onClick={reset}>
                 Retry
               </button>
-              <Link className="btn btn-ghost" href="/seller">
+              <Link className="btn btn-ghost" href="/buyer">
                 Back to dashboard
               </Link>
               <Link className="btn btn-ghost" href="/help/support">
@@ -65,3 +65,5 @@ export default function Error({
     </div>
   );
 }
+
+

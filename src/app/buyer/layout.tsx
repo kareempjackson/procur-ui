@@ -17,13 +17,13 @@ export default function BuyerLayout({
 }) {
   return (
     <ToastProvider>
-      <div className="bg-white min-h-screen">
-        <AuthGuard allowAccountTypes={["buyer"]}>
+      <AuthGuard allowAccountTypes={["buyer"]}>
+        <div className="bg-white min-h-screen flex flex-col">
           <BuyerTopNavigation />
-          {children}
-        </AuthGuard>
-        <Footer />
-      </div>
+          <main className="flex-1">{children}</main>
+          <Footer />
+        </div>
+      </AuthGuard>
     </ToastProvider>
   );
 }

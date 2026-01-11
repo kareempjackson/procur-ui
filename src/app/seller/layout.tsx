@@ -17,13 +17,13 @@ export default function SellerLayout({
 }) {
   return (
     <ToastProvider>
-      <div className="bg-white min-h-screen flex flex-col">
-        <AuthGuard allowAccountTypes={["seller"]}>
+      <AuthGuard allowAccountTypes={["seller"]}>
+        <div className="bg-white min-h-screen flex flex-col">
           <SellerTopNavigation />
           <main className="flex-1">{children}</main>
-        </AuthGuard>
-        <Footer />
-      </div>
+          <Footer />
+        </div>
+      </AuthGuard>
     </ToastProvider>
   );
 }
