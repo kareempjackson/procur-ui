@@ -27,6 +27,7 @@ import { addToCartAsync } from "@/store/slices/buyerCartSlice";
 import { getApiClient } from "@/lib/apiClient";
 import ProcurLoader from "@/components/ProcurLoader";
 import { useToast } from "@/components/ui/Toast";
+import ProductImageGallery from "@/components/product/ProductImageGallery";
 
 interface ProductClientProps {
   productId: string;
@@ -45,7 +46,6 @@ export default function ProductClient({ productId }: ProductClientProps) {
   const authToken = useAppSelector((state) => state.auth.accessToken);
 
   const [quantity, setQuantity] = useState(1);
-  const [selectedImage, setSelectedImage] = useState(0);
   const [isStartingConversation, setIsStartingConversation] = useState(false);
 
   const getMinOrderQuantity = () => {
@@ -175,8 +175,6 @@ export default function ProductClient({ productId }: ProductClientProps) {
       : product.image_url
         ? [product.image_url]
         : []) || [];
-  const fallbackImage =
-    "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg";
 
   return (
     <div className="min-h-screen bg-white">
@@ -195,13 +193,8 @@ export default function ProductClient({ productId }: ProductClientProps) {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Product Images */}
           <div className="space-y-3">
-            <div className="relative aspect-square rounded-2xl overflow-hidden border border-[var(--secondary-soft-highlight)]/20 bg-white">
-              <Image
-                src={images[selectedImage]}
-                alt={product.name}
-                fill
-                className="object-cover"
-              />
+            <div className="relative">
+              <ProductImageGallery images={images} alt={product.name} priority />
               {product.stock_quantity === 0 && (
                 <div className="absolute top-4 left-4 bg-red-600 text-white px-3 py-1.5 rounded-full text-sm font-bold">
                   Out of Stock
@@ -228,28 +221,6 @@ export default function ProductClient({ productId }: ProductClientProps) {
                   <HeartIcon className="h-6 w-6 text-[var(--secondary-black)]" />
                 )}
               </button>
-            </div>
-
-            {/* Image Thumbnails */}
-            <div className="flex gap-3">
-              {images.map((image, index) => (
-                <button
-                  key={index}
-                  onClick={() => setSelectedImage(index)}
-                  className={`relative w-24 h-24 rounded-xl overflow-hidden border-2 transition-all duration-200 ${
-                    selectedImage === index
-                      ? "border-[var(--primary-accent2)]"
-                      : "border-[var(--secondary-soft-highlight)]/20 hover:border-[var(--secondary-soft-highlight)]"
-                  }`}
-                >
-                  <Image
-                    src={image}
-                    alt={`${product.name} ${index + 1}`}
-                    fill
-                    className="object-cover"
-                  />
-                </button>
-              ))}
             </div>
           </div>
 

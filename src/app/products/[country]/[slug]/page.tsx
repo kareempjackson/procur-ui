@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import TopNavigation from "@/components/navigation/TopNavigation";
 import Footer from "@/components/footer/Footer";
+import ProductImageGallery from "@/components/product/ProductImageGallery";
 import {
   MapPinIcon,
   CheckBadgeIcon,
@@ -127,10 +128,6 @@ export default async function PublicProductPage({ params }: ProductPageProps) {
         ? [product.image_url]
         : []) || [];
 
-  const primaryImage =
-    images[0] ||
-    "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg";
-
   const displayName = product?.name || readableName;
 
   return (
@@ -175,13 +172,8 @@ export default async function PublicProductPage({ params }: ProductPageProps) {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-12">
               {/* Product Images */}
               <div className="space-y-3">
-                <div className="relative aspect-square rounded-2xl overflow-hidden border border-[var(--secondary-soft-highlight)]/20 bg-white">
-                  <Image
-                    src={primaryImage}
-                    alt={displayName}
-                    fill
-                    className="object-cover"
-                  />
+                <div className="relative">
+                  <ProductImageGallery images={images} alt={displayName} priority />
                   {product.stock_quantity === 0 && (
                     <div className="absolute top-4 left-4 bg-red-600 text-white px-3 py-1.5 rounded-full text-sm font-bold">
                       Out of Stock
@@ -199,25 +191,6 @@ export default async function PublicProductPage({ params }: ProductPageProps) {
                       </div>
                     )}
                 </div>
-
-                {/* Thumbnails */}
-                {images.length > 1 && (
-                  <div className="flex gap-3">
-                    {images.slice(0, 4).map((image, index) => (
-                      <div
-                        key={image + index}
-                        className="relative w-20 h-20 rounded-xl overflow-hidden border border-[var(--secondary-soft-highlight)]/40"
-                      >
-                        <Image
-                          src={image}
-                          alt={`${displayName} ${index + 1}`}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
 
               {/* Product Details */}
