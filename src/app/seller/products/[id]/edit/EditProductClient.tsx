@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getApiClient } from "@/lib/apiClient";
 import { getSupabaseClient } from "@/lib/supabaseClient";
+import { ADMIN_CATALOG_PRODUCT_CATEGORIES } from "@/lib/adminCatalogProductCategories";
 import { useAppDispatch, useAppSelector } from "@/store";
 import {
   updateSellerProduct,
@@ -46,25 +47,6 @@ enum MeasurementUnit {
   ML = "ml",
   GALLON = "gallon",
 }
-
-// Product categories for dropdown
-enum ProductCategory {
-  VEGETABLES = "Vegetables",
-  FRUITS = "Fruits",
-  HERBS = "Herbs",
-  GRAINS = "Grains",
-  LEGUMES = "Legumes",
-  ROOT_CROPS = "Root Crops",
-  SPICES = "Spices",
-  BEVERAGES = "Beverages",
-  DAIRY = "Dairy",
-  MEAT = "Meat",
-  MEAT_POULTRY = "Meat & Poultry",
-  SEAFOOD = "Seafood",
-  OTHER = "Other",
-}
-
-const CATEGORY_OPTIONS = Object.values(ProductCategory);
 
 interface NewProductImage {
   file: File;
@@ -110,6 +92,29 @@ function buildCleanUpdatePayload(
 
 function classNames(...classes: (string | false | null | undefined)[]) {
   return classes.filter(Boolean).join(" ");
+}
+
+function normalizeCategoryToAdminList(category?: string | null): string {
+  const raw = typeof category === "string" ? category.trim() : "";
+  if (!raw) return "";
+  if (ADMIN_CATALOG_PRODUCT_CATEGORIES.includes(raw as any)) return raw;
+
+  const legacyMap: Record<string, string> = {
+    Herbs: "Herbs & Spices",
+    Spices: "Herbs & Spices",
+    Grains: "Grains & Cereals",
+    Dairy: "Dairy & Eggs",
+    Meat: "Meat & Poultry",
+    "Root Crops": "Vegetables",
+    Legumes: "Other",
+    Beverages: "Beverages",
+    Vegetables: "Vegetables",
+    Fruits: "Fruits",
+    Seafood: "Seafood",
+    Other: "Other",
+  };
+
+  return legacyMap[raw] ?? "Other";
 }
 
 interface EditProductClientProps {
@@ -161,7 +166,7 @@ export default function EditProductClient({
           short_description: productData.short_description || "",
           sku: productData.sku || "",
           barcode: productData.barcode || "",
-          category: productData.category,
+          category: normalizeCategoryToAdminList(productData.category),
           tags: productData.tags || [],
           base_price: productData.base_price,
           stock_quantity: productData.stock_quantity || 0,
@@ -681,9 +686,9 @@ export default function EditProductClient({
                       <option value="" disabled>
                         Select a category
                       </option>
-                      {CATEGORY_OPTIONS.map((opt) => (
-                        <option key={opt} value={opt}>
-                          {opt}
+                      {ADMIN_CATALOG_PRODUCT_CATEGORIES.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
                         </option>
                       ))}
                     </select>

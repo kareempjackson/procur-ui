@@ -4,9 +4,9 @@ import { useState, useEffect } from "react";
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import SellerTopNavigation from "@/components/navigation/SellerTopNavigation";
-import { getApiClient } from "@/lib/apiClient";
 import { getSupabaseClient } from "@/lib/supabaseClient";
+import { getApiClient } from "@/lib/apiClient";
+import { ADMIN_CATALOG_PRODUCT_CATEGORIES } from "@/lib/adminCatalogProductCategories";
 import { useAppDispatch, useAppSelector } from "@/store";
 import { createSellerProduct } from "@/store/slices/sellerProductsSlice";
 import type { RootState } from "@/store";
@@ -44,25 +44,6 @@ enum MeasurementUnit {
   GALLON = "gallon",
 }
 
-// Product categories for dropdown
-enum ProductCategory {
-  VEGETABLES = "Vegetables",
-  FRUITS = "Fruits",
-  HERBS = "Herbs",
-  GRAINS = "Grains",
-  LEGUMES = "Legumes",
-  ROOT_CROPS = "Root Crops",
-  SPICES = "Spices",
-  BEVERAGES = "Beverages",
-  DAIRY = "Dairy",
-  MEAT = "Meat",
-  MEAT_POULTRY = "Meat & Poultry",
-  SEAFOOD = "Seafood",
-  OTHER = "Other",
-}
-
-const CATEGORY_OPTIONS = Object.values(ProductCategory);
-
 // Removed ProductDimensions and related UI/state
 
 interface ProductImage {
@@ -93,19 +74,31 @@ interface CreateProductData {
   is_organic?: boolean;
 }
 
-type CatalogProduct = {
-  id: string;
-  name: string;
-  category?: string | null;
-  unit: string;
-  basePrice: number;
-  minSellerPrice?: number | null;
-  maxSellerPrice?: number | null;
-  shortDescription?: string | null;
-};
-
 function classNames(...classes: (string | false | null | undefined)[]) {
   return classes.filter(Boolean).join(" ");
+}
+
+function normalizeCategoryToAdminList(category?: string | null): string {
+  const raw = typeof category === "string" ? category.trim() : "";
+  if (!raw) return "";
+  if (ADMIN_CATALOG_PRODUCT_CATEGORIES.includes(raw as any)) return raw;
+
+  const legacyMap: Record<string, string> = {
+    Herbs: "Herbs & Spices",
+    Spices: "Herbs & Spices",
+    Grains: "Grains & Cereals",
+    Dairy: "Dairy & Eggs",
+    Meat: "Meat & Poultry",
+    "Root Crops": "Vegetables",
+    Legumes: "Other",
+    Beverages: "Beverages",
+    Vegetables: "Vegetables",
+    Fruits: "Fruits",
+    Seafood: "Seafood",
+    Other: "Other",
+  };
+
+  return legacyMap[raw] ?? "Other";
 }
 
 const DRAFT_STORAGE_KEY = "seller-product-draft";
@@ -142,9 +135,6 @@ export default function AddProductPage() {
     Array(5).fill(null)
   );
   const [imageError, setImageError] = useState<string | null>(null);
-  const [catalogProducts, setCatalogProducts] = useState<CatalogProduct[]>([]);
-  const [selectedCatalogId, setSelectedCatalogId] = useState<string | "">("");
-  const [catalogError, setCatalogError] = useState<string | null>(null);
 
   const handleInputChange = (
     e: React.ChangeEvent<
@@ -170,6 +160,11 @@ export default function AddProductPage() {
       if (savedDraft) {
         try {
           const parsedDraft = JSON.parse(savedDraft);
+          if (parsedDraft && typeof parsedDraft === "object") {
+            parsedDraft.category = normalizeCategoryToAdminList(
+              parsedDraft.category
+            );
+          }
           // Only restore if there's actual content
           if (
             parsedDraft.name ||
@@ -185,27 +180,6 @@ export default function AddProductPage() {
       }
     }
   }, []);
-
-  // Load catalog products for seller to reference
-  useEffect(() => {
-    const loadCatalog = async () => {
-      try {
-        const client = getApiClient(() => accessToken);
-        const { data } = await client.get<CatalogProduct[]>(
-          "/sellers/catalog-products"
-        );
-        setCatalogProducts(data ?? []);
-      } catch (e) {
-        // Non-fatal; seller can still create products without catalog mapping
-        console.error("Failed to load catalog products", e);
-        setCatalogError(
-          "Catalog products could not be loaded. You can still create a product without linking to one."
-        );
-      }
-    };
-
-    void loadCatalog();
-  }, [accessToken]);
 
   // Auto-save draft to localStorage
   useEffect(() => {
@@ -352,30 +326,10 @@ export default function AddProductPage() {
         status: desiredStatus,
       };
 
-      const catalog = catalogProducts.find((p) => p.id === selectedCatalogId);
-      if (catalog) {
-        const price = payload.base_price;
-        if (catalog.minSellerPrice != null && price < catalog.minSellerPrice) {
-          throw new Error(
-            `Price must be at least ${catalog.minSellerPrice.toFixed(
-              2
-            )} XCD for ${catalog.name}.`
-          );
-        }
-        if (catalog.maxSellerPrice != null && price > catalog.maxSellerPrice) {
-          throw new Error(
-            `Price must be at most ${catalog.maxSellerPrice.toFixed(
-              2
-            )} XCD for ${catalog.name}.`
-          );
-        }
-      }
-
       // Create product using Redux thunk
       const result = await dispatch(
         createSellerProduct({
           ...payload,
-          admin_product_id: selectedCatalogId || undefined,
         })
       );
 
@@ -548,12 +502,6 @@ export default function AddProductPage() {
           </div>
         )}
 
-        {catalogError && (
-          <div className="mb-6 p-3 bg-yellow-50 border border-yellow-200 rounded-xl text-xs text-yellow-800">
-            {catalogError}
-          </div>
-        )}
-
         {/* Form */}
         <div className="grid grid-cols-1 xl:grid-cols-5 gap-8">
           {/* Left Column - Form */}
@@ -674,54 +622,31 @@ export default function AddProductPage() {
                   Basic Information
                 </h2>
 
-                {/* Catalog product selector – treated as Category */}
+                {/* Category dropdown (matches admin panel categories) */}
                 <div className="mb-6">
                   <label
-                    htmlFor="catalog-product"
+                    htmlFor="category"
                     className="block text-sm font-medium text-[var(--secondary-black)] mb-2"
                   >
                     Category *
                   </label>
                   <select
-                    id="catalog-product"
+                    id="category"
+                    name="category"
                     className="input w-full"
                     required
-                    value={selectedCatalogId}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setSelectedCatalogId(value);
-
-                      const selected = catalogProducts.find(
-                        (p) => p.id === value
-                      );
-                      // Use the catalog product's category if available, otherwise fall back to its name
-                      if (selected) {
-                        setFormData((prev) => ({
-                          ...prev,
-                          category: selected.category || selected.name,
-                        }));
-                      } else {
-                        setFormData((prev) => ({
-                          ...prev,
-                          category: "",
-                        }));
-                      }
-                    }}
+                    value={formData.category}
+                    onChange={handleInputChange}
                   >
                     <option value="" disabled>
                       Select a category
                     </option>
-                    {catalogProducts.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                        {p.category ? ` – ${p.category}` : ""}
+                    {ADMIN_CATALOG_PRODUCT_CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
                       </option>
                     ))}
                   </select>
-                  <p className="mt-1 text-xs text-[var(--primary-base)]">
-                    Selecting a category links this product to a catalog item
-                    and may enforce a price range if defined.
-                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -815,34 +740,6 @@ export default function AddProductPage() {
                         placeholder="0.00"
                       />
                     </div>
-                    {selectedCatalogId && (
-                      <p className="mt-1 text-xs text-[var(--primary-base)]">
-                        {(() => {
-                          const catalog = catalogProducts.find(
-                            (p) => p.id === selectedCatalogId
-                          );
-                          if (!catalog) return null;
-                          const min = catalog.minSellerPrice;
-                          const max = catalog.maxSellerPrice;
-                          if (min == null && max == null) {
-                            return "No specific price range enforced for the selected catalog product.";
-                          }
-                          if (min != null && max != null) {
-                            return `Required range for this catalog product: ${min.toFixed(
-                              2
-                            )} – ${max.toFixed(2)} XCD per unit.`;
-                          }
-                          if (min != null) {
-                            return `Price must be at least ${min.toFixed(
-                              2
-                            )} XCD per unit for this catalog product.`;
-                          }
-                          return `Price must be at most ${max!.toFixed(
-                            2
-                          )} XCD per unit for this catalog product.`;
-                        })()}
-                      </p>
-                    )}
                   </div>
 
                   <div className="md:col-span-2">
