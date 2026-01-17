@@ -62,6 +62,8 @@ export interface Cart {
   total_items: number;
   unique_products: number;
   subtotal: number;
+  platform_fee_percent: number;
+  platform_fee_amount: number;
   estimated_shipping: number;
   estimated_tax: number;
   total: number;
@@ -195,6 +197,10 @@ const buyerCartSlice = createSlice({
       })
 
       // Update Cart Item
+      .addCase(updateCartItemAsync.pending, (state) => {
+        state.status = "loading";
+        state.error = null;
+      })
       .addCase(updateCartItemAsync.fulfilled, (state, action) => {
         if (!state.cart) return;
 
@@ -228,12 +234,23 @@ const buyerCartSlice = createSlice({
           (sum, group) => sum + group.estimated_shipping,
           0
         );
-        state.cart.estimated_tax = state.cart.subtotal * 0.08;
+        state.cart.estimated_tax = 0;
+        state.cart.platform_fee_amount = Number(
+          (
+            (state.cart.subtotal * (state.cart.platform_fee_percent || 0)) /
+            100
+          ).toFixed(2)
+        );
         state.cart.total =
           state.cart.subtotal +
           state.cart.estimated_shipping +
-          state.cart.estimated_tax;
+          (state.cart.platform_fee_amount || 0);
         state.lastUpdated = new Date().toISOString();
+        state.status = "succeeded";
+      })
+      .addCase(updateCartItemAsync.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.payload as string;
       })
 
       // Remove Cart Item
@@ -274,11 +291,17 @@ const buyerCartSlice = createSlice({
             (sum, group) => sum + group.estimated_shipping,
             0
           );
-          state.cart.estimated_tax = state.cart.subtotal * 0.08;
+          state.cart.estimated_tax = 0;
+          state.cart.platform_fee_amount = Number(
+            (
+              (state.cart.subtotal * (state.cart.platform_fee_percent || 0)) /
+              100
+            ).toFixed(2)
+          );
           state.cart.total =
             state.cart.subtotal +
             state.cart.estimated_shipping +
-            state.cart.estimated_tax;
+            (state.cart.platform_fee_amount || 0);
         } else {
           // Empty cart
           state.cart.total_items = 0;
@@ -286,6 +309,7 @@ const buyerCartSlice = createSlice({
           state.cart.subtotal = 0;
           state.cart.estimated_shipping = 0;
           state.cart.estimated_tax = 0;
+          state.cart.platform_fee_amount = 0;
           state.cart.total = 0;
         }
 

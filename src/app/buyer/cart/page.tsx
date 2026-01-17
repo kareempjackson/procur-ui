@@ -13,7 +13,6 @@ import {
   TruckIcon,
   ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
-import { HeartIcon as HeartSolidIcon } from "@heroicons/react/24/solid";
 import { useAppDispatch, useAppSelector } from "@/store";
 import {
   fetchCart,
@@ -21,132 +20,12 @@ import {
   removeCartItemAsync,
 } from "@/store/slices/buyerCartSlice";
 import ProcurLoader from "@/components/ProcurLoader";
-
-// Demo cart data grouped by seller
-const demoCartData = {
-  sellers: [
-    {
-      id: "seller_1",
-      name: "Caribbean Farms Co.",
-      location: "Kingston, Jamaica",
-      verified: true,
-      estimatedDelivery: "Oct 15, 2025",
-      shippingCost: 25.0,
-      minOrderMet: true,
-      minOrderAmount: 30.0,
-      items: [
-        {
-          id: "item_1",
-          productId: "prod_1",
-          name: "Organic Cherry Tomatoes",
-          image:
-            "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-          price: 3.5,
-          originalPrice: 4.0,
-          unit: "lb",
-          quantity: 10,
-          minOrder: 5,
-          maxStock: 100,
-          inStock: true,
-          discount: "15% off",
-        },
-        {
-          id: "item_2",
-          productId: "prod_2",
-          name: "Fresh Basil",
-          image:
-            "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-          price: 8.5,
-          unit: "bunch",
-          quantity: 5,
-          minOrder: 2,
-          maxStock: 30,
-          inStock: true,
-        },
-      ],
-    },
-    {
-      id: "seller_2",
-      name: "Tropical Harvest Ltd",
-      location: "Santo Domingo, DR",
-      verified: true,
-      estimatedDelivery: "Oct 12, 2025",
-      shippingCost: 30.0,
-      minOrderMet: false,
-      minOrderAmount: 30.0,
-      items: [
-        {
-          id: "item_3",
-          productId: "prod_3",
-          name: "Alphonso Mangoes",
-          image:
-            "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-          price: 4.2,
-          unit: "lb",
-          quantity: 15,
-          minOrder: 10,
-          maxStock: 200,
-          inStock: true,
-        },
-      ],
-    },
-    {
-      id: "seller_3",
-      name: "Island Fresh Produce",
-      location: "Bridgetown, Barbados",
-      verified: true,
-      estimatedDelivery: "Oct 18, 2025",
-      shippingCost: 20.0,
-      minOrderMet: true,
-      minOrderAmount: 30.0,
-      items: [
-        {
-          id: "item_4",
-          productId: "prod_4",
-          name: "Sweet Potatoes",
-          image:
-            "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-          price: 1.8,
-          unit: "lb",
-          quantity: 50,
-          minOrder: 20,
-          maxStock: 500,
-          inStock: true,
-        },
-        {
-          id: "item_5",
-          productId: "prod_5",
-          name: "Organic Spinach",
-          image:
-            "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-          price: 3.0,
-          unit: "lb",
-          quantity: 8,
-          minOrder: 5,
-          maxStock: 50,
-          inStock: false,
-        },
-      ],
-    },
-  ],
-  savedForLater: [
-    {
-      id: "saved_1",
-      productId: "prod_6",
-      name: "Fresh Coconuts",
-      sellerName: "Palm Paradise",
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      price: 2.0,
-      unit: "each",
-      minOrder: 10,
-      inStock: true,
-    },
-  ],
-};
+import { getEstimatedDeliveryRangeLabel } from "@/lib/utils/date";
 
 export default function BuyerCartPage() {
   const dispatch = useAppDispatch();
   const { cart, status, error } = useAppSelector((state) => state.buyerCart);
+  const estimatedDeliveryLabel = getEstimatedDeliveryRangeLabel();
 
   // Fetch cart on mount
   useEffect(() => {
@@ -176,7 +55,7 @@ export default function BuyerCartPage() {
           name: group.seller_name,
           location: "Caribbean", // TODO: Get from API when available
           verified: false, // TODO: Get from API when available
-          estimatedDelivery: "Oct 15-20, 2025", // TODO: Calculate from API
+          estimatedDelivery: estimatedDeliveryLabel, // TODO: Calculate from API
           shippingCost: group.estimated_shipping,
           minOrderMet: true, // TODO: Get from API
           minOrderAmount: minOrderThreshold, // TODO: Get from API
@@ -204,18 +83,21 @@ export default function BuyerCartPage() {
     return items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   };
 
-  const platformFeeRate = 0.05;
-  const shippingFlat = 10;
   const totals = cart
     ? {
         subtotal: cart.subtotal || 0,
-        platformFee: shippingFlat + (cart.subtotal || 0) * platformFeeRate,
-        total:
-          (cart.subtotal || 0) +
-          shippingFlat +
-          (cart.subtotal || 0) * platformFeeRate,
+        platformFeePercent: cart.platform_fee_percent || 0,
+        platformFeeAmount: cart.platform_fee_amount || 0,
+        shipping: cart.estimated_shipping || 0,
+        total: cart.total || 0,
       }
-    : { subtotal: 0, platformFee: 0, total: 0 };
+    : {
+        subtotal: 0,
+        platformFeePercent: 0,
+        platformFeeAmount: 0,
+        shipping: 0,
+        total: 0,
+      };
 
   const totalItems = cart?.total_items || 0;
   const hasStockIssues = cartData.sellers.some((seller) =>
@@ -375,9 +257,6 @@ export default function BuyerCartPage() {
                           <div className="text-sm font-medium text-[var(--secondary-black)]">
                             ${sellerSubtotal.toFixed(2)}
                           </div>
-                          <div className="text-xs text-[var(--secondary-muted-edge)]">
-                            + ${seller.shippingCost.toFixed(2)} shipping
-                          </div>
                         </div>
                       </div>
 
@@ -455,21 +334,71 @@ export default function BuyerCartPage() {
 
                               {/* Quantity & Actions */}
                               <div className="flex items-center justify-between mt-4">
-                                <span className="text-sm font-semibold text-[var(--secondary-black)]">
-                                  Qty: {item.quantity} {item.unit}
-                                </span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-semibold text-[var(--secondary-black)]">
+                                    Qty
+                                  </span>
+                                  <div className="flex items-center gap-1 border border-[var(--secondary-soft-highlight)]/30 rounded-full px-1.5 py-1">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        updateQuantity(
+                                          item.id,
+                                          Math.max(item.minOrder, item.quantity - 1)
+                                        )
+                                      }
+                                      className="w-7 h-7 rounded-full hover:bg-[var(--primary-background)] transition-colors text-[var(--secondary-black)] text-sm font-bold"
+                                      disabled={
+                                        !item.inStock ||
+                                        item.quantity <= item.minOrder
+                                      }
+                                      aria-label="Decrease quantity"
+                                    >
+                                      −
+                                    </button>
+                                    <input
+                                      type="number"
+                                      inputMode="numeric"
+                                      value={item.quantity}
+                                      min={item.minOrder}
+                                      max={item.maxStock}
+                                      onChange={(e) => {
+                                        const raw = Number(e.target.value);
+                                        if (!Number.isFinite(raw)) return;
+                                        const next = Math.max(
+                                          item.minOrder,
+                                          Math.min(item.maxStock, Math.floor(raw))
+                                        );
+                                        updateQuantity(item.id, next);
+                                      }}
+                                      className="w-14 text-center text-sm bg-transparent outline-none text-[var(--secondary-black)]"
+                                      aria-label="Quantity"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        updateQuantity(
+                                          item.id,
+                                          Math.min(item.maxStock, item.quantity + 1)
+                                        )
+                                      }
+                                      className="w-7 h-7 rounded-full hover:bg-[var(--primary-background)] transition-colors text-[var(--secondary-black)] text-sm font-bold"
+                                      disabled={
+                                        !item.inStock ||
+                                        item.quantity >= item.maxStock
+                                      }
+                                      aria-label="Increase quantity"
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                  <span className="text-sm text-[var(--secondary-muted-edge)]">
+                                    {item.unit}
+                                  </span>
+                                </div>
 
                                 {/* Item Actions */}
                                 <div className="flex items-center gap-2">
-                                  <button
-                                    disabled
-                                    className="text-sm text-[var(--secondary-muted-edge)] font-medium opacity-50 cursor-not-allowed"
-                                  >
-                                    Save for later
-                                  </button>
-                                  <span className="text-[var(--secondary-muted-edge)]">
-                                    •
-                                  </span>
                                   <button
                                     onClick={() => removeItem(item.id)}
                                     className="text-sm text-red-600 hover:text-red-700 font-medium transition-colors flex items-center gap-1"
@@ -555,10 +484,19 @@ export default function BuyerCartPage() {
 
                     <div className="flex justify-between text-sm">
                       <span className="text-[var(--secondary-muted-edge)]">
-                        Platform Fee (includes $10 shipping + 5%)
+                        Delivery
                       </span>
                       <span className="font-medium text-[var(--secondary-black)]">
-                        ${totals.platformFee.toFixed(2)}
+                        ${totals.shipping.toFixed(2)}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between text-sm">
+                      <span className="text-[var(--secondary-muted-edge)]">
+                        Platform fee ({totals.platformFeePercent.toFixed(2)}%)
+                      </span>
+                      <span className="font-medium text-[var(--secondary-black)]">
+                        ${totals.platformFeeAmount.toFixed(2)}
                       </span>
                     </div>
 

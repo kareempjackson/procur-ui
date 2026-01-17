@@ -20,6 +20,8 @@ import {
 } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartSolidIcon } from "@heroicons/react/24/solid";
 import { useAppDispatch, useAppSelector } from "@/store";
+import { addDays, formatShortDate } from "@/lib/utils/date";
+import { useToast } from "@/components/ui/Toast";
 import {
   fetchProducts,
   fetchSellers,
@@ -37,6 +39,7 @@ import ProcurLoader from "@/components/ProcurLoader";
 
 export default function BuyerClient() {
   const dispatch = useAppDispatch();
+  const { show } = useToast();
   const {
     products,
     sellers,
@@ -65,6 +68,7 @@ export default function BuyerClient() {
     string[]
   >([]);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 100]);
+  const now = new Date();
 
   // Categories for horizontal scroll (eBay-style)
   const categories = [
@@ -110,7 +114,13 @@ export default function BuyerClient() {
       };
 
       // Only fetch if filters have changed
-      dispatch(fetchProducts(updatedFilters));
+      dispatch(
+        fetchProducts({
+          ...updatedFilters,
+          page: 1,
+          limit: pagination.itemsPerPage || 20,
+        })
+      );
     }, 300); // 300ms debounce
 
     return () => clearTimeout(timeoutId);
@@ -120,8 +130,37 @@ export default function BuyerClient() {
     selectedAvailability,
     selectedCertifications,
     priceRange,
+    pagination.itemsPerPage,
     dispatch,
   ]); // Removed 'filters' and 'selectedCountries' (not used)
+
+  // Keep a single source of truth for the "current" product query used by load-more.
+  const currentProductQuery = {
+    search: searchQuery || undefined,
+    category:
+      selectedCategory !== "All Categories" ? selectedCategory : undefined,
+    in_stock: selectedAvailability.includes("Available Now") ? true : undefined,
+    tags: selectedCertifications.length > 0 ? selectedCertifications : undefined,
+    min_price: priceRange[0] !== 0 ? priceRange[0] : undefined,
+    max_price: priceRange[1] !== 100 ? priceRange[1] : undefined,
+    limit: pagination.itemsPerPage || 20,
+  };
+
+  const canLoadMoreProducts =
+    products.length > 0 &&
+    products.length < pagination.totalItems &&
+    pagination.currentPage < pagination.totalPages;
+
+  const handleLoadMoreProducts = () => {
+    if (!canLoadMoreProducts) return;
+    if (status === "loading") return;
+    dispatch(
+      fetchProducts({
+        ...currentProductQuery,
+        page: (pagination.currentPage || 1) + 1,
+      })
+    );
+  };
 
   // Mock data removed - now using Redux state (products, harvestUpdates, sellers)
   const mockDataPlaceholder = [
@@ -139,7 +178,7 @@ export default function BuyerClient() {
       ],
       likes: 42,
       comments: 8,
-      harvestDate: "Oct 15, 2025",
+      harvestDate: formatShortDate(addDays(now, 5)),
       verified: true,
     },
     {
@@ -191,7 +230,7 @@ export default function BuyerClient() {
       unit: "lb",
       minOrder: "100 lbs",
       availability: "Pre-order",
-      availabilityDate: "Oct 15, 2025",
+      availabilityDate: formatShortDate(addDays(now, 5)),
       image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
       discount: "15% off pre-order",
       tags: ["Organic", "Pre-order"],
@@ -245,7 +284,7 @@ export default function BuyerClient() {
       unit: "head",
       minOrder: "50 heads",
       availability: "Pre-order",
-      availabilityDate: "Oct 12, 2025",
+      availabilityDate: formatShortDate(addDays(now, 2)),
       image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
       discount: null,
       tags: ["Hydroponic", "Local"],
@@ -281,7 +320,7 @@ export default function BuyerClient() {
       unit: "bunch",
       minOrder: "20 bunches",
       availability: "Pre-order",
-      availabilityDate: "Oct 10, 2025",
+      availabilityDate: formatShortDate(addDays(now, 1)),
       image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
       discount: "10% off",
       tags: ["Organic", "Fresh"],
@@ -335,7 +374,7 @@ export default function BuyerClient() {
       unit: "lb",
       minOrder: "200 lbs",
       availability: "Pre-order",
-      availabilityDate: "Oct 20, 2025",
+      availabilityDate: formatShortDate(addDays(now, 10)),
       image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
       discount: null,
       tags: ["Bulk", "Export Ready"],
@@ -371,7 +410,7 @@ export default function BuyerClient() {
       unit: "lb",
       minOrder: "50 lbs",
       availability: "Pre-order",
-      availabilityDate: "Oct 18, 2025",
+      availabilityDate: formatShortDate(addDays(now, 8)),
       image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
       discount: null,
       tags: ["Fresh", "Local"],
@@ -454,8 +493,71 @@ export default function BuyerClient() {
     dispatch(toggleProductFavoriteAsync({ productId: id, isFavorited }));
   };
 
-  const handleAddToCart = (productId: string, quantity: number = 1) => {
-    dispatch(addToCartAsync({ productId, quantity }));
+  const MIN_ORDER_AMOUNT = 30;
+  const getMinOrderQuantityForPrice = (price?: number) => {
+    if (!price || price <= 0) return 1;
+    return Math.max(1, Math.ceil(MIN_ORDER_AMOUNT / price));
+  };
+
+  const [cardQuantities, setCardQuantities] = useState<Record<string, number>>(
+    {}
+  );
+
+  useEffect(() => {
+    // Initialize quantities for newly loaded products (don't clobber user's edits)
+    setCardQuantities((prev) => {
+      const next = { ...prev };
+      for (const p of products) {
+        const id = String(p.id);
+        if (next[id] == null) {
+          next[id] = getMinOrderQuantityForPrice(p.current_price);
+        }
+      }
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [products]);
+
+  const handleAddToCart = async (productId: string) => {
+    const id = String(productId);
+    const product = products.find((p) => String(p.id) === id);
+    if (!product) {
+      show({
+        variant: "error",
+        title: "Couldn't add to cart",
+        message: "Product not found. Please refresh and try again.",
+      });
+      return;
+    }
+
+    if ((product.stock_quantity || 0) <= 0) {
+      show({
+        variant: "warning",
+        title: "Out of stock",
+        message: `${product.name} is currently out of stock.`,
+      });
+      return;
+    }
+
+    const maxOrder = product?.stock_quantity || 5000;
+    const minOrder = getMinOrderQuantityForPrice(product?.current_price);
+    const desired = cardQuantities[id] ?? minOrder;
+    const quantity = Math.max(minOrder, Math.min(maxOrder, desired));
+
+    try {
+      await dispatch(addToCartAsync({ productId: id, quantity })).unwrap();
+      show({
+        variant: "success",
+        title: "Added to cart",
+        message: `Added ${quantity} ${product.unit_of_measurement} to your cart.`,
+      });
+    } catch (e: any) {
+      show({
+        variant: "error",
+        title: "Couldn't add to cart",
+        message: e?.message || "Please try again.",
+      });
+    }
   };
 
   const handleHarvestLike = (harvestId: string, isLiked: boolean) => {
@@ -1012,17 +1114,120 @@ export default function BuyerClient() {
                                   : "Out of stock"}
                               </div>
                             </div>
-                            <button
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleAddToCart(product.id);
-                              }}
-                              className="px-3 py-1.5 bg-[var(--primary-accent2)] text-white rounded-full text-xs font-semibold hover:bg-[var(--primary-accent3)] transition-all duration-200"
-                              disabled={product.stock_quantity === 0}
-                            >
-                              Add
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-1 border border-[var(--secondary-soft-highlight)]/30 rounded-full px-1.5 py-1">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    const min = Math.max(
+                                      1,
+                                      Math.ceil(30 / (product.current_price || 1))
+                                    );
+                                    setCardQuantities((prev) => {
+                                      const current =
+                                        prev[String(product.id)] ?? min;
+                                      return {
+                                        ...prev,
+                                        [String(product.id)]: Math.max(
+                                          min,
+                                          current - 1
+                                        ),
+                                      };
+                                    });
+                                  }}
+                                  className="w-6 h-6 rounded-full hover:bg-[var(--primary-background)] transition-colors text-[var(--secondary-black)] text-xs font-bold"
+                                disabled={product.stock_quantity === 0}
+                                  aria-label="Decrease quantity"
+                                >
+                                  −
+                                </button>
+                                <input
+                                  type="number"
+                                  inputMode="numeric"
+                                  value={
+                                    cardQuantities[String(product.id)] ??
+                                    Math.max(
+                                      1,
+                                      Math.ceil(30 / (product.current_price || 1))
+                                    )
+                                  }
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                  }}
+                                  onChange={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    const raw = Number(e.target.value);
+                                    const min = Math.max(
+                                      1,
+                                      Math.ceil(30 / (product.current_price || 1))
+                                    );
+                                    const max = product.stock_quantity || 5000;
+                                    if (!Number.isFinite(raw)) return;
+                                    const next = Math.max(
+                                      min,
+                                      Math.min(max, Math.floor(raw))
+                                    );
+                                    setCardQuantities((prev) => ({
+                                      ...prev,
+                                      [String(product.id)]: next,
+                                    }));
+                                  }}
+                                  min={Math.max(
+                                    1,
+                                    Math.ceil(30 / (product.current_price || 1))
+                                  )}
+                                  max={product.stock_quantity || 5000}
+                                  className="w-10 text-center text-xs bg-transparent outline-none text-[var(--secondary-black)]"
+                                  aria-label="Quantity"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    const min = Math.max(
+                                      1,
+                                      Math.ceil(30 / (product.current_price || 1))
+                                    );
+                                    const max = product.stock_quantity || 5000;
+                                    setCardQuantities((prev) => {
+                                      const current =
+                                        prev[String(product.id)] ?? min;
+                                      return {
+                                        ...prev,
+                                        [String(product.id)]: Math.min(
+                                          max,
+                                          current + 1
+                                        ),
+                                      };
+                                    });
+                                  }}
+                                  className="w-6 h-6 rounded-full hover:bg-[var(--primary-background)] transition-colors text-[var(--secondary-black)] text-xs font-bold"
+                                disabled={product.stock_quantity === 0}
+                                  aria-label="Increase quantity"
+                                >
+                                  +
+                                </button>
+                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleAddToCart(product.id);
+                                }}
+                              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
+                                product.stock_quantity === 0
+                                  ? "bg-gray-300 text-gray-600 cursor-not-allowed"
+                                  : "bg-[var(--primary-accent2)] text-white hover:bg-[var(--primary-accent3)]"
+                              }`}
+                              >
+                                Add
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </Link>
@@ -1034,13 +1239,13 @@ export default function BuyerClient() {
                   products.length < pagination.totalItems && (
                     <div className="text-center mt-6">
                       <button
-                        onClick={() => {
-                          // TODO: Implement pagination
-                          console.log("Load more products");
-                        }}
-                        className="px-6 py-2.5 bg-white border-2 border-[var(--primary-accent2)] text-[var(--primary-accent2)] rounded-full text-sm font-medium hover:bg-[var(--primary-accent2)] hover:text-white transition-all duration-200"
+                        type="button"
+                        onClick={handleLoadMoreProducts}
+                        disabled={!canLoadMoreProducts || status === "loading"}
+                        aria-busy={status === "loading"}
+                        className="px-6 py-2.5 bg-white border-2 border-[var(--primary-accent2)] text-[var(--primary-accent2)] rounded-full text-sm font-medium hover:bg-[var(--primary-accent2)] hover:text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-[var(--primary-accent2)]"
                       >
-                        Load More Products
+                        {status === "loading" ? "Loading..." : "Load More Products"}
                       </button>
                     </div>
                   )}

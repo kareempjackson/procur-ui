@@ -15,6 +15,7 @@ import {
   XCircleIcon,
   InformationCircleIcon,
 } from "@heroicons/react/24/outline";
+import { addDays, formatShortDate } from "@/lib/utils/date";
 
 type RequestDetailClientProps = {
   requestId: string;
@@ -27,16 +28,17 @@ export default function RequestDetailClient({
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [selectedBidId, setSelectedBidId] = useState<number | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const now = new Date();
 
   // Mock request data (in real app, fetch by requestId)
   const request = {
     id: parseInt(requestId),
     productName: "Organic Cherry Tomatoes",
     quantity: "500 kg",
-    deliveryDate: "Oct 25, 2025",
+    deliveryDate: formatShortDate(addDays(now, 14)),
     deliveryLocation: "Kingston, Jamaica",
     status: "active",
-    createdDate: "Oct 1, 2025",
+    createdDate: formatShortDate(addDays(now, -7)),
     budget: "$2,500 - $3,000",
     orderType: "one-off",
     urgency: "standard",
@@ -51,7 +53,7 @@ export default function RequestDetailClient({
         supplierReviews: 234,
         price: 2750,
         pricePerUnit: "$5.50/kg",
-        deliveryDate: "Oct 25, 2025",
+        deliveryDate: formatShortDate(addDays(now, 14)),
         message:
           "We can provide premium organic cherry tomatoes, GAP certified. Our produce is freshly harvested and we have refrigerated transport available. We've been supplying restaurants for over 10 years.",
         responseTime: "2 hours ago",
@@ -67,7 +69,7 @@ export default function RequestDetailClient({
         supplierReviews: 156,
         price: 2650,
         pricePerUnit: "$5.30/kg",
-        deliveryDate: "Oct 26, 2025",
+        deliveryDate: formatShortDate(addDays(now, 15)),
         message:
           "High quality tomatoes available. Can deliver on your schedule. We pride ourselves on consistent quality and reliability.",
         responseTime: "5 hours ago",
@@ -83,7 +85,7 @@ export default function RequestDetailClient({
         supplierReviews: 98,
         price: 2950,
         pricePerUnit: "$5.90/kg",
-        deliveryDate: "Oct 24, 2025",
+        deliveryDate: formatShortDate(addDays(now, 13)),
         message:
           "Premium grade, early delivery available. We can guarantee the highest quality organic tomatoes.",
         responseTime: "1 day ago",
@@ -99,7 +101,7 @@ export default function RequestDetailClient({
         supplierReviews: 189,
         price: 2800,
         pricePerUnit: "$5.60/kg",
-        deliveryDate: "Oct 25, 2025",
+        deliveryDate: formatShortDate(addDays(now, 14)),
         message:
           "We specialize in organic produce for commercial clients. Can provide documentation and quality certificates upon request.",
         responseTime: "3 hours ago",
@@ -115,7 +117,7 @@ export default function RequestDetailClient({
         supplierReviews: 167,
         price: 2700,
         pricePerUnit: "$5.40/kg",
-        deliveryDate: "Oct 26, 2025",
+        deliveryDate: formatShortDate(addDays(now, 15)),
         message:
           "Best value for premium quality. We have a proven track record with restaurant chains.",
         responseTime: "6 hours ago",

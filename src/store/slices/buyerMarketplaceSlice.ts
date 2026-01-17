@@ -121,6 +121,8 @@ export interface HarvestUpdate {
 }
 
 export interface ProductFilters {
+  page?: number;
+  limit?: number;
   search?: string;
   category?: string;
   subcategory?: string;
@@ -456,7 +458,14 @@ const buyerMarketplaceSlice = createSlice({
       })
       .addCase(fetchProducts.fulfilled, (state, action) => {
         state.status = "succeeded";
-        state.products = action.payload.products;
+        // If we're requesting a subsequent page, append; otherwise replace.
+        if (action.payload.page > 1) {
+          const existingIds = new Set(state.products.map((p) => p.id));
+          const next = action.payload.products.filter((p) => !existingIds.has(p.id));
+          state.products = state.products.concat(next);
+        } else {
+          state.products = action.payload.products;
+        }
         state.pagination.totalItems = action.payload.total;
         state.pagination.currentPage = action.payload.page;
         state.pagination.itemsPerPage = action.payload.limit;

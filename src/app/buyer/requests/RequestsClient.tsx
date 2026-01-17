@@ -17,12 +17,14 @@ import {
 import { useAppDispatch, useAppSelector } from "@/store";
 import { fetchRequests, setFilters } from "@/store/slices/buyerRequestsSlice";
 import ProcurLoader from "@/components/ProcurLoader";
+import { addDays, formatShortDate } from "@/lib/utils/date";
 
 export default function RequestsClient() {
   const dispatch = useAppDispatch();
   const { requests, status, error, pagination } = useAppSelector(
     (state) => state.buyerRequests
   );
+  const now = new Date();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
@@ -55,10 +57,10 @@ export default function RequestsClient() {
       id: 1,
       productName: "Organic Cherry Tomatoes",
       quantity: "500 kg",
-      deliveryDate: "Oct 25, 2025",
+      deliveryDate: formatShortDate(addDays(now, 14)),
       deliveryLocation: "Kingston, Jamaica",
       status: "active",
-      createdDate: "Oct 1, 2025",
+      createdDate: formatShortDate(addDays(now, -7)),
       bidsCount: 5,
       budget: "$2,500 - $3,000",
       orderType: "one-off",
@@ -70,7 +72,7 @@ export default function RequestsClient() {
           supplierRating: 4.8,
           price: "$2,750",
           pricePerUnit: "$5.50/kg",
-          deliveryDate: "Oct 25, 2025",
+          deliveryDate: formatShortDate(addDays(now, 14)),
           message:
             "We can provide premium organic cherry tomatoes, GAP certified.",
           responseTime: "2 hours ago",
@@ -83,7 +85,7 @@ export default function RequestsClient() {
           supplierRating: 4.7,
           price: "$2,650",
           pricePerUnit: "$5.30/kg",
-          deliveryDate: "Oct 26, 2025",
+          deliveryDate: formatShortDate(addDays(now, 15)),
           message:
             "High quality tomatoes available. Can deliver on your schedule.",
           responseTime: "5 hours ago",
@@ -96,7 +98,7 @@ export default function RequestsClient() {
           supplierRating: 4.6,
           price: "$2,950",
           pricePerUnit: "$5.90/kg",
-          deliveryDate: "Oct 24, 2025",
+          deliveryDate: formatShortDate(addDays(now, 13)),
           message: "Premium grade, early delivery available.",
           responseTime: "1 day ago",
           verified: false,
@@ -108,10 +110,10 @@ export default function RequestsClient() {
       id: 2,
       productName: "Fresh Mangoes (Alphonso)",
       quantity: "200 kg",
-      deliveryDate: "Oct 20, 2025",
+      deliveryDate: formatShortDate(addDays(now, 9)),
       deliveryLocation: "Kingston, Jamaica",
       status: "completed",
-      createdDate: "Sep 28, 2025",
+      createdDate: formatShortDate(addDays(now, -10)),
       bidsCount: 8,
       budget: "$1,200 - $1,500",
       orderType: "one-off",
@@ -126,10 +128,10 @@ export default function RequestsClient() {
       id: 3,
       productName: "Sweet Potatoes",
       quantity: "1000 kg",
-      deliveryDate: "Nov 5, 2025",
+      deliveryDate: formatShortDate(addDays(now, 21)),
       deliveryLocation: "Montego Bay, Jamaica",
       status: "active",
-      createdDate: "Oct 3, 2025",
+      createdDate: formatShortDate(addDays(now, -5)),
       bidsCount: 3,
       budget: "$800 - $1,000",
       orderType: "recurring",
@@ -142,7 +144,7 @@ export default function RequestsClient() {
           supplierRating: 4.7,
           price: "$900",
           pricePerUnit: "$0.90/kg",
-          deliveryDate: "Nov 5, 2025",
+          deliveryDate: formatShortDate(addDays(now, 21)),
           message: "We can commit to monthly deliveries at this rate.",
           responseTime: "3 hours ago",
           verified: true,
@@ -154,10 +156,10 @@ export default function RequestsClient() {
       id: 4,
       productName: "Organic Lettuce",
       quantity: "150 kg",
-      deliveryDate: "Oct 15, 2025",
+      deliveryDate: formatShortDate(addDays(now, 5)),
       deliveryLocation: "Kingston, Jamaica",
       status: "expired",
-      createdDate: "Sep 25, 2025",
+      createdDate: formatShortDate(addDays(now, -12)),
       bidsCount: 2,
       budget: "$450 - $600",
       orderType: "one-off",
@@ -167,10 +169,10 @@ export default function RequestsClient() {
       id: 5,
       productName: "Fresh Herbs Mix",
       quantity: "50 kg",
-      deliveryDate: "Oct 30, 2025",
+      deliveryDate: formatShortDate(addDays(now, 18)),
       deliveryLocation: "Kingston, Jamaica",
       status: "active",
-      createdDate: "Oct 5, 2025",
+      createdDate: formatShortDate(addDays(now, -3)),
       bidsCount: 7,
       budget: "$300 - $400",
       orderType: "recurring",
@@ -183,7 +185,7 @@ export default function RequestsClient() {
           supplierRating: 4.5,
           price: "$350",
           pricePerUnit: "$7.00/kg",
-          deliveryDate: "Oct 30, 2025",
+          deliveryDate: formatShortDate(addDays(now, 18)),
           message: "Fresh cut herbs available weekly. Premium quality.",
           responseTime: "1 hour ago",
           verified: true,
@@ -195,7 +197,7 @@ export default function RequestsClient() {
           supplierRating: 4.9,
           price: "$375",
           pricePerUnit: "$7.50/kg",
-          deliveryDate: "Oct 29, 2025",
+          deliveryDate: formatShortDate(addDays(now, 17)),
           message:
             "Organic certified herbs, can start weekly deliveries immediately.",
           responseTime: "4 hours ago",

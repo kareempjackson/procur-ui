@@ -48,6 +48,9 @@ export default function SupplierClient({ supplierId }: SupplierClientProps) {
     "products"
   );
   const [savedProducts, setSavedProducts] = useState<Set<string>>(new Set());
+  const [cardQuantities, setCardQuantities] = useState<Record<string, number>>(
+    {}
+  );
 
   // Fetch seller products on mount
   useEffect(() => {
@@ -92,7 +95,20 @@ export default function SupplierClient({ supplierId }: SupplierClientProps) {
         : null,
     is_favorite: product.is_favorited || false,
     in_stock: product.stock_quantity > 0,
+    stock_quantity: product.stock_quantity,
   }));
+
+  useEffect(() => {
+    // Initialize quantities per product (default 1) without overriding existing user input
+    setCardQuantities((prev) => {
+      const next = { ...prev };
+      for (const p of products) {
+        const id = String(p.id);
+        if (next[id] == null) next[id] = 1;
+      }
+      return next;
+    });
+  }, [products]);
 
   const toggleSave = async (productId: string) => {
     try {
@@ -114,8 +130,13 @@ export default function SupplierClient({ supplierId }: SupplierClientProps) {
 
   const handleAddToCart = async (productId: string) => {
     try {
+      const id = String(productId);
+      const p = products.find((x) => String(x.id) === id);
+      const max = p?.stock_quantity || 5000;
+      const desired = cardQuantities[id] ?? 1;
+      const quantity = Math.max(1, Math.min(max, desired));
       await dispatch(
-        addToCartAsync({ productId: productId, quantity: 1 })
+        addToCartAsync({ productId: id, quantity })
       ).unwrap();
     } catch (error) {
       console.error("Failed to add to cart:", error);
@@ -354,16 +375,79 @@ export default function SupplierClient({ supplierId }: SupplierClientProps) {
                         Min: {product.minOrder}
                       </div>
                     </div>
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        console.log("Add to cart:", product.id);
-                      }}
-                      className="px-3 py-1.5 bg-[var(--primary-accent2)] text-white rounded-full text-xs font-semibold hover:bg-[var(--primary-accent3)] transition-all duration-200"
-                    >
-                      Add
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1 border border-[var(--secondary-soft-highlight)]/30 rounded-full px-1.5 py-1">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setCardQuantities((prev) => {
+                              const id = String(product.id);
+                              const current = prev[id] ?? 1;
+                              return { ...prev, [id]: Math.max(1, current - 1) };
+                            });
+                          }}
+                          className="w-6 h-6 rounded-full hover:bg-[var(--primary-background)] transition-colors text-[var(--secondary-black)] text-xs font-bold"
+                          aria-label="Decrease quantity"
+                        >
+                          −
+                        </button>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          value={cardQuantities[String(product.id)] ?? 1}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }}
+                          onChange={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const raw = Number(e.target.value);
+                            if (!Number.isFinite(raw)) return;
+                            const max = product.stock_quantity || 5000;
+                            const next = Math.max(1, Math.min(max, Math.floor(raw)));
+                            setCardQuantities((prev) => ({
+                              ...prev,
+                              [String(product.id)]: next,
+                            }));
+                          }}
+                          min={1}
+                          max={product.stock_quantity || 5000}
+                          className="w-10 text-center text-xs bg-transparent outline-none text-[var(--secondary-black)]"
+                          aria-label="Quantity"
+                        />
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setCardQuantities((prev) => {
+                              const id = String(product.id);
+                              const current = prev[id] ?? 1;
+                              const max = product.stock_quantity || 5000;
+                              return { ...prev, [id]: Math.min(max, current + 1) };
+                            });
+                          }}
+                          className="w-6 h-6 rounded-full hover:bg-[var(--primary-background)] transition-colors text-[var(--secondary-black)] text-xs font-bold"
+                          aria-label="Increase quantity"
+                        >
+                          +
+                        </button>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleAddToCart(product.id);
+                        }}
+                        className="px-3 py-1.5 bg-[var(--primary-accent2)] text-white rounded-full text-xs font-semibold hover:bg-[var(--primary-accent3)] transition-all duration-200"
+                        disabled={!product.in_stock}
+                      >
+                        Add
+                      </button>
+                    </div>
                   </div>
                 </div>
               </Link>

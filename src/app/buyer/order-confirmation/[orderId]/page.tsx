@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation";
 import {
   CheckCircleIcon,
   ArrowDownTrayIcon,
-  PrinterIcon,
   EnvelopeIcon,
   MapPinIcon,
   TruckIcon,
@@ -44,6 +43,7 @@ export default function OrderConfirmationPage({
   );
   const authToken = useAppSelector((s) => s.auth.accessToken);
   const [isStartingConversation, setIsStartingConversation] = useState(false);
+  const [downloadingInvoice, setDownloadingInvoice] = useState(false);
 
   useEffect(() => {
     if (orderId) {
@@ -63,6 +63,102 @@ export default function OrderConfirmationPage({
   const addrPostal =
     shipping.postal_code || shipping.zip || shipping.zipCode || "";
   const addrCountry = shipping.country || "";
+
+  const handleDownloadInvoice = async () => {
+    if (!order) return;
+
+    const fallbackFilename = `procur-invoice-${
+      (order as any)?.invoice_number || order.order_number || orderId
+    }.pdf`;
+
+    const parseFilenameFromContentDisposition = (headerValue?: string) => {
+      if (!headerValue) return null;
+      // Supports:
+      // - filename="file.pdf"
+      // - filename=file.pdf
+      // - filename*=UTF-8''file%20name.pdf
+      const utf8Match = headerValue.match(/filename\*\s*=\s*UTF-8''([^;]+)/i);
+      if (utf8Match?.[1]) {
+        try {
+          return decodeURIComponent(utf8Match[1].replace(/(^"|"$)/g, ""));
+        } catch {
+          return utf8Match[1].replace(/(^"|"$)/g, "");
+        }
+      }
+
+      const asciiMatch = headerValue.match(/filename\s*=\s*("?)([^";]+)\1/i);
+      if (asciiMatch?.[2]) return asciiMatch[2];
+
+      return null;
+    };
+
+    const downloadBlob = (blob: Blob, filename: string) => {
+      const url = window.URL.createObjectURL(blob);
+      try {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.rel = "noopener";
+        a.style.display = "none";
+        document.body.appendChild(a);
+
+        // iOS Safari can be unreliable with `download` for blob URLs; open in a new tab as a fallback.
+        if (typeof (a as any).download === "undefined") {
+          window.open(url, "_blank", "noopener,noreferrer");
+        } else {
+          a.click();
+        }
+        a.remove();
+      } finally {
+        // Delay revoke slightly to avoid Safari cancelling the download.
+        setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+      }
+    };
+
+    const downloadFromApi = async () => {
+      if (!authToken) throw new Error("Missing auth token");
+      const client = getApiClient(() => authToken);
+      const res = await client.get(`/buyers/orders/${orderId}/invoice`, {
+        responseType: "blob",
+        headers: { Accept: "application/pdf" },
+      });
+
+      const contentType =
+        (res.headers?.["content-type"] as string | undefined) || "";
+      const blob = res.data as Blob;
+
+      // If backend returns JSON error, don't silently download it as a .pdf.
+      if (!contentType.toLowerCase().includes("application/pdf")) {
+        let message = "Invoice download failed.";
+        try {
+          const text = await blob.text();
+          message = text || message;
+        } catch {
+          // ignore
+        }
+        throw new Error(message);
+      }
+
+      const contentDisposition = res.headers?.[
+        "content-disposition"
+      ] as string | undefined;
+      const filename =
+        parseFilenameFromContentDisposition(contentDisposition) ||
+        fallbackFilename;
+
+      downloadBlob(blob, filename);
+    };
+
+    setDownloadingInvoice(true);
+    try {
+      await downloadFromApi();
+    } catch (error) {
+      console.error("Failed to download invoice:", error);
+      show("Failed to download invoice. Please try again.");
+    } finally {
+      setDownloadingInvoice(false);
+    }
+  };
 
   const handleContactSeller = async () => {
     if (!authToken || !order) return;
@@ -120,13 +216,18 @@ export default function OrderConfirmationPage({
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <button className="flex items-center gap-2 px-5 py-2 border border-[var(--secondary-soft-highlight)]/30 text-[var(--secondary-black)] rounded-full hover:bg-[var(--primary-background)] transition-all">
-                <PrinterIcon className="h-4 w-4" />
-                <span className="text-sm font-medium">Print</span>
-              </button>
-              <button className="flex items-center gap-2 px-5 py-2 border border-[var(--secondary-soft-highlight)]/30 text-[var(--secondary-black)] rounded-full hover:bg-[var(--primary-background)] transition-all">
+              <button
+                type="button"
+                onClick={handleDownloadInvoice}
+                disabled={downloadingInvoice}
+                className="flex items-center gap-2 px-5 py-2 border border-[var(--secondary-soft-highlight)]/30 text-[var(--secondary-black)] rounded-full hover:bg-[var(--primary-background)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 <ArrowDownTrayIcon className="h-4 w-4" />
-                <span className="text-sm font-medium">Download Invoice</span>
+                <span className="text-sm font-medium">
+                  {downloadingInvoice
+                    ? "Preparing Invoice..."
+                    : "Download Invoice"}
+                </span>
               </button>
               <Link
                 href={`/buyer/orders/${orderId}`}

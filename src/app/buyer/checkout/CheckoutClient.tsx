@@ -25,96 +25,14 @@ import {
 } from "@/store/slices/buyerOrdersSlice";
 import ProcurLoader from "@/components/ProcurLoader";
 import { getApiClient } from "@/lib/apiClient";
-
-// Demo data - will come from cart in real implementation
-const demoOrderData = {
-  sellers: [
-    {
-      id: "seller_1",
-      name: "Caribbean Farms Co.",
-      location: "Kingston, Jamaica",
-      verified: true,
-      items: [
-        {
-          id: "item_1",
-          name: "Organic Cherry Tomatoes",
-          image:
-            "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-          price: 3.5,
-          quantity: 10,
-          unit: "lb",
-        },
-        {
-          id: "item_2",
-          name: "Fresh Basil",
-          image:
-            "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-          price: 8.5,
-          quantity: 5,
-          unit: "bunch",
-        },
-      ],
-      subtotal: 77.5,
-      shipping: 25.0,
-      estimatedDelivery: "Oct 15, 2025",
-    },
-    {
-      id: "seller_2",
-      name: "Tropical Harvest Ltd",
-      location: "Santo Domingo, DR",
-      verified: true,
-      items: [
-        {
-          id: "item_3",
-          name: "Alphonso Mangoes",
-          image:
-            "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-          price: 4.2,
-          quantity: 15,
-          unit: "lb",
-        },
-      ],
-      subtotal: 63.0,
-      shipping: 30.0,
-      estimatedDelivery: "Oct 12, 2025",
-    },
-  ],
-};
-
-const demoAddresses = [
-  {
-    id: "addr_1",
-    label: "Home",
-    name: "John Smith",
-    street: "123 Main Street",
-    apartment: "Apt 4B",
-    city: "Miami",
-    state: "FL",
-    zipCode: "33101",
-    country: "United States",
-    phone: "(305) 555-0123",
-    isDefault: true,
-  },
-  {
-    id: "addr_2",
-    label: "Office",
-    name: "John Smith",
-    street: "456 Business Blvd",
-    apartment: "Suite 200",
-    city: "Miami",
-    state: "FL",
-    zipCode: "33102",
-    country: "United States",
-    phone: "(305) 555-0124",
-    isDefault: false,
-  },
-];
+import { getEstimatedDeliveryRangeLabel } from "@/lib/utils/date";
 
 type CheckoutStep = "shipping" | "review" | "payment";
 
 export default function CheckoutClient() {
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const estimatedDeliveryLabel = getEstimatedDeliveryRangeLabel();
 
   // Redux state
   const { cart, status: cartStatus } = useAppSelector(
@@ -149,7 +67,7 @@ export default function CheckoutClient() {
           quantity: it.quantity,
         }))
       );
-      await dispatch(
+      const created = await dispatch(
         createOrder({
           items,
           shipping_address_id: selectedAddress,
@@ -157,6 +75,14 @@ export default function CheckoutClient() {
           buyer_notes: deliveryInstructions || undefined,
         })
       ).unwrap();
+      const createdId =
+        (created as any)?.id ||
+        (created as any)?.order?.id ||
+        (created as any)?.data?.id ||
+        (created as any)?.data?.order?.id;
+      if (createdId) {
+        router.push(`/buyer/order-confirmation/${createdId}`);
+      }
       // Refresh cart and orders after order creation (non-card flows)
       dispatch(fetchCart());
       dispatch(fetchOrders({ page: 1, limit: 20 } as any));
@@ -193,14 +119,12 @@ export default function CheckoutClient() {
     }
   }, [addresses, selectedAddress]);
 
-  // Handle successful order creation
+  // Handle successful order creation (reset status after explicit redirect)
   useEffect(() => {
     if (createOrderStatus === "succeeded") {
-      // Redirect to order confirmation
-      router.push("/buyer/order-confirmation");
       dispatch(resetCreateOrderStatus());
     }
-  }, [createOrderStatus, router, dispatch]);
+  }, [createOrderStatus, dispatch]);
 
   const steps = [
     { id: "shipping", label: "Shipping", icon: TruckIcon },
@@ -232,7 +156,7 @@ export default function CheckoutClient() {
           })),
           subtotal: group.subtotal,
           shipping: group.estimated_shipping,
-          estimatedDelivery: "Oct 15-20, 2025",
+          estimatedDelivery: estimatedDeliveryLabel,
         })),
       }
     : { sellers: [] };
@@ -253,13 +177,20 @@ export default function CheckoutClient() {
 
   const calculateTotals = () => {
     if (!cart) {
-      return { subtotal: 0, shipping: 0, tax: 0, total: 0 };
+      return {
+        subtotal: 0,
+        shipping: 0,
+        platformFeePercent: 0,
+        platformFeeAmount: 0,
+        total: 0,
+      };
     }
 
     return {
       subtotal: cart.subtotal,
       shipping: cart.estimated_shipping,
-      tax: cart.estimated_tax,
+      platformFeePercent: cart.platform_fee_percent || 0,
+      platformFeeAmount: cart.platform_fee_amount || 0,
       total: cart.total,
     };
   };
@@ -268,6 +199,13 @@ export default function CheckoutClient() {
   const selectedAddressData = demoAddresses.find(
     (addr) => addr.id === selectedAddress
   );
+
+  const totalUnitsInCart = cart
+    ? cart.seller_groups.reduce(
+        (sum, g) => sum + g.items.reduce((s, it) => s + (it.quantity || 0), 0),
+        0
+      )
+    : 0;
 
   const saveAddressIfNeeded = async (): Promise<boolean> => {
     if (!showAddressForm) return true;
@@ -788,7 +726,9 @@ export default function CheckoutClient() {
                             Delivery by {seller.estimatedDelivery}
                           </span>
                           <span className="font-medium text-[var(--secondary-black)]">
-                            +${seller.shipping.toFixed(2)} shipping
+                            {seller.shipping > 0
+                              ? `+$${seller.shipping.toFixed(2)} shipping`
+                              : "Delivery calculated in order summary"}
                           </span>
                         </div>
                       </div>
@@ -939,10 +879,10 @@ export default function CheckoutClient() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-[var(--secondary-muted-edge)]">
-                    Tax
+                    Platform fee ({totals.platformFeePercent.toFixed(2)}%)
                   </span>
                   <span className="font-medium text-[var(--secondary-black)]">
-                    ${totals.tax.toFixed(2)}
+                    ${totals.platformFeeAmount.toFixed(2)}
                   </span>
                 </div>
                 <div className="border-t border-[var(--secondary-soft-highlight)]/30 pt-3">
@@ -960,11 +900,7 @@ export default function CheckoutClient() {
               {/* Items Preview - Detailed */}
               <div className="border-t border-[var(--secondary-soft-highlight)]/30 pt-4">
                 <p className="text-sm font-medium text-[var(--secondary-black)] mb-3">
-                  {demoOrderData.sellers.reduce(
-                    (sum, s) => sum + s.items.length,
-                    0
-                  )}{" "}
-                  items
+                  {totalUnitsInCart} {totalUnitsInCart === 1 ? "unit" : "units"}
                 </p>
                 <div className="space-y-4 max-h-[340px] overflow-y-auto pr-1">
                   {demoOrderData.sellers.map((seller) => (
@@ -988,7 +924,7 @@ export default function CheckoutClient() {
                                 {it.name}
                               </p>
                               <p className="text-[10px] text-[var(--secondary-muted-edge)]">
-                                {it.quantity} × ${it.price.toFixed(2)} {it.unit}
+                                {it.quantity} {it.unit} × ${it.price.toFixed(2)}
                               </p>
                             </div>
                             <div className="text-xs font-semibold text-[var(--secondary-black)]">
