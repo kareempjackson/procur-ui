@@ -1003,12 +1003,20 @@ export default function BuyerClient() {
                   </div>
                 ) : (
                   <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                    {displayedProducts.map((product) => (
-                      <Link
-                        key={product.id}
-                        href={`/buyer/product/${product.id}`}
-                        className="bg-white rounded-xl overflow-hidden border border-[var(--secondary-soft-highlight)]/20 hover:bg-[var(--primary-background)]/40 transition-colors duration-200 group block"
-                      >
+                    {displayedProducts.map((product) => {
+                      const displayRating =
+                        typeof product.average_rating === "number"
+                          ? product.average_rating
+                          : typeof product.seller?.average_rating === "number"
+                            ? product.seller.average_rating
+                            : null;
+
+                      return (
+                        <Link
+                          key={product.id}
+                          href={`/buyer/product/${product.id}`}
+                          className="bg-white rounded-xl overflow-hidden border border-[var(--secondary-soft-highlight)]/20 hover:bg-[var(--primary-background)]/40 transition-colors duration-200 group block"
+                        >
                         <div className="relative h-32">
                           <Image
                             src={
@@ -1047,13 +1055,14 @@ export default function BuyerClient() {
                               <HeartIcon className="h-3.5 w-3.5 text-[var(--secondary-black)]" />
                             )}
                           </button>
-                          <div className="absolute bottom-1.5 right-1.5 flex items-center gap-0.5 bg-white/90 backdrop-blur-sm px-1.5 py-0.5 rounded-full">
-                            <StarIcon className="h-2.5 w-2.5 fill-yellow-400 text-yellow-400" />
-                            <span className="text-[10px] font-bold">
-                              {product.seller.average_rating?.toFixed(1) ||
-                                "4.5"}
-                            </span>
-                          </div>
+                          {typeof displayRating === "number" && (
+                            <div className="absolute bottom-1.5 right-1.5 flex items-center gap-0.5 bg-white/90 backdrop-blur-sm px-1.5 py-0.5 rounded-full">
+                              <StarIcon className="h-2.5 w-2.5 fill-yellow-400 text-yellow-400" />
+                              <span className="text-[10px] font-bold">
+                                {displayRating.toFixed(1)}
+                              </span>
+                            </div>
+                          )}
                         </div>
 
                         <div className="p-3">
@@ -1230,8 +1239,9 @@ export default function BuyerClient() {
                             </div>
                           </div>
                         </div>
-                      </Link>
-                    ))}
+                        </Link>
+                      );
+                    })}
                   </div>
                 )}
 
@@ -1432,7 +1442,9 @@ export default function BuyerClient() {
                               <div className="flex items-center gap-0.5">
                                 <StarIcon className="h-2.5 w-2.5 fill-yellow-400 text-yellow-400" />
                                 <span className="font-medium">
-                                  {supplier.average_rating?.toFixed(1) || "4.5"}
+                                  {typeof supplier.average_rating === "number"
+                                    ? supplier.average_rating.toFixed(1)
+                                    : "—"}
                                 </span>
                                 <span className="text-[var(--secondary-muted-edge)]">
                                   ({supplier.review_count || 0})

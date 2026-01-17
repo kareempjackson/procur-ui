@@ -160,9 +160,6 @@ export default function BuyerOrdersPage() {
                     </div>
                   </div>
                 </div>
-                <span className="text-[11px] font-medium rounded-full bg-[#CB5927]/15 text-[#653011] px-2.5 py-1">
-                  This page
-                </span>
               </div>
               <div className="mt-2 text-xs text-[var(--secondary-muted-edge)]">
                 Value of paid orders

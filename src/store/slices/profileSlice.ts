@@ -32,6 +32,7 @@ export interface UserProfile {
     businessName?: string;
     businessType?: string;
     logoUrl?: string;
+    headerImageUrl?: string | null;
     farmersIdUrl?: string;
     farmersIdPath?: string;
     farmersIdVerified?: boolean;
@@ -74,6 +75,7 @@ export interface UpdateProfileDto {
   farmersIdUrl?: string;
   avatarPath?: string;
   logoPath?: string;
+  headerImagePath?: string;
 }
 
 export interface NotificationPreferences {

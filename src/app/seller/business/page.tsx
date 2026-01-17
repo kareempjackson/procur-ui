@@ -50,6 +50,10 @@ export default function SellerBusinessSettingsPage() {
   // General Settings State
   const [businessName, setBusinessName] = useState("");
   const [businessType, setBusinessType] = useState("");
+  const [headerImageFile, setHeaderImageFile] = useState<File | null>(null);
+  const [headerImagePreview, setHeaderImagePreview] = useState<string | null>(
+    null
+  );
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [taxId, setTaxId] = useState("");
@@ -74,6 +78,9 @@ export default function SellerBusinessSettingsPage() {
     const org = profile.organization;
     setBusinessName(org?.businessName || org?.name || "");
     setBusinessType(org?.businessType || "");
+    if (!headerImageFile) {
+      setHeaderImagePreview(org?.headerImageUrl || null);
+    }
     if (!logoFile) {
       setLogoPreview(org?.logoUrl || null);
     }
@@ -90,7 +97,7 @@ export default function SellerBusinessSettingsPage() {
     if (!farmerIdFile) {
       setFarmerIdPreview(org?.farmersIdUrl || null);
     }
-  }, [profile, farmerIdFile, logoFile]);
+  }, [profile, farmerIdFile, headerImageFile, logoFile]);
 
   // Load bank info when Payments tab is opened
   useEffect(() => {
@@ -165,12 +172,34 @@ export default function SellerBusinessSettingsPage() {
     reader.readAsDataURL(file);
   };
 
+  const handleHeaderImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      show("Please upload an image file");
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      show("Image size must be less than 8MB");
+      return;
+    }
+
+    setHeaderImageFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setHeaderImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSaveGeneral = async () => {
     setSavingGeneral(true);
     try {
       const client = getApiClient();
       let farmersIdPath: string | undefined = undefined;
       let logoPath: string | undefined = undefined;
+      let headerImagePath: string | undefined = undefined;
 
       if (farmerIdFile && user?.organizationId) {
         // 1) Ask backend for signed upload URL (private storage)
@@ -224,6 +253,32 @@ export default function SellerBusinessSettingsPage() {
         logoPath = signed.path as string;
       }
 
+      if (headerImageFile && user?.organizationId) {
+        const { data: signed } = await client.patch(
+          "/users/header-image/signed-upload",
+          {
+            organizationId: user.organizationId,
+            filename: headerImageFile.name,
+          }
+        );
+
+        const uploadRes = await fetch(signed.signedUrl as string, {
+          method: "PUT",
+          headers: {
+            "Content-Type":
+              headerImageFile.type || "application/octet-stream",
+            "x-upsert": "false",
+          },
+          body: headerImageFile,
+        });
+
+        if (!uploadRes.ok) {
+          throw new Error("Failed to upload Header Image to storage");
+        }
+
+        headerImagePath = signed.path as string;
+      }
+
       // 3) Save profile fields (and farmersIdPath / logoPath if present) via profile slice
       await dispatch(
         updateProfile({
@@ -236,6 +291,7 @@ export default function SellerBusinessSettingsPage() {
           ...(registrationNumber ? { registrationNumber } : {}),
           ...(farmersIdPath ? { farmersIdPath } : {}),
           ...(logoPath ? { logoPath } : {}),
+          ...(headerImagePath ? { headerImagePath } : {}),
         })
       ).unwrap();
 
@@ -253,6 +309,7 @@ export default function SellerBusinessSettingsPage() {
       // Clear local file state after successful save
       setFarmerIdFile(null);
       setLogoFile(null);
+      setHeaderImageFile(null);
       // Keep preview; it will refresh from profile when fetched
       show("Business profile updated");
     } catch (e) {
@@ -494,6 +551,72 @@ export default function SellerBusinessSettingsPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-medium text-[var(--secondary-black)] mb-1.5">
+                    Header Image (Farm Cover)
+                  </label>
+                  <div className="flex items-start gap-4">
+                    <div className="w-[220px]">
+                      {headerImagePreview ? (
+                        <div className="relative group rounded-xl overflow-hidden border border-[var(--secondary-soft-highlight)]/30">
+                          <div className="relative w-full h-[90px]">
+                            <Image
+                              src={headerImagePreview}
+                              alt="Header Image"
+                              fill
+                              className="object-cover"
+                              sizes="220px"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setHeaderImageFile(null);
+                              setHeaderImagePreview(null);
+                            }}
+                            className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <XMarkIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="flex flex-col items-center justify-center h-[90px] w-full border-2 border-dashed border-[var(--secondary-soft-highlight)]/30 rounded-xl hover:border-[var(--primary-accent2)] transition-colors cursor-pointer group">
+                          <div className="flex flex-col items-center">
+                            <svg
+                              className="w-6 h-6 text-gray-400 group-hover:text-[var(--primary-accent2)] transition-colors"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                              />
+                            </svg>
+                            <span className="mt-1 text-[10px] text-gray-500 group-hover:text-[var(--primary-accent2)]">
+                              Upload
+                            </span>
+                          </div>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleHeaderImageChange}
+                            className="hidden"
+                          />
+                        </label>
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs text-[var(--secondary-muted-edge)]">
+                        Optional cover image shown on your public supplier page.
+                        JPG/PNG recommended (wide image), max 8MB.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="md:col-span-2">
                   <label className="block text-xs font-medium text-[var(--secondary-black)] mb-1.5">
                     Business Logo

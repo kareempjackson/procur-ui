@@ -57,6 +57,8 @@ export interface Product {
     id: string;
     name: string;
     location?: string;
+    logo_url?: string;
+    header_image_url?: string;
     average_rating?: number;
     review_count: number;
     product_count: number;
@@ -71,6 +73,7 @@ export interface Seller {
   description?: string;
   business_type?: string;
   logo_url?: string;
+  header_image_url?: string;
   location?: string;
   average_rating?: number;
   review_count: number;

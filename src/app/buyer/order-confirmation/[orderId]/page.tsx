@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -44,6 +44,8 @@ export default function OrderConfirmationPage({
   const authToken = useAppSelector((s) => s.auth.accessToken);
   const [isStartingConversation, setIsStartingConversation] = useState(false);
   const [downloadingInvoice, setDownloadingInvoice] = useState(false);
+  const [groupOrders, setGroupOrders] = useState<any[] | null>(null);
+  const [groupLoading, setGroupLoading] = useState(false);
 
   useEffect(() => {
     if (orderId) {
@@ -53,6 +55,54 @@ export default function OrderConfirmationPage({
 
   const loading = orderDetailStatus === "loading";
   const order = currentOrder as any | null;
+
+  const checkoutGroupId: string | null =
+    (order as any)?.checkout_group_id || null;
+
+  // Load all orders for this checkout group (if present)
+  useEffect(() => {
+    const load = async () => {
+      if (!authToken) return;
+      if (!checkoutGroupId) return;
+      setGroupLoading(true);
+      try {
+        const client = getApiClient(() => authToken);
+        const { data } = await client.get(`/buyers/orders/group/${checkoutGroupId}`);
+        const orders = (data as any)?.orders;
+        setGroupOrders(Array.isArray(orders) ? orders : []);
+      } catch (e) {
+        // Non-fatal: fall back to single-order confirmation rendering
+        setGroupOrders(null);
+      } finally {
+        setGroupLoading(false);
+      }
+    };
+    void load();
+  }, [authToken, checkoutGroupId]);
+
+  const ordersToDisplay = useMemo(() => {
+    if (Array.isArray(groupOrders) && groupOrders.length > 0) return groupOrders;
+    return order ? [order] : [];
+  }, [groupOrders, order]);
+
+  const aggregatedTotals = useMemo(() => {
+    const list = ordersToDisplay;
+    const subtotal = list.reduce((sum, o) => sum + Number(o?.subtotal || 0), 0);
+    const delivery = list.reduce(
+      (sum, o) => sum + Number(o?.shipping_amount || o?.shipping_cost || 0),
+      0
+    );
+    const tax = list.reduce((sum, o) => sum + Number(o?.tax_amount || 0), 0);
+    const discount = list.reduce(
+      (sum, o) => sum + Number(o?.discount_amount || 0),
+      0
+    );
+    const total = list.reduce(
+      (sum, o) => sum + Number(o?.total_amount || 0),
+      0
+    );
+    return { subtotal, delivery, tax, discount, total };
+  }, [ordersToDisplay]);
 
   const shipping = order?.shipping_address || {};
   const addrLine1 =
@@ -118,7 +168,14 @@ export default function OrderConfirmationPage({
     const downloadFromApi = async () => {
       if (!authToken) throw new Error("Missing auth token");
       const client = getApiClient(() => authToken);
-      const res = await client.get(`/buyers/orders/${orderId}/invoice`, {
+      const groupId =
+        (order as any)?.checkout_group_id && Array.isArray(groupOrders) && groupOrders.length > 1
+          ? (order as any)?.checkout_group_id
+          : null;
+      const url = groupId
+        ? `/buyers/orders/group/${groupId}/invoice`
+        : `/buyers/orders/${orderId}/invoice`;
+      const res = await client.get(url, {
         responseType: "blob",
         headers: { Accept: "application/pdf" },
       });
@@ -144,7 +201,7 @@ export default function OrderConfirmationPage({
       ] as string | undefined;
       const filename =
         parseFilenameFromContentDisposition(contentDisposition) ||
-        fallbackFilename;
+        (groupId ? `procur-invoice-${groupId}.pdf` : fallbackFilename);
 
       downloadBlob(blob, filename);
     };
@@ -209,11 +266,18 @@ export default function OrderConfirmationPage({
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
               <p className="text-sm text-[var(--secondary-muted-edge)] mb-1">
-                Order Number
+                Order Number{ordersToDisplay.length > 1 ? "s" : ""}
               </p>
               <p className="text-2xl font-bold text-[var(--secondary-black)]">
-                {order?.order_number || "--"}
+                {ordersToDisplay.length > 1
+                  ? `${ordersToDisplay.length} supplier orders`
+                  : order?.order_number || "--"}
               </p>
+              {groupLoading && checkoutGroupId ? (
+                <p className="text-xs text-[var(--secondary-muted-edge)] mt-1">
+                  Loading full checkout…
+                </p>
+              ) : null}
             </div>
             <div className="flex items-center gap-3">
               <button
@@ -226,7 +290,9 @@ export default function OrderConfirmationPage({
                 <span className="text-sm font-medium">
                   {downloadingInvoice
                     ? "Preparing Invoice..."
-                    : "Download Invoice"}
+                    : ordersToDisplay.length > 1
+                      ? "Download Invoice (All)"
+                      : "Download Invoice"}
                 </span>
               </button>
               <Link
@@ -327,22 +393,29 @@ export default function OrderConfirmationPage({
 
         {/* Order Items */}
         <div className="space-y-6 mb-6">
-          {order && (
-            <div className="bg-white rounded-3xl border border-[var(--secondary-soft-highlight)]/20 overflow-hidden">
+          {ordersToDisplay.map((o: any) => (
+            <div
+              key={o.id}
+              className="bg-white rounded-3xl border border-[var(--secondary-soft-highlight)]/20 overflow-hidden"
+            >
               {/* Seller Header */}
               <div className="bg-[var(--primary-background)] px-6 py-4 border-b border-[var(--secondary-soft-highlight)]/30">
-                <div className="flex items-start justify-between">
+                <div className="flex items-start justify-between gap-6">
                   <div>
                     <div className="flex items-center gap-2 mb-2">
                       <h3 className="font-semibold text-[var(--secondary-black)]">
-                        {order.seller_name || "Seller"}
+                        {o.seller_name || "Seller"}
                       </h3>
+                      {ordersToDisplay.length > 1 && (
+                        <span className="text-xs text-[var(--secondary-muted-edge)]">
+                          {o.order_number ? `• ${o.order_number}` : ""}
+                        </span>
+                      )}
                     </div>
                     <div className="space-y-1 text-sm text-[var(--secondary-muted-edge)]">
                       <div className="flex items-center gap-2">
                         <CalendarIcon className="h-4 w-4" />
-                        Estimated delivery:{" "}
-                        {order.estimated_delivery_date || "TBD"}
+                        Estimated delivery: {o.estimated_delivery_date || "TBD"}
                       </div>
                     </div>
                   </div>
@@ -351,7 +424,7 @@ export default function OrderConfirmationPage({
                       Subtotal
                     </p>
                     <p className="text-xl font-bold text-[var(--secondary-black)]">
-                      ${Number(order.subtotal || 0).toFixed(2)}
+                      ${Number(o.subtotal || 0).toFixed(2)}
                     </p>
                   </div>
                 </div>
@@ -359,7 +432,7 @@ export default function OrderConfirmationPage({
 
               {/* Items */}
               <div className="p-6 space-y-4">
-                {(order.items || []).map((item: any) => (
+                {(o.items || []).map((item: any) => (
                   <div key={item.id} className="flex gap-4">
                     <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
                       {item.product_image ||
@@ -405,14 +478,35 @@ export default function OrderConfirmationPage({
                   </div>
                 ))}
 
-                {/* Contact Seller */}
+                {/* Contact Seller (for this specific order) */}
                 <div className="pt-4 border-t border-[var(--secondary-soft-highlight)]/30">
                   <div className="flex items-center justify-between">
                     <div className="text-sm text-[var(--secondary-muted-edge)]">
-                      Order ID: {order.id}
+                      Order ID: {o.id}
                     </div>
                     <button
-                      onClick={handleContactSeller}
+                      onClick={async () => {
+                        if (!authToken || !o?.id) return;
+                        setIsStartingConversation(true);
+                        try {
+                          const client = getApiClient(() => authToken);
+                          const { data } = await client.post(
+                            "/conversations/start",
+                            {
+                              contextType: "order",
+                              contextId: o.id,
+                              withOrgId: o.seller_org_id,
+                              title: `Order ${o.order_number || o.id}`,
+                            }
+                          );
+                          router.push(`/buyer/messages?conversationId=${data.id}`);
+                        } catch (error) {
+                          console.error("Failed to start conversation:", error);
+                          show("Failed to start conversation. Please try again.");
+                        } finally {
+                          setIsStartingConversation(false);
+                        }
+                      }}
                       disabled={isStartingConversation || !authToken}
                       className="px-5 py-2 bg-[var(--primary-accent2)] text-white rounded-full text-sm font-medium hover:bg-[var(--primary-accent3)] transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
                     >
@@ -424,7 +518,7 @@ export default function OrderConfirmationPage({
                 </div>
               </div>
             </div>
-          )}
+          ))}
         </div>
 
         {/* Shipping & Payment Info */}
@@ -499,7 +593,7 @@ export default function OrderConfirmationPage({
                 Subtotal
               </span>
               <span className="font-medium text-[var(--secondary-black)]">
-                ${Number(order?.subtotal || 0).toFixed(2)}
+                ${Number(aggregatedTotals.subtotal || 0).toFixed(2)}
               </span>
             </div>
             <div className="flex justify-between text-sm">
@@ -507,13 +601,13 @@ export default function OrderConfirmationPage({
                 Shipping
               </span>
               <span className="font-medium text-[var(--secondary-black)]">
-                ${Number(order?.shipping_amount || 0).toFixed(2)}
+                ${Number(aggregatedTotals.delivery || 0).toFixed(2)}
               </span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-[var(--secondary-muted-edge)]">Tax</span>
               <span className="font-medium text-[var(--secondary-black)]">
-                ${Number(order?.tax_amount || 0).toFixed(2)}
+                ${Number(aggregatedTotals.tax || 0).toFixed(2)}
               </span>
             </div>
             <div className="border-t border-[var(--secondary-soft-highlight)]/30 pt-3">
@@ -522,7 +616,7 @@ export default function OrderConfirmationPage({
                   Total
                 </span>
                 <span className="font-bold text-xl text-[var(--secondary-black)]">
-                  ${Number(order?.total_amount || 0).toFixed(2)}
+                  ${Number(aggregatedTotals.total || 0).toFixed(2)}
                 </span>
               </div>
             </div>
