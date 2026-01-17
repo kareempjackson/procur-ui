@@ -34,6 +34,9 @@ export default function BuyerTransactionsPage() {
   const [selectedType, setSelectedType] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(false);
 
+  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+  const inFlightPageRef = useRef<number | null>(null);
+
   const requestFilters = useMemo(() => {
     const filters: {
       page: number;
@@ -63,6 +66,55 @@ export default function BuyerTransactionsPage() {
 
     return () => clearTimeout(timeoutId);
   }, [requestFilters, dispatch]);
+
+  // Reset infinite-scroll tracking when filters change
+  useEffect(() => {
+    inFlightPageRef.current = null;
+  }, [requestFilters]);
+
+  // Infinite scroll: when the sentinel enters view, fetch the next page (if any)
+  useEffect(() => {
+    const el = loadMoreSentinelRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry?.isIntersecting) return;
+
+        const hasMore = pagination.page < pagination.totalPages;
+        if (!hasMore) return;
+        if (status === "loading") return;
+
+        const nextPage = pagination.page + 1;
+        if (inFlightPageRef.current === nextPage) return;
+        inFlightPageRef.current = nextPage;
+        dispatch(
+          fetchTransactions({
+            ...requestFilters,
+            page: nextPage,
+            limit: requestFilters.limit,
+          })
+        );
+      },
+      { root: null, rootMargin: "400px 0px", threshold: 0 }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [
+    dispatch,
+    pagination.page,
+    pagination.totalPages,
+    requestFilters,
+    status,
+  ]);
+
+  // Allow retry after success/failure (e.g., scrolling again after a transient error)
+  useEffect(() => {
+    if (status === "loading") return;
+    inFlightPageRef.current = null;
+  }, [status, pagination.page]);
 
   // Toast on background refresh failures (keep stale data visible)
   const lastToastErrorRef = useRef<string | null>(null);
@@ -475,51 +527,35 @@ export default function BuyerTransactionsPage() {
           </div>
         )}
 
-        {/* Pagination */}
-        {pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between mt-6">
+        {/* Infinite scroll footer */}
+        {transactions.length > 0 && (
+          <div className="mt-6 flex flex-col items-center gap-3">
             <div className="text-sm text-[var(--secondary-muted-edge)]">
-              Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
-              {Math.min(
-                pagination.page * pagination.limit,
-                pagination.totalItems
-              )}{" "}
-              of {pagination.totalItems} transactions
+              Showing {Math.min(transactions.length, pagination.totalItems)} of{" "}
+              {pagination.totalItems} transactions
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() =>
-                  dispatch(
-                    fetchTransactions({
-                      page: Math.max(pagination.page - 1, 1),
-                    })
-                  )
-                }
-                disabled={pagination.page === 1}
-                className="px-4 py-2 bg-white border border-[var(--secondary-soft-highlight)] text-[var(--secondary-black)] rounded-full text-sm font-medium hover:bg-[var(--primary-background)] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+
+            {pagination.page < pagination.totalPages ? (
+              <div
+                ref={loadMoreSentinelRef}
+                className="w-full flex items-center justify-center py-4"
               >
-                Previous
-              </button>
-              <span className="text-sm text-[var(--secondary-muted-edge)] px-4">
-                Page {pagination.page} of {pagination.totalPages}
-              </span>
-              <button
-                onClick={() =>
-                  dispatch(
-                    fetchTransactions({
-                      page: Math.min(
-                        pagination.page + 1,
-                        pagination.totalPages
-                      ),
-                    })
-                  )
-                }
-                disabled={pagination.page === pagination.totalPages}
-                className="px-4 py-2 bg-white border border-[var(--secondary-soft-highlight)] text-[var(--secondary-black)] rounded-full text-sm font-medium hover:bg-[var(--primary-background)] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next
-              </button>
-            </div>
+                {status === "loading" ? (
+                  <div className="flex items-center gap-2 text-xs text-[var(--secondary-muted-edge)]">
+                    <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                    Loading more...
+                  </div>
+                ) : (
+                  <span className="text-xs text-[var(--secondary-muted-edge)]">
+                    Scroll to load more
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div className="text-xs text-[var(--secondary-muted-edge)]">
+                You’ve reached the end
+              </div>
+            )}
           </div>
         )}
       </main>

@@ -14,13 +14,10 @@ import {
   ClockIcon,
   TruckIcon,
   ShieldCheckIcon,
-  HeartIcon,
 } from "@heroicons/react/24/outline";
-import { HeartIcon as HeartSolidIcon } from "@heroicons/react/24/solid";
 import { useAppDispatch, useAppSelector } from "@/store";
 import {
   fetchSellerProducts,
-  toggleProductFavoriteAsync,
 } from "@/store/slices/buyerMarketplaceSlice";
 import { addToCartAsync } from "@/store/slices/buyerCartSlice";
 import ProcurLoader from "@/components/ProcurLoader";
@@ -48,7 +45,6 @@ export default function SupplierClient({ supplierId }: SupplierClientProps) {
   const [selectedTab, setSelectedTab] = useState<"products" | "about">(
     "products"
   );
-  const [savedProducts, setSavedProducts] = useState<Set<string>>(new Set());
   const [cardQuantities, setCardQuantities] = useState<Record<string, number>>(
     {}
   );
@@ -146,24 +142,6 @@ export default function SupplierClient({ supplierId }: SupplierClientProps) {
       return changed ? next : prev;
     });
   }, [products]);
-
-  const toggleSave = async (productId: string) => {
-    try {
-      const product = sellerProducts.find((p) => p.id === productId);
-      if (product) {
-        await dispatch(
-          toggleProductFavoriteAsync({
-            productId,
-            isFavorited: !product.is_favorited,
-          })
-        ).unwrap();
-        // Refresh seller products to get updated favorite status
-        dispatch(fetchSellerProducts(supplierId));
-      }
-    } catch (error) {
-      console.error("Failed to toggle favorite:", error);
-    }
-  };
 
   const handleAddToCart = async (productId: string) => {
     try {
@@ -400,20 +378,6 @@ export default function SupplierClient({ supplierId }: SupplierClientProps) {
                       {product.discount}
                     </div>
                   )}
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      toggleSave(product.id);
-                    }}
-                    className="absolute top-1.5 right-1.5 bg-white/90 backdrop-blur-sm p-1 rounded-full hover:bg-white transition-all duration-200 z-10"
-                  >
-                    {product.is_favorite ? (
-                      <HeartSolidIcon className="h-3.5 w-3.5 text-[var(--primary-accent2)]" />
-                    ) : (
-                      <HeartIcon className="h-3.5 w-3.5 text-[var(--secondary-black)]" />
-                    )}
-                  </button>
                 </div>
 
                 <div className="p-3">

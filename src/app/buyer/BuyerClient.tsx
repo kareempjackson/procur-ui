@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -14,6 +14,7 @@ import {
   ChatBubbleLeftIcon,
   UserGroupIcon,
   CalendarIcon,
+  ArrowPathIcon,
   ArrowRightIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -27,7 +28,6 @@ import {
   fetchSellers,
   fetchHarvestUpdates,
   fetchMarketplaceStats,
-  toggleProductFavoriteAsync,
   toggleHarvestLikeAsync,
   addHarvestComment,
   setFilters,
@@ -58,6 +58,8 @@ export default function BuyerClient() {
   const [showHarvestFeed, setShowHarvestFeed] = useState(true);
   const [hasOverflow, setHasOverflow] = useState(false);
   const categoryScrollRef = useRef<HTMLDivElement>(null);
+  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+  const inFlightPageRef = useRef<number | null>(null);
 
   // Filter states (local UI state that syncs with Redux)
   const [selectedAvailability, setSelectedAvailability] = useState<string[]>(
@@ -135,16 +137,34 @@ export default function BuyerClient() {
   ]); // Removed 'filters' and 'selectedCountries' (not used)
 
   // Keep a single source of truth for the "current" product query used by load-more.
-  const currentProductQuery = {
-    search: searchQuery || undefined,
-    category:
-      selectedCategory !== "All Categories" ? selectedCategory : undefined,
-    in_stock: selectedAvailability.includes("Available Now") ? true : undefined,
-    tags: selectedCertifications.length > 0 ? selectedCertifications : undefined,
-    min_price: priceRange[0] !== 0 ? priceRange[0] : undefined,
-    max_price: priceRange[1] !== 100 ? priceRange[1] : undefined,
-    limit: pagination.itemsPerPage || 20,
-  };
+  const currentProductQuery = useMemo(
+    () => ({
+      search: searchQuery || undefined,
+      category:
+        selectedCategory !== "All Categories" ? selectedCategory : undefined,
+      in_stock: selectedAvailability.includes("Available Now")
+        ? true
+        : undefined,
+      tags:
+        selectedCertifications.length > 0 ? selectedCertifications : undefined,
+      min_price: priceRange[0] !== 0 ? priceRange[0] : undefined,
+      max_price: priceRange[1] !== 100 ? priceRange[1] : undefined,
+      limit: pagination.itemsPerPage || 20,
+    }),
+    [
+      searchQuery,
+      selectedCategory,
+      selectedAvailability,
+      selectedCertifications,
+      priceRange,
+      pagination.itemsPerPage,
+    ]
+  );
+
+  const currentProductQueryKey = useMemo(
+    () => JSON.stringify(currentProductQuery),
+    [currentProductQuery]
+  );
 
   const canLoadMoreProducts =
     products.length > 0 &&
@@ -154,13 +174,46 @@ export default function BuyerClient() {
   const handleLoadMoreProducts = () => {
     if (!canLoadMoreProducts) return;
     if (status === "loading") return;
+    const nextPage = (pagination.currentPage || 1) + 1;
+    if (inFlightPageRef.current === nextPage) return;
+    inFlightPageRef.current = nextPage;
     dispatch(
       fetchProducts({
         ...currentProductQuery,
-        page: (pagination.currentPage || 1) + 1,
+        page: nextPage,
       })
     );
   };
+
+  // Reset infinite-scroll tracking when the query changes.
+  useEffect(() => {
+    inFlightPageRef.current = null;
+  }, [currentProductQueryKey]);
+
+  // Infinite scroll: when the sentinel enters view, fetch the next page (if any)
+  useEffect(() => {
+    const el = loadMoreSentinelRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry?.isIntersecting) return;
+        if (!canLoadMoreProducts) return;
+        handleLoadMoreProducts();
+      },
+      { root: null, rootMargin: "400px 0px", threshold: 0 }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [canLoadMoreProducts, status, pagination.currentPage, currentProductQueryKey]);
+
+  // Allow retry after success/failure (e.g., scrolling again after a transient error)
+  useEffect(() => {
+    if (status === "loading") return;
+    inFlightPageRef.current = null;
+  }, [status, pagination.currentPage]);
 
   // Mock data removed - now using Redux state (products, harvestUpdates, sellers)
   const mockDataPlaceholder = [
@@ -488,10 +541,6 @@ export default function BuyerClient() {
       image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
     },
   ];
-
-  const toggleSave = (id: string, isFavorited: boolean) => {
-    dispatch(toggleProductFavoriteAsync({ productId: id, isFavorited }));
-  };
 
   const MIN_ORDER_AMOUNT = 30;
   const getMinOrderQuantityForPrice = (price?: number) => {
@@ -1038,23 +1087,6 @@ export default function BuyerClient() {
                                 % off
                               </div>
                             )}
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              toggleSave(
-                                product.id,
-                                product.is_favorited || false
-                              );
-                            }}
-                            className="absolute top-1.5 right-1.5 bg-white/90 backdrop-blur-sm p-1 rounded-full hover:bg-white transition-all duration-200 z-10"
-                          >
-                            {product.is_favorited ? (
-                              <HeartSolidIcon className="h-3.5 w-3.5 text-[var(--primary-accent2)]" />
-                            ) : (
-                              <HeartIcon className="h-3.5 w-3.5 text-[var(--secondary-black)]" />
-                            )}
-                          </button>
                           {typeof displayRating === "number" && (
                             <div className="absolute bottom-1.5 right-1.5 flex items-center gap-0.5 bg-white/90 backdrop-blur-sm px-1.5 py-0.5 rounded-full">
                               <StarIcon className="h-2.5 w-2.5 fill-yellow-400 text-yellow-400" />
@@ -1245,20 +1277,38 @@ export default function BuyerClient() {
                   </div>
                 )}
 
-                {products.length > 0 &&
-                  products.length < pagination.totalItems && (
-                    <div className="text-center mt-6">
-                      <button
-                        type="button"
-                        onClick={handleLoadMoreProducts}
-                        disabled={!canLoadMoreProducts || status === "loading"}
-                        aria-busy={status === "loading"}
-                        className="px-6 py-2.5 bg-white border-2 border-[var(--primary-accent2)] text-[var(--primary-accent2)] rounded-full text-sm font-medium hover:bg-[var(--primary-accent2)] hover:text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-[var(--primary-accent2)]"
-                      >
-                        {status === "loading" ? "Loading..." : "Load More Products"}
-                      </button>
+                {/* Infinite scroll footer (Products) */}
+                {products.length > 0 && (
+                  <div className="text-center mt-6 flex flex-col items-center gap-2">
+                    <div className="text-sm text-[var(--secondary-muted-edge)]">
+                      Showing{" "}
+                      {Math.min(products.length, pagination.totalItems)} of{" "}
+                      {pagination.totalItems} products
                     </div>
-                  )}
+
+                    {canLoadMoreProducts ? (
+                      <div
+                        ref={loadMoreSentinelRef}
+                        className="w-full flex items-center justify-center py-4"
+                      >
+                        {status === "loading" ? (
+                          <div className="flex items-center gap-2 text-xs text-[var(--secondary-muted-edge)]">
+                            <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                            Loading more...
+                          </div>
+                        ) : (
+                          <span className="text-xs text-[var(--secondary-muted-edge)]">
+                            Scroll to load more
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-[var(--secondary-muted-edge)]">
+                        You’ve reached the end
+                      </div>
+                    )}
+                  </div>
+                )}
               </section>
             </div>
 

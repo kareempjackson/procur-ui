@@ -187,7 +187,19 @@ const buyerTransactionsSlice = createSlice({
       })
       .addCase(fetchTransactions.fulfilled, (state, action) => {
         state.status = "succeeded";
-        state.transactions = action.payload.transactions || [];
+        const requestedPage = action.meta.arg?.page || 1;
+        const incoming: Transaction[] = action.payload.transactions || [];
+
+        // If we're fetching a subsequent page, append (deduping by id).
+        // Otherwise, replace the list (fresh query / filter change).
+        if (requestedPage > 1) {
+          const existingIds = new Set(state.transactions.map((t) => t.id));
+          const dedupedIncoming = incoming.filter((t) => !existingIds.has(t.id));
+          state.transactions = [...state.transactions, ...dedupedIncoming];
+        } else {
+          state.transactions = incoming;
+        }
+
         state.summary = action.payload.summary || null;
 
         // Handle pagination

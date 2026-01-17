@@ -22,14 +22,10 @@ import {
   UserGroupIcon,
   ClockIcon,
   TagIcon,
-  HeartIcon,
   EyeIcon,
   ShoppingCartIcon,
 } from "@heroicons/react/24/outline";
-import {
-  StarIcon as StarIconSolid,
-  HeartIcon as HeartIconSolid,
-} from "@heroicons/react/24/solid";
+import { StarIcon as StarIconSolid } from "@heroicons/react/24/solid";
 
 type MarketplaceCardProduct = {
   id: string;
@@ -47,7 +43,6 @@ export default function MarketplaceClient() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [currentDealSlide, setCurrentDealSlide] = useState(0);
-  const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedLocations, setSelectedLocations] = useState<string[]>([
@@ -411,18 +406,6 @@ export default function MarketplaceClient() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const toggleFavorite = (productId: string) => {
-    setFavorites((prev) => {
-      const newFavorites = new Set(prev);
-      if (newFavorites.has(productId)) {
-        newFavorites.delete(productId);
-      } else {
-        newFavorites.add(productId);
-      }
-      return newFavorites;
-    });
-  };
-
   const nextDealSlide = () => {
     setCurrentDealSlide((prev) => (prev + 1) % featuredDeals.length);
   };
@@ -770,20 +753,6 @@ export default function MarketplaceClient() {
                             fill
                             className="object-cover group-hover:scale-105 transition-transform duration-300"
                           />
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              toggleFavorite(p.id);
-                            }}
-                            className="absolute top-3 right-3 p-2 bg-white/90 rounded-full hover:bg-white transition-colors"
-                          >
-                            {favorites.has(p.id) ? (
-                              <HeartIconSolid className="h-5 w-5 text-red-500" />
-                            ) : (
-                              <HeartIcon className="h-5 w-5 text-gray-600" />
-                            )}
-                          </button>
                         </div>
                         <div className="p-4">
                           <h3 className="font-semibold text-[var(--secondary-black)] mb-1 group-hover:text-[var(--primary-accent2)] transition-colors">

@@ -79,6 +79,7 @@ export interface Seller {
   review_count: number;
   total_reviews?: number;
   product_count: number;
+  completed_orders?: number;
   years_in_business?: number;
   is_verified: boolean;
   is_favorited?: boolean;

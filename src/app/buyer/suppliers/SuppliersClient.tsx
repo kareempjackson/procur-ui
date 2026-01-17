@@ -14,15 +14,10 @@ import {
   ClockIcon,
   ChatBubbleLeftIcon,
   TruckIcon,
-  HeartIcon,
 } from "@heroicons/react/24/outline";
 import { useAppDispatch, useAppSelector } from "@/store";
-import {
-  fetchSellers,
-  toggleSellerFavoriteAsync,
-} from "@/store/slices/buyerMarketplaceSlice";
+import { fetchSellers } from "@/store/slices/buyerMarketplaceSlice";
 import ProcurLoader from "@/components/ProcurLoader";
-import { HeartIcon as HeartSolidIcon } from "@heroicons/react/24/solid";
 import { getApiClient } from "@/lib/apiClient";
 import { useSelector } from "react-redux";
 import { selectAuthToken } from "@/store/slices/authSlice";
@@ -63,29 +58,6 @@ export default function SuppliersClient() {
 
     return () => clearTimeout(timeoutId);
   }, [searchQuery, dispatch]);
-
-  // Handle toggle favorite
-  const handleToggleFavorite = async (
-    e: React.MouseEvent,
-    supplierId: string,
-    isFavorited: boolean
-  ) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    try {
-      await dispatch(
-        toggleSellerFavoriteAsync({ sellerId: supplierId, isFavorited })
-      ).unwrap();
-
-      // Refresh the list to show updated state
-      dispatch(
-        fetchSellers({ page: 1, limit: 50, search: searchQuery || undefined })
-      );
-    } catch (error) {
-      console.error("Failed to toggle favorite:", error);
-    }
-  };
 
   // Handle message supplier
   const handleMessageSupplier = async (
@@ -135,8 +107,7 @@ export default function SuppliersClient() {
       seller.logo_url ||
       "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
     description: seller.description || "Quality produce supplier",
-    totalOrders: 0, // Not in API yet
-    onTimeDelivery: 95, // Default value
+    completedOrders: seller.completed_orders ?? 0,
   }));
 
   // Keep original mock data as fallback
@@ -740,24 +711,6 @@ export default function SuppliersClient() {
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
 
-                      {/* Favorite Button */}
-                      <button
-                        onClick={(e) =>
-                          handleToggleFavorite(
-                            e,
-                            supplier.id,
-                            supplier.is_favorited
-                          )
-                        }
-                        className="absolute top-2 left-2 p-1.5 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-all duration-200 shadow-lg z-10"
-                      >
-                        {supplier.is_favorited ? (
-                          <HeartSolidIcon className="h-4 w-4 text-[var(--primary-accent2)]" />
-                        ) : (
-                          <HeartIcon className="h-4 w-4 text-[var(--secondary-black)]" />
-                        )}
-                      </button>
-
                       {supplier.verified && (
                         <div className="absolute top-2 right-2 bg-[var(--primary-accent2)] text-white px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
                           <CheckBadgeIcon className="h-3 w-3" />
@@ -828,7 +781,7 @@ export default function SuppliersClient() {
                       </div>
 
                       {/* Stats */}
-                      <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[var(--secondary-soft-highlight)]/20">
+                      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[var(--secondary-soft-highlight)]/20">
                         <div className="text-center">
                           <div className="text-base font-bold text-[var(--secondary-black)]">
                             {supplier.products}
@@ -839,18 +792,10 @@ export default function SuppliersClient() {
                         </div>
                         <div className="text-center">
                           <div className="text-base font-bold text-[var(--secondary-black)]">
-                            {supplier.totalOrders}
+                            {supplier.completedOrders}
                           </div>
                           <div className="text-[10px] text-[var(--secondary-muted-edge)]">
-                            Orders
-                          </div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-base font-bold text-[var(--secondary-black)]">
-                            {supplier.onTimeDelivery}%
-                          </div>
-                          <div className="text-[10px] text-[var(--secondary-muted-edge)]">
-                            On-time
+                            Completed Orders
                           </div>
                         </div>
                       </div>
