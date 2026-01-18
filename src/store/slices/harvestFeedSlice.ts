@@ -1,5 +1,7 @@
 import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { getApiClient } from "@/lib/apiClient";
+import type { RootState } from "@/store";
+import { signout } from "@/store/slices/authSlice";
 
 export type HarvestComment = {
   id: string;
@@ -30,6 +32,9 @@ export type HarvestBuyerRequest = {
 export type HarvestFeedItem = {
   id: string;
   seller_org_id: string;
+  product_id?: string | null;
+  product_name?: string | null;
+  product_image_url?: string | null;
   crop: string;
   expected_harvest_window?: string | null;
   quantity?: number | null;
@@ -46,12 +51,14 @@ type State = {
   items: HarvestFeedItem[];
   status: "idle" | "loading" | "succeeded" | "failed";
   error: string | null;
+  loadedForOrgId: string | null;
 };
 
 const initialState: State = {
   items: [],
   status: "idle",
   error: null,
+  loadedForOrgId: null,
 };
 
 function getClient() {
@@ -69,11 +76,16 @@ function getClient() {
 
 export const fetchHarvestFeed = createAsyncThunk(
   "harvestFeed/fetch",
-  async (_, { rejectWithValue }) => {
+  async (_, { rejectWithValue, getState }) => {
     try {
       const client = getClient();
       const { data } = await client.get("/sellers/harvest-feed");
-      return data as HarvestFeedItem[];
+      const state = getState() as RootState;
+      const orgId =
+        state.auth.user?.organizationId ??
+        state.profile.profile?.organization?.id ??
+        null;
+      return { items: data as HarvestFeedItem[], loadedForOrgId: orgId };
     } catch (err: any) {
       return rejectWithValue(
         err?.response?.data?.message || "Failed to load harvest feed"
@@ -175,14 +187,27 @@ const harvestFeedSlice = createSlice({
       })
       .addCase(
         fetchHarvestFeed.fulfilled,
-        (state, action: PayloadAction<HarvestFeedItem[]>) => {
+        (
+          state,
+          action: PayloadAction<{
+            items: HarvestFeedItem[];
+            loadedForOrgId: string | null;
+          }>
+        ) => {
           state.status = "succeeded";
-          state.items = action.payload;
+          state.items = action.payload.items;
+          state.loadedForOrgId = action.payload.loadedForOrgId;
         }
       )
       .addCase(fetchHarvestFeed.rejected, (state, action) => {
         state.status = "failed";
         state.error = (action.payload as string) || state.error;
+      })
+      .addCase(signout, (state) => {
+        state.items = [];
+        state.status = "idle";
+        state.error = null;
+        state.loadedForOrgId = null;
       })
       .addCase(
         addHarvestComment.fulfilled,

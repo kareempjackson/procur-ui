@@ -62,6 +62,15 @@ export default function BuyerClient() {
   const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
   const inFlightPageRef = useRef<number | null>(null);
 
+  type SortOption = "newest" | "price_asc" | "price_desc" | "popular";
+  const sortOptions: readonly SortOption[] = [
+    "newest",
+    "price_asc",
+    "price_desc",
+    "popular",
+  ] as const;
+  const [sortOption, setSortOption] = useState<SortOption>("newest");
+
   // Filter states (local UI state that syncs with Redux)
   const [selectedAvailability, setSelectedAvailability] = useState<string[]>(
     []
@@ -72,6 +81,21 @@ export default function BuyerClient() {
   >([]);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 100]);
   const now = new Date();
+
+  const sortQuery = useMemo(() => {
+    switch (sortOption) {
+      case "price_asc":
+        return { sort_by: "current_price", sort_order: "asc" as const };
+      case "price_desc":
+        return { sort_by: "current_price", sort_order: "desc" as const };
+      case "popular":
+        // Backend support may vary; we still send this so API can choose an appropriate definition.
+        return { sort_by: "popularity", sort_order: "desc" as const };
+      case "newest":
+      default:
+        return { sort_by: "created_at", sort_order: "desc" as const };
+    }
+  }, [sortOption]);
 
   // Categories for horizontal scroll (eBay-style)
   const categories = [
@@ -114,6 +138,7 @@ export default function BuyerClient() {
             : undefined,
         min_price: priceRange[0] !== 0 ? priceRange[0] : undefined,
         max_price: priceRange[1] !== 100 ? priceRange[1] : undefined,
+        ...sortQuery,
       };
 
       // Only fetch if filters have changed
@@ -133,6 +158,7 @@ export default function BuyerClient() {
     selectedAvailability,
     selectedCertifications,
     priceRange,
+    sortQuery,
     pagination.itemsPerPage,
     dispatch,
   ]); // Removed 'filters' and 'selectedCountries' (not used)
@@ -150,6 +176,7 @@ export default function BuyerClient() {
         selectedCertifications.length > 0 ? selectedCertifications : undefined,
       min_price: priceRange[0] !== 0 ? priceRange[0] : undefined,
       max_price: priceRange[1] !== 100 ? priceRange[1] : undefined,
+      ...sortQuery,
       limit: pagination.itemsPerPage || 20,
     }),
     [
@@ -158,6 +185,7 @@ export default function BuyerClient() {
       selectedAvailability,
       selectedCertifications,
       priceRange,
+      sortQuery,
       pagination.itemsPerPage,
     ]
   );
@@ -657,6 +685,7 @@ export default function BuyerClient() {
     setSelectedCertifications([]);
     setPriceRange([0, 100]);
     setSearchQuery("");
+    setSortOption("newest");
     dispatch(setSelectedCategoryAction("All Categories"));
     // No need to dispatch clearFilters - the useEffect will handle fetching
   };
@@ -675,18 +704,47 @@ export default function BuyerClient() {
       .sort();
   }, [products]);
 
-  // Products to display after applying client-side country filter
+  // Products to display after applying client-side filters/sort that aren't guaranteed server-side.
   const displayedProducts = React.useMemo(() => {
-    if (selectedCountries.length === 0) return products;
     const getCountry = (location?: string) => {
       if (!location) return "";
       const parts = location.split(",");
       return parts[parts.length - 1].trim();
     };
-    return products.filter((p) =>
-      selectedCountries.includes(getCountry(p.seller.location))
-    );
-  }, [products, selectedCountries]);
+    const [rawMin, rawMax] = priceRange;
+    const min = Number.isFinite(rawMin) ? rawMin : 0;
+    const max = Number.isFinite(rawMax) ? rawMax : 100;
+    const low = Math.min(min, max);
+    const high = Math.max(min, max);
+
+    let next = products;
+
+    if (selectedCountries.length > 0) {
+      next = next.filter((p) =>
+        selectedCountries.includes(getCountry(p.seller.location))
+      );
+    }
+
+    // Price range fallback: keeps UI responsive even if the API doesn't filter by price.
+    if (low !== 0 || high !== 100) {
+      next = next.filter((p) => {
+        const price = Number(p.current_price);
+        if (!Number.isFinite(price)) return false;
+        if (low !== 0 && price < low) return false;
+        if (high !== 100 && price > high) return false;
+        return true;
+      });
+    }
+
+    // Sorting fallback for price. "Newest" is handled by API sort, but we still keep stable ordering client-side.
+    if (sortOption === "price_asc") {
+      next = [...next].sort((a, b) => (a.current_price ?? 0) - (b.current_price ?? 0));
+    } else if (sortOption === "price_desc") {
+      next = [...next].sort((a, b) => (b.current_price ?? 0) - (a.current_price ?? 0));
+    }
+
+    return next;
+  }, [products, selectedCountries, priceRange, sortOption]);
 
   // Get unique certifications from products (for filter options) - memoized
   const certifications = React.useMemo(() => {
@@ -1025,11 +1083,19 @@ export default function BuyerClient() {
                       {pagination.totalItems} products
                     </p>
                   </div>
-                  <select className="px-3 py-1.5 bg-white border border-[var(--secondary-soft-highlight)]/30 rounded-full text-xs font-medium text-[var(--secondary-black)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)]">
-                    <option>Sort: Newest</option>
-                    <option>Price: Low to High</option>
-                    <option>Price: High to Low</option>
-                    <option>Most Popular</option>
+                  <select
+                    value={sortOption}
+                    onChange={(e) => {
+                      const next = e.target.value as SortOption;
+                      if (!sortOptions.includes(next)) return;
+                      setSortOption(next);
+                    }}
+                    className="px-3 py-1.5 bg-white border border-[var(--secondary-soft-highlight)]/30 rounded-full text-xs font-medium text-[var(--secondary-black)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)]"
+                  >
+                    <option value="newest">Sort: Newest</option>
+                    <option value="price_asc">Price: Low to High</option>
+                    <option value="price_desc">Price: High to Low</option>
+                    <option value="popular">Most Popular</option>
                   </select>
                 </div>
 

@@ -2,6 +2,7 @@ import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { getApiClient } from "@/lib/apiClient";
 
 export type HarvestPayload = {
+  product_id?: string;
   crop: string;
   expected_harvest_window?: string;
   quantity?: number;

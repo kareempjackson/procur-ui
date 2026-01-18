@@ -5,9 +5,26 @@ import axios from "axios";
 export type SellerHomeMetrics = {
   total_revenue: number;
   total_orders: number;
+  active_orders?: number;
+  delivered_orders?: number;
   active_products: number;
   pending_orders: number;
   average_order_value: number;
+  // Provided by backend DashboardMetricsDto; optional here for backward-compat.
+  currency?: string;
+  period_start?: string;
+  period_end?: string;
+  total_products_sold?: number;
+  low_stock_products?: number;
+  out_of_stock_products?: number;
+  revenue_growth?: number;
+  orders_growth?: number;
+  top_selling_product?: {
+    id: string;
+    name: string;
+    quantity_sold: number;
+    revenue: number;
+  } | null;
 };
 
 export type SellerHomeProduct = {

@@ -1,17 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAppDispatch, useAppSelector } from "@/store";
 import {
   postHarvestUpdate,
   resetHarvestState,
 } from "@/store/slices/harvestSlice";
+import { fetchSellerProducts } from "@/store/slices/sellerProductsSlice";
 import { useRouter } from "next/navigation";
 
 type HarvestForm = {
+  productId: string;
   expectedHarvestWindow: string;
-  crop: string;
   quantity: string;
   unit: string;
   notes: string;
@@ -22,8 +23,8 @@ type HarvestForm = {
 
 export default function SellerHarvestUpdatePage() {
   const [form, setForm] = useState<HarvestForm>({
+    productId: "",
     expectedHarvestWindow: "",
-    crop: "",
     quantity: "",
     unit: "lbs",
     notes: "",
@@ -37,6 +38,18 @@ export default function SellerHarvestUpdatePage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const harvest = useAppSelector((s) => s.harvest);
+  const sellerProducts = useAppSelector((s) => s.sellerProducts);
+
+  useEffect(() => {
+    if (sellerProducts.status === "idle") {
+      dispatch(fetchSellerProducts({ page: 1, limit: 100, status: "active" }));
+    }
+  }, [dispatch, sellerProducts.status]);
+
+  const selectedProduct = useMemo(
+    () => sellerProducts.items.find((p) => p.id === form.productId) || null,
+    [sellerProducts.items, form.productId]
+  );
 
   const update = (key: keyof HarvestForm, value: string) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -47,8 +60,18 @@ export default function SellerHarvestUpdatePage() {
     setMessage(null);
     setError(null);
     try {
+      if (!form.productId) {
+        setError("Please select a product to link this harvest update to.");
+        setSubmitting(false);
+        return;
+      }
+
+      const cropName =
+        selectedProduct?.name || "Harvest update"; // API may override with product name
+
       const payload = {
-        crop: form.crop,
+        product_id: form.productId,
+        crop: cropName,
         expected_harvest_window: form.expectedHarvestWindow || undefined,
         quantity:
           form.quantity.trim() === "" ? undefined : Number(form.quantity),
@@ -143,15 +166,34 @@ export default function SellerHarvestUpdatePage() {
                 <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs text-[color:var(--secondary-muted-edge)] mb-1">
-                      Crop
+                      Product (required)
                     </label>
-                    <input
-                      className="input w-full"
-                      placeholder="e.g., Roma Tomatoes"
-                      value={form.crop}
-                      onChange={(e) => update("crop", e.target.value)}
+                    <select
+                      className="input w-full h-[34px]"
+                      value={form.productId}
+                      onChange={(e) => update("productId", e.target.value)}
                       required
-                    />
+                    >
+                      <option value="">Select a product…</option>
+                      {sellerProducts.items.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                    {sellerProducts.status === "succeeded" &&
+                      sellerProducts.items.length === 0 && (
+                        <div className="mt-2 text-xs text-[color:var(--secondary-muted-edge)]">
+                          You don’t have any active products yet.{" "}
+                          <Link
+                            className="underline"
+                            href="/seller/add/product"
+                          >
+                            Add a product
+                          </Link>{" "}
+                          first, then post a harvest update.
+                        </div>
+                      )}
                   </div>
 
                   <div>

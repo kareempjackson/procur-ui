@@ -97,15 +97,21 @@ export default function SellerBusinessSettingsPage() {
     if (!farmerIdFile) {
       setFarmerIdPreview(org?.farmersIdUrl || null);
     }
+
+    // Prefer server-saved payout method when available
+    if (org?.payoutMethod === "cash" || org?.payoutMethod === "cheque") {
+      setPayoutMethod(org.payoutMethod);
+    }
   }, [profile, farmerIdFile, headerImageFile, logoFile]);
 
-  // Load bank info when Payments tab is opened
+  // Payments tab: keep payout method in sync with profile (source of truth)
   useEffect(() => {
-    if (activeTab === "payments") {
-      void loadBankInfo();
+    if (activeTab !== "payments") return;
+    const method = profile?.organization?.payoutMethod;
+    if (method === "cash" || method === "cheque") {
+      setPayoutMethod(method);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, user?.organizationId]);
+  }, [activeTab, profile?.organization?.payoutMethod]);
 
   // Team Management State
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -117,15 +123,9 @@ export default function SellerBusinessSettingsPage() {
   const [inviteRole, setInviteRole] = useState("member");
   const [inviteSubmitting, setInviteSubmitting] = useState(false);
 
-  // Payment Settings State (backed by API)
-  const [bankInfoLoading, setBankInfoLoading] = useState(false);
-  const [bankInfoError, setBankInfoError] = useState<string | null>(null);
-  const [bankHasInfo, setBankHasInfo] = useState(false);
-  const [bankMaskedAccount, setBankMaskedAccount] = useState<string | null>(
-    null
-  );
-  const [bankName, setBankName] = useState<string | null>(null);
-  const [bankBranch, setBankBranch] = useState<string | null>(null);
+  // Payment Settings State (offline payouts for now)
+  const [payoutMethod, setPayoutMethod] = useState<"cash" | "cheque" | "">("");
+  const [savingPayout, setSavingPayout] = useState(false);
 
   const handleFarmerIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -320,41 +320,22 @@ export default function SellerBusinessSettingsPage() {
     }
   };
 
-  const loadBankInfo = async () => {
-    if (!user?.organizationId) return;
-    setBankInfoLoading(true);
-    setBankInfoError(null);
+  const handleSavePayoutMethod = async () => {
+    if (!payoutMethod) {
+      show("Please select a payout method.");
+      return;
+    }
     try {
-      const client = getApiClient();
-      const { data } = await client.get("/sellers/bank-info");
-
-      const hasInfo = Boolean(data?.has_bank_info);
-      setBankHasInfo(hasInfo);
-      setBankName(data?.bank_name ?? null);
-      setBankBranch(data?.bank_branch ?? null);
-      const last4 = data?.account_last4 ?? null;
-      setBankMaskedAccount(
-        data?.bank_name && last4
-          ? `${data.bank_name} •••• ${last4}`
-          : last4
-            ? `Account •••• ${last4}`
-            : null
-      );
-
-      if (typeof window !== "undefined" && hasInfo) {
-        try {
-          localStorage.setItem("onboarding:payments_completed", "true");
-        } catch {
-          // ignore storage errors
-        }
+      setSavingPayout(true);
+      await dispatch(updateProfile({ payoutMethod })).unwrap();
+      if (typeof window !== "undefined") {
+        localStorage.setItem("onboarding:payments_completed", "true");
       }
-    } catch (err: any) {
-      console.error("Failed to load bank info", err);
-      const message =
-        err?.response?.data?.message || "Failed to load bank information.";
-      setBankInfoError(message);
+      show("Payout preference saved.");
+    } catch {
+      show("Couldn't save payout preference. Please try again.");
     } finally {
-      setBankInfoLoading(false);
+      setSavingPayout(false);
     }
   };
 
@@ -1098,91 +1079,90 @@ export default function SellerBusinessSettingsPage() {
               <div className="flex items-center gap-2 mb-4">
                 <CreditCardIcon className="h-5 w-5 text-[var(--primary-accent2)]" />
                 <h2 className="text-lg font-semibold text-[var(--secondary-black)]">
-                  Payout Bank Details
+                  Payout details
                 </h2>
               </div>
 
-              {bankInfoLoading && (
-                <div className="py-6 text-sm text-[var(--secondary-muted-edge)]">
-                  Loading bank information...
+              <div className="space-y-4">
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex gap-2">
+                  <InformationCircleIcon className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                  <div className="text-xs text-blue-800">
+                    Payouts are currently handled offline. Choose how you want
+                    to receive payouts now. Bank connection is coming soon.
+                  </div>
                 </div>
-              )}
 
-              {!bankInfoLoading && bankInfoError && (
-                <div className="py-4 px-4 mb-2 rounded-xl bg-red-50 border border-red-200 text-sm text-red-800">
-                  {bankInfoError}
-                </div>
-              )}
+                <div>
+                  <div className="text-xs font-semibold text-[var(--secondary-black)] mb-2">
+                    Payout method
+                  </div>
 
-              {!bankInfoLoading && !bankInfoError && bankHasInfo && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-xl">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                        <svg
-                          className="w-6 h-6 text-green-600"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setPayoutMethod("cash")}
+                      className={`rounded-xl border p-4 text-left transition-colors ${
+                        payoutMethod === "cash"
+                          ? "border-[var(--primary-accent2)] bg-[var(--primary-background)]"
+                          : "border-[var(--secondary-soft-highlight)] hover:bg-black/[0.02]"
+                      }`}
+                    >
+                      <div className="text-sm font-semibold text-[var(--secondary-black)]">
+                        Cash
                       </div>
-                      <div>
+                      <div className="mt-1 text-xs text-[var(--secondary-muted-edge)]">
+                        Receive payouts in cash (offline).
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setPayoutMethod("cheque")}
+                      className={`rounded-xl border p-4 text-left transition-colors ${
+                        payoutMethod === "cheque"
+                          ? "border-[var(--primary-accent2)] bg-[var(--primary-background)]"
+                          : "border-[var(--secondary-soft-highlight)] hover:bg-black/[0.02]"
+                      }`}
+                    >
+                      <div className="text-sm font-semibold text-[var(--secondary-black)]">
+                        Cheque
+                      </div>
+                      <div className="mt-1 text-xs text-[var(--secondary-muted-edge)]">
+                        Receive payouts by cheque (offline).
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled
+                      className="rounded-xl border border-[var(--secondary-soft-highlight)] p-4 text-left opacity-70 cursor-not-allowed bg-gray-50"
+                    >
+                      <div className="flex items-center justify-between gap-2">
                         <div className="text-sm font-semibold text-[var(--secondary-black)]">
-                          Bank details on file
+                          Bank transfer
                         </div>
-                        {bankMaskedAccount && (
-                          <div className="text-sm text-[var(--secondary-muted-edge)]">
-                            {bankMaskedAccount}
-                          </div>
-                        )}
-                        {bankBranch && (
-                          <div className="text-xs text-[var(--secondary-muted-edge)]">
-                            Branch: {bankBranch}
-                          </div>
-                        )}
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-200 text-gray-700">
+                          Coming soon
+                        </span>
                       </div>
-                    </div>
+                      <div className="mt-1 text-xs text-[var(--secondary-muted-edge)]">
+                        Bank connection is coming soon.
+                      </div>
+                    </button>
                   </div>
 
-                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex gap-2">
-                    <InformationCircleIcon className="w-5 h-5 text-blue-600 flex-shrink-0" />
-                    <div className="text-xs text-blue-800">
-                      Your payout bank information is securely stored and used
-                      for farmer payouts. To update these details, please
-                      contact support or your administrator.
-                    </div>
+                  <div className="mt-4 flex items-center justify-end">
+                    <button
+                      type="button"
+                      onClick={() => void handleSavePayoutMethod()}
+                      disabled={savingPayout}
+                      className="inline-flex items-center justify-center rounded-full bg-[var(--primary-accent2)] text-white px-5 py-2.5 text-xs font-medium hover:bg-[var(--primary-accent3)] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {savingPayout ? "Saving..." : "Save payout preference"}
+                    </button>
                   </div>
                 </div>
-              )}
-
-              {!bankInfoLoading && !bankInfoError && !bankHasInfo && (
-                <div className="space-y-4">
-                  <div className="text-center py-8">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <CreditCardIcon className="w-8 h-8 text-gray-400" />
-                    </div>
-                    <h3 className="text-base font-semibold text-[var(--secondary-black)] mb-2">
-                      No payout bank on file
-                    </h3>
-                    <p className="text-sm text-[var(--secondary-muted-edge)] mb-4 max-w-md mx-auto">
-                      To receive payouts via bank transfer, a bank account needs
-                      to be added for your organization.
-                    </p>
-                    <p className="text-xs text-[var(--secondary-muted-edge)] max-w-md mx-auto">
-                      Please contact support or your Procur representative to
-                      add or update your bank details. This helps us route
-                      payouts correctly.
-                    </p>
-                  </div>
-                </div>
-              )}
+              </div>
 
               <div className="mt-4 text-xs text-[var(--secondary-muted-edge)]">
                 For payout history and individual transactions, visit{" "}

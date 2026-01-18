@@ -16,6 +16,9 @@ export default function ActivityFeed() {
   const feed = useAppSelector((s) => s.harvestFeed);
   const isBuyer = useAppSelector((s) => s.auth.user?.accountType === "buyer");
   const profile = useAppSelector((s) => s.profile.profile);
+  const sellerOrgId = useAppSelector(
+    (s) => s.auth.user?.organizationId || s.profile.profile?.organization?.id || null
+  );
   const isFarmVerified = Boolean(profile?.organization?.farmVerified);
   const { show } = useToast();
   const [commentDraft, setCommentDraft] = useState<Record<string, string>>({});
@@ -27,8 +30,19 @@ export default function ActivityFeed() {
   >({});
 
   useEffect(() => {
-    if (feed.status === "idle") dispatch(fetchHarvestFeed());
-  }, [dispatch, feed.status]);
+    // Important: the feed is seller-scoped. If you switch accounts/orgs without a hard reload,
+    // we must refetch so we don't show another seller's updates from cached Redux state.
+    const shouldRefetch =
+      feed.status === "idle" ||
+      (sellerOrgId != null && feed.loadedForOrgId !== sellerOrgId);
+    if (shouldRefetch) dispatch(fetchHarvestFeed());
+  }, [dispatch, feed.status, feed.loadedForOrgId, sellerOrgId]);
+
+  const visibleItems =
+    // Safety: if we cannot resolve seller org id, do NOT show any items.
+    sellerOrgId != null
+      ? feed.items.filter((i) => i.seller_org_id === sellerOrgId)
+      : [];
 
   return (
     <section className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white overflow-hidden">
@@ -64,13 +78,13 @@ export default function ActivityFeed() {
         <div className="p-5 text-sm text-[color:var(--secondary-muted-edge)]">
           Loading feed…
         </div>
-      ) : feed.items.length === 0 ? (
+      ) : visibleItems.length === 0 ? (
         <div className="p-5 text-sm text-[color:var(--secondary-muted-edge)]">
           No harvest updates yet.
         </div>
       ) : (
         <div className="divide-y divide-[color:var(--secondary-soft-highlight)]/30">
-          {feed.items.map((item) => (
+          {visibleItems.map((item) => (
             <div key={item.id} className="p-5">
               <div className="flex items-start gap-3">
                 <div className="h-10 w-10 rounded-full bg-[var(--primary-accent1)]/20 flex items-center justify-center text-xs font-semibold text-[color:var(--primary-accent3)]">
@@ -90,6 +104,14 @@ export default function ActivityFeed() {
                       {new Date(item.created_at).toLocaleString()}
                     </div>
                   </div>
+                  {item.product_name && (
+                    <div className="text-xs text-[color:var(--secondary-muted-edge)] mt-1">
+                      Linked product:{" "}
+                      <span className="text-[color:var(--secondary-black)]">
+                        {item.product_name}
+                      </span>
+                    </div>
+                  )}
                   {item.expected_harvest_window && (
                     <div className="text-xs text-[color:var(--secondary-muted-edge)] mt-0.5">
                       Window: {item.expected_harvest_window}

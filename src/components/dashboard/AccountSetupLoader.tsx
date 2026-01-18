@@ -19,6 +19,10 @@ type AccountSetupLoaderProps = {
   totalCount?: number;
   onOpen?: () => void;
   farmVerified?: boolean;
+  farmVisitStatus?: string | null;
+  businessType?: string | null;
+  farmersIdUploaded?: boolean;
+  payoutMethod?: string | null;
 };
 
 export default function AccountSetupLoader({
@@ -26,6 +30,10 @@ export default function AccountSetupLoader({
   totalCount,
   onOpen,
   farmVerified,
+  farmVisitStatus,
+  businessType,
+  farmersIdUploaded,
+  payoutMethod,
 }: AccountSetupLoaderProps) {
   const [flags, setFlags] = useState({
     business: false,
@@ -36,25 +44,49 @@ export default function AccountSetupLoader({
   useEffect(() => {
     try {
       const hasWindow = typeof window !== "undefined";
-      const business =
+      const storedBusiness =
         hasWindow &&
         !!localStorage.getItem("onboarding:business_profile_completed");
-      const payout =
+      const normalizedBusinessType = (businessType || "").toLowerCase();
+      const isFarmBusiness =
+        normalizedBusinessType === "farm" || normalizedBusinessType.includes("farm");
+      const business = Boolean(storedBusiness || (isFarmBusiness && farmersIdUploaded));
+      const normalizedPayoutMethod = (payoutMethod || "").toLowerCase().trim();
+      const payoutFromOrg =
+        normalizedPayoutMethod === "cash" || normalizedPayoutMethod === "cheque";
+      const payoutFromStorage =
         hasWindow && !!localStorage.getItem("onboarding:payments_completed");
+      const payout = Boolean(payoutFromOrg || payoutFromStorage);
       let farmVisit =
         hasWindow && !!localStorage.getItem("onboarding:farm_visit_booked");
+
+      // If we can see a farm visit request on the seller dashboard, treat the
+      // "Book Farm Visit" onboarding step as completed even if localStorage was
+      // never set (e.g. older sessions, cleared browser storage).
+      if (farmVisitStatus) {
+        farmVisit = true;
+      }
 
       // If the farm is verified by an admin, treat the "Book Farm Visit"
       // onboarding step as completed, even if it wasn't explicitly marked
       // in localStorage before.
       if (farmVerified) {
         farmVisit = true;
-        if (hasWindow) {
-          try {
-            localStorage.setItem("onboarding:farm_visit_booked", "true");
-          } catch {
-            // ignore storage write errors
-          }
+      }
+
+      if (farmVisit && hasWindow) {
+        try {
+          localStorage.setItem("onboarding:farm_visit_booked", "true");
+        } catch {
+          // ignore storage write errors
+        }
+      }
+
+      if (business && hasWindow) {
+        try {
+          localStorage.setItem("onboarding:business_profile_completed", "true");
+        } catch {
+          // ignore storage write errors
         }
       }
 
@@ -62,7 +94,7 @@ export default function AccountSetupLoader({
     } catch (_) {
       // ignore
     }
-  }, [farmVerified]);
+  }, [businessType, farmersIdUploaded, farmVerified, farmVisitStatus, payoutMethod]);
 
   const steps = useMemo(
     () => [
@@ -75,20 +107,30 @@ export default function AccountSetupLoader({
       },
       {
         id: "farmVisit",
-        label: "Book Farm Visit",
-        sub: "Request an on-site visit to verify your farm",
+        label:
+          farmVerified || farmVisitStatus === "completed"
+            ? "Farm Visit Completed"
+            : farmVisitStatus
+              ? "Farm Visit Requested"
+              : "Book Farm Visit",
+        sub:
+          farmVerified || farmVisitStatus === "completed"
+            ? "Your farm visit has been completed and reviewed"
+            : farmVisitStatus
+              ? "We have your request — our team will follow up"
+              : "Request an on-site visit to verify your farm",
         href: "/seller",
         completed: flags.farmVisit,
       },
       {
         id: "payout",
         label: "Payouts",
-        sub: "Connect your bank account",
+        sub: "Choose cash or cheque (bank coming soon)",
         href: "/seller/business",
         completed: flags.payout,
       },
     ],
-    [flags]
+    [flags, farmVerified, farmVisitStatus]
   );
 
   const allItems: ChecklistItem[] = useMemo(
@@ -110,6 +152,9 @@ export default function AccountSetupLoader({
   const total = totalCount ?? allItems.length;
   const done = completedCount ?? allItems.filter((i) => i.completed).length;
   const progress = Math.min(100, Math.round((done / Math.max(1, total)) * 100));
+
+  // Once everything is complete, hide the setup widget entirely.
+  if (done >= total) return null;
 
   return (
     <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-4 sm:p-5">

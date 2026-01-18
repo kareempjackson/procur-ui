@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ChartBarIcon,
   CurrencyDollarIcon,
@@ -10,21 +10,15 @@ import {
   ArrowTrendingDownIcon,
 } from "@heroicons/react/24/outline";
 import {
-  LineChart,
-  Line,
   AreaChart,
   Area,
   BarChart,
   Bar,
-  PieChart,
-  Pie,
-  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from "recharts";
 import { useAppDispatch, useAppSelector } from "@/store";
 import {
@@ -81,6 +75,29 @@ export default function AnalyticsClient() {
     return `${sign}${value.toFixed(1)}%`;
   };
 
+  const ui = useMemo(() => {
+    const surface =
+      "bg-white border border-[var(--secondary-soft-highlight)]/28 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.03)]";
+    const surfacePadding = "p-4";
+    const chartSurfacePadding = "p-5";
+    const surfaceHover =
+      "hover:shadow-[0_6px_18px_rgba(0,0,0,0.04)] hover:border-[var(--secondary-soft-highlight)]/45 transition-shadow transition-colors";
+
+    const muted = "text-[var(--secondary-muted-edge)]";
+    const text = "text-[var(--secondary-black)]";
+    const subtle = "text-[var(--primary-base)]";
+
+    return {
+      surface,
+      surfacePadding,
+      chartSurfacePadding,
+      surfaceHover,
+      muted,
+      text,
+      subtle,
+    };
+  }, []);
+
   // Prepare stats from dashboard metrics
   const stats = dashboardMetrics
     ? [
@@ -93,8 +110,7 @@ export default function AnalyticsClient() {
           change: formatPercentage(dashboardMetrics.revenue_growth),
           trend: dashboardMetrics.revenue_growth >= 0 ? "up" : "down",
           icon: CurrencyDollarIcon,
-          color: "text-green-600",
-          bgColor: "bg-green-100",
+          iconColor: "text-[var(--primary-accent2)]",
         },
         {
           label: "Total Orders",
@@ -102,8 +118,7 @@ export default function AnalyticsClient() {
           change: formatPercentage(dashboardMetrics.orders_growth),
           trend: dashboardMetrics.orders_growth >= 0 ? "up" : "down",
           icon: ShoppingBagIcon,
-          color: "text-blue-600",
-          bgColor: "bg-blue-100",
+          iconColor: "text-[var(--secondary-muted-edge)]",
         },
         {
           label: "Pending Orders",
@@ -111,8 +126,7 @@ export default function AnalyticsClient() {
           change: "",
           trend: "neutral",
           icon: TruckIcon,
-          color: "text-orange-600",
-          bgColor: "bg-orange-100",
+          iconColor: "text-[var(--primary-base)]",
         },
         {
           label: "Avg Order Value",
@@ -123,8 +137,7 @@ export default function AnalyticsClient() {
           change: "",
           trend: "neutral",
           icon: ChartBarIcon,
-          color: "text-purple-600",
-          bgColor: "bg-purple-100",
+          iconColor: "text-[var(--secondary-muted-edge)]",
         },
       ]
     : [];
@@ -135,20 +148,17 @@ export default function AnalyticsClient() {
         {
           label: "Active Products",
           value: dashboardMetrics.active_products,
-          color: "text-green-600",
-          bgColor: "bg-green-50",
+          accent: "bg-[var(--secondary-soft-highlight)]/70",
         },
         {
           label: "Low Stock",
           value: dashboardMetrics.low_stock_products,
-          color: "text-yellow-600",
-          bgColor: "bg-yellow-50",
+          accent: "bg-[var(--primary-accent1)]/40",
         },
         {
           label: "Out of Stock",
           value: dashboardMetrics.out_of_stock_products,
-          color: "text-red-600",
-          bgColor: "bg-red-50",
+          accent: "bg-[var(--primary-accent2)]/35",
         },
       ]
     : [];
@@ -201,28 +211,28 @@ export default function AnalyticsClient() {
     <div className="min-h-screen bg-white">
       <main>
         {/* Header */}
-        <section className="bg-white border-b border-[var(--secondary-soft-highlight)]/30">
-          <div className="max-w-[1400px] mx-auto px-6 py-5">
-            <div className="flex items-center justify-between">
+        <section className="bg-white border-b border-[var(--secondary-soft-highlight)]/35">
+          <div className="max-w-[1400px] mx-auto px-6 py-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h1 className="text-2xl font-semibold text-[var(--secondary-black)] mb-1">
+                <h1 className={`text-xl font-semibold ${ui.text} mb-0.5`}>
                   Analytics
                 </h1>
-                <p className="text-sm text-[var(--secondary-muted-edge)]">
+                <p className={`text-sm ${ui.muted}`}>
                   Track your sales performance and business metrics
                 </p>
               </div>
 
               {/* Period Selector */}
-              <div className="flex items-center gap-2">
+              <div className="inline-flex items-center rounded-full border border-[var(--secondary-soft-highlight)]/35 bg-white p-1">
                 {periodOptions.map((period) => (
                   <button
                     key={period.key}
                     onClick={() => handlePeriodChange(period.key)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                       selectedPeriod === period.key
-                        ? "bg-[var(--primary-accent2)] text-white"
-                        : "bg-[var(--primary-background)] text-[var(--secondary-black)] hover:bg-white border border-[var(--secondary-soft-highlight)]/30"
+                        ? "bg-[var(--secondary-black)] text-white"
+                        : `text-[var(--secondary-black)] hover:bg-[var(--primary-background)]/35`
                     }`}
                   >
                     {period.label}
@@ -234,25 +244,25 @@ export default function AnalyticsClient() {
         </section>
 
         {/* Stats Grid */}
-        <section className="max-w-[1400px] mx-auto px-6 py-6">
+        <section className="max-w-[1400px] mx-auto px-6 py-5">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             {stats.map((stat) => (
               <div
                 key={stat.label}
-                className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/20 p-5"
+                className={`${ui.surface} ${ui.surfacePadding} ${ui.surfaceHover}`}
               >
                 <div className="flex items-start justify-between mb-4">
-                  <div className={`p-3 rounded-xl ${stat.bgColor}`}>
-                    <stat.icon className={`h-6 w-6 ${stat.color}`} />
+                  <div className="p-2 rounded-lg bg-white border border-[var(--secondary-soft-highlight)]/35">
+                    <stat.icon className={`h-4 w-4 ${stat.iconColor}`} />
                   </div>
                   {stat.change && (
                     <div
-                      className={`flex items-center gap-1 text-sm font-medium ${
+                      className={`flex items-center gap-1 text-xs font-medium ${
                         stat.trend === "up"
-                          ? "text-green-600"
+                          ? "text-[var(--secondary-muted-edge)]"
                           : stat.trend === "down"
-                            ? "text-red-600"
-                            : "text-gray-500"
+                            ? "text-[var(--primary-accent2)]"
+                            : "text-[var(--primary-base)]"
                       }`}
                     >
                       {stat.trend === "up" ? (
@@ -264,10 +274,10 @@ export default function AnalyticsClient() {
                     </div>
                   )}
                 </div>
-                <div className="text-2xl font-bold text-[var(--secondary-black)] mb-1">
+                <div className={`text-xl font-semibold ${ui.text} mb-1`}>
                   {stat.value}
                 </div>
-                <div className="text-sm text-[var(--secondary-muted-edge)]">
+                <div className={`text-sm ${ui.muted}`}>
                   {stat.label}
                 </div>
               </div>
@@ -277,21 +287,27 @@ export default function AnalyticsClient() {
           {/* Product Stats & Top Selling Product */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             {/* Product Inventory Stats */}
-            <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/20 p-5">
-              <h3 className="text-lg font-semibold text-[var(--secondary-black)] mb-4">
+            <div className={`${ui.surface} ${ui.surfacePadding} ${ui.surfaceHover}`}>
+              <h3 className={`text-lg font-semibold ${ui.text} mb-4`}>
                 Product Inventory
               </h3>
               <div className="grid grid-cols-3 gap-4">
                 {productStats.map((stat) => (
                   <div
                     key={stat.label}
-                    className={`p-4 rounded-xl ${stat.bgColor}`}
+                    className="p-3.5 rounded-xl bg-white border border-[var(--secondary-soft-highlight)]/30"
                   >
-                    <div className={`text-2xl font-bold ${stat.color} mb-1`}>
-                      {stat.value}
-                    </div>
-                    <div className="text-xs text-[var(--secondary-muted-edge)]">
-                      {stat.label}
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className={`text-lg font-semibold ${ui.text} mb-0.5`}>
+                          {stat.value}
+                        </div>
+                        <div className={`text-xs ${ui.muted}`}>{stat.label}</div>
+                      </div>
+                      <div
+                        aria-hidden="true"
+                        className={`h-9 w-9 rounded-full border border-[var(--secondary-soft-highlight)]/28 ${stat.accent}`}
+                      />
                     </div>
                   </div>
                 ))}
@@ -299,29 +315,29 @@ export default function AnalyticsClient() {
             </div>
 
             {/* Top Selling Product */}
-            <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/20 p-5">
-              <h3 className="text-lg font-semibold text-[var(--secondary-black)] mb-4">
+            <div className={`${ui.surface} ${ui.surfacePadding} ${ui.surfaceHover}`}>
+              <h3 className={`text-lg font-semibold ${ui.text} mb-4`}>
                 Top Selling Product
               </h3>
               {dashboardMetrics?.top_selling_product ? (
-                <div className="p-4 bg-[var(--primary-background)] rounded-xl">
-                  <div className="font-semibold text-[var(--secondary-black)] mb-2">
+                <div className="p-4 bg-white border border-[var(--secondary-soft-highlight)]/30 rounded-xl">
+                  <div className={`font-semibold ${ui.text} mb-2`}>
                     {dashboardMetrics.top_selling_product.name}
                   </div>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <div className="text-[var(--secondary-muted-edge)]">
+                      <div className={`${ui.muted}`}>
                         Quantity Sold
                       </div>
-                      <div className="font-medium text-[var(--secondary-black)]">
+                      <div className={`font-medium ${ui.text}`}>
                         {dashboardMetrics.top_selling_product.quantity_sold}
                       </div>
                     </div>
                     <div>
-                      <div className="text-[var(--secondary-muted-edge)]">
+                      <div className={`${ui.muted}`}>
                         Revenue
                       </div>
-                      <div className="font-medium text-[var(--secondary-black)]">
+                      <div className={`font-medium ${ui.text}`}>
                         {formatCurrency(
                           dashboardMetrics.top_selling_product.revenue,
                           dashboardMetrics.currency
@@ -331,7 +347,7 @@ export default function AnalyticsClient() {
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-8 text-[var(--secondary-muted-edge)]">
+                <div className={`text-center py-10 ${ui.muted}`}>
                   No sales data available
                 </div>
               )}
@@ -341,8 +357,8 @@ export default function AnalyticsClient() {
           {/* Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Revenue Over Time Chart */}
-            <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/20 p-6">
-              <h3 className="text-lg font-semibold text-[var(--secondary-black)] mb-4">
+            <div className={`${ui.surface} ${ui.chartSurfacePadding} ${ui.surfaceHover}`}>
+              <h3 className={`text-lg font-semibold ${ui.text} mb-4`}>
                 Revenue Over Time
               </h3>
               {salesAnalytics?.sales_data &&
@@ -391,8 +407,8 @@ export default function AnalyticsClient() {
                       }
                       contentStyle={{
                         backgroundColor: "white",
-                        border: "1px solid #e5e7eb",
-                        borderRadius: "8px",
+                        border: "1px solid rgba(192, 209, 199, 0.55)",
+                        borderRadius: "12px",
                       }}
                     />
                     <Area
@@ -406,33 +422,20 @@ export default function AnalyticsClient() {
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-[300px] flex flex-col items-center justify-center bg-[var(--primary-background)] rounded-xl">
-                  <svg
-                    className="w-16 h-16 text-gray-300 mb-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.5}
-                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                    />
-                  </svg>
-                  <p className="text-[var(--secondary-muted-edge)] text-sm font-medium">
-                    No revenue data available
+                <div className="h-[300px] flex flex-col items-center justify-center rounded-xl bg-white border border-dashed border-[var(--secondary-soft-highlight)]/55">
+                  <p className={`text-sm font-medium ${ui.muted}`}>
+                    No revenue data yet
                   </p>
-                  <p className="text-[var(--secondary-muted-edge)] text-xs mt-1">
-                    Start making sales to see your revenue trends
+                  <p className={`text-xs mt-1 ${ui.subtle}`}>
+                    Once you start selling, trends will show here.
                   </p>
                 </div>
               )}
             </div>
 
             {/* Orders Over Time Chart */}
-            <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/20 p-6">
-              <h3 className="text-lg font-semibold text-[var(--secondary-black)] mb-4">
+            <div className={`${ui.surface} ${ui.chartSurfacePadding} ${ui.surfaceHover}`}>
+              <h3 className={`text-lg font-semibold ${ui.text} mb-4`}>
                 Orders Over Time
               </h3>
               {salesAnalytics?.sales_data &&
@@ -457,37 +460,24 @@ export default function AnalyticsClient() {
                       }
                       contentStyle={{
                         backgroundColor: "white",
-                        border: "1px solid #e5e7eb",
-                        borderRadius: "8px",
+                        border: "1px solid rgba(192, 209, 199, 0.55)",
+                        borderRadius: "12px",
                       }}
                     />
                     <Bar
-                      dataKey="orders"
+                      dataKey="orders_count"
                       fill="#407178"
                       radius={[8, 8, 0, 0]}
                     />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-[300px] flex flex-col items-center justify-center bg-[var(--primary-background)] rounded-xl">
-                  <svg
-                    className="w-16 h-16 text-gray-300 mb-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.5}
-                      d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-                    />
-                  </svg>
-                  <p className="text-[var(--secondary-muted-edge)] text-sm font-medium">
-                    No order data available
+                <div className="h-[300px] flex flex-col items-center justify-center rounded-xl bg-white border border-dashed border-[var(--secondary-soft-highlight)]/55">
+                  <p className={`text-sm font-medium ${ui.muted}`}>
+                    No orders in this period
                   </p>
-                  <p className="text-[var(--secondary-muted-edge)] text-xs mt-1">
-                    Your order history will appear here
+                  <p className={`text-xs mt-1 ${ui.subtle}`}>
+                    Orders will appear here as they come in.
                   </p>
                 </div>
               )}
@@ -495,15 +485,18 @@ export default function AnalyticsClient() {
           </div>
 
           {/* Top Products Chart */}
-          <div className="mt-6 bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/20 p-6">
-            <h3 className="text-lg font-semibold text-[var(--secondary-black)] mb-4">
+          <div className={`mt-6 ${ui.surface} ${ui.chartSurfacePadding} ${ui.surfaceHover}`}>
+            <h3 className={`text-lg font-semibold ${ui.text} mb-4`}>
               Top Products by Revenue
             </h3>
             {salesAnalytics?.top_products &&
             salesAnalytics.top_products.length > 0 ? (
               <ResponsiveContainer width="100%" height={350}>
                 <BarChart
-                  data={salesAnalytics.top_products.slice(0, 10)}
+                  data={salesAnalytics.top_products.slice(0, 10).map((p) => ({
+                    name: p.product_name,
+                    revenue: p.revenue,
+                  }))}
                   layout="vertical"
                   margin={{ left: 100 }}
                 >
@@ -523,33 +516,20 @@ export default function AnalyticsClient() {
                     formatter={(value: any) => `$${value.toLocaleString()}`}
                     contentStyle={{
                       backgroundColor: "white",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: "8px",
+                      border: "1px solid rgba(192, 209, 199, 0.55)",
+                      borderRadius: "12px",
                     }}
                   />
                   <Bar dataKey="revenue" fill="#407178" radius={[0, 8, 8, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-[350px] flex flex-col items-center justify-center bg-[var(--primary-background)] rounded-xl">
-                <svg
-                  className="w-16 h-16 text-gray-300 mb-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                  />
-                </svg>
-                <p className="text-[var(--secondary-muted-edge)] text-sm font-medium">
-                  No product data available
+              <div className="h-[350px] flex flex-col items-center justify-center rounded-xl bg-white border border-dashed border-[var(--secondary-soft-highlight)]/55">
+                <p className={`text-sm font-medium ${ui.muted}`}>
+                  No product revenue yet
                 </p>
-                <p className="text-[var(--secondary-muted-edge)] text-xs mt-1">
-                  Your top selling products will appear here
+                <p className={`text-xs mt-1 ${ui.subtle}`}>
+                  Top products will surface once sales come in.
                 </p>
               </div>
             )}
@@ -557,7 +537,7 @@ export default function AnalyticsClient() {
 
           {/* Period Info */}
           {dashboardMetrics && (
-            <div className="mt-6 text-center text-sm text-[var(--secondary-muted-edge)]">
+            <div className={`mt-6 text-center text-sm ${ui.muted}`}>
               Data from{" "}
               {new Date(dashboardMetrics.period_start).toLocaleDateString()} to{" "}
               {new Date(dashboardMetrics.period_end).toLocaleDateString()}

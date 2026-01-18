@@ -5,7 +5,6 @@ import Image from "next/image";
 import { useMemo, useEffect, useState } from "react";
 import AccountSetupLoader from "@/components/dashboard/AccountSetupLoader";
 import MetricCard from "@/components/dashboard/MetricCard";
-import ActivityFeed from "@/components/dashboard/ActivityFeed";
 import OrderList, {
   type OrderListItem,
 } from "@/components/dashboard/OrderList";
@@ -15,7 +14,22 @@ import {
   ShoppingBagIcon,
   CubeIcon,
   ClockIcon,
+  InboxIcon,
 } from "@heroicons/react/24/outline";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
 import { useAppSelector, useAppDispatch } from "@/store";
 import {
   selectOrderTab,
@@ -23,19 +37,26 @@ import {
   setAnalyticsTab as setAnalyticsTabAction,
 } from "@/store/slices/sellerSlice";
 import { fetchSellerHome } from "@/store/slices/sellerHomeSlice";
+import {
+  AnalyticsPeriod,
+  fetchSalesAnalytics,
+  fetchProductAnalytics,
+  selectSalesAnalytics,
+  selectProductAnalytics,
+} from "@/store/slices/sellerAnalyticsSlice";
 import { fetchSellerProducts } from "@/store/slices/sellerProductsSlice";
 import {
   fetchSellerInsights,
   executeSellerInsight,
 } from "@/store/slices/sellerInsightsSlice";
 import { useRouter } from "next/navigation";
-// Timeline replaced by ActivityFeed component
 import type {
   SellerHomeProduct,
   SellerHomeOrder,
 } from "@/store/slices/sellerHomeSlice";
 import { useToast } from "@/components/ui/Toast";
 import { selectAuthUser } from "@/store/slices/authSlice";
+import { fetchProfile } from "@/store/slices/profileSlice";
 
 // InventoryRow removed as inventory section has been replaced by timeline
 
@@ -53,6 +74,13 @@ function classNames(...classes: (string | false | null | undefined)[]) {
   return classes.filter(Boolean).join(" ");
 }
 
+function formatCurrency(amount: number, currency = "USD") {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency,
+  }).format(Number(amount || 0));
+}
+
 export default function SellerDashboardPage() {
   const router = useRouter();
   const { show } = useToast();
@@ -65,13 +93,25 @@ export default function SellerDashboardPage() {
   const dispatch = useAppDispatch();
   const sellerHome = useAppSelector((s) => s.sellerHome);
   const sellerInsights = useAppSelector((s) => s.sellerInsights);
+  const salesAnalytics = useAppSelector(selectSalesAnalytics);
+  const productAnalytics = useAppSelector(selectProductAnalytics);
   const latestFarmVisit = sellerHome.data?.latest_farm_visit_request;
   const isFarmVerified = Boolean(profile?.organization?.farmVerified);
   const isVerificationBlocked =
     sellerHome.status === "failed" && sellerHome.errorStatus === 403;
 
+  const [deliveredOrdersTotal, setDeliveredOrdersTotal] = useState<number | null>(
+    null
+  );
+  const [pendingOrdersTotal, setPendingOrdersTotal] = useState<number | null>(
+    null
+  );
+
   const [showPaymentLinkModal, setShowPaymentLinkModal] = useState(false);
   const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [analyticsPeriod, setAnalyticsPeriod] = useState<AnalyticsPeriod>(
+    AnalyticsPeriod.LAST_30_DAYS
+  );
 
   // Buyer details
   const [buyerNameForLink, setBuyerNameForLink] = useState("");
@@ -127,11 +167,65 @@ export default function SellerDashboardPage() {
     dispatch(fetchSellerHome({ period: "last_30_days" }));
   }, [dispatch]);
 
+  // Keep verification state fresh (e.g. admin approves farm visit after a seller
+  // has already been logged in).
+  useEffect(() => {
+    dispatch(fetchProfile());
+  }, [dispatch]);
+
+  // Use the same source of truth as `/seller/orders` for delivered orders:
+  // GET /sellers/orders?status=delivered and read the `total` count.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { getApiClient } = await import("@/lib/apiClient");
+        const api = getApiClient();
+        const { data } = await api.get("/sellers/orders", {
+          params: { status: "delivered", page: 1, limit: 1 },
+        });
+        const total = Number((data as any)?.total ?? 0);
+        if (!cancelled) setDeliveredOrdersTotal(Number.isFinite(total) ? total : 0);
+      } catch {
+        if (!cancelled) setDeliveredOrdersTotal(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Match the `/seller/orders` count for pending orders (awaiting acceptance).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { getApiClient } = await import("@/lib/apiClient");
+        const api = getApiClient();
+        const { data } = await api.get("/sellers/orders", {
+          params: { status: "pending", page: 1, limit: 1 },
+        });
+        const total = Number((data as any)?.total ?? 0);
+        if (!cancelled) setPendingOrdersTotal(Number.isFinite(total) ? total : 0);
+      } catch {
+        if (!cancelled) setPendingOrdersTotal(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => {
     if (sellerInsights.status === "idle") {
       dispatch(fetchSellerInsights());
     }
   }, [dispatch, sellerInsights.status]);
+
+  useEffect(() => {
+    dispatch(fetchSalesAnalytics({ period: analyticsPeriod, group_by: "day" }));
+    dispatch(fetchProductAnalytics({ period: analyticsPeriod }));
+  }, [dispatch, analyticsPeriod]);
 
   // Load seller catalog products for the offline payment-link modal.
   useEffect(() => {
@@ -171,29 +265,79 @@ export default function SellerDashboardPage() {
         value:
           homeData.metrics.total_revenue?.toLocaleString("en-US", {
             style: "currency",
-            currency: "USD",
+            currency: homeData.metrics.currency || "USD",
           }) ?? "$0",
         delta: undefined,
         trend: undefined,
         hint: "last 30 days",
       },
       {
-        label: "Orders",
-        value: String(homeData.metrics.total_orders ?? 0),
-        hint: "completed + active",
+        label: "Pending orders",
+        value: String(
+          pendingOrdersTotal ?? (homeData.metrics.pending_orders ?? 0)
+        ),
+        hint: "awaiting acceptance",
+      },
+      {
+        label: "Delivered orders",
+        value: String(
+          deliveredOrdersTotal ??
+            homeData.metrics.delivered_orders ??
+            homeData.metrics.total_orders ??
+            0
+        ),
+        hint: "fulfilled",
+      },
+      {
+        label: "Active orders",
+        value: String(homeData.metrics.active_orders ?? 0),
+        hint: "in progress",
       },
       {
         label: "Active products",
         value: String(homeData.metrics.active_products ?? 0),
         hint: "in catalog",
       },
-      {
-        label: "Pending",
-        value: String(homeData.metrics.pending_orders ?? 0),
-        hint: "awaiting action",
-      },
     ];
-  }, [sellerHome]);
+  }, [sellerHome, deliveredOrdersTotal, pendingOrdersTotal]);
+
+  const analyticsRightActions = useMemo(() => {
+    const periods: Array<{ key: AnalyticsPeriod; label: string }> = [
+      { key: AnalyticsPeriod.LAST_7_DAYS, label: "7D" },
+      { key: AnalyticsPeriod.LAST_30_DAYS, label: "30D" },
+      { key: AnalyticsPeriod.LAST_90_DAYS, label: "90D" },
+    ];
+
+    return (
+      <div className="flex items-center gap-2">
+        <div className="hidden sm:flex items-center gap-1 rounded-full border border-[color:var(--secondary-soft-highlight)] bg-white p-1">
+          {periods.map((p) => (
+            <button
+              key={p.key}
+              type="button"
+              onClick={() => setAnalyticsPeriod(p.key)}
+              className={classNames(
+                "rounded-full px-3 py-1 text-[11px] font-medium transition-colors",
+                analyticsPeriod === p.key
+                  ? "bg-[var(--primary-accent2)] text-white"
+                  : "text-[color:var(--secondary-muted-edge)] hover:text-[color:var(--secondary-black)]"
+              )}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+        <Link
+          href="/seller/analytics"
+          className="inline-flex items-center justify-center rounded-full border border-[color:var(--secondary-soft-highlight)] bg-transparent text-[color:var(--secondary-black)] px-4 py-2 text-xs font-medium hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:ring-offset-2"
+        >
+          Open analytics
+        </Link>
+      </div>
+    );
+  }, [analyticsPeriod]);
+
+  const categoryColors = ["#407178", "#CB5927", "#8091D5", "#E0A374", "#6C715D"];
 
   type FeaturedProductPreview = {
     name: string;
@@ -262,6 +406,13 @@ export default function SellerDashboardPage() {
       show(
         "Your farm visit request has been submitted. An admin will follow up to confirm a date."
       );
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("onboarding:farm_visit_booked", "true");
+        }
+      } catch {
+        // ignore storage errors
+      }
       // Refresh home data to reflect latest request
       dispatch(fetchSellerHome({ period: "last_30_days" }));
     } catch {
@@ -501,7 +652,15 @@ export default function SellerDashboardPage() {
         )}
         {/* Account Setup Loader */}
         <div className="mb-8">
-          <AccountSetupLoader farmVerified={isFarmVerified} />
+          <AccountSetupLoader
+            farmVerified={isFarmVerified}
+            farmVisitStatus={latestFarmVisit?.status ?? null}
+            businessType={profile?.organization?.businessType ?? null}
+            farmersIdUploaded={Boolean(
+              profile?.organization?.farmersIdUrl || profile?.organization?.farmersIdPath
+            )}
+            payoutMethod={profile?.organization?.payoutMethod ?? null}
+          />
         </div>
         {/* Hero Section */}
         <section className="rounded-xl bg-white border border-[color:var(--secondary-soft-highlight)] px-6 sm:px-10 py-8">
@@ -699,9 +858,9 @@ export default function SellerDashboardPage() {
               </button>
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
             {kpis.length === 0 ? (
-              <div className="col-span-4 text-xs text-[color:var(--secondary-muted-edge)]">
+              <div className="col-span-full text-xs text-[color:var(--secondary-muted-edge)]">
                 No metrics yet.
               </div>
             ) : (
@@ -713,22 +872,28 @@ export default function SellerDashboardPage() {
                   icon={<CurrencyDollarIcon className="h-5 w-5" />}
                 />
                 <MetricCard
-                  label="Orders"
+                  label="Pending orders"
                   value={kpis[1]?.value || 0}
-                  hint="completed + active"
+                  hint="awaiting acceptance"
+                  icon={<InboxIcon className="h-5 w-5" />}
+                />
+                <MetricCard
+                  label="Delivered orders"
+                  value={kpis[2]?.value || 0}
+                  hint="fulfilled"
                   icon={<ShoppingBagIcon className="h-5 w-5" />}
                 />
                 <MetricCard
-                  label="Active products"
-                  value={kpis[2]?.value || 0}
-                  hint="in catalog"
-                  icon={<CubeIcon className="h-5 w-5" />}
+                  label="Active orders"
+                  value={kpis[3]?.value || 0}
+                  hint="in progress"
+                  icon={<ClockIcon className="h-5 w-5" />}
                 />
                 <MetricCard
-                  label="Pending"
-                  value={kpis[3]?.value || 0}
-                  hint="awaiting action"
-                  icon={<ClockIcon className="h-5 w-5" />}
+                  label="Active products"
+                  value={kpis[4]?.value || 0}
+                  hint="in catalog"
+                  icon={<CubeIcon className="h-5 w-5" />}
                 />
               </>
             )}
@@ -738,13 +903,214 @@ export default function SellerDashboardPage() {
         <AnalyticsTabs
           active={analyticsTab}
           onChange={(tab) => dispatch(setAnalyticsTabAction(tab))}
-        />
+          rightActions={analyticsRightActions}
+        >
+          {analyticsTab === "Revenue & Orders" ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="rounded-xl border border-[color:var(--secondary-soft-highlight)]/60 bg-white p-4">
+                <div className="text-xs text-[color:var(--secondary-muted-edge)] mb-2">
+                  Revenue
+                </div>
+                {salesAnalytics?.sales_data?.length ? (
+                  <div className="h-56">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={salesAnalytics.sales_data}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                        <YAxis
+                          tick={{ fontSize: 11 }}
+                          tickFormatter={(v) => `$${Number(v).toLocaleString()}`}
+                        />
+                        <Tooltip
+                          formatter={(v: any) =>
+                            formatCurrency(Number(v), salesAnalytics.currency || "USD")
+                          }
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="revenue"
+                          stroke="#407178"
+                          fill="#407178"
+                          fillOpacity={0.18}
+                          strokeWidth={2}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="h-56 flex items-center justify-center text-xs text-[color:var(--secondary-muted-edge)]">
+                    No revenue data yet.
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-[color:var(--secondary-soft-highlight)]/60 bg-white p-4">
+                <div className="text-xs text-[color:var(--secondary-muted-edge)] mb-2">
+                  Delivered orders
+                </div>
+                {salesAnalytics?.sales_data?.length ? (
+                  <div className="h-56">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={salesAnalytics.sales_data}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                        <YAxis tick={{ fontSize: 11 }} />
+                        <Tooltip />
+                        <Bar
+                          dataKey="orders_count"
+                          fill="#407178"
+                          radius={[8, 8, 0, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="h-56 flex items-center justify-center text-xs text-[color:var(--secondary-muted-edge)]">
+                    No order data yet.
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : analyticsTab === "Category performance" ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="rounded-xl border border-[color:var(--secondary-soft-highlight)]/60 bg-white p-4">
+                <div className="text-xs text-[color:var(--secondary-muted-edge)] mb-2">
+                  Revenue by category
+                </div>
+                {salesAnalytics?.sales_by_category?.length ? (
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={salesAnalytics.sales_by_category.slice(0, 8)}
+                          dataKey="revenue"
+                          nameKey="category"
+                          innerRadius={55}
+                          outerRadius={85}
+                        >
+                          {salesAnalytics.sales_by_category
+                            .slice(0, 8)
+                            .map((_, idx) => (
+                              <Cell
+                                key={idx}
+                                fill={categoryColors[idx % categoryColors.length]}
+                              />
+                            ))}
+                        </Pie>
+                        <Tooltip
+                          formatter={(v: any) =>
+                            formatCurrency(Number(v), salesAnalytics.currency || "USD")
+                          }
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="h-64 flex items-center justify-center text-xs text-[color:var(--secondary-muted-edge)]">
+                    No category data yet.
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-[color:var(--secondary-soft-highlight)]/60 bg-white p-4">
+                <div className="text-xs text-[color:var(--secondary-muted-edge)] mb-2">
+                  Best categories (by revenue)
+                </div>
+                {salesAnalytics?.sales_by_category?.length ? (
+                  <div className="space-y-2">
+                    {salesAnalytics.sales_by_category.slice(0, 6).map((c) => (
+                      <div
+                        key={c.category}
+                        className="flex items-center justify-between text-xs"
+                      >
+                        <span className="text-[color:var(--secondary-black)]">
+                          {c.category}
+                        </span>
+                        <span className="text-[color:var(--secondary-muted-edge)]">
+                          {formatCurrency(c.revenue, salesAnalytics.currency || "USD")}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-xs text-[color:var(--secondary-muted-edge)]">—</div>
+                )}
+
+                {productAnalytics?.inventory_alerts?.low_stock?.length ? (
+                  <div className="mt-6">
+                    <div className="text-xs text-[color:var(--secondary-muted-edge)] mb-2">
+                      Low stock (top 5)
+                    </div>
+                    <div className="space-y-2">
+                      {productAnalytics.inventory_alerts.low_stock.slice(0, 5).map((p) => (
+                        <div
+                          key={p.product_id}
+                          className="flex items-center justify-between text-xs"
+                        >
+                          <span className="text-[color:var(--secondary-black)] truncate">
+                            {p.product_name}
+                          </span>
+                          <span className="text-[color:var(--secondary-muted-edge)]">
+                            {p.current_stock}/{p.min_stock_level}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="rounded-xl border border-[color:var(--secondary-soft-highlight)]/60 bg-white p-4 lg:col-span-2">
+                <div className="text-xs text-[color:var(--secondary-muted-edge)] mb-2">
+                  Order status distribution
+                </div>
+                {salesAnalytics?.order_status_distribution ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {Object.entries(salesAnalytics.order_status_distribution).map(
+                      ([k, v]) => (
+                        <div
+                          key={k}
+                          className="rounded-lg border border-[color:var(--secondary-soft-highlight)]/50 bg-[var(--primary-background)] p-3"
+                        >
+                          <div className="text-[10px] text-[color:var(--secondary-muted-edge)] capitalize">
+                            {k.replace(/_/g, " ")}
+                          </div>
+                          <div className="text-sm font-semibold text-[color:var(--secondary-black)]">
+                            {v}
+                          </div>
+                        </div>
+                      )
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-xs text-[color:var(--secondary-muted-edge)]">
+                    No data yet.
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-[color:var(--secondary-soft-highlight)]/60 bg-white p-4">
+                <div className="text-xs text-[color:var(--secondary-muted-edge)] mb-2">
+                  Avg processing time
+                </div>
+                <div className="text-2xl font-semibold text-[color:var(--secondary-black)]">
+                  {salesAnalytics?.avg_processing_time
+                    ? `${salesAnalytics.avg_processing_time.toFixed(1)}h`
+                    : "—"}
+                </div>
+                <div className="mt-2 text-[11px] text-[color:var(--secondary-muted-edge)]">
+                  From accepted → delivered (when available)
+                </div>
+              </div>
+            </div>
+          )}
+        </AnalyticsTabs>
         {/* Main Split: Inventory/Orders + Insights */}
         <div className="mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Left: Activity & Orders */}
+          {/* Left: Orders */}
           <div className="lg:col-span-8 space-y-8">
-            <ActivityFeed />
-
             <OrderList
               items={filteredOrders.map<OrderListItem>((o) => ({
                 orderId: o.id,

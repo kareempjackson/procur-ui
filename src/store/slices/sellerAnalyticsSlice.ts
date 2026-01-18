@@ -39,36 +39,91 @@ export type DashboardMetrics = {
 export type SalesAnalytics = {
   period_start: string;
   period_end: string;
-  total_sales: number;
+  total_revenue: number;
   sales_data: {
     date: string;
     revenue: number;
-    orders: number;
-    average_order_value: number;
+    orders_count: number;
+    products_sold: number;
+  }[];
+  sales_by_category: {
+    category: string;
+    revenue: number;
+    orders_count: number;
+    percentage: number;
   }[];
   top_products: {
-    id: string;
-    name: string;
+    product_id: string;
+    product_name: string;
     quantity_sold: number;
     revenue: number;
+    percentage: number;
   }[];
+  order_status_distribution: {
+    pending: number;
+    accepted: number;
+    processing: number;
+    shipped: number;
+    delivered: number;
+    cancelled: number;
+    disputed: number;
+  };
+  avg_processing_time: number;
+  customer_data: {
+    new_customers: number;
+    returning_customers: number;
+    customer_retention_rate: number;
+  };
   currency: string;
 };
 
 export type ProductAnalytics = {
   period_start: string;
   period_end: string;
-  total_products: number;
-  active_products: number;
-  low_stock_products: number;
-  out_of_stock_products: number;
-  top_performers: {
-    id: string;
-    name: string;
+  product_performance: Array<{
+    product_id: string;
+    product_name: string;
     views: number;
-    sales: number;
+    orders: number;
     revenue: number;
-  }[];
+    conversion_rate: number;
+    stock_level: number;
+    status: string;
+  }>;
+  category_performance: Array<{
+    category: string;
+    products_count: number;
+    total_revenue: number;
+    avg_price: number;
+    total_orders: number;
+  }>;
+  inventory_alerts: {
+    low_stock: Array<{
+      product_id: string;
+      product_name: string;
+      current_stock: number;
+      min_stock_level: number;
+    }>;
+    out_of_stock: Array<{
+      product_id: string;
+      product_name: string;
+      last_stock_date: string;
+    }>;
+  };
+  price_analysis: {
+    avg_product_price: number;
+    price_ranges: Array<{
+      range: string;
+      products_count: number;
+      percentage: number;
+    }>;
+  };
+  product_lifecycle: {
+    new_products: number;
+    active_products: number;
+    discontinued_products: number;
+    draft_products: number;
+  };
 };
 
 type AnalyticsState = {

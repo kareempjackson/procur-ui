@@ -183,6 +183,9 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
   // Order status updates are now handled internally by the admin team
 
   const paymentStatus = (currentOrder.payment_status || "").toLowerCase();
+  const orderStatus = (currentOrder.status || "").toLowerCase();
+  const showPaymentStatusPill =
+    Boolean(paymentStatus) && paymentStatus !== orderStatus;
   const canDownloadReceipt = ["paid", "settled"].includes(paymentStatus);
   const receiptBuyerName =
     currentOrder.buyer_info?.organization_name ||
@@ -389,14 +392,16 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
                   >
                     {currentOrder.status.replace(/_/g, " ").toUpperCase()}
                   </span>
-                  <span
-                    className={classNames(
-                      "inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold",
-                      getPaymentStatusColor(currentOrder.payment_status)
-                    )}
-                  >
-                    {currentOrder.payment_status?.toUpperCase() || "UNKNOWN"}
-                  </span>
+                  {showPaymentStatusPill && (
+                    <span
+                      className={classNames(
+                        "inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold",
+                        getPaymentStatusColor(currentOrder.payment_status)
+                      )}
+                    >
+                      {currentOrder.payment_status?.toUpperCase() || "UNKNOWN"}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

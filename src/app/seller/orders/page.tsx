@@ -41,6 +41,16 @@ enum FulfillmentMethod {
   SHIPPING = "shipping",
 }
 
+interface ProductImage {
+  image_url?: string;
+  is_primary?: boolean;
+}
+
+interface ProductSnapshot {
+  image_url?: string;
+  product_images?: ProductImage[];
+}
+
 interface OrderItem {
   id: string;
   product_id: string;
@@ -51,6 +61,8 @@ interface OrderItem {
   total_price: number;
   unit_of_measurement: string;
   image_url?: string;
+  product_image?: string;
+  product_snapshot?: ProductSnapshot;
 }
 
 interface Order {
@@ -110,6 +122,24 @@ interface OrderFilters {
 
 function classNames(...classes: (string | false | null | undefined)[]) {
   return classes.filter(Boolean).join(" ");
+}
+
+function getOrderItemImageUrl(item: OrderItem): string | null {
+  const fromSnapshotPrimary =
+    item.product_snapshot?.product_images?.find((img) => img.is_primary)
+      ?.image_url || null;
+  const fromSnapshotAny =
+    item.product_snapshot?.product_images?.find((img) => img.image_url)
+      ?.image_url || null;
+
+  return (
+    item.product_image ||
+    item.image_url ||
+    fromSnapshotPrimary ||
+    fromSnapshotAny ||
+    item.product_snapshot?.image_url ||
+    null
+  );
 }
 
 export default function SellerOrdersPage() {
@@ -474,25 +504,6 @@ export default function SellerOrdersPage() {
             >
               Filters
             </button>
-            <Link
-              href="/seller/orders/shipping"
-              className="btn btn-ghost h-8 px-3 text-sm flex items-center gap-1"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
-                />
-              </svg>
-              Shipping
-            </Link>
             <Link
               href="/seller/analytics"
               className="btn btn-ghost h-8 px-3 text-sm"
@@ -996,14 +1007,17 @@ export default function SellerOrdersPage() {
                           <div className="flex items-center gap-2">
                             <div className="flex -space-x-1">
                               {order.items.slice(0, 3).map((item, idx) => (
+                                (() => {
+                                  const imageUrl = getOrderItemImageUrl(item);
+                                  return (
                                 <div
                                   key={item.id}
                                   className="w-8 h-8 rounded-full border-2 border-white overflow-hidden bg-gray-100 flex-shrink-0"
                                   title={item.product_name}
                                 >
-                                  {item.image_url ? (
+                                  {imageUrl ? (
                                     <img
-                                      src={item.image_url}
+                                      src={imageUrl}
                                       alt={item.product_name}
                                       className="w-full h-full object-cover"
                                     />
@@ -1025,6 +1039,8 @@ export default function SellerOrdersPage() {
                                     </div>
                                   )}
                                 </div>
+                                  );
+                                })()
                               ))}
                               {order.items.length > 3 && (
                                 <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-600">

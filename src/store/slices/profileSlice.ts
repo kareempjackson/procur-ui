@@ -31,6 +31,7 @@ export interface UserProfile {
     name: string;
     businessName?: string;
     businessType?: string;
+    payoutMethod?: "cash" | "cheque";
     logoUrl?: string;
     headerImageUrl?: string | null;
     farmersIdUrl?: string;
@@ -69,6 +70,7 @@ export interface UpdateProfileDto {
   description?: string;
   taxId?: string;
   registrationNumber?: string;
+  payoutMethod?: "cash" | "cheque";
 
   // Document / media fields
   farmersIdPath?: string;
