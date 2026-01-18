@@ -24,6 +24,7 @@ import ProcurLoader from "@/components/ProcurLoader";
 import { getApiClient } from "@/lib/apiClient";
 import { useSelector } from "react-redux";
 import { selectAuthToken } from "@/store/slices/authSlice";
+import SupplierAvatar from "@/components/buyer/SupplierAvatar";
 
 interface SupplierClientProps {
   supplierId: string;
@@ -249,22 +250,13 @@ export default function SupplierClient({ supplierId }: SupplierClientProps) {
 
             {/* Avatar positioned over cover (NOT clipped) */}
             <div className="absolute -bottom-10 left-6">
-              <div className="w-24 h-24 rounded-full bg-white ring-4 ring-white shadow-xl overflow-hidden flex items-center justify-center">
-                {supplier.logo_url ? (
-                  <Image
-                    src={supplier.logo_url}
-                    alt={`${supplier.name} logo`}
-                    width={96}
-                    height={96}
-                    className="w-full h-full object-cover"
-                    priority
-                  />
-                ) : (
-                  <span className="text-4xl font-bold text-[var(--primary-accent2)]">
-                    {supplier.name.charAt(0)}
-                  </span>
-                )}
-              </div>
+              <SupplierAvatar
+                name={supplier.name}
+                imageUrl={supplier.logo_url}
+                size="xl"
+                priority
+                className="bg-white ring-4 ring-white shadow-xl"
+              />
             </div>
           </div>
 

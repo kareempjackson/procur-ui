@@ -51,7 +51,7 @@ export default function CheckoutClient() {
 
   // Payment method: offline-only (no card payments)
   const [paymentMethod, setPaymentMethod] = useState<
-    "bank_transfer" | "cash"
+    "bank_transfer" | "cash_on_delivery" | "cheque_on_delivery"
   >("bank_transfer");
 
   // Unified Pay handler
@@ -746,7 +746,7 @@ export default function CheckoutClient() {
                 </h2>
 
                 {/* Payment method selector */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
                   <button
                     onClick={() => setPaymentMethod("bank_transfer")}
                     className={`flex items-center gap-3 p-4 rounded-xl border transition-all ${
@@ -766,9 +766,9 @@ export default function CheckoutClient() {
                     </div>
                   </button>
                   <button
-                    onClick={() => setPaymentMethod("cash")}
+                    onClick={() => setPaymentMethod("cash_on_delivery")}
                     className={`flex items-center gap-3 p-4 rounded-xl border transition-all ${
-                      paymentMethod === "cash"
+                      paymentMethod === "cash_on_delivery"
                         ? "border-[var(--primary-accent2)] bg-[var(--primary-accent2)]/5"
                         : "border-[var(--secondary-soft-highlight)]/30 hover:border-[var(--primary-accent2)]/50"
                     }`}
@@ -776,10 +776,28 @@ export default function CheckoutClient() {
                     <BanknotesIcon className="h-5 w-5 text-[var(--secondary-black)]" />
                     <div className="text-left">
                       <p className="font-medium text-[var(--secondary-black)] text-sm">
-                        Cash on Delivery
+                        Cash
                       </p>
                       <p className="text-xs text-[var(--secondary-muted-edge)]">
                         Pay the courier upon delivery
+                      </p>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setPaymentMethod("cheque_on_delivery")}
+                    className={`flex items-center gap-3 p-4 rounded-xl border transition-all ${
+                      paymentMethod === "cheque_on_delivery"
+                        ? "border-[var(--primary-accent2)] bg-[var(--primary-accent2)]/5"
+                        : "border-[var(--secondary-soft-highlight)]/30 hover:border-[var(--primary-accent2)]/50"
+                    }`}
+                  >
+                    <BanknotesIcon className="h-5 w-5 text-[var(--secondary-black)]" />
+                    <div className="text-left">
+                      <p className="font-medium text-[var(--secondary-black)] text-sm">
+                        Cheque
+                      </p>
+                      <p className="text-xs text-[var(--secondary-muted-edge)]">
+                        Pay by cheque upon delivery
                       </p>
                     </div>
                   </button>
@@ -790,12 +808,16 @@ export default function CheckoutClient() {
                     <p className="text-sm font-medium text-[var(--secondary-black)]">
                       {paymentMethod === "bank_transfer"
                         ? "Bank Transfer Instructions"
-                        : "Cash on Delivery"}
+                        : paymentMethod === "cash_on_delivery"
+                          ? "Cash"
+                          : "Cheque"}
                     </p>
                     <p className="text-xs text-[var(--secondary-muted-edge)] mt-1">
                       {paymentMethod === "bank_transfer"
                         ? "Place the order to receive bank details and a reference number. Your order will remain pending until payment is verified."
-                        : "Place the order and pay the courier upon delivery. Exact cash may be required depending on region."}
+                        : paymentMethod === "cash_on_delivery"
+                          ? "Place the order and pay the courier upon delivery. Exact cash may be required depending on region."
+                          : "Place the order and pay the courier by cheque upon delivery. Ensure the name and amount match the delivery invoice."}
                     </p>
                   </div>
                 </div>

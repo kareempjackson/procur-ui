@@ -15,6 +15,7 @@ import {
   XCircleIcon,
   InformationCircleIcon,
 } from "@heroicons/react/24/outline";
+import SupplierAvatar from "@/components/buyer/SupplierAvatar";
 import { addDays, formatShortDate } from "@/lib/utils/date";
 
 type RequestDetailClientProps = {
@@ -225,11 +226,12 @@ export default function RequestDetailClient({
                         {/* Bid Header */}
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-start gap-3">
-                            <div className="w-12 h-12 rounded-full bg-[var(--primary-accent2)]/10 flex items-center justify-center flex-shrink-0">
-                              <span className="text-sm font-bold text-[var(--primary-accent2)]">
-                                {bid.supplierName.charAt(0)}
-                              </span>
-                            </div>
+                            <SupplierAvatar
+                              name={bid.supplierName}
+                              // No bid-level avatar URL yet; falls back to initial until API provides one.
+                              imageUrl={(bid as any)?.supplierLogoUrl || (bid as any)?.supplier_logo_url}
+                              size="md"
+                            />
                             <div>
                               <div className="flex items-center gap-2 mb-1">
                                 <h3 className="font-semibold text-[var(--secondary-black)]">

@@ -21,6 +21,7 @@ import ProcurLoader from "@/components/ProcurLoader";
 import { getApiClient } from "@/lib/apiClient";
 import { useSelector } from "react-redux";
 import { selectAuthToken } from "@/store/slices/authSlice";
+import SupplierAvatar from "@/components/buyer/SupplierAvatar";
 
 export default function SuppliersClient() {
   const router = useRouter();
@@ -103,9 +104,12 @@ export default function SuppliersClient() {
     is_favorited: seller.is_favorited || false,
     certifications: seller.specialties || [],
     specialties: seller.specialties || [],
-    image:
-      seller.logo_url ||
+    // Card cover image (brand header if available), not the profile avatar.
+    coverImage:
+      seller.header_image_url ||
       "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+    // Supplier profile avatar (uploaded org logo/profile image).
+    avatarUrl: seller.logo_url,
     description: seller.description || "Quality produce supplier",
     completedOrders: seller.completed_orders ?? 0,
   }));
@@ -704,7 +708,7 @@ export default function SuppliersClient() {
                     {/* Supplier Image */}
                     <div className="relative h-36">
                       <Image
-                        src={supplier.image}
+                        src={supplier.coverImage}
                         alt={supplier.name}
                         fill
                         className="object-cover group-hover:scale-105 transition-transform duration-500"
@@ -720,9 +724,17 @@ export default function SuppliersClient() {
                         </div>
                       )}
                       <div className="absolute bottom-2 left-2 right-2">
-                        <h3 className="text-white font-bold text-base mb-0.5 group-hover:text-[var(--secondary-highlight1)] transition-colors line-clamp-1">
-                          {supplier.name}
-                        </h3>
+                        <div className="flex items-center gap-2">
+                          <SupplierAvatar
+                            name={supplier.name}
+                            imageUrl={supplier.avatarUrl}
+                            size="sm"
+                            className="ring-2 ring-white/80"
+                          />
+                          <h3 className="text-white font-bold text-base group-hover:text-[var(--secondary-highlight1)] transition-colors line-clamp-1">
+                            {supplier.name}
+                          </h3>
+                        </div>
                         <div className="flex items-center gap-0.5 text-white/90 text-xs">
                           <MapPinIcon className="h-3 w-3" />
                           <span className="truncate">{supplier.location}</span>

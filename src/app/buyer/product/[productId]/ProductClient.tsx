@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  HeartIcon,
   MapPinIcon,
   StarIcon,
   CheckBadgeIcon,
@@ -17,17 +16,16 @@ import {
   PlusIcon,
   ShoppingCartIcon,
 } from "@heroicons/react/24/outline";
-import { HeartIcon as HeartSolidIcon } from "@heroicons/react/24/solid";
 import { useAppDispatch, useAppSelector } from "@/store";
 import {
   fetchProductDetail,
-  toggleProductFavoriteAsync,
 } from "@/store/slices/buyerMarketplaceSlice";
 import { addToCartAsync } from "@/store/slices/buyerCartSlice";
 import { getApiClient } from "@/lib/apiClient";
 import ProcurLoader from "@/components/ProcurLoader";
 import { useToast } from "@/components/ui/Toast";
 import ProductImageGallery from "@/components/product/ProductImageGallery";
+import SupplierAvatar from "@/components/buyer/SupplierAvatar";
 
 interface ProductClientProps {
   productId: string;
@@ -88,17 +86,6 @@ export default function ProductClient({ productId }: ProductClientProps) {
     dispatch(addToCartAsync({ productId, quantity }));
     // Navigate to checkout
     window.location.href = "/buyer/checkout";
-  };
-
-  const handleToggleFavorite = () => {
-    if (product) {
-      dispatch(
-        toggleProductFavoriteAsync({
-          productId: product.id,
-          isFavorited: product.is_favorited || false,
-        })
-      );
-    }
   };
 
   const handleMessageSeller = async () => {
@@ -211,16 +198,6 @@ export default function ProductClient({ productId }: ProductClientProps) {
                     % Off
                   </div>
                 )}
-              <button
-                onClick={handleToggleFavorite}
-                className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm p-2.5 rounded-full hover:bg-white transition-all duration-200"
-              >
-                {product.is_favorited ? (
-                  <HeartSolidIcon className="h-6 w-6 text-[var(--primary-accent2)]" />
-                ) : (
-                  <HeartIcon className="h-6 w-6 text-[var(--secondary-black)]" />
-                )}
-              </button>
             </div>
           </div>
 
@@ -384,11 +361,11 @@ export default function ProductClient({ productId }: ProductClientProps) {
           <div className="bg-white rounded-2xl p-4 border border-[var(--secondary-soft-highlight)]/20">
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-start gap-3">
-                <div className="w-12 h-12 rounded-full bg-[var(--primary-accent2)]/10 flex items-center justify-center flex-shrink-0">
-                  <span className="text-lg font-bold text-[var(--primary-accent2)]">
-                    {product.seller.name.charAt(0)}
-                  </span>
-                </div>
+                <SupplierAvatar
+                  name={product.seller.name}
+                  imageUrl={product.seller.logo_url}
+                  size="md"
+                />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 mb-1">
                     <h3 className="text-base font-semibold text-[var(--secondary-black)] truncate">

@@ -26,6 +26,7 @@ import { getApiClient } from "@/lib/apiClient";
 import { useSelector } from "react-redux";
 import { selectAuthToken } from "@/store/slices/authSlice";
 import { useToast } from "@/components/ui/Toast";
+import SupplierAvatar from "@/components/buyer/SupplierAvatar";
 
 export default function SavedSuppliersClient() {
   const router = useRouter();
@@ -253,12 +254,19 @@ export default function SavedSuppliersClient() {
                 <div className="p-5">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
-                      <Link
-                        href={`/buyer/supplier/${supplier.id}`}
-                        className="font-semibold text-base text-[var(--secondary-black)] hover:text-[var(--primary-accent2)] transition-colors line-clamp-1 mb-1 block"
-                      >
-                        {supplier.name}
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        <SupplierAvatar
+                          name={supplier.name}
+                          imageUrl={supplier.logo_url}
+                          size="sm"
+                        />
+                        <Link
+                          href={`/buyer/supplier/${supplier.id}`}
+                          className="font-semibold text-base text-[var(--secondary-black)] hover:text-[var(--primary-accent2)] transition-colors line-clamp-1 mb-1 block"
+                        >
+                          {supplier.name}
+                        </Link>
+                      </div>
                       <div className="flex items-center gap-2 text-xs text-[var(--secondary-muted-edge)]">
                         <MapPinIcon className="h-3.5 w-3.5" />
                         {supplier.location || "Caribbean"}

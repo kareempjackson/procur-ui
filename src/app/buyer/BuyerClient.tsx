@@ -36,6 +36,7 @@ import {
 } from "@/store/slices/buyerMarketplaceSlice";
 import { fetchCart, addToCartAsync } from "@/store/slices/buyerCartSlice";
 import ProcurLoader from "@/components/ProcurLoader";
+import SupplierAvatar from "@/components/buyer/SupplierAvatar";
 
 export default function BuyerClient() {
   const dispatch = useAppDispatch();
@@ -1110,11 +1111,11 @@ export default function BuyerClient() {
                             }}
                             className="flex items-center gap-1.5 mb-2 group/supplier cursor-pointer"
                           >
-                            <div className="w-5 h-5 rounded-full bg-[var(--primary-accent2)]/10 flex items-center justify-center flex-shrink-0">
-                              <span className="text-[8px] font-bold text-[var(--primary-accent2)]">
-                                {product.seller.name.charAt(0)}
-                              </span>
-                            </div>
+                            <SupplierAvatar
+                              name={product.seller.name}
+                              imageUrl={product.seller.logo_url}
+                              size="xs"
+                            />
                             <span className="text-[11px] text-[var(--secondary-muted-edge)] truncate group-hover/supplier:text-[var(--primary-accent2)] transition-colors">
                               {product.seller.name}
                             </span>
@@ -1459,20 +1460,12 @@ export default function BuyerClient() {
                         className="block group"
                       >
                         <div className="flex gap-2">
-                          <div className="relative w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 bg-[var(--primary-accent2)]/10 flex items-center justify-center">
-                            {supplier.logo_url ? (
-                              <Image
-                                src={supplier.logo_url}
-                                alt={supplier.name}
-                                fill
-                                className="object-cover group-hover:scale-110 transition-transform duration-300"
-                              />
-                            ) : (
-                              <span className="text-sm font-bold text-[var(--primary-accent2)]">
-                                {supplier.name.charAt(0)}
-                              </span>
-                            )}
-                          </div>
+                          <SupplierAvatar
+                            name={supplier.name}
+                            imageUrl={supplier.logo_url}
+                            size="lg"
+                            className="rounded-xl group-hover:scale-110 transition-transform duration-300"
+                          />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1 mb-0.5">
                               <h4 className="font-semibold text-xs text-[var(--secondary-black)] truncate group-hover:text-[var(--primary-accent2)] transition-colors">
