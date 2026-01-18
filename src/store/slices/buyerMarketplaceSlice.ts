@@ -65,6 +65,17 @@ export interface Product {
     is_verified: boolean;
   };
   is_favorited?: boolean;
+  product_update?: {
+    id: string;
+    title: string;
+    content: string;
+    post_type?: string;
+    images?: string[];
+    video_url?: string;
+    published_at?: string;
+    created_at?: string;
+  };
+  harvest_update?: ProductHarvestUpdate;
 }
 
 export interface Seller {
@@ -123,6 +134,10 @@ export interface HarvestUpdate {
   next_planting_date?: string;
   next_planting_area?: string;
 }
+
+// Product detail returns a lightweight harvest update object (no farm_name/is_verified/etc).
+export type ProductHarvestUpdate = Partial<HarvestUpdate> &
+  Pick<HarvestUpdate, "id" | "seller_org_id" | "crop">;
 
 export interface ProductFilters {
   page?: number;

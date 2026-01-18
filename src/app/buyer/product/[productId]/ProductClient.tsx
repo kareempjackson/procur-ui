@@ -163,6 +163,29 @@ export default function ProductClient({ productId }: ProductClientProps) {
         ? [product.image_url]
         : []) || [];
 
+  const productUpdate = product.product_update;
+  const hasProductUpdate =
+    !!productUpdate &&
+    (Boolean(productUpdate.title?.trim()) || Boolean(productUpdate.content?.trim()));
+  const publishedLabel = productUpdate?.published_at
+    ? new Date(productUpdate.published_at).toLocaleDateString()
+    : productUpdate?.created_at
+      ? new Date(productUpdate.created_at).toLocaleDateString()
+      : null;
+
+  const harvestUpdate = product.harvest_update;
+  const hasHarvestUpdate =
+    product.stock_quantity <= 0 &&
+    !!harvestUpdate &&
+    (Boolean(harvestUpdate.content?.trim()) ||
+      Boolean(harvestUpdate.notes?.trim()) ||
+      Boolean(harvestUpdate.expected_harvest_window?.trim()) ||
+      typeof harvestUpdate.quantity === "number" ||
+      (Array.isArray(harvestUpdate.images) && harvestUpdate.images.length > 0));
+  const harvestDateLabel = harvestUpdate?.created_at
+    ? new Date(harvestUpdate.created_at).toLocaleDateString()
+    : null;
+
   return (
     <div className="min-h-screen bg-white">
       <div className="max-w-7xl mx-auto px-6 py-4">
@@ -227,6 +250,125 @@ export default function ProductClient({ productId }: ProductClientProps) {
                   "No description available."}
               </p>
             </div>
+
+            {/* Harvest Update (seller harvest update associated with this item) */}
+            {hasHarvestUpdate && (
+              <div className="bg-[var(--primary-background)] rounded-2xl p-4 border border-[var(--secondary-soft-highlight)]/20">
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div>
+                    <h2 className="text-base font-semibold text-[var(--secondary-black)]">
+                      Harvest Update
+                    </h2>
+                    {harvestDateLabel && (
+                      <p className="text-xs text-[var(--secondary-muted-edge)] mt-0.5">
+                        Posted {harvestDateLabel}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {harvestUpdate?.expected_harvest_window && (
+                  <p className="text-xs text-[var(--secondary-muted-edge)] mb-2">
+                    Expected harvest:{" "}
+                    <span className="text-[var(--secondary-black)] font-medium">
+                      {harvestUpdate.expected_harvest_window}
+                    </span>
+                  </p>
+                )}
+
+                {typeof harvestUpdate?.quantity === "number" && (
+                  <p className="text-xs text-[var(--secondary-muted-edge)] mb-2">
+                    Available:{" "}
+                    <span className="text-[var(--secondary-black)] font-medium">
+                      {harvestUpdate.quantity} {harvestUpdate.unit || ""}
+                    </span>
+                  </p>
+                )}
+
+                {harvestUpdate?.content?.trim() && (
+                  <p className="text-sm text-[var(--secondary-muted-edge)] leading-relaxed whitespace-pre-wrap">
+                    {harvestUpdate.content}
+                  </p>
+                )}
+                {harvestUpdate?.notes?.trim() && (
+                  <p className="mt-2 text-sm text-[var(--secondary-muted-edge)] leading-relaxed whitespace-pre-wrap">
+                    {harvestUpdate.notes}
+                  </p>
+                )}
+
+                {Array.isArray(harvestUpdate?.images) &&
+                  harvestUpdate.images.length > 0 && (
+                    <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                      {harvestUpdate.images.slice(0, 6).map((url) => (
+                        <div
+                          key={url}
+                          className="relative w-24 h-24 rounded-xl overflow-hidden border border-[var(--secondary-soft-highlight)]/20 flex-shrink-0 bg-white"
+                        >
+                          <Image
+                            src={url}
+                            alt={harvestUpdate.crop || "Harvest update"}
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+              </div>
+            )}
+
+            {/* Product Update (seller post associated with this item) */}
+            {hasProductUpdate && (
+              <div className="bg-[var(--primary-background)] rounded-2xl p-4 border border-[var(--secondary-soft-highlight)]/20">
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div>
+                    <h2 className="text-base font-semibold text-[var(--secondary-black)]">
+                      Product Update
+                    </h2>
+                    {publishedLabel && (
+                      <p className="text-xs text-[var(--secondary-muted-edge)] mt-0.5">
+                        Posted {publishedLabel}
+                      </p>
+                    )}
+                  </div>
+                  {productUpdate?.post_type && (
+                    <span className="px-2.5 py-1 bg-white rounded-full text-xs font-medium text-[var(--secondary-black)] border border-[var(--secondary-soft-highlight)]/20">
+                      {productUpdate.post_type.replace(/_/g, " ")}
+                    </span>
+                  )}
+                </div>
+
+                {productUpdate.title?.trim() && (
+                  <p className="text-sm font-semibold text-[var(--secondary-black)] mb-1">
+                    {productUpdate.title}
+                  </p>
+                )}
+                {productUpdate.content?.trim() && (
+                  <p className="text-sm text-[var(--secondary-muted-edge)] leading-relaxed whitespace-pre-wrap">
+                    {productUpdate.content}
+                  </p>
+                )}
+
+                {Array.isArray(productUpdate.images) &&
+                  productUpdate.images.length > 0 && (
+                    <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                      {productUpdate.images.slice(0, 6).map((url) => (
+                        <div
+                          key={url}
+                          className="relative w-24 h-24 rounded-xl overflow-hidden border border-[var(--secondary-soft-highlight)]/20 flex-shrink-0 bg-white"
+                        >
+                          <Image
+                            src={url}
+                            alt={productUpdate.title || "Product update"}
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+              </div>
+            )}
 
             {/* Price and Availability */}
             <div className="bg-white rounded-2xl p-4 border border-[var(--secondary-soft-highlight)]/20">

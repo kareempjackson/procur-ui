@@ -54,6 +54,7 @@ export default function BuyerClient() {
   const [showHarvestFeed, setShowHarvestFeed] = useState(true);
   const [hasOverflow, setHasOverflow] = useState(false);
   const categoryScrollRef = useRef<HTMLDivElement>(null);
+  const productsScrollRef = useRef<HTMLDivElement | null>(null);
   const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
   const inFlightPageRef = useRef<number | null>(null);
 
@@ -219,6 +220,10 @@ export default function BuyerClient() {
     const el = loadMoreSentinelRef.current;
     if (!el) return;
 
+    const scrollRoot = productsScrollRef.current;
+    const useScrollContainerRoot =
+      !!scrollRoot && scrollRoot.scrollHeight > scrollRoot.clientHeight;
+
     const observer = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
@@ -226,7 +231,13 @@ export default function BuyerClient() {
         if (!canLoadMoreProducts) return;
         handleLoadMoreProducts();
       },
-      { root: null, rootMargin: "400px 0px", threshold: 0 }
+      {
+        // If products are in their own scroll container (desktop split view),
+        // observe relative to that container; otherwise fall back to viewport scrolling.
+        root: useScrollContainerRoot ? scrollRoot : null,
+        rootMargin: "400px 0px",
+        threshold: 0,
+      }
     );
 
     observer.observe(el);
@@ -1090,7 +1101,11 @@ export default function BuyerClient() {
                   </select>
                 </div>
 
-                {status === "loading" ? (
+                <div
+                  ref={productsScrollRef}
+                  className="lg:max-h-[calc(100svh-12rem)] lg:overflow-y-auto lg:pr-1"
+                >
+                {status === "loading" && products.length === 0 ? (
                   <ProcurLoader size="md" text="Loading products..." />
                 ) : displayedProducts.length === 0 ? (
                   <div className="bg-white rounded-2xl p-12 text-center border border-[var(--secondary-soft-highlight)]/20">
@@ -1367,11 +1382,12 @@ export default function BuyerClient() {
                     )}
                   </div>
                 )}
+                </div>
               </section>
             </div>
 
             {/* Sidebar - Right Side */}
-            <div className="space-y-5">
+            <div className="space-y-5 lg:sticky lg:top-24 lg:max-h-[calc(100svh-7rem)] lg:overflow-y-auto lg:pr-1">
               {/* Harvest Social Feed - Toggleable */}
               <section className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/20 overflow-hidden">
                 <button
