@@ -6,20 +6,16 @@ import Link from "next/link";
 import {
   MagnifyingGlassIcon,
   FunnelIcon,
-  HeartIcon,
   MapPinIcon,
   StarIcon,
   ClockIcon,
   CheckBadgeIcon,
-  ChatBubbleLeftIcon,
   UserGroupIcon,
   CalendarIcon,
   ArrowPathIcon,
-  ArrowRightIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
 } from "@heroicons/react/24/outline";
-import { HeartIcon as HeartSolidIcon } from "@heroicons/react/24/solid";
 import { useAppDispatch, useAppSelector } from "@/store";
 import { addDays, formatShortDate } from "@/lib/utils/date";
 import { useToast } from "@/components/ui/Toast";
@@ -28,7 +24,6 @@ import {
   fetchSellers,
   fetchHarvestUpdates,
   fetchMarketplaceStats,
-  toggleHarvestLikeAsync,
   addHarvestComment,
   setFilters,
   clearFilters,
@@ -636,10 +631,6 @@ export default function BuyerClient() {
         message: e?.message || "Please try again.",
       });
     }
-  };
-
-  const handleHarvestLike = (harvestId: string, isLiked: boolean) => {
-    dispatch(toggleHarvestLikeAsync({ harvestId, isLiked }));
   };
 
   // Check if categories overflow (need scroll arrows)
@@ -1407,15 +1398,28 @@ export default function BuyerClient() {
                         No harvest updates available
                       </div>
                     ) : (
-                      <div className="p-3 space-y-3">
-                        {harvestUpdates.map((update) => (
-                          <div
-                            key={update.id}
-                            className="pb-3 border-b border-[var(--secondary-soft-highlight)]/20 last:border-0 last:pb-0"
-                          >
+                      <div className="p-1 divide-y divide-[var(--secondary-soft-highlight)]/20">
+                        {harvestUpdates.map((update) => {
+                          const preview =
+                            update.content?.trim() ||
+                            (update as any)?.notes?.trim() ||
+                            [
+                              update.crop?.trim(),
+                              update.quantity != null
+                                ? `${update.quantity}${update.unit ? ` ${update.unit}` : ""}`
+                                : undefined,
+                            ]
+                              .filter(Boolean)
+                              .join(" • ");
+
+                          return (
+                            <div
+                              key={update.id}
+                              className="px-3 py-3"
+                            >
                             {/* Compact Post Header */}
-                            <div className="flex items-start gap-1.5 mb-2">
-                              <div className="relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-[var(--primary-accent2)]/10 flex items-center justify-center">
+                              <div className="flex items-center gap-2 mb-2">
+                                <div className="relative w-9 h-9 rounded-full overflow-hidden flex-shrink-0 bg-[var(--primary-accent2)]/10 flex items-center justify-center ring-1 ring-black/5">
                                 {update.farm_avatar ? (
                                   <Image
                                     src={update.farm_avatar}
@@ -1431,30 +1435,32 @@ export default function BuyerClient() {
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-1">
-                                  <h4 className="font-semibold text-xs text-[var(--secondary-black)] truncate">
+                                    <h4 className="font-semibold text-[13px] text-[var(--secondary-black)] truncate">
                                     {update.farm_name}
                                   </h4>
                                   {update.is_verified && (
                                     <CheckBadgeIcon className="h-3 w-3 text-[var(--primary-accent2)] flex-shrink-0" />
                                   )}
                                 </div>
-                                <div className="flex items-center gap-0.5 text-[10px] text-[var(--secondary-muted-edge)]">
+                                  <div className="flex items-center gap-1 text-[11px] text-[var(--secondary-muted-edge)]">
                                   <ClockIcon className="h-2.5 w-2.5" />
                                   {update.time_ago}
                                 </div>
                               </div>
-                              <div className="px-1.5 py-0.5 bg-[var(--secondary-highlight1)]/20 rounded-full text-[10px] font-medium text-[var(--secondary-black)] whitespace-nowrap">
+                                <div className="px-2 py-1 bg-[var(--secondary-highlight1)]/20 rounded-full text-[11px] font-medium text-[var(--secondary-black)] whitespace-nowrap border border-[var(--secondary-soft-highlight)]/20">
                                 {update.expected_harvest_window}
                               </div>
                             </div>
 
-                            <p className="text-xs text-[var(--secondary-black)] mb-2 leading-relaxed">
-                              {update.content}
-                            </p>
+                            {preview ? (
+                                <p className="text-xs text-[var(--secondary-muted-edge)] leading-relaxed line-clamp-2">
+                                {preview}
+                              </p>
+                            ) : null}
 
                             {/* Compact Post Image */}
                             {update.images && update.images.length > 0 && (
-                              <div className="relative h-32 rounded-lg overflow-hidden mb-2">
+                                <div className="relative h-28 rounded-xl overflow-hidden mt-2 ring-1 ring-black/5">
                                 <Image
                                   src={update.images[0]}
                                   alt="Harvest update"
@@ -1463,36 +1469,9 @@ export default function BuyerClient() {
                                 />
                               </div>
                             )}
-
-                            {/* Compact Post Actions */}
-                            <div className="flex items-center justify-between text-[10px]">
-                              <button
-                                onClick={() =>
-                                  handleHarvestLike(update.id, update.is_liked)
-                                }
-                                className="flex items-center gap-0.5 text-[var(--secondary-muted-edge)] hover:text-[var(--primary-accent2)] transition-colors"
-                              >
-                                {update.is_liked ? (
-                                  <HeartSolidIcon className="h-3 w-3 text-[var(--primary-accent2)]" />
-                                ) : (
-                                  <HeartIcon className="h-3 w-3" />
-                                )}
-                                <span>{update.likes_count}</span>
-                              </button>
-                              <button className="flex items-center gap-0.5 text-[var(--secondary-muted-edge)] hover:text-[var(--primary-accent2)] transition-colors">
-                                <ChatBubbleLeftIcon className="h-3 w-3" />
-                                <span>{update.comments_count}</span>
-                              </button>
-                              <Link
-                                href={`/buyer/harvest/${update.id}`}
-                                className="flex items-center gap-0.5 text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)] transition-colors font-medium"
-                              >
-                                View
-                                <ArrowRightIcon className="h-2.5 w-2.5" />
-                              </Link>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>
