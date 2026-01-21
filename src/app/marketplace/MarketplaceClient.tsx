@@ -7,6 +7,7 @@ import TopNavigation from "@/components/navigation/TopNavigation";
 import Footer from "@/components/footer/Footer";
 import { getApiClient } from "@/lib/apiClient";
 import ProcurLoader from "@/components/ProcurLoader";
+import SupplierAvatar from "@/components/buyer/SupplierAvatar";
 import {
   MagnifyingGlassIcon,
   ChevronDownIcon,
@@ -36,6 +37,9 @@ type MarketplaceCardProduct = {
   location: string;
   rating: number;
   image: string;
+  sellerId: string;
+  sellerName: string;
+  sellerImageUrl?: string | null;
 };
 
 export default function MarketplaceClient() {
@@ -308,7 +312,9 @@ export default function MarketplaceClient() {
       const q = searchQuery.trim().toLowerCase();
       const matchesQuery =
         q === "" ||
-        `${p.name} ${p.category} ${p.location}`.toLowerCase().includes(q);
+        `${p.name} ${p.category} ${p.location} ${p.sellerName}`
+          .toLowerCase()
+          .includes(q);
       const matchesCategory =
         selectedCategories.length === 0 ||
         selectedCategories.includes(p.category);
@@ -361,11 +367,14 @@ export default function MarketplaceClient() {
             category: p.category,
             tags: Array.isArray(p.tags) ? p.tags : [],
             price: typeof p.current_price === "number" ? p.current_price : 0,
-            location: p.seller?.location || p.seller?.name || "Caribbean",
+            location: p.seller?.location || "Caribbean",
             rating: typeof p.average_rating === "number" ? p.average_rating : 0,
             image:
               p.image_url ||
               "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
+            sellerId: String(p.seller?.id ?? ""),
+            sellerName: p.seller?.name ?? "Seller",
+            sellerImageUrl: p.seller?.logo_url ?? null,
           }));
           setAllProducts(mapped);
         }
@@ -758,6 +767,17 @@ export default function MarketplaceClient() {
                           <h3 className="font-semibold text-[var(--secondary-black)] mb-1 group-hover:text-[var(--primary-accent2)] transition-colors">
                             {p.name}
                           </h3>
+                          <div className="flex items-center gap-2 mb-2">
+                            <SupplierAvatar
+                              name={p.sellerName}
+                              imageUrl={p.sellerImageUrl}
+                              size="xs"
+                              className="ring-1 ring-black/5"
+                            />
+                            <span className="text-xs text-[var(--secondary-muted-edge)]">
+                              {p.sellerName}
+                            </span>
+                          </div>
                           <div className="flex items-center gap-2 mb-2">
                             <span className="text-lg font-bold text-[var(--secondary-black)]">
                               ${p.price.toFixed(2)}

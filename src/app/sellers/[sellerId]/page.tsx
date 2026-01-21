@@ -10,9 +10,9 @@ import {
 } from "@heroicons/react/24/outline";
 
 interface SellerPageProps {
-  params: {
+  params: Promise<{
     sellerId: string;
-  };
+  }>;
 }
 
 type PublicSeller = {
@@ -114,7 +114,7 @@ function createProductSlug(name: string, id: string): string {
 }
 
 export default async function PublicSellerProfile({ params }: SellerPageProps) {
-  const sellerId = params.sellerId;
+  const { sellerId } = await params;
   const seller = await fetchPublicSeller(sellerId);
   const products = seller ? await fetchSellerProducts(seller.id) : [];
 
