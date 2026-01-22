@@ -23,9 +23,11 @@ import {
   createOrder,
   resetCreateOrderStatus,
 } from "@/store/slices/buyerOrdersSlice";
+import { fetchBuyerCreditBalance } from "@/store/slices/buyerCreditsSlice";
 import ProcurLoader from "@/components/ProcurLoader";
 import { getApiClient } from "@/lib/apiClient";
 import { getEstimatedDeliveryRangeLabel } from "@/lib/utils/date";
+import { CurrencyDollarIcon } from "@heroicons/react/24/outline";
 
 type CheckoutStep = "shipping" | "review" | "payment";
 
@@ -40,6 +42,9 @@ export default function CheckoutClient() {
   );
   const { addresses, addressesStatus, createOrderStatus, createOrderError } =
     useAppSelector((state) => state.buyerOrders);
+  const { creditAmount, creditAmountCents } = useAppSelector(
+    (state) => state.buyerCredits
+  );
 
   // Local state
   const [currentStep, setCurrentStep] = useState<CheckoutStep>("shipping");
@@ -67,12 +72,17 @@ export default function CheckoutClient() {
           quantity: it.quantity,
         }))
       );
+      // Calculate credits to apply
+      const totalsAtCheckout = calculateTotals();
+      const creditsAppliedCents = Math.round(totalsAtCheckout.creditsApplied * 100);
+      
       const created = await dispatch(
         createOrder({
           items,
           shipping_address_id: selectedAddress,
           billing_address_id: selectedAddress,
           buyer_notes: deliveryInstructions || undefined,
+          credits_applied_cents: creditsAppliedCents > 0 ? creditsAppliedCents : undefined,
         })
       ).unwrap();
       const createdId =
@@ -105,10 +115,11 @@ export default function CheckoutClient() {
   const [addrPhone, setAddrPhone] = useState("");
   const [addressError, setAddressError] = useState<string | null>(null);
 
-  // Fetch cart and addresses on mount
+  // Fetch cart, addresses, and credits on mount
   useEffect(() => {
     dispatch(fetchCart());
     dispatch(fetchAddresses());
+    dispatch(fetchBuyerCreditBalance());
   }, [dispatch]);
 
   // Set default address when addresses load
@@ -182,16 +193,25 @@ export default function CheckoutClient() {
         shipping: 0,
         platformFeePercent: 0,
         platformFeeAmount: 0,
+        creditsApplied: 0,
         total: 0,
+        finalTotal: 0,
       };
     }
+
+    const subtotalBeforeCredits = cart.total;
+    // Apply credits (up to the total amount)
+    const creditsToApply = Math.min(creditAmount, subtotalBeforeCredits);
+    const finalTotal = Math.max(0, subtotalBeforeCredits - creditsToApply);
 
     return {
       subtotal: cart.subtotal,
       shipping: cart.estimated_shipping,
       platformFeePercent: cart.platform_fee_percent || 0,
       platformFeeAmount: cart.platform_fee_amount || 0,
+      creditsApplied: creditsToApply,
       total: cart.total,
+      finalTotal,
     };
   };
 
@@ -907,15 +927,31 @@ export default function CheckoutClient() {
                     ${totals.platformFeeAmount.toFixed(2)}
                   </span>
                 </div>
+                {totals.creditsApplied > 0 && (
+                  <div className="flex justify-between text-sm bg-emerald-50 -mx-2 px-2 py-1.5 rounded-lg">
+                    <span className="text-emerald-700 flex items-center gap-1.5">
+                      <CurrencyDollarIcon className="h-4 w-4" />
+                      Credits applied
+                    </span>
+                    <span className="font-medium text-emerald-700">
+                      -${totals.creditsApplied.toFixed(2)}
+                    </span>
+                  </div>
+                )}
                 <div className="border-t border-[var(--secondary-soft-highlight)]/30 pt-3">
                   <div className="flex justify-between">
                     <span className="font-semibold text-[var(--secondary-black)]">
-                      Total
+                      {totals.creditsApplied > 0 ? "Total to pay" : "Total"}
                     </span>
                     <span className="font-bold text-xl text-[var(--secondary-black)]">
-                      ${totals.total.toFixed(2)}
+                      ${totals.finalTotal.toFixed(2)}
                     </span>
                   </div>
+                  {totals.creditsApplied > 0 && (
+                    <p className="text-xs text-emerald-600 mt-1 text-right">
+                      You saved ${totals.creditsApplied.toFixed(2)} with credits!
+                    </p>
+                  )}
                 </div>
               </div>
 

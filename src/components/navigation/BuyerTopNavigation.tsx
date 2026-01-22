@@ -24,7 +24,9 @@ import {
   selectNotifications,
 } from "@/store/slices/notificationsSlice";
 import { fetchCart } from "@/store/slices/buyerCartSlice";
+import { fetchBuyerCreditBalance } from "@/store/slices/buyerCreditsSlice";
 import { useNotificationsSocket } from "@/hooks/useNotificationsSocket";
+import { CurrencyDollarIcon } from "@heroicons/react/24/outline";
 
 const BuyerTopNavigation: React.FC = () => {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
@@ -45,10 +47,15 @@ const BuyerTopNavigation: React.FC = () => {
     }
   }, [status, dispatch]);
 
-  // Fetch cart on mount to get item count
+  // Fetch cart and credits on mount
   useEffect(() => {
     dispatch(fetchCart());
+    dispatch(fetchBuyerCreditBalance());
   }, [dispatch]);
+
+  // Credits state
+  const buyerCreditsState = useAppSelector((state) => state.buyerCredits);
+  const creditAmount = buyerCreditsState?.creditAmount ?? 0;
 
   // Authenticated user data
   const authUser = useAppSelector(selectAuthUser);
@@ -218,6 +225,16 @@ const BuyerTopNavigation: React.FC = () => {
                   <HeartIcon className="h-6 w-6 stroke-2" />
                 )}
               </Link> */}
+
+              {/* Credits Badge - Only show if user has credits */}
+              {creditAmount > 0 && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-200">
+                  <CurrencyDollarIcon className="h-4 w-4 text-emerald-600" />
+                  <span className="text-sm font-medium text-emerald-700">
+                    ${creditAmount.toFixed(2)} credit
+                  </span>
+                </div>
+              )}
 
               {/* Notifications */}
               <div className="relative flex items-center">

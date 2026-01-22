@@ -18,6 +18,8 @@ import profileReducer from "./slices/profileSlice";
 import sellerProductRequestsReducer from "./slices/sellerProductRequestsSlice";
 import sellerAnalyticsReducer from "./slices/sellerAnalyticsSlice";
 import sellerInsightsReducer from "./slices/sellerInsightsSlice";
+import sellerPayoutsReducer from "./slices/sellerPayoutsSlice";
+import buyerCreditsReducer from "./slices/buyerCreditsSlice";
 
 // Government slices
 import governmentVendorsReducer from "./slices/governmentVendorsSlice";
@@ -50,6 +52,8 @@ export const store = configureStore({
     sellerProductRequests: sellerProductRequestsReducer,
     sellerAnalytics: sellerAnalyticsReducer,
     sellerInsights: sellerInsightsReducer,
+    sellerPayouts: sellerPayoutsReducer,
+    buyerCredits: buyerCreditsReducer,
     // Government reducers
     governmentVendors: governmentVendorsReducer,
     governmentPrograms: governmentProgramsReducer,

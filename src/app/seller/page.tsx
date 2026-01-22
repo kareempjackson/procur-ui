@@ -15,6 +15,8 @@ import {
   CubeIcon,
   ClockIcon,
   InboxIcon,
+  BanknotesIcon,
+  CreditCardIcon,
 } from "@heroicons/react/24/outline";
 import {
   ResponsiveContainer,
@@ -106,6 +108,17 @@ export default function SellerDashboardPage() {
   const [pendingOrdersTotal, setPendingOrdersTotal] = useState<number | null>(
     null
   );
+  const [creditBalance, setCreditBalance] = useState<{
+    amount: number;
+    currency: string;
+    type: "owes_procur" | "owed_by_procur" | "none";
+  } | null>(null);
+  const [availableBalance, setAvailableBalance] = useState<{
+    amount: number;
+    currency: string;
+    canRequestPayout: boolean;
+  } | null>(null);
+  const [pendingPayoutRequests, setPendingPayoutRequests] = useState<number>(0);
 
   const [showPaymentLinkModal, setShowPaymentLinkModal] = useState(false);
   const [showVerificationModal, setShowVerificationModal] = useState(false);
@@ -209,6 +222,69 @@ export default function SellerDashboardPage() {
         if (!cancelled) setPendingOrdersTotal(Number.isFinite(total) ? total : 0);
       } catch {
         if (!cancelled) setPendingOrdersTotal(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Fetch balance and payout requests
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { getApiClient } = await import("@/lib/apiClient");
+        const api = getApiClient();
+        const { data } = await api.get("/sellers/balance");
+        const balanceData = data as {
+          available_amount?: number;
+          credit_amount?: number;
+          credit_type?: "owes_procur" | "owed_by_procur" | "none";
+          currency?: string;
+          has_credit_balance?: boolean;
+          can_request_payout?: boolean;
+        };
+        if (!cancelled) {
+          // Set available balance
+          setAvailableBalance({
+            amount: balanceData.available_amount || 0,
+            currency: balanceData.currency || "XCD",
+            canRequestPayout: balanceData.can_request_payout || false,
+          });
+          // Set credit balance if exists
+          if (balanceData?.has_credit_balance) {
+            setCreditBalance({
+              amount: Math.abs(balanceData.credit_amount || 0),
+              currency: balanceData.currency || "XCD",
+              type: balanceData.credit_type || "none",
+            });
+          }
+        }
+      } catch {
+        // Ignore errors
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Fetch pending payout requests count
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { getApiClient } = await import("@/lib/apiClient");
+        const api = getApiClient();
+        const { data } = await api.get("/sellers/payouts/requests", {
+          params: { status: "pending", limit: 1 },
+        });
+        if (!cancelled) {
+          setPendingPayoutRequests((data as { total?: number }).total || 0);
+        }
+      } catch {
+        // Ignore errors
       }
     })();
     return () => {
@@ -858,13 +934,36 @@ export default function SellerDashboardPage() {
               </button>
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6">
             {kpis.length === 0 ? (
               <div className="col-span-full text-xs text-[color:var(--secondary-muted-edge)]">
                 No metrics yet.
               </div>
             ) : (
               <>
+                <Link href="/seller/payouts" className="block">
+                  <MetricCard
+                    label="Available Balance"
+                    value={
+                      availableBalance
+                        ? formatCurrency(availableBalance.amount, availableBalance.currency)
+                        : "$0"
+                    }
+                    hint={availableBalance?.canRequestPayout ? "ready to withdraw" : "min $100 to withdraw"}
+                    icon={<BanknotesIcon className="h-5 w-5" />}
+                    variant={availableBalance?.canRequestPayout ? "success" : "default"}
+                  />
+                </Link>
+                {pendingPayoutRequests > 0 && (
+                  <Link href="/seller/payouts" className="block">
+                    <MetricCard
+                      label="Pending Payouts"
+                      value={pendingPayoutRequests}
+                      hint="awaiting approval"
+                      icon={<ClockIcon className="h-5 w-5" />}
+                    />
+                  </Link>
+                )}
                 <MetricCard
                   label="Revenue"
                   value={kpis[0]?.value || "$0"}
@@ -895,6 +994,30 @@ export default function SellerDashboardPage() {
                   hint="in catalog"
                   icon={<CubeIcon className="h-5 w-5" />}
                 />
+                {creditBalance && creditBalance.type !== "none" && (
+                  <Link href="/seller/payouts" className="block">
+                    <MetricCard
+                      label={
+                        creditBalance.type === "owes_procur"
+                          ? "Credit Balance"
+                          : "Credit Due"
+                      }
+                      value={formatCurrency(
+                        creditBalance.amount,
+                        creditBalance.currency
+                      )}
+                      hint={
+                        creditBalance.type === "owes_procur"
+                          ? "owed to Procur"
+                          : "owed to you"
+                      }
+                      icon={<CreditCardIcon className="h-5 w-5" />}
+                      variant={
+                        creditBalance.type === "owes_procur" ? "danger" : "success"
+                      }
+                    />
+                  </Link>
+                )}
               </>
             )}
           </div>

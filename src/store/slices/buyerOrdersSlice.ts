@@ -67,6 +67,7 @@ export interface CreateOrderDto {
   billing_address_id?: string;
   buyer_notes?: string;
   preferred_delivery_date?: string;
+  credits_applied_cents?: number;
 }
 
 export interface OrdersFilters {
