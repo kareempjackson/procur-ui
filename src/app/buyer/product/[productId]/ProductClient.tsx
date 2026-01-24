@@ -65,8 +65,15 @@ export default function ProductClient({ productId }: ProductClientProps) {
   const meetsMinOrder =
     !!product && product.current_price * quantity >= MIN_ORDER_AMOUNT;
 
+  const isOutOfStock = !product || (product.stock_quantity ?? 0) <= 0;
+  const canAddToCart = meetsMinOrder && !isOutOfStock;
+
   const handleAddToCart = () => {
     if (!product) return;
+    if (isOutOfStock) {
+      show("This item is currently out of stock.");
+      return;
+    }
     if (!meetsMinOrder) {
       show(`Minimum order is $${MIN_ORDER_AMOUNT.toFixed(2)}.`);
       return;
@@ -79,6 +86,10 @@ export default function ProductClient({ productId }: ProductClientProps) {
 
   const handleBuyNow = () => {
     if (!product) return;
+    if (isOutOfStock) {
+      show("This item is currently out of stock.");
+      return;
+    }
     if (!meetsMinOrder) {
       show(`Minimum order is $${MIN_ORDER_AMOUNT.toFixed(2)}.`);
       return;
@@ -419,10 +430,10 @@ export default function ProductClient({ productId }: ProductClientProps) {
                 <label className="block text-sm font-medium text-[var(--secondary-black)] mb-2">
                   Quantity ({product.unit_of_measurement})
                 </label>
-                <div className="flex items-center gap-3">
+                <div className={`flex items-center gap-3 ${isOutOfStock ? "opacity-50 pointer-events-none" : ""}`}>
                   <button
                     onClick={decrementQuantity}
-                    disabled={quantity <= getMinOrderQuantity()}
+                    disabled={isOutOfStock || quantity <= getMinOrderQuantity()}
                     className="p-2 rounded-full border border-[var(--secondary-soft-highlight)]/30 hover:bg-[var(--primary-background)] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                   >
                     <MinusIcon className="h-5 w-5 text-[var(--secondary-black)]" />
@@ -440,11 +451,12 @@ export default function ProductClient({ productId }: ProductClientProps) {
                     }}
                     min={getMinOrderQuantity()}
                     max={product.stock_quantity || 5000}
-                    className="w-24 px-4 py-2 text-center rounded-full border border-[var(--secondary-soft-highlight)]/30 bg-white outline-none focus:border-[var(--primary-accent2)] transition-colors text-[var(--secondary-black)] font-medium"
+                    disabled={isOutOfStock}
+                    className="w-24 px-4 py-2 text-center rounded-full border border-[var(--secondary-soft-highlight)]/30 bg-white outline-none focus:border-[var(--primary-accent2)] transition-colors text-[var(--secondary-black)] font-medium disabled:bg-gray-100"
                   />
                   <button
                     onClick={incrementQuantity}
-                    disabled={quantity >= (product.stock_quantity || 5000)}
+                    disabled={isOutOfStock || quantity >= (product.stock_quantity || 5000)}
                     className="p-2 rounded-full border border-[var(--secondary-soft-highlight)]/30 hover:bg-[var(--primary-background)] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                   >
                     <PlusIcon className="h-5 w-5 text-[var(--secondary-black)]" />
@@ -469,31 +481,40 @@ export default function ProductClient({ productId }: ProductClientProps) {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-3">
-                <button
-                  onClick={handleAddToCart}
-                  disabled={!meetsMinOrder}
-                  className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-full font-semibold transition-all duration-200 ${
-                    !meetsMinOrder
-                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                      : "bg-[var(--secondary-black)] text-white hover:bg-[var(--secondary-muted-edge)]"
-                  }`}
-                >
-                  <ShoppingCartIcon className="h-5 w-5" />
-                  Add to Cart
-                </button>
-                <button
-                  onClick={handleBuyNow}
-                  disabled={!meetsMinOrder}
-                  className={`flex-1 px-6 py-3 rounded-full font-semibold transition-all duration-200 shadow-md ${
-                    !meetsMinOrder
-                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                      : "bg-[var(--primary-accent2)] text-white hover:bg-[var(--primary-accent3)] hover:shadow-lg"
-                  }`}
-                >
-                  Buy Now
-                </button>
-              </div>
+              {isOutOfStock ? (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
+                  <p className="text-red-700 font-semibold mb-1">Out of Stock</p>
+                  <p className="text-sm text-red-600">
+                    This item is currently unavailable. Please check back later.
+                  </p>
+                </div>
+              ) : (
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleAddToCart}
+                    disabled={!canAddToCart}
+                    className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-full font-semibold transition-all duration-200 ${
+                      !canAddToCart
+                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        : "bg-[var(--secondary-black)] text-white hover:bg-[var(--secondary-muted-edge)]"
+                    }`}
+                  >
+                    <ShoppingCartIcon className="h-5 w-5" />
+                    Add to Cart
+                  </button>
+                  <button
+                    onClick={handleBuyNow}
+                    disabled={!canAddToCart}
+                    className={`flex-1 px-6 py-3 rounded-full font-semibold transition-all duration-200 shadow-md ${
+                      !canAddToCart
+                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        : "bg-[var(--primary-accent2)] text-white hover:bg-[var(--primary-accent3)] hover:shadow-lg"
+                    }`}
+                  >
+                    Buy Now
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

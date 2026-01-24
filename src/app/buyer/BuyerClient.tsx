@@ -1228,120 +1228,123 @@ export default function BuyerClient() {
                                   : "Out of stock"}
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <div className="flex items-center gap-1 border border-[var(--secondary-soft-highlight)]/30 rounded-full px-1.5 py-1">
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    const min = Math.max(
-                                      1,
-                                      Math.ceil(30 / (product.current_price || 1))
-                                    );
-                                    setCardQuantities((prev) => {
-                                      const current =
-                                        prev[String(product.id)] ?? min;
-                                      return {
+                            {product.stock_quantity === 0 ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-black/5 text-[var(--secondary-muted-edge)] rounded-full text-[10px] font-medium">
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                                </svg>
+                                Sold Out
+                              </span>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1 border border-[var(--secondary-soft-highlight)]/30 rounded-full px-1.5 py-1">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      const min = Math.max(
+                                        1,
+                                        Math.ceil(30 / (product.current_price || 1))
+                                      );
+                                      setCardQuantities((prev) => {
+                                        const current =
+                                          prev[String(product.id)] ?? min;
+                                        return {
+                                          ...prev,
+                                          [String(product.id)]: Math.max(
+                                            min,
+                                            current - 1
+                                          ),
+                                        };
+                                      });
+                                    }}
+                                    className="w-6 h-6 rounded-full hover:bg-[var(--primary-background)] transition-colors text-[var(--secondary-black)] text-xs font-bold"
+                                    aria-label="Decrease quantity"
+                                  >
+                                    −
+                                  </button>
+                                  <input
+                                    type="number"
+                                    inputMode="numeric"
+                                    value={
+                                      cardQuantities[String(product.id)] ??
+                                      Math.max(
+                                        1,
+                                        Math.ceil(30 / (product.current_price || 1))
+                                      )
+                                    }
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                    }}
+                                    onChange={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      const raw = Number(e.target.value);
+                                      const min = Math.max(
+                                        1,
+                                        Math.ceil(30 / (product.current_price || 1))
+                                      );
+                                      const max = product.stock_quantity || 5000;
+                                      if (!Number.isFinite(raw)) return;
+                                      const next = Math.max(
+                                        min,
+                                        Math.min(max, Math.floor(raw))
+                                      );
+                                      setCardQuantities((prev) => ({
                                         ...prev,
-                                        [String(product.id)]: Math.max(
-                                          min,
-                                          current - 1
-                                        ),
-                                      };
-                                    });
-                                  }}
-                                  className="w-6 h-6 rounded-full hover:bg-[var(--primary-background)] transition-colors text-[var(--secondary-black)] text-xs font-bold"
-                                disabled={product.stock_quantity === 0}
-                                  aria-label="Decrease quantity"
-                                >
-                                  −
-                                </button>
-                                <input
-                                  type="number"
-                                  inputMode="numeric"
-                                  value={
-                                    cardQuantities[String(product.id)] ??
-                                    Math.max(
+                                        [String(product.id)]: next,
+                                      }));
+                                    }}
+                                    min={Math.max(
                                       1,
                                       Math.ceil(30 / (product.current_price || 1))
-                                    )
-                                  }
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                  }}
-                                  onChange={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    const raw = Number(e.target.value);
-                                    const min = Math.max(
-                                      1,
-                                      Math.ceil(30 / (product.current_price || 1))
-                                    );
-                                    const max = product.stock_quantity || 5000;
-                                    if (!Number.isFinite(raw)) return;
-                                    const next = Math.max(
-                                      min,
-                                      Math.min(max, Math.floor(raw))
-                                    );
-                                    setCardQuantities((prev) => ({
-                                      ...prev,
-                                      [String(product.id)]: next,
-                                    }));
-                                  }}
-                                  min={Math.max(
-                                    1,
-                                    Math.ceil(30 / (product.current_price || 1))
-                                  )}
-                                  max={product.stock_quantity || 5000}
-                                  className="w-10 text-center text-xs bg-transparent outline-none text-[var(--secondary-black)]"
-                                  aria-label="Quantity"
-                                />
+                                    )}
+                                    max={product.stock_quantity || 5000}
+                                    className="w-10 text-center text-xs bg-transparent outline-none text-[var(--secondary-black)]"
+                                    aria-label="Quantity"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      const min = Math.max(
+                                        1,
+                                        Math.ceil(30 / (product.current_price || 1))
+                                      );
+                                      const max = product.stock_quantity || 5000;
+                                      setCardQuantities((prev) => {
+                                        const current =
+                                          prev[String(product.id)] ?? min;
+                                        return {
+                                          ...prev,
+                                          [String(product.id)]: Math.min(
+                                            max,
+                                            current + 1
+                                          ),
+                                        };
+                                      });
+                                    }}
+                                    className="w-6 h-6 rounded-full hover:bg-[var(--primary-background)] transition-colors text-[var(--secondary-black)] text-xs font-bold"
+                                    aria-label="Increase quantity"
+                                  >
+                                    +
+                                  </button>
+                                </div>
                                 <button
-                                  type="button"
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    const min = Math.max(
-                                      1,
-                                      Math.ceil(30 / (product.current_price || 1))
-                                    );
-                                    const max = product.stock_quantity || 5000;
-                                    setCardQuantities((prev) => {
-                                      const current =
-                                        prev[String(product.id)] ?? min;
-                                      return {
-                                        ...prev,
-                                        [String(product.id)]: Math.min(
-                                          max,
-                                          current + 1
-                                        ),
-                                      };
-                                    });
+                                    handleAddToCart(product.id);
                                   }}
-                                  className="w-6 h-6 rounded-full hover:bg-[var(--primary-background)] transition-colors text-[var(--secondary-black)] text-xs font-bold"
-                                disabled={product.stock_quantity === 0}
-                                  aria-label="Increase quantity"
+                                  className="px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 bg-[var(--primary-accent2)] text-white hover:bg-[var(--primary-accent3)]"
                                 >
-                                  +
+                                  Add
                                 </button>
                               </div>
-                              <button
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  handleAddToCart(product.id);
-                                }}
-                              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
-                                product.stock_quantity === 0
-                                  ? "bg-gray-300 text-gray-600 cursor-not-allowed"
-                                  : "bg-[var(--primary-accent2)] text-white hover:bg-[var(--primary-accent3)]"
-                              }`}
-                              >
-                                Add
-                              </button>
-                            </div>
+                            )}
                           </div>
                         </div>
                         </Link>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -22,22 +22,91 @@ import {
 import ProcurLoader from "@/components/ProcurLoader";
 import { getEstimatedDeliveryRangeLabel } from "@/lib/utils/date";
 
+const DEBOUNCE_DELAY = 500; // ms to wait before syncing
+const ERROR_DELAY = 800; // ms to wait before showing errors
+
 export default function BuyerCartPage() {
   const dispatch = useAppDispatch();
   const { cart, status, error } = useAppSelector((state) => state.buyerCart);
   const estimatedDeliveryLabel = getEstimatedDeliveryRangeLabel();
+
+  // Local quantity state for optimistic updates
+  const [localQuantities, setLocalQuantities] = useState<Record<string, number>>({});
+  // Track if user is actively editing (for hiding errors)
+  const [isEditing, setIsEditing] = useState(false);
+  // Track item pending deletion for confirmation
+  const [pendingDeleteItem, setPendingDeleteItem] = useState<{ id: string; name: string } | null>(null);
+  // Refs for debouncing
+  const syncTimers = useRef<Record<string, NodeJS.Timeout>>({});
+  const editingTimer = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch cart on mount
   useEffect(() => {
     dispatch(fetchCart());
   }, [dispatch]);
 
-  const updateQuantity = (itemId: string, newQuantity: number) => {
-    dispatch(updateCartItemAsync({ itemId, quantity: newQuantity }));
+  // Initialize local quantities from cart
+  useEffect(() => {
+    if (cart) {
+      setLocalQuantities((prev) => {
+        const next = { ...prev };
+        let changed = false;
+        cart.seller_groups.forEach((group) => {
+          group.items.forEach((item) => {
+            // Only set if not already in local state
+            if (next[item.id] === undefined) {
+              next[item.id] = item.quantity;
+              changed = true;
+            }
+          });
+        });
+        return changed ? next : prev;
+      });
+    }
+  }, [cart]);
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(syncTimers.current).forEach(clearTimeout);
+      if (editingTimer.current) clearTimeout(editingTimer.current);
+    };
+  }, []);
+
+  const updateQuantity = useCallback((itemId: string, newQuantity: number) => {
+    // Update local state immediately
+    setLocalQuantities((prev) => ({ ...prev, [itemId]: newQuantity }));
+
+    // Mark as editing and reset the timer
+    setIsEditing(true);
+    if (editingTimer.current) clearTimeout(editingTimer.current);
+    editingTimer.current = setTimeout(() => setIsEditing(false), ERROR_DELAY);
+
+    // Clear existing sync timer for this item
+    if (syncTimers.current[itemId]) {
+      clearTimeout(syncTimers.current[itemId]);
+    }
+
+    // Set new sync timer
+    syncTimers.current[itemId] = setTimeout(() => {
+      dispatch(updateCartItemAsync({ itemId, quantity: newQuantity }));
+    }, DEBOUNCE_DELAY);
+  }, [dispatch]);
+
+  // Get the display quantity
+  const getDisplayQuantity = useCallback((itemId: string, serverQuantity: number) => {
+    return localQuantities[itemId] ?? serverQuantity;
+  }, [localQuantities]);
+
+  const confirmRemoveItem = () => {
+    if (pendingDeleteItem) {
+      dispatch(removeCartItemAsync(pendingDeleteItem.id));
+      setPendingDeleteItem(null);
+    }
   };
 
-  const removeItem = (itemId: string) => {
-    dispatch(removeCartItemAsync(itemId));
+  const cancelRemoveItem = () => {
+    setPendingDeleteItem(null);
   };
 
   const moveToCart = (itemId: string) => {
@@ -80,26 +149,34 @@ export default function BuyerCartPage() {
     : { sellers: [], savedForLater: [] as any[] };
 
   const calculateSellerSubtotal = (items: any[]) => {
-    return items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    return items.reduce((sum, item) => sum + item.price * getDisplayQuantity(item.id, item.quantity), 0);
   };
 
-  const totals = cart
-    ? {
-        subtotal: cart.subtotal || 0,
-        platformFeePercent: cart.platform_fee_percent || 0,
-        platformFeeAmount: cart.platform_fee_amount || 0,
-        shipping: cart.estimated_shipping || 0,
-        total: cart.total || 0,
-      }
-    : {
-        subtotal: 0,
-        platformFeePercent: 0,
-        platformFeeAmount: 0,
-        shipping: 0,
-        total: 0,
-      };
+  // Calculate totals using local quantities for real-time updates
+  const calculatedSubtotal = cartData.sellers.reduce(
+    (sum, seller) => sum + calculateSellerSubtotal(seller.items),
+    0
+  );
+  const platformFeePercent = cart?.platform_fee_percent || 0;
+  const calculatedPlatformFee = Number(((calculatedSubtotal * platformFeePercent) / 100).toFixed(2));
+  const shipping = cart?.estimated_shipping || 0;
 
-  const totalItems = cart?.total_items || 0;
+  const totals = {
+    subtotal: calculatedSubtotal,
+    platformFeePercent,
+    platformFeeAmount: calculatedPlatformFee,
+    shipping,
+    total: calculatedSubtotal + shipping + calculatedPlatformFee,
+  };
+
+  // Calculate total items using local quantities
+  const totalItems = cartData.sellers.reduce(
+    (sum, seller) => sum + seller.items.reduce(
+      (s, item) => s + getDisplayQuantity(item.id, item.quantity),
+      0
+    ),
+    0
+  );
   const hasStockIssues = cartData.sellers.some((seller) =>
     seller.items.some((item) => !item.inStock)
   );
@@ -187,9 +264,15 @@ export default function BuyerCartPage() {
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Cart Items - Left Side (2/3) */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Alert Messages */}
-              {hasMinOrderIssues && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-start gap-3">
+              {/* Alert Messages - fade based on editing state */}
+              <div 
+                className={`transition-all duration-300 ease-out overflow-hidden ${
+                  hasMinOrderIssues && !isEditing 
+                    ? "opacity-100 max-h-24" 
+                    : "opacity-0 max-h-0"
+                }`}
+              >
+                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-start gap-3 mb-6">
                   <ExclamationTriangleIcon className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
                   <div>
                     <h3 className="font-semibold text-yellow-900 text-sm">
@@ -200,10 +283,16 @@ export default function BuyerCartPage() {
                     </p>
                   </div>
                 </div>
-              )}
+              </div>
 
-              {hasStockIssues && (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+              <div 
+                className={`transition-all duration-300 ease-out overflow-hidden ${
+                  hasStockIssues && !isEditing
+                    ? "opacity-100 max-h-24" 
+                    : "opacity-0 max-h-0"
+                }`}
+              >
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3 mb-6">
                   <ExclamationTriangleIcon className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
                   <div>
                     <h3 className="font-semibold text-red-900 text-sm">
@@ -215,7 +304,7 @@ export default function BuyerCartPage() {
                     </p>
                   </div>
                 </div>
-              )}
+              </div>
 
               {/* Items Grouped by Seller */}
               {cartData.sellers.map((seller, index) => {
@@ -254,15 +343,21 @@ export default function BuyerCartPage() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className="text-sm font-medium text-[var(--secondary-black)]">
+                          <div className="text-sm font-medium text-[var(--secondary-black)] tabular-nums transition-all duration-150">
                             ${sellerSubtotal.toFixed(2)}
                           </div>
                         </div>
                       </div>
 
-                      {/* Min Order Warning */}
-                      {!meetsMinOrder && (
-                        <div className="mt-3 px-3 py-2 bg-yellow-100 border border-yellow-200 rounded-lg">
+                      {/* Min Order Warning - fade based on editing state */}
+                      <div 
+                        className={`transition-all duration-300 ease-out overflow-hidden ${
+                          !meetsMinOrder && !isEditing 
+                            ? "opacity-100 max-h-16 mt-3" 
+                            : "opacity-0 max-h-0 mt-0"
+                        }`}
+                      >
+                        <div className="px-3 py-2 bg-yellow-100 border border-yellow-200 rounded-lg">
                           <p className="text-xs text-yellow-800">
                             <span className="font-semibold">
                               Minimum order:
@@ -274,7 +369,7 @@ export default function BuyerCartPage() {
                             more to checkout
                           </p>
                         </div>
-                      )}
+                      </div>
                     </div>
 
                     {/* Seller Items */}
@@ -319,14 +414,14 @@ export default function BuyerCartPage() {
 
                                 {/* Price */}
                                 <div className="text-right flex-shrink-0">
-                                  <div className="font-bold text-lg text-[var(--secondary-black)]">
+                                  <div className="font-bold text-lg text-[var(--secondary-black)] tabular-nums">
                                     ${item.price.toFixed(2)}
                                     <span className="text-sm font-normal text-[var(--secondary-muted-edge)]">
                                       /{item.unit}
                                     </span>
                                   </div>
-                                  <div className="text-sm font-semibold text-[var(--secondary-black)] mt-1">
-                                    ${(item.price * item.quantity).toFixed(2)}{" "}
+                                  <div className="text-sm font-semibold text-[var(--secondary-black)] mt-1 tabular-nums transition-all duration-150">
+                                    ${(item.price * getDisplayQuantity(item.id, item.quantity)).toFixed(2)}{" "}
                                     total
                                   </div>
                                 </div>
@@ -341,16 +436,17 @@ export default function BuyerCartPage() {
                                   <div className="flex items-center gap-1 border border-[var(--secondary-soft-highlight)]/30 rounded-full px-1.5 py-1">
                                     <button
                                       type="button"
-                                      onClick={() =>
+                                      onClick={() => {
+                                        const currentQty = getDisplayQuantity(item.id, item.quantity);
                                         updateQuantity(
                                           item.id,
-                                          Math.max(item.minOrder, item.quantity - 1)
-                                        )
-                                      }
-                                      className="w-7 h-7 rounded-full hover:bg-[var(--primary-background)] transition-colors text-[var(--secondary-black)] text-sm font-bold"
+                                          Math.max(item.minOrder, currentQty - 1)
+                                        );
+                                      }}
+                                      className="w-7 h-7 rounded-full hover:bg-[var(--primary-background)] transition-colors text-[var(--secondary-black)] text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed"
                                       disabled={
                                         !item.inStock ||
-                                        item.quantity <= item.minOrder
+                                        getDisplayQuantity(item.id, item.quantity) <= item.minOrder
                                       }
                                       aria-label="Decrease quantity"
                                     >
@@ -359,7 +455,7 @@ export default function BuyerCartPage() {
                                     <input
                                       type="number"
                                       inputMode="numeric"
-                                      value={item.quantity}
+                                      value={getDisplayQuantity(item.id, item.quantity)}
                                       min={item.minOrder}
                                       max={item.maxStock}
                                       onChange={(e) => {
@@ -376,16 +472,17 @@ export default function BuyerCartPage() {
                                     />
                                     <button
                                       type="button"
-                                      onClick={() =>
+                                      onClick={() => {
+                                        const currentQty = getDisplayQuantity(item.id, item.quantity);
                                         updateQuantity(
                                           item.id,
-                                          Math.min(item.maxStock, item.quantity + 1)
-                                        )
-                                      }
-                                      className="w-7 h-7 rounded-full hover:bg-[var(--primary-background)] transition-colors text-[var(--secondary-black)] text-sm font-bold"
+                                          Math.min(item.maxStock, currentQty + 1)
+                                        );
+                                      }}
+                                      className="w-7 h-7 rounded-full hover:bg-[var(--primary-background)] transition-colors text-[var(--secondary-black)] text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed"
                                       disabled={
                                         !item.inStock ||
-                                        item.quantity >= item.maxStock
+                                        getDisplayQuantity(item.id, item.quantity) >= item.maxStock
                                       }
                                       aria-label="Increase quantity"
                                     >
@@ -400,7 +497,7 @@ export default function BuyerCartPage() {
                                 {/* Item Actions */}
                                 <div className="flex items-center gap-2">
                                   <button
-                                    onClick={() => removeItem(item.id)}
+                                    onClick={() => setPendingDeleteItem({ id: item.id, name: item.name })}
                                     className="text-sm text-red-600 hover:text-red-700 font-medium transition-colors flex items-center gap-1"
                                   >
                                     <TrashIcon className="h-4 w-4" />
@@ -477,7 +574,7 @@ export default function BuyerCartPage() {
                       <span className="text-[var(--secondary-muted-edge)]">
                         Subtotal ({totalItems} items)
                       </span>
-                      <span className="font-medium text-[var(--secondary-black)]">
+                      <span className="font-medium text-[var(--secondary-black)] tabular-nums transition-all duration-200">
                         ${totals.subtotal.toFixed(2)}
                       </span>
                     </div>
@@ -486,7 +583,7 @@ export default function BuyerCartPage() {
                       <span className="text-[var(--secondary-muted-edge)]">
                         Delivery
                       </span>
-                      <span className="font-medium text-[var(--secondary-black)]">
+                      <span className="font-medium text-[var(--secondary-black)] tabular-nums">
                         ${totals.shipping.toFixed(2)}
                       </span>
                     </div>
@@ -495,17 +592,17 @@ export default function BuyerCartPage() {
                       <span className="text-[var(--secondary-muted-edge)]">
                         Platform fee ({totals.platformFeePercent.toFixed(2)}%)
                       </span>
-                      <span className="font-medium text-[var(--secondary-black)]">
+                      <span className="font-medium text-[var(--secondary-black)] tabular-nums transition-all duration-200">
                         ${totals.platformFeeAmount.toFixed(2)}
                       </span>
                     </div>
 
                     <div className="border-t border-[var(--secondary-soft-highlight)]/30 pt-3">
-                      <div className="flex justify-between">
+                      <div className="flex justify-between items-baseline">
                         <span className="font-semibold text-[var(--secondary-black)]">
                           Total
                         </span>
-                        <span className="font-bold text-xl text-[var(--secondary-black)]">
+                        <span className="font-bold text-xl text-[var(--secondary-black)] tabular-nums transition-all duration-200">
                           ${totals.total.toFixed(2)}
                         </span>
                       </div>
@@ -565,6 +662,53 @@ export default function BuyerCartPage() {
           </div>
         )}
       </main>
+
+      {/* Delete Confirmation Dialog */}
+      {pendingDeleteItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200"
+            onClick={cancelRemoveItem}
+          />
+          
+          {/* Dialog */}
+          <div className="relative bg-white rounded-2xl shadow-2xl max-w-sm w-full mx-4 p-6 animate-in zoom-in-95 fade-in duration-200">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                <TrashIcon className="h-5 w-5 text-red-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg font-semibold text-[var(--secondary-black)]">
+                  Remove item?
+                </h3>
+                <p className="mt-1 text-sm text-[var(--secondary-muted-edge)]">
+                  Are you sure you want to remove{" "}
+                  <span className="font-medium text-[var(--secondary-black)]">
+                    {pendingDeleteItem.name}
+                  </span>{" "}
+                  from your cart?
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={cancelRemoveItem}
+                className="flex-1 px-4 py-2.5 rounded-full border border-[var(--secondary-soft-highlight)]/30 text-[var(--secondary-black)] font-medium hover:bg-[var(--primary-background)] transition-colors"
+              >
+                Keep it
+              </button>
+              <button
+                onClick={confirmRemoveItem}
+                className="flex-1 px-4 py-2.5 rounded-full bg-red-600 text-white font-medium hover:bg-red-700 transition-colors"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

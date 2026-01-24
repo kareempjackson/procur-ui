@@ -148,8 +148,19 @@ export default function SupplierClient({ supplierId }: SupplierClientProps) {
     try {
       const id = String(productId);
       const p = products.find((x) => String(x.id) === id);
-      const max = p?.stock_quantity || 5000;
-      const min = p?.minOrderQuantity ?? 1;
+      
+      if (!p) {
+        console.error("Product not found");
+        return;
+      }
+      
+      if (!p.in_stock || (p.stock_quantity ?? 0) <= 0) {
+        // Product is out of stock - don't add to cart
+        return;
+      }
+      
+      const max = p.stock_quantity || 5000;
+      const min = p.minOrderQuantity ?? 1;
       const desired = cardQuantities[id] ?? 1;
       const quantity = Math.max(min, Math.min(max, desired));
       await dispatch(
@@ -401,83 +412,90 @@ export default function SupplierClient({ supplierId }: SupplierClientProps) {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1 border border-[var(--secondary-soft-highlight)]/30 rounded-full px-1.5 py-1">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setCardQuantities((prev) => {
-                              const id = String(product.id);
-                              const current = prev[id] ?? 1;
-                              return {
-                                ...prev,
-                                [id]: Math.max(product.minOrderQuantity, current - 1),
-                              };
-                            });
-                          }}
-                          className="w-6 h-6 rounded-full hover:bg-[var(--primary-background)] transition-colors text-[var(--secondary-black)] text-xs font-bold"
-                          aria-label="Decrease quantity"
-                        >
-                          −
-                        </button>
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          value={cardQuantities[String(product.id)] ?? 1}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                          }}
-                          onChange={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            const raw = Number(e.target.value);
-                            if (!Number.isFinite(raw)) return;
-                            const max = product.stock_quantity || 5000;
-                            const next = Math.max(
-                              product.minOrderQuantity,
-                              Math.min(max, Math.floor(raw))
-                            );
-                            setCardQuantities((prev) => ({
-                              ...prev,
-                              [String(product.id)]: next,
-                            }));
-                          }}
-                          min={product.minOrderQuantity}
-                          max={product.stock_quantity || 5000}
-                          className="w-10 text-center text-xs bg-transparent outline-none text-[var(--secondary-black)]"
-                          aria-label="Quantity"
-                        />
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setCardQuantities((prev) => {
-                              const id = String(product.id);
-                              const current = prev[id] ?? 1;
+                      {product.in_stock && (
+                        <div className="flex items-center gap-1 border border-[var(--secondary-soft-highlight)]/30 rounded-full px-1.5 py-1">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setCardQuantities((prev) => {
+                                const id = String(product.id);
+                                const current = prev[id] ?? 1;
+                                return {
+                                  ...prev,
+                                  [id]: Math.max(product.minOrderQuantity, current - 1),
+                                };
+                              });
+                            }}
+                            className="w-6 h-6 rounded-full hover:bg-[var(--primary-background)] transition-colors text-[var(--secondary-black)] text-xs font-bold"
+                            aria-label="Decrease quantity"
+                          >
+                            −
+                          </button>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            value={cardQuantities[String(product.id)] ?? 1}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                            }}
+                            onChange={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const raw = Number(e.target.value);
+                              if (!Number.isFinite(raw)) return;
                               const max = product.stock_quantity || 5000;
-                              return { ...prev, [id]: Math.min(max, current + 1) };
-                            });
+                              const next = Math.max(
+                                product.minOrderQuantity,
+                                Math.min(max, Math.floor(raw))
+                              );
+                              setCardQuantities((prev) => ({
+                                ...prev,
+                                [String(product.id)]: next,
+                              }));
+                            }}
+                            min={product.minOrderQuantity}
+                            max={product.stock_quantity || 5000}
+                            className="w-10 text-center text-xs bg-transparent outline-none text-[var(--secondary-black)]"
+                            aria-label="Quantity"
+                          />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setCardQuantities((prev) => {
+                                const id = String(product.id);
+                                const current = prev[id] ?? 1;
+                                const max = product.stock_quantity || 5000;
+                                return { ...prev, [id]: Math.min(max, current + 1) };
+                              });
+                            }}
+                            className="w-6 h-6 rounded-full hover:bg-[var(--primary-background)] transition-colors text-[var(--secondary-black)] text-xs font-bold"
+                            aria-label="Increase quantity"
+                          >
+                            +
+                          </button>
+                        </div>
+                      )}
+                      {product.in_stock ? (
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleAddToCart(product.id);
                           }}
-                          className="w-6 h-6 rounded-full hover:bg-[var(--primary-background)] transition-colors text-[var(--secondary-black)] text-xs font-bold"
-                          aria-label="Increase quantity"
+                          className="px-3 py-1.5 bg-[var(--primary-accent2)] text-white rounded-full text-xs font-semibold hover:bg-[var(--primary-accent3)] transition-all duration-200"
                         >
-                          +
+                          Add
                         </button>
-                      </div>
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleAddToCart(product.id);
-                        }}
-                        className="px-3 py-1.5 bg-[var(--primary-accent2)] text-white rounded-full text-xs font-semibold hover:bg-[var(--primary-accent3)] transition-all duration-200"
-                        disabled={!product.in_stock}
-                      >
-                        Add
-                      </button>
+                      ) : (
+                        <span className="px-3 py-1.5 bg-gray-200 text-gray-600 rounded-full text-xs font-semibold">
+                          Out of Stock
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
