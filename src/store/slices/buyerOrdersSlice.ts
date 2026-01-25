@@ -240,6 +240,46 @@ export const cancelOrder = createAsyncThunk(
 );
 
 /**
+ * Update order items DTO
+ */
+export interface UpdateOrderItemDto {
+  id?: string;
+  product_id?: string;
+  product_name?: string;
+  quantity: number;
+  unit_price?: number;
+}
+
+export interface UpdateOrderDto {
+  items?: UpdateOrderItemDto[];
+  buyer_notes?: string;
+  preferred_delivery_date?: string;
+  update_reason?: string;
+}
+
+/**
+ * Update an order (add/remove items, change quantities)
+ */
+export const updateOrder = createAsyncThunk(
+  "buyerOrders/updateOrder",
+  async (
+    { orderId, updateDto }: { orderId: string; updateDto: UpdateOrderDto },
+    { rejectWithValue }
+  ) => {
+    try {
+      const apiClient = getApiClient();
+      const response = await apiClient.patch(
+        `/buyers/orders/${orderId}`,
+        updateDto
+      );
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(extractErrorMessage(error));
+    }
+  }
+);
+
+/**
  * Submit order review
  */
 export const submitOrderReview = createAsyncThunk(
@@ -452,6 +492,26 @@ const buyerOrdersSlice = createSlice({
       }
       if (state.currentOrder?.id === maybeId) {
         state.currentOrder = { ...state.currentOrder, ...patch } as Order;
+      }
+    });
+
+    // Update Order
+    builder.addCase(updateOrder.fulfilled, (state, action) => {
+      const payload = action.payload as unknown;
+      if (!payload || typeof payload !== "object") return;
+      const maybeId = (payload as { id?: unknown }).id;
+      if (typeof maybeId !== "string" || !maybeId) return;
+
+      const updated = payload as Order;
+
+      // Update order in the list
+      const index = state.orders.findIndex((o) => o.id === maybeId);
+      if (index !== -1) {
+        state.orders[index] = updated;
+      }
+      // Update current order if it's the one being updated
+      if (state.currentOrder?.id === maybeId) {
+        state.currentOrder = updated;
       }
     });
   },

@@ -18,6 +18,7 @@ import {
   XCircleIcon,
   StarIcon,
   ShoppingBagIcon,
+  PencilSquareIcon,
 } from "@heroicons/react/24/outline";
 import { useAppDispatch, useAppSelector } from "@/store";
 import {
@@ -468,7 +469,15 @@ export default function OrderDetailPage({
 
               {/* Quick Actions */}
               {canCancel && (
-                <div className="pt-4 border-t border-[var(--secondary-soft-highlight)]/30">
+                <div className="pt-4 border-t border-[var(--secondary-soft-highlight)]/30 flex items-center gap-4">
+                  <Link
+                    href={`/buyer/orders/${orderId}/edit`}
+                    className="flex items-center gap-2 text-sm text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)] font-medium"
+                  >
+                    <PencilSquareIcon className="h-4 w-4" />
+                    Edit Order
+                  </Link>
+                  <span className="text-[var(--secondary-soft-highlight)]">|</span>
                   <button
                     onClick={() => setShowCancelDialog(true)}
                     className="text-sm text-red-600 hover:text-red-700 font-medium"
