@@ -128,6 +128,7 @@ const BuyerTopNavigation: React.FC = () => {
     >
       {/* ── Single row: 3-col grid for true centering ── */}
       <div
+        className="bn-inner"
         style={{
           maxWidth: 1300,
           margin: "0 auto",
@@ -155,7 +156,7 @@ const BuyerTopNavigation: React.FC = () => {
         </Link>
 
         {/* ── Center: search ── */}
-        <div style={{ display: "flex", justifyContent: "center" }}>
+        <div className="bn-search" style={{ display: "flex", justifyContent: "center" }}>
           <div
             style={{
               display: "flex",
@@ -194,7 +195,7 @@ const BuyerTopNavigation: React.FC = () => {
         </div>
 
         {/* ── Right: icons ── */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 2 }}>
+        <div className="bn-right" style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 2 }}>
           {/* Credits */}
           {creditAmount > 0 && (
             <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 9px", borderRadius: 999, background: "rgba(52,211,153,.1)", border: "1px solid rgba(52,211,153,.22)", fontSize: 11, fontWeight: 600, color: "#6ee7b7", whiteSpace: "nowrap", marginRight: 4 }}>

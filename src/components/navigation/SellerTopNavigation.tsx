@@ -60,6 +60,7 @@ const ICON_NAV = [
 
 const SellerTopNavigation: React.FC = () => {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const router = useRouter();
@@ -203,6 +204,7 @@ const SellerTopNavigation: React.FC = () => {
       }}
     >
       <div
+        className="sn-inner"
         style={{
           maxWidth: 1300,
           margin: "0 auto",
@@ -242,6 +244,7 @@ const SellerTopNavigation: React.FC = () => {
 
         {/* ── Center: text links + icon links ── */}
         <div
+          className="sn-center"
           style={{
             display: "flex",
             alignItems: "center",
@@ -268,6 +271,7 @@ const SellerTopNavigation: React.FC = () => {
 
         {/* ── Right: actions ── */}
         <div
+          className="sn-right"
           style={{
             display: "flex",
             alignItems: "center",
@@ -444,8 +448,55 @@ const SellerTopNavigation: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* Mobile hamburger — hidden on desktop, shown ≤768px via .sn-hamburger CSS class */}
+          <button
+            className="sn-hamburger"
+            style={{ ...iconBtn, display: "none", color: "#2d4a3e" }}
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Menu"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width={20} height={20}>
+              {mobileMenuOpen
+                ? <path d="M18 6L6 18M6 6l12 12" />
+                : <><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></>
+              }
+            </svg>
+          </button>
         </div>
       </div>
+
+      {/* ── Seller mobile menu ── */}
+      {mobileMenuOpen && (
+        <div style={{ background: "#faf8f4", borderTop: "1px solid #ebe7df" }}>
+          <div style={{ padding: "8px 16px 14px" }}>
+            {[
+              { label: "Dashboard", href: "/seller" },
+              { label: "Browse Marketplace", href: "/" },
+              { label: "Orders", href: "/seller/orders" },
+              { label: "Inventory", href: "/seller/products" },
+              { label: "Messages", href: "/seller/messages" },
+              { label: "Payouts", href: "/seller/payouts" },
+              { label: "Business Settings", href: "/seller/business" },
+            ].map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                style={{ display: "block", padding: "10px 0", fontSize: 14, fontWeight: 600, color: "#2d4a3e", textDecoration: "none", borderBottom: "1px solid #ebe7df" }}
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                {item.label}
+              </Link>
+            ))}
+            <button
+              onClick={() => { dispatch(signout()); setMobileMenuOpen(false); router.replace("/login"); }}
+              style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 0", fontSize: 14, fontWeight: 600, color: "#d4783c", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+      )}
     </nav>
   );
 };
