@@ -971,11 +971,11 @@ export default function Home() {
       >
         {/* Main header row */}
         <div
+          className="v6-hdr-row"
           style={{
             height: 58,
             display: "flex",
             alignItems: "center",
-            padding: "0 60px",
           }}
         >
           {/* Logo */}
@@ -1013,11 +1013,11 @@ export default function Home() {
           </Link>
           {/* Search bar — navigates to /browse?q=... */}
           <div
+            className="v6-hdr-search"
             style={{
               flex: 1,
               display: "flex",
               justifyContent: "center",
-              margin: "0 16px",
             }}
           >
             <div
@@ -1151,7 +1151,22 @@ export default function Home() {
                 background: "none",
               }}
             >
+              {/* Mobile hamburger icon */}
+              <svg
+                className="v6-menu-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#f5f1ea"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                width={22}
+                height={22}
+              >
+                <path d="M3 6h18M3 12h18M3 18h18" />
+              </svg>
+              {/* Desktop labels */}
               <span
+                className="v6-acct-desktop"
                 style={{
                   fontSize: 9.5,
                   color: "rgba(245,241,234,.45)",
@@ -1161,6 +1176,7 @@ export default function Home() {
                 {userName ? `Hello, ${userName}` : "Sign in"}
               </span>
               <span
+                className="v6-acct-desktop"
                 style={{
                   fontSize: 12.5,
                   fontWeight: 700,
@@ -1187,6 +1203,7 @@ export default function Home() {
             </button>
             <Link
               href={user ? "/cart" : "/login?redirect=/cart"}
+              className="v6-cart-link"
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -1232,7 +1249,7 @@ export default function Home() {
                   0
                 </span>
               </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: "#f5f1ea" }}>
+              <span className="v6-cart-label" style={{ fontSize: 11, fontWeight: 700, color: "#f5f1ea" }}>
                 Cart
               </span>
             </Link>
@@ -1241,12 +1258,11 @@ export default function Home() {
         {/* Sub-nav — categories link to /browse?category=... */}
         <div style={{ background: "#243530", height: 34 }}>
           <div
-            className="v6-sn-scroll"
+            className="v6-sn-scroll v6-sn-row"
             style={{
               display: "flex",
               alignItems: "center",
               height: "100%",
-              padding: "0 60px",
               overflowX: "auto",
             }}
           >
@@ -1325,7 +1341,7 @@ export default function Home() {
       </header>
 
       {/* ── Hero carousel ── */}
-      <div style={{ position: "relative", height: 580, overflow: "hidden" }}>
+      <div className="v6-hero-wrap" style={{ position: "relative", height: 580, overflow: "hidden" }}>
         {HERO_SLIDES.map((slide, i) => {
           const isActive = heroIdx === i;
           const isPrev = prevHeroIdx === i;
@@ -1360,6 +1376,7 @@ export default function Home() {
                 }}
               />
               <div
+                className="v6-hero-pad"
                 style={{
                   position: "relative",
                   zIndex: 1,
@@ -1387,6 +1404,7 @@ export default function Home() {
                   Procur · Grenada
                 </p>
                 <h2
+                  className="v6-hero-h2"
                   style={{
                     fontSize: 54,
                     fontWeight: 800,
@@ -1401,6 +1419,7 @@ export default function Home() {
                   {slide.h2}
                 </h2>
                 <p
+                  className="v6-hero-body"
                   style={{
                     fontSize: 15,
                     color: "rgba(245,241,234,.75)",
@@ -1448,6 +1467,7 @@ export default function Home() {
 
         {/* Prev / Next */}
         <button
+          className="v6-slide-btn"
           onClick={() => goHero((heroIdx - 1 + 3) % 3)}
           style={{
             position: "absolute",
@@ -1481,6 +1501,7 @@ export default function Home() {
           </svg>
         </button>
         <button
+          className="v6-slide-btn"
           onClick={() => goHero((heroIdx + 1) % 3)}
           style={{
             position: "absolute",
@@ -1516,6 +1537,7 @@ export default function Home() {
 
         {/* Dots — bottom left */}
         <div
+          className="v6-hero-dots"
           style={{
             position: "absolute",
             bottom: 26,
@@ -1727,6 +1749,7 @@ export default function Home() {
                 ))}
           </div>
           <button
+            className="v6-arr v6-arr-l"
             onClick={() => scrollSect(bestSellersRef, -1)}
             style={{
               position: "absolute",
@@ -1760,6 +1783,7 @@ export default function Home() {
             </svg>
           </button>
           <button
+            className="v6-arr v6-arr-r"
             onClick={() => scrollSect(bestSellersRef, 1)}
             style={{
               position: "absolute",
@@ -2049,6 +2073,7 @@ export default function Home() {
             ))}
           </div>
           <button
+            className="v6-arr v6-arr-l"
             onClick={() => scrollSect(testimonialsRef, -1)}
             style={{
               position: "absolute",
@@ -2082,6 +2107,7 @@ export default function Home() {
             </svg>
           </button>
           <button
+            className="v6-arr v6-arr-r"
             onClick={() => scrollSect(testimonialsRef, 1)}
             style={{
               position: "absolute",
@@ -2118,6 +2144,7 @@ export default function Home() {
 
         {/* ── Pre-footer CTA ── */}
         <div
+          className="v6-cta-box"
           style={{
             margin: "56px 0 8px",
             background: "#2d4a3e",
@@ -2192,8 +2219,9 @@ export default function Home() {
       {/* ── Footer ── */}
       <footer style={{ background: "#0a0a0a", color: "#f5f1ea" }}>
         <div style={{ maxWidth: 1300, margin: "0 auto", padding: "0 20px" }}>
-          <div style={{ padding: "80px 0 64px" }}>
+          <div className="v6-ft-top" style={{ padding: "80px 0 64px" }}>
             <h2
+              className="v6-ft-h2"
               style={{
                 fontSize: 40,
                 fontWeight: 700,
@@ -2255,8 +2283,8 @@ export default function Home() {
 
           <div style={{ height: 1, background: "rgba(245,241,234,.08)" }} />
 
-          <div style={{ display: "flex", gap: 60, padding: "48px 0 40px" }}>
-            <div style={{ flexShrink: 0, width: 240 }}>
+          <div className="v6-ft-row" style={{ display: "flex", gap: 60, padding: "48px 0 40px" }}>
+            <div className="v6-ft-brand" style={{ flexShrink: 0, width: 240 }}>
               <Image
                 src="/images/logos/procur-logo.svg"
                 alt="Procur"
@@ -2348,6 +2376,7 @@ export default function Home() {
             </div>
 
             <div
+              className="v6-ft-cols"
               style={{
                 flex: 1,
                 display: "grid",
@@ -2432,6 +2461,7 @@ export default function Home() {
           </div>
 
           <div
+            className="v6-ft-bar"
             style={{
               paddingTop: 18,
               paddingBottom: 28,
@@ -2450,7 +2480,7 @@ export default function Home() {
             >
               &copy; 2026 Procur Grenada Ltd. All rights reserved.
             </p>
-            <div style={{ display: "flex", gap: 16 }}>
+            <div className="v6-ft-links" style={{ display: "flex", gap: 16 }}>
               {[
                 { label: "Privacy", href: "/legal/privacy" },
                 { label: "Terms", href: "/legal/terms" },

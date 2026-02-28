@@ -510,6 +510,97 @@ html {
   .v6-ft-grid { grid-template-columns: 1fr 1fr; }
   .v6-cw { padding: 0 12px; }
 }
+
+/* ─── v6 Mobile-responsive overrides ─────────────────────────────────────── */
+
+/* ── Header ── */
+.v6-hdr-row { padding: 0 60px; }
+.v6-sn-row  { padding: 0 60px; }
+.v6-hdr-search { flex: 1; display: flex; justify-content: center; margin: 0 16px; }
+.v6-menu-icon  { display: none; }
+.v6-acct-desktop { display: flex; }
+
+/* ── Hero ── */
+.v6-hero-wrap { height: 580px; overflow: hidden; position: relative; }
+.v6-hero-pad  { padding: 0 80px; }
+.v6-hero-h2   { font-size: 54px; letter-spacing: -1.5px; white-space: pre-line; max-width: 520px; }
+.v6-hero-body { font-size: 15px; max-width: 400px; }
+.v6-hero-dots {
+  position: absolute; bottom: 26px; left: 80px; z-index: 3;
+  display: flex; gap: 5px; align-items: center;
+}
+
+/* ── Scroll arrows ── */
+.v6-arr   {
+  position: absolute; top: 50%; transform: translateY(-50%); z-index: 2;
+  width: 34px; height: 34px; border-radius: 50%; background: #fff;
+  border: 1px solid #ebe7df; box-shadow: 0 2px 8px rgba(28,43,35,.1);
+  cursor: pointer; display: flex; align-items: center; justify-content: center; color: #3e5549;
+}
+.v6-arr-l { left: -16px; }
+.v6-arr-r { right: -16px; }
+
+/* ── Pre-footer CTA ── */
+.v6-cta-box { padding: 60px 52px; }
+
+/* ── Footer ── */
+.v6-ft-top   { padding: 80px 0 64px; }
+.v6-ft-h2    { font-size: 40px; font-weight: 700; line-height: 1.15; max-width: 520px; margin-bottom: 16px; letter-spacing: -.5px; color: #f5f1ea; }
+.v6-ft-row   { display: flex; gap: 60px; padding: 48px 0 40px; }
+.v6-ft-brand { flex-shrink: 0; width: 240px; }
+.v6-ft-cols  { flex: 1; display: grid; grid-template-columns: repeat(4,1fr); gap: 20px; }
+.v6-ft-bar   {
+  padding-top: 18px; padding-bottom: 28px;
+  border-top: 1px solid rgba(245,241,234,.1);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.v6-ft-links { display: flex; gap: 16px; flex-wrap: wrap; }
+
+/* ── ≤ 768px tablet ── */
+@media (max-width: 768px) {
+  .v6-hdr-row      { padding: 0 20px !important; }
+  .v6-sn-row       { padding: 0 20px !important; }
+  .v6-menu-icon    { display: block !important; }
+  .v6-acct-desktop { display: none !important; }
+  .v6-cart-link    { display: none !important; }
+  .v6-hero-wrap { height: 440px !important; }
+  .v6-hero-pad  { padding: 0 36px !important; }
+  .v6-hero-h2   { font-size: 36px !important; letter-spacing: -.8px !important; }
+  .v6-hero-body { font-size: 14px !important; }
+  .v6-hero-dots { left: 36px !important; }
+  .v6-cta-box   { padding: 40px 32px !important; }
+  .v6-ft-top    { padding: 48px 0 32px !important; }
+  .v6-ft-h2     { font-size: 28px !important; }
+  .v6-ft-row    { flex-direction: column !important; gap: 28px !important; padding: 28px 0 24px !important; }
+  .v6-ft-brand  { width: 100% !important; }
+  .v6-ft-cols   { grid-template-columns: repeat(2, 1fr) !important; gap: 20px 32px !important; }
+}
+
+/* Hero slide navigation */
+@media (max-width: 480px) {
+  .v6-slide-btn { width: 30px !important; height: 30px !important; }
+}
+
+/* ── ≤ 480px mobile ── */
+@media (max-width: 480px) {
+  .v6-hdr-row     { padding: 0 14px !important; height: 50px !important; }
+  .v6-hdr-search  { margin: 0 6px !important; }
+  .v6-sn-row      { padding: 0 10px !important; }
+  .v6-hero-wrap   { height: 300px !important; }
+  .v6-hero-pad    { padding: 0 18px !important; }
+  .v6-hero-h2     { font-size: 24px !important; letter-spacing: -.3px !important; white-space: normal !important; max-width: 100% !important; }
+  .v6-hero-body   { font-size: 13px !important; max-width: 100% !important; }
+  .v6-hero-dots   { left: 50% !important; transform: translateX(-50%) !important; bottom: 12px !important; }
+  .v6-arr         { display: none !important; }
+  .v6-cta-box     { padding: 28px 18px !important; border-radius: 12px !important; }
+  .v6-ft-top      { padding: 32px 0 20px !important; }
+  .v6-ft-h2       { font-size: 22px !important; }
+  .v6-ft-row      { flex-direction: column !important; gap: 24px !important; padding: 24px 0 20px !important; }
+  .v6-ft-brand    { width: 100% !important; }
+  .v6-ft-bar      { flex-direction: column !important; align-items: flex-start !important; gap: 12px !important; }
+  .v6-ft-links    { gap: 10px !important; }
+  .v6-ft-cols     { grid-template-columns: repeat(2, 1fr) !important; gap: 14px !important; }
+}
 /* ==================== Leaflet Map Styles ==================== */
 
 /* Custom popup styling */
