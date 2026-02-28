@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAppDispatch } from "@/store";
@@ -148,8 +148,15 @@ const LoginPage: React.FC = () => {
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
   const dispatch = useAppDispatch();
   const router = useRouter();
+
+  useEffect(() => {
+    setSessionExpired(
+      new URLSearchParams(window.location.search).get("reason") === "session_expired"
+    );
+  }, []);
 
   function getDestination(
     accountType: string | undefined | null,
@@ -352,6 +359,24 @@ const LoginPage: React.FC = () => {
                   Sign in to your Procur account
                 </p>
               </div>
+
+              {/* Session expired banner */}
+              {sessionExpired && (
+                <div
+                  style={{
+                    marginBottom: 16,
+                    padding: "10px 14px",
+                    borderRadius: 10,
+                    background: "#fffbeb",
+                    border: "1px solid #f59e0b",
+                    color: "#92400e",
+                    fontSize: 13,
+                    textAlign: "center",
+                  }}
+                >
+                  Your session has expired. Please sign in to continue.
+                </div>
+              )}
 
               {/* OTP toggle */}
               <div style={{ marginBottom: 16 }}>

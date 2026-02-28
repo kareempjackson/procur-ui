@@ -20,6 +20,7 @@ export type AuthState = {
   accessToken: string | null;
   tokenType: string | null;
   expiresIn: number | null;
+  refreshToken: string | null;
   user: AuthUser | null;
   status: "idle" | "loading" | "succeeded" | "failed";
   error: string | null;
@@ -29,9 +30,19 @@ const initialState: AuthState = {
   accessToken: null,
   tokenType: null,
   expiresIn: null,
+  refreshToken: null,
   user: null,
   status: "idle",
   error: null,
+};
+
+// Shared auth response shape returned by all sign-in endpoints
+type AuthResponsePayload = {
+  accessToken: string;
+  tokenType: string;
+  expiresIn: number;
+  refreshToken: string;
+  user: AuthUser;
 };
 
 type SigninPayload = { email: string; password: string };
@@ -75,18 +86,40 @@ function extractErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
+/** Decode a JWT and check if it is expired without verifying signature. */
+function isJwtExpired(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return typeof payload.exp === "number" && payload.exp * 1000 < Date.now();
+  } catch {
+    return false; // unparseable — let the server decide
+  }
+}
+
+/** Persist auth state to localStorage. */
+function saveToStorage(state: AuthState) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(
+    "auth",
+    JSON.stringify({
+      accessToken: state.accessToken,
+      tokenType: state.tokenType,
+      expiresIn: state.expiresIn,
+      refreshToken: state.refreshToken,
+      user: state.user,
+    })
+  );
+}
+
+// ==================== Async Thunks ====================
+
 export const signin = createAsyncThunk(
   "auth/signin",
   async (payload: SigninPayload, { rejectWithValue }) => {
     try {
       const client = getClient();
       const { data } = await client.post("/auth/signin", payload);
-      return data as {
-        accessToken: string;
-        tokenType: string;
-        expiresIn: number;
-        user: AuthUser;
-      };
+      return data as AuthResponsePayload;
     } catch (err: unknown) {
       return rejectWithValue(extractErrorMessage(err, "Failed to sign in"));
     }
@@ -102,12 +135,7 @@ export const devSignin = createAsyncThunk(
     try {
       const client = getClient();
       const { data } = await client.post("/auth/dev-signin", payload);
-      return data as {
-        accessToken: string;
-        tokenType: string;
-        expiresIn: number;
-        user: AuthUser;
-      };
+      return data as AuthResponsePayload;
     } catch (err: unknown) {
       return rejectWithValue(extractErrorMessage(err, "Failed to dev sign in"));
     }
@@ -120,7 +148,7 @@ export const signup = createAsyncThunk(
     try {
       const client = getClient();
       const { data } = await client.post("/auth/signup", payload);
-      // Backend returns message + email; we keep state idle and let verify flow handle auth
+      // Backend returns message + email; verify flow handles auth
       return data as { message: string; email: string };
     } catch (err: unknown) {
       return rejectWithValue(extractErrorMessage(err, "Failed to sign up"));
@@ -135,12 +163,7 @@ export const verifyEmail = createAsyncThunk(
       const client = getClient();
       const { data } = await client.post("/auth/verify", payload);
       // data.auth contains tokens and user
-      return data.auth as {
-        accessToken: string;
-        tokenType: string;
-        expiresIn: number;
-        user: AuthUser;
-      };
+      return data.auth as AuthResponsePayload;
     } catch (err: unknown) {
       return rejectWithValue(
         extractErrorMessage(err, "Failed to verify email")
@@ -191,12 +214,7 @@ export const verifyOtp = createAsyncThunk(
     try {
       const client = getClient();
       const { data } = await client.post("/auth/otp/verify", payload);
-      return data as {
-        accessToken: string;
-        tokenType: string;
-        expiresIn: number;
-        user: AuthUser;
-      };
+      return data as AuthResponsePayload;
     } catch (err: unknown) {
       return rejectWithValue(
         extractErrorMessage(err, "Invalid or expired code")
@@ -204,6 +222,26 @@ export const verifyOtp = createAsyncThunk(
     }
   }
 );
+
+/** Silently exchange a refresh token for a new access token + rotated refresh token. */
+export const refreshTokenAsync = createAsyncThunk(
+  "auth/refreshToken",
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const { auth } = getState() as { auth: AuthState };
+      if (!auth.refreshToken) return rejectWithValue("No refresh token");
+      const client = getApiClient(() => null); // no auth header needed for this call
+      const { data } = await client.post("/auth/refresh", {
+        refreshToken: auth.refreshToken,
+      });
+      return data as AuthResponsePayload;
+    } catch {
+      return rejectWithValue("Refresh failed");
+    }
+  }
+);
+
+// ==================== Slice ====================
 
 const authSlice = createSlice({
   name: "auth",
@@ -213,6 +251,7 @@ const authSlice = createSlice({
       state.accessToken = null;
       state.tokenType = null;
       state.expiresIn = null;
+      state.refreshToken = null;
       state.user = null;
       state.status = "idle";
       state.error = null;
@@ -226,12 +265,22 @@ const authSlice = createSlice({
       if (!raw) return;
       try {
         const saved = JSON.parse(raw) as Partial<AuthState>;
+        // If the access token is expired AND there's no refresh token, clear auth entirely
+        if (
+          saved.accessToken &&
+          isJwtExpired(saved.accessToken) &&
+          !saved.refreshToken
+        ) {
+          localStorage.removeItem("auth");
+          return;
+        }
         state.accessToken = saved.accessToken ?? null;
         state.tokenType = saved.tokenType ?? null;
         state.expiresIn = saved.expiresIn ?? null;
+        state.refreshToken = saved.refreshToken ?? null;
         state.user = saved.user ?? null;
       } catch {
-        // ignore
+        // ignore malformed storage
       }
     },
     setAuthState(
@@ -240,106 +289,63 @@ const authSlice = createSlice({
         accessToken: string;
         tokenType: string;
         expiresIn: number | null;
+        refreshToken?: string;
         user: AuthUser;
       }>
     ) {
       state.accessToken = action.payload.accessToken;
       state.tokenType = action.payload.tokenType;
       state.expiresIn = action.payload.expiresIn;
+      state.refreshToken = action.payload.refreshToken ?? state.refreshToken;
       state.user = action.payload.user;
       state.status = "succeeded";
       state.error = null;
-      if (typeof window !== "undefined") {
-        localStorage.setItem(
-          "auth",
-          JSON.stringify({
-            accessToken: state.accessToken,
-            tokenType: state.tokenType,
-            expiresIn: state.expiresIn,
-            user: state.user,
-          })
-        );
-      }
+      saveToStorage(state);
     },
   },
   extraReducers: (builder) => {
     builder
+      // ── signin ──────────────────────────────────────────────────────────────
       .addCase(signin.pending, (state) => {
         state.status = "loading";
         state.error = null;
       })
-      .addCase(
-        signin.fulfilled,
-        (
-          state,
-          action: PayloadAction<{
-            accessToken: string;
-            tokenType: string;
-            expiresIn: number;
-            user: AuthUser;
-          }>
-        ) => {
-          state.status = "succeeded";
-          state.error = null;
-          state.accessToken = action.payload.accessToken;
-          state.tokenType = action.payload.tokenType;
-          state.expiresIn = action.payload.expiresIn;
-          state.user = action.payload.user;
-          if (typeof window !== "undefined") {
-            localStorage.setItem(
-              "auth",
-              JSON.stringify({
-                accessToken: state.accessToken,
-                tokenType: state.tokenType,
-                expiresIn: state.expiresIn,
-                user: state.user,
-              })
-            );
-          }
-        }
-      )
+      .addCase(signin.fulfilled, (state, action: PayloadAction<AuthResponsePayload>) => {
+        state.status = "succeeded";
+        state.error = null;
+        state.accessToken = action.payload.accessToken;
+        state.tokenType = action.payload.tokenType;
+        state.expiresIn = action.payload.expiresIn;
+        state.refreshToken = action.payload.refreshToken;
+        state.user = action.payload.user;
+        saveToStorage(state);
+      })
       .addCase(signin.rejected, (state, action) => {
         state.status = "failed";
         state.error = (action.payload as string) || "Failed to sign in";
       })
+
+      // ── devSignin ───────────────────────────────────────────────────────────
       .addCase(devSignin.pending, (state) => {
         state.status = "loading";
         state.error = null;
       })
-      .addCase(
-        devSignin.fulfilled,
-        (
-          state,
-          action: PayloadAction<{
-            accessToken: string;
-            tokenType: string;
-            expiresIn: number;
-            user: AuthUser;
-          }>
-        ) => {
-          state.status = "succeeded";
-          state.error = null;
-          state.accessToken = action.payload.accessToken;
-          state.tokenType = action.payload.tokenType;
-          state.expiresIn = action.payload.expiresIn;
-          state.user = action.payload.user;
-          if (typeof window !== "undefined") {
-            localStorage.setItem(
-              "auth",
-              JSON.stringify({
-                accessToken: state.accessToken,
-                tokenType: state.tokenType,
-                expiresIn: state.expiresIn,
-                user: state.user,
-              })
-            );
-          }
-        }
-      )
+      .addCase(devSignin.fulfilled, (state, action: PayloadAction<AuthResponsePayload>) => {
+        state.status = "succeeded";
+        state.error = null;
+        state.accessToken = action.payload.accessToken;
+        state.tokenType = action.payload.tokenType;
+        state.expiresIn = action.payload.expiresIn;
+        state.refreshToken = action.payload.refreshToken;
+        state.user = action.payload.user;
+        saveToStorage(state);
+      })
       .addCase(devSignin.rejected, (state, action) => {
         state.status = "failed";
         state.error = (action.payload as string) || "Failed to dev sign in";
       })
+
+      // ── signup ──────────────────────────────────────────────────────────────
       .addCase(signup.pending, (state) => {
         state.status = "loading";
         state.error = null;
@@ -351,43 +357,27 @@ const authSlice = createSlice({
         state.status = "failed";
         state.error = (action.payload as string) || "Failed to sign up";
       })
+
+      // ── verifyEmail ─────────────────────────────────────────────────────────
       .addCase(verifyEmail.pending, (state) => {
         state.status = "loading";
         state.error = null;
       })
-      .addCase(
-        verifyEmail.fulfilled,
-        (
-          state,
-          action: PayloadAction<{
-            accessToken: string;
-            tokenType: string;
-            expiresIn: number;
-            user: AuthUser;
-          }>
-        ) => {
-          state.status = "succeeded";
-          state.accessToken = action.payload.accessToken;
-          state.tokenType = action.payload.tokenType;
-          state.expiresIn = action.payload.expiresIn;
-          state.user = action.payload.user;
-          if (typeof window !== "undefined") {
-            localStorage.setItem(
-              "auth",
-              JSON.stringify({
-                accessToken: state.accessToken,
-                tokenType: state.tokenType,
-                expiresIn: state.expiresIn,
-                user: state.user,
-              })
-            );
-          }
-        }
-      )
+      .addCase(verifyEmail.fulfilled, (state, action: PayloadAction<AuthResponsePayload>) => {
+        state.status = "succeeded";
+        state.accessToken = action.payload.accessToken;
+        state.tokenType = action.payload.tokenType;
+        state.expiresIn = action.payload.expiresIn;
+        state.refreshToken = action.payload.refreshToken;
+        state.user = action.payload.user;
+        saveToStorage(state);
+      })
       .addCase(verifyEmail.rejected, (state, action) => {
         state.status = "failed";
         state.error = (action.payload as string) || "Failed to verify email";
       })
+
+      // ── resendVerification ──────────────────────────────────────────────────
       .addCase(resendVerification.pending, (state) => {
         state.status = "loading";
         state.error = null;
@@ -400,6 +390,8 @@ const authSlice = createSlice({
         state.error =
           (action.payload as string) || "Failed to resend verification";
       })
+
+      // ── requestOtp ──────────────────────────────────────────────────────────
       .addCase(requestOtp.pending, (state) => {
         state.status = "loading";
         state.error = null;
@@ -411,42 +403,42 @@ const authSlice = createSlice({
         state.status = "failed";
         state.error = (action.payload as string) || "Failed to send code";
       })
+
+      // ── verifyOtp ───────────────────────────────────────────────────────────
       .addCase(verifyOtp.pending, (state) => {
         state.status = "loading";
         state.error = null;
       })
-      .addCase(
-        verifyOtp.fulfilled,
-        (
-          state,
-          action: PayloadAction<{
-            accessToken: string;
-            tokenType: string;
-            expiresIn: number;
-            user: AuthUser;
-          }>
-        ) => {
-          state.status = "succeeded";
-          state.accessToken = action.payload.accessToken;
-          state.tokenType = action.payload.tokenType;
-          state.expiresIn = action.payload.expiresIn;
-          state.user = action.payload.user;
-          if (typeof window !== "undefined") {
-            localStorage.setItem(
-              "auth",
-              JSON.stringify({
-                accessToken: state.accessToken,
-                tokenType: state.tokenType,
-                expiresIn: state.expiresIn,
-                user: state.user,
-              })
-            );
-          }
-        }
-      )
+      .addCase(verifyOtp.fulfilled, (state, action: PayloadAction<AuthResponsePayload>) => {
+        state.status = "succeeded";
+        state.accessToken = action.payload.accessToken;
+        state.tokenType = action.payload.tokenType;
+        state.expiresIn = action.payload.expiresIn;
+        state.refreshToken = action.payload.refreshToken;
+        state.user = action.payload.user;
+        saveToStorage(state);
+      })
       .addCase(verifyOtp.rejected, (state, action) => {
         state.status = "failed";
         state.error = (action.payload as string) || "Invalid or expired code";
+      })
+
+      // ── refreshTokenAsync ───────────────────────────────────────────────────
+      .addCase(refreshTokenAsync.fulfilled, (state, action: PayloadAction<AuthResponsePayload>) => {
+        state.accessToken = action.payload.accessToken;
+        state.tokenType = action.payload.tokenType;
+        state.expiresIn = action.payload.expiresIn;
+        state.refreshToken = action.payload.refreshToken;
+        state.user = action.payload.user;
+        state.status = "succeeded";
+        saveToStorage(state);
+      })
+      .addCase(refreshTokenAsync.rejected, (state) => {
+        // Refresh failed silently — the interceptor in apiClient handles redirect
+        state.accessToken = null;
+        state.refreshToken = null;
+        state.user = null;
+        state.status = "idle";
       });
   },
 });
