@@ -9,13 +9,9 @@ import { getApiClient } from "@/lib/apiClient";
 import { ADMIN_CATALOG_PRODUCT_CATEGORIES } from "@/lib/adminCatalogProductCategories";
 import { useAppDispatch, useAppSelector } from "@/store";
 import { createSellerProduct } from "@/store/slices/sellerProductsSlice";
-import type { RootState } from "@/store";
 
-// Fallback shim in case any stale code still references this symbol
-const createAuthenticatedSupabaseClient = (_accessToken: string) =>
-  getSupabaseClient();
+// ── Enums ──────────────────────────────────────────────────────────────────────
 
-// Enums matching the API
 enum ProductStatus {
   DRAFT = "draft",
   ACTIVE = "active",
@@ -44,13 +40,11 @@ enum MeasurementUnit {
   GALLON = "gallon",
 }
 
-// Removed ProductDimensions and related UI/state
+// ── Types ──────────────────────────────────────────────────────────────────────
 
 interface ProductImage {
   file: File;
   preview: string;
-  uploaded?: boolean;
-  url?: string;
 }
 
 interface CreateProductData {
@@ -58,31 +52,22 @@ interface CreateProductData {
   description?: string;
   short_description?: string;
   sku?: string;
-  barcode?: string;
   category: string;
-  tags?: string[];
   base_price: number;
   stock_quantity?: number;
   unit_of_measurement: MeasurementUnit;
   condition?: ProductCondition;
-  brand?: string;
-  model?: string;
-  color?: string;
-  size?: string;
   status?: ProductStatus;
   is_featured?: boolean;
   is_organic?: boolean;
 }
 
-function classNames(...classes: (string | false | null | undefined)[]) {
-  return classes.filter(Boolean).join(" ");
-}
+// ── Helpers ────────────────────────────────────────────────────────────────────
 
 function normalizeCategoryToAdminList(category?: string | null): string {
   const raw = typeof category === "string" ? category.trim() : "";
   if (!raw) return "";
   if (ADMIN_CATALOG_PRODUCT_CATEGORIES.includes(raw as any)) return raw;
-
   const legacyMap: Record<string, string> = {
     Herbs: "Herbs & Spices",
     Spices: "Herbs & Spices",
@@ -97,25 +82,32 @@ function normalizeCategoryToAdminList(category?: string | null): string {
     Seafood: "Seafood",
     Other: "Other",
   };
-
   return legacyMap[raw] ?? "Other";
 }
 
-const DRAFT_STORAGE_KEY = "seller-product-draft";
-const DRAFT_AUTO_SAVE_INTERVAL = 30000; // 30 seconds
+const DRAFT_KEY = "seller-product-draft";
+const AUTOSAVE_MS = 30_000;
+
+// ── Component ──────────────────────────────────────────────────────────────────
 
 export default function AddProductPage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
-  const accessToken = useAppSelector((state) => state.auth.accessToken);
+  const accessToken = useAppSelector((s) => s.auth.accessToken);
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // ── Submit state ─────────────────────────────────────────────────────────────
+  type SubmitStep = null | "creating" | "uploading" | "done";
+  const [submitStep, setSubmitStep] = useState<SubmitStep>(null);
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number }>({ done: 0, total: 0 });
+  const [uploadWarnings, setUploadWarnings] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
+
+  // ── Draft ────────────────────────────────────────────────────────────────────
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [draftRestored, setDraftRestored] = useState(false);
 
-  // Form data state
+  // ── Form state ───────────────────────────────────────────────────────────────
   const [formData, setFormData] = useState<CreateProductData>({
     name: "",
     category: "",
@@ -128,928 +120,695 @@ export default function AddProductPage() {
     is_organic: false,
   });
 
-  // Removed physical dimensions state
+  const [images, setImages] = useState<(ProductImage | null)[]>(Array(5).fill(null));
 
-  // Image state
-  const [images, setImages] = useState<(ProductImage | null)[]>(
-    Array(5).fill(null)
-  );
-  const [imageError, setImageError] = useState<string | null>(null);
-
-  const handleInputChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
-  ) => {
-    const { name, value, type } = e.target;
-
-    if (type === "checkbox") {
-      const checked = (e.target as HTMLInputElement).checked;
-      setFormData((prev) => ({ ...prev, [name]: checked }));
-    } else if (type === "number") {
-      setFormData((prev) => ({ ...prev, [name]: parseFloat(value) || 0 }));
-    } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
-    }
-  };
-
-  // Restore draft from localStorage on mount
+  // ── Restore draft ─────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY);
-      if (savedDraft) {
-        try {
-          const parsedDraft = JSON.parse(savedDraft);
-          if (parsedDraft && typeof parsedDraft === "object") {
-            parsedDraft.category = normalizeCategoryToAdminList(
-              parsedDraft.category
-            );
-          }
-          // Only restore if there's actual content
-          if (
-            parsedDraft.name ||
-            parsedDraft.category ||
-            parsedDraft.base_price > 0
-          ) {
-            setFormData(parsedDraft);
-            setDraftRestored(true);
-          }
-        } catch (e) {
-          console.error("Failed to restore draft:", e);
-        }
+    if (typeof window === "undefined") return;
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") {
+        parsed.category = normalizeCategoryToAdminList(parsed.category);
       }
-    }
+      if (parsed.name || parsed.category || parsed.base_price > 0) {
+        setFormData(parsed);
+        setDraftRestored(true);
+      }
+    } catch { /* ignore */ }
   }, []);
 
-  // Auto-save draft to localStorage
+  // ── Auto-save draft ───────────────────────────────────────────────────────────
   useEffect(() => {
-    // Don't auto-save if form is empty or being submitted
-    if (isSubmitting) return;
-    if (!formData.name && !formData.category && formData.base_price === 0)
-      return;
+    if (submitStep !== null) return;
+    if (!formData.name && !formData.category && formData.base_price === 0) return;
+    const id = setInterval(() => {
+      try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(formData));
+        setLastSaved(new Date());
+      } catch { /* ignore */ }
+    }, AUTOSAVE_MS);
+    return () => clearInterval(id);
+  }, [formData, submitStep]);
 
-    const autoSaveInterval = setInterval(() => {
-      if (typeof window !== "undefined") {
-        try {
-          localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(formData));
-          setLastSaved(new Date());
-        } catch (e) {
-          console.error("Failed to auto-save draft:", e);
-        }
-      }
-    }, DRAFT_AUTO_SAVE_INTERVAL);
+  // ── Cleanup blob URLs ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    return () => {
+      images.forEach((img) => { if (img?.preview) URL.revokeObjectURL(img.preview); });
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    return () => clearInterval(autoSaveInterval);
-  }, [formData, isSubmitting]);
+  // ── Handlers ─────────────────────────────────────────────────────────────────
 
-  // Clear draft from localStorage
   const clearDraft = () => {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem(DRAFT_STORAGE_KEY);
-      setLastSaved(null);
-      setDraftRestored(false);
+    localStorage.removeItem(DRAFT_KEY);
+    setLastSaved(null);
+    setDraftRestored(false);
+  };
+
+  const handleField = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    if (type === "checkbox") {
+      setFormData((p) => ({ ...p, [name]: (e.target as HTMLInputElement).checked }));
+    } else if (type === "number") {
+      setFormData((p) => ({ ...p, [name]: parseFloat(value) || 0 }));
+    } else {
+      setFormData((p) => ({ ...p, [name]: value }));
     }
   };
 
-  const handleImageUpload = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    index: number
-  ) => {
+  const handleImagePick = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    // Validate file type
-    const validTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
-    if (!validTypes.includes(file.type)) {
-      setImageError("Please upload a valid image file (JPG, PNG, or WebP)");
+    if (!["image/jpeg", "image/jpg", "image/png", "image/webp"].includes(file.type)) {
+      setImageError("Please upload JPG, PNG, or WebP only");
       return;
     }
-
-    // Validate file size (5MB max)
-    const maxSize = 5 * 1024 * 1024; // 5MB in bytes
-    if (file.size > maxSize) {
-      setImageError("Image size must be less than 5MB");
+    if (file.size > 5 * 1024 * 1024) {
+      setImageError("Image must be under 5MB");
       return;
     }
-
-    // Clear any previous errors
     setImageError(null);
-
-    // Create preview URL
-    const preview = URL.createObjectURL(file);
-
-    // Update images array
     setImages((prev) => {
-      const newImages = [...prev];
-      newImages[index] = {
-        file,
-        preview,
-        uploaded: false,
-      };
-      return newImages;
+      const next = [...prev];
+      next[index] = { file, preview: URL.createObjectURL(file) };
+      return next;
     });
-
-    // Clear the input value to allow re-uploading the same file
     e.target.value = "";
   };
 
   const removeImage = (index: number) => {
     setImages((prev) => {
-      const newImages = [...prev];
-      // Revoke the object URL to free memory
-      if (newImages[index]?.preview) {
-        URL.revokeObjectURL(newImages[index]!.preview);
-      }
-      newImages[index] = null;
-      return newImages;
+      const next = [...prev];
+      if (next[index]?.preview) URL.revokeObjectURL(next[index]!.preview);
+      next[index] = null;
+      return next;
     });
   };
 
-  // Cleanup function to revoke object URLs when component unmounts
-  React.useEffect(() => {
-    return () => {
-      images.forEach((image) => {
-        if (image?.preview) {
-          URL.revokeObjectURL(image.preview);
-        }
-      });
-    };
-  }, []);
-
-  const uploadImageToStorage = async (
-    productId: string,
-    file: File,
-    index: number
-  ): Promise<string> => {
+  const uploadImageToStorage = async (productId: string, file: File, index: number): Promise<string> => {
     const supabase = getSupabaseClient();
-    if (!supabase) {
-      throw new Error(
-        "Storage not configured. Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY."
-      );
-    }
-
+    if (!supabase) throw new Error("Storage not configured");
     const safeName = file.name.toLowerCase().replace(/[^a-z0-9_.-]/g, "_");
-    const objectPath = `products/${productId}/${Date.now()}_${index}_${safeName}`;
-
-    const { data, error } = await supabase.storage
-      .from("procur-img")
-      .upload(objectPath, file, {
-        cacheControl: "3600",
-        upsert: false,
-        contentType: file.type || "application/octet-stream",
-      });
-
-    if (error) {
-      throw new Error(`Image upload failed: ${error.message}`);
-    }
-
-    const { data: publicData } = supabase.storage
-      .from("procur-img")
-      .getPublicUrl(data.path);
-
-    return publicData.publicUrl;
+    const path = `products/${productId}/${Date.now()}_${index}_${safeName}`;
+    const { data, error } = await supabase.storage.from("procur-img").upload(path, file, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: file.type || "application/octet-stream",
+    });
+    if (error) throw new Error(`Upload failed: ${error.message}`);
+    const { data: pub } = supabase.storage.from("procur-img").getPublicUrl(data.path);
+    return pub.publicUrl;
   };
 
-  const handleSubmit = async (
-    event:
-      | React.FormEvent<HTMLFormElement>
-      | React.MouseEvent<HTMLButtonElement>,
-    desiredStatus: ProductStatus
-  ) => {
-    event.preventDefault();
-    setIsSubmitting(true);
+  // ── Submit ────────────────────────────────────────────────────────────────────
+
+  const handleSubmit = async (desiredStatus: ProductStatus) => {
     setError(null);
+    setUploadWarnings([]);
+    setSubmitStep("creating");
 
     try {
-      const payload: CreateProductData = {
-        ...formData,
-        status: desiredStatus,
-      };
+      // 1 — Create product record
+      const result = await dispatch(createSellerProduct({ ...formData, status: desiredStatus }));
 
-      // Create product using Redux thunk
-      const result = await dispatch(
-        createSellerProduct({
-          ...payload,
-        })
-      );
-
-      // Check if creation was successful
-      if (createSellerProduct.fulfilled.match(result)) {
-        const productId = result.payload.id;
-
-        // Upload images if any exist
-        const uploadedImages = images.filter(
-          (img): img is ProductImage => img !== null
-        );
-
-        if (uploadedImages.length > 0) {
-          const apiClient = getApiClient(() => accessToken);
-
-          // Upload all images + register metadata in parallel
-          await Promise.all(
-            uploadedImages.map(async (image, i) => {
-              try {
-                const imageUrl = await uploadImageToStorage(
-                  productId,
-                  image.file,
-                  i
-                );
-
-                await apiClient.post(`/sellers/products/${productId}/images`, {
-                  image_url: imageUrl,
-                  alt_text: `${formData.name} - Image ${i + 1}`,
-                  display_order: i,
-                  is_primary: i === 0,
-                });
-              } catch (imageError) {
-                console.error(`Failed to upload image ${i + 1}:`, imageError);
-                // Continue with other images even if one fails
-              }
-            })
-          );
-        }
-
-        // Clear draft after successful submission
-        clearDraft();
-
-        // Redirect to products list
-        router.push("/seller/products");
-      } else {
-        // Handle rejected action
-        throw new Error(
-          (result.payload as string) || "Failed to create product"
-        );
+      if (!createSellerProduct.fulfilled.match(result)) {
+        const msg = (result.payload as string) ||
+          (result as any)?.error?.message ||
+          "Failed to create product. Please try again.";
+        throw new Error(msg);
       }
+
+      const productId: string = result.payload.id;
+
+      // 2 — Upload images (if any)
+      const toUpload = images.filter((img): img is ProductImage => img !== null);
+      if (toUpload.length > 0) {
+        if (!accessToken) throw new Error("Session expired — please log in again before uploading images.");
+        setSubmitStep("uploading");
+        setUploadProgress({ done: 0, total: toUpload.length });
+
+        const apiClient = getApiClient(() => accessToken);
+        const warnings: string[] = [];
+
+        await Promise.all(
+          toUpload.map(async (img, i) => {
+            try {
+              const imageUrl = await uploadImageToStorage(productId, img.file, i);
+              await apiClient.post(`/sellers/products/${productId}/images`, {
+                image_url: imageUrl,
+                alt_text: `${formData.name} - Image ${i + 1}`,
+                display_order: i,
+                is_primary: i === 0,
+              });
+            } catch (imgErr: any) {
+              warnings.push(`Image ${i + 1} failed: ${imgErr?.message ?? "unknown error"}`);
+            } finally {
+              setUploadProgress((p) => ({ ...p, done: p.done + 1 }));
+            }
+          })
+        );
+
+        if (warnings.length > 0) setUploadWarnings(warnings);
+      }
+
+      setSubmitStep("done");
+      clearDraft();
+
+      // Brief pause so user sees "Done" before redirect
+      await new Promise((r) => setTimeout(r, 600));
+      router.push("/seller/products");
     } catch (err: any) {
-      setError(err.message || "Failed to create product. Please try again.");
-    } finally {
-      setIsSubmitting(false);
+      setError(err.message || "Something went wrong. Please try again.");
+      setSubmitStep(null);
     }
   };
 
-  // Success screen removed; we redirect directly to /seller/products
+  const isSubmitting = submitStep !== null && submitStep !== "done";
+
+  // ── Shared styles ─────────────────────────────────────────────────────────────
+
+  const card: React.CSSProperties = {
+    background: "#fff",
+    border: "1px solid #ebe7df",
+    borderRadius: 10,
+    padding: "24px",
+  };
+
+  const labelSt: React.CSSProperties = {
+    display: "block",
+    fontSize: 12,
+    fontWeight: 700,
+    color: "#6a7f73",
+    textTransform: "uppercase",
+    letterSpacing: ".05em",
+    marginBottom: 7,
+  };
+
+  const inputSt: React.CSSProperties = {
+    display: "block",
+    width: "100%",
+    padding: "10px 13px",
+    border: "1px solid #ebe7df",
+    borderRadius: 8,
+    fontSize: 13.5,
+    color: "#1c2b23",
+    background: "#fff",
+    fontFamily: "'Urbanist', system-ui, sans-serif",
+    outline: "none",
+    boxSizing: "border-box",
+  };
+
+  const submitLabel = (): string => {
+    if (submitStep === "creating") return "Creating product…";
+    if (submitStep === "uploading")
+      return `Uploading images (${uploadProgress.done}/${uploadProgress.total})…`;
+    if (submitStep === "done") return "Done!";
+    return "";
+  };
+
+  // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-white">
-      <main className="max-w-7xl mx-auto px-6 py-10">
-        {/* Breadcrumbs */}
-        <nav
-          className="mb-6 text-sm text-[var(--primary-base)]"
-          aria-label="Breadcrumb"
-        >
-          <ol className="flex items-center space-x-2">
-            <li>
-              <Link href="/" className="px-2 py-1 rounded-full hover:bg-white">
-                Home
-              </Link>
-            </li>
-            <li className="text-gray-400">/</li>
-            <li>
-              <Link
-                href="/seller"
-                className="px-2 py-1 rounded-full hover:bg-white"
-              >
-                Seller
-              </Link>
-            </li>
-            <li className="text-gray-400">/</li>
-            <li>
-              <span className="px-2 py-1 rounded-full bg-white text-[var(--secondary-black)]">
-                Add Product
-              </span>
-            </li>
-          </ol>
-        </nav>
+    <div style={{ minHeight: "100vh", background: "#faf8f4", fontFamily: "'Urbanist', system-ui, sans-serif", color: "#1c2b23" }}>
+      <main style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 20px 80px" }}>
 
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-start justify-between">
+        {/* Back + title */}
+        <div style={{ marginBottom: 28 }}>
+          <Link
+            href="/seller/products"
+            style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "#d4783c", textDecoration: "none", marginBottom: 16 }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width={14} height={14}>
+              <path d="M19 12H5M12 5l-7 7 7 7" />
+            </svg>
+            Back to Products
+          </Link>
+
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
             <div>
-              <h1 className="text-[32px] leading-tight text-[var(--secondary-black)] font-medium">
+              <h1 style={{ fontSize: 24, fontWeight: 800, color: "#1c2b23", margin: 0, letterSpacing: "-.4px" }}>
                 Add New Product
               </h1>
-              <p className="mt-2 text-[var(--secondary-muted-edge)]">
-                Create a new product listing for your catalog
+              <p style={{ fontSize: 13, color: "#8a9e92", marginTop: 5, marginBottom: 0 }}>
+                Create a listing for your agricultural catalog
               </p>
             </div>
 
-            {/* Auto-save indicator */}
-            <div className="flex items-center gap-2 text-sm">
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               {draftRestored && (
-                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg border border-blue-200">
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", background: "rgba(45,74,62,.08)", border: "1px solid rgba(45,74,62,.15)", borderRadius: 8, fontSize: 11.5, fontWeight: 700, color: "#2d4a3e" }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width={12} height={12}>
+                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span className="text-xs font-medium">Draft restored</span>
-                </div>
+                  Draft restored
+                </span>
               )}
               {lastSaved && (
-                <div className="flex items-center gap-1.5 text-[var(--secondary-muted-edge)]">
-                  <svg
-                    className="w-4 h-4 text-green-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                  <span className="text-xs">
-                    Auto-saved {new Date(lastSaved).toLocaleTimeString()}
-                  </span>
-                </div>
+                <span style={{ fontSize: 11.5, color: "#b0c0b6" }}>
+                  Saved {lastSaved.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </span>
               )}
             </div>
           </div>
         </div>
 
-        {/* Error Alert */}
+        {/* Error banner */}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg
-                  className="h-5 w-5 text-red-400"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-red-800">Error</h3>
-                <p className="mt-1 text-sm text-red-700">{error}</p>
-              </div>
+          <div style={{ marginBottom: 20, padding: "14px 18px", background: "rgba(212,60,60,.07)", border: "1px solid rgba(212,60,60,.2)", borderRadius: 10, fontSize: 13.5, color: "#9b2020", display: "flex", alignItems: "flex-start", gap: 10 }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width={17} height={17} style={{ flexShrink: 0, marginTop: 1 }}>
+              <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" />
+            </svg>
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* Upload warnings (images that partially failed) */}
+        {uploadWarnings.length > 0 && (
+          <div style={{ marginBottom: 20, padding: "14px 18px", background: "rgba(212,120,60,.07)", border: "1px solid rgba(212,120,60,.2)", borderRadius: 10, fontSize: 13, color: "#92400e" }}>
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>
+              Product created, but {uploadWarnings.length} image{uploadWarnings.length > 1 ? "s" : ""} failed to upload:
+            </div>
+            {uploadWarnings.map((w, i) => <div key={i} style={{ marginTop: 3 }}>• {w}</div>)}
+            <div style={{ marginTop: 8, color: "#8a9e92", fontSize: 12 }}>
+              You can add these images later from the product edit page.
             </div>
           </div>
         )}
 
-        {/* Form */}
-        <div className="grid grid-cols-1 xl:grid-cols-5 gap-8">
-          {/* Left Column - Form */}
-          <div className="xl:col-span-3">
-            <form
-              onSubmit={(e) =>
-                handleSubmit(e, formData.status ?? ProductStatus.DRAFT)
-              }
-              className="space-y-8"
-            >
-              {/* Product Images - Moved to top */}
-              <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)] p-6">
-                <h2 className="text-lg font-medium text-[var(--secondary-black)] mb-4">
-                  Product Images
-                </h2>
-                <p className="text-sm text-[var(--primary-base)] mb-4">
-                  Upload up to 5 high-quality images of your product. The first
-                  image will be used as the primary image.
-                </p>
+        {/* Submitting overlay label */}
+        {isSubmitting && (
+          <div style={{ marginBottom: 20, padding: "14px 18px", background: "rgba(45,74,62,.06)", border: "1px solid rgba(45,74,62,.15)", borderRadius: 10, fontSize: 13.5, color: "#2d4a3e", display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 16, height: 16, border: "2px solid rgba(45,74,62,.2)", borderTopColor: "#2d4a3e", borderRadius: "50%", animation: "spin .7s linear infinite", flexShrink: 0 }} />
+            {submitLabel()}
+          </div>
+        )}
 
-                <div className="space-y-4">
-                  {/* Image Upload Area */}
-                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                    {[...Array(5)].map((_, index) => (
-                      <div key={index} className="relative">
-                        {images[index] ? (
-                          <div className="relative group">
-                            <img
-                              src={images[index].preview}
-                              alt={`Product image ${index + 1}`}
-                              className="w-full h-32 object-cover rounded-lg border border-[var(--secondary-soft-highlight)]"
-                            />
-                            <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
-                              <button
-                                type="button"
-                                onClick={() => removeImage(index)}
-                                className="text-white hover:text-red-300 transition-colors"
-                              >
-                                <svg
-                                  className="w-6 h-6"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                  />
-                                </svg>
-                              </button>
-                            </div>
-                            {index === 0 && (
-                              <div className="absolute top-2 left-2 bg-[var(--primary-accent2)] text-white text-xs px-2 py-1 rounded">
-                                Primary
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <label
-                            htmlFor={`image-upload-${index}`}
-                            className="w-full h-32 border-2 border-dashed border-[var(--secondary-soft-highlight)] rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-[var(--primary-accent2)] transition-colors"
-                          >
-                            <svg
-                              className="w-8 h-8 text-[var(--primary-base)] mb-2"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                              />
-                            </svg>
-                            <span className="text-sm text-[var(--primary-base)]">
-                              {index === 0
-                                ? "Primary Image"
-                                : `Image ${index + 1}`}
-                            </span>
-                            <input
-                              id={`image-upload-${index}`}
-                              type="file"
-                              accept="image/*"
-                              onChange={(e) => handleImageUpload(e, index)}
-                              className="hidden"
-                            />
-                          </label>
+        {/* 2-col grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 20, alignItems: "start" }}>
+
+          {/* ── LEFT: form ── */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+            {/* Images */}
+            <div style={card}>
+              <h2 style={{ fontSize: 14, fontWeight: 800, color: "#1c2b23", margin: "0 0 4px" }}>Product Images</h2>
+              <p style={{ fontSize: 12, color: "#8a9e92", margin: "0 0 18px" }}>
+                First image is the primary. JPG, PNG, WebP · max 5MB each.
+              </p>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} style={{ position: "relative" }}>
+                    {images[i] ? (
+                      <div style={{ position: "relative" }}>
+                        <img
+                          src={images[i]!.preview}
+                          alt={`Image ${i + 1}`}
+                          style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: 8, border: "1px solid #ebe7df", display: "block" }}
+                        />
+                        {i === 0 && (
+                          <span style={{ position: "absolute", top: 5, left: 5, padding: "2px 7px", background: "#d4783c", color: "#fff", fontSize: 9.5, fontWeight: 700, borderRadius: 99, letterSpacing: ".03em" }}>
+                            PRIMARY
+                          </span>
                         )}
+                        <button
+                          type="button"
+                          onClick={() => removeImage(i)}
+                          style={{ position: "absolute", top: 5, right: 5, width: 22, height: 22, borderRadius: "50%", background: "rgba(0,0,0,.55)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width={10} height={10}>
+                            <path d="M18 6L6 18M6 6l12 12" />
+                          </svg>
+                        </button>
                       </div>
-                    ))}
+                    ) : (
+                      <label
+                        htmlFor={`img-${i}`}
+                        style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", aspectRatio: "1", border: "1.5px dashed #d4c8b8", borderRadius: 8, cursor: "pointer", gap: 4, background: "#faf8f4" }}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#b0c0b6" strokeWidth="1.75" width={20} height={20}>
+                          <path d="M12 5v14M5 12h14" />
+                        </svg>
+                        <span style={{ fontSize: 10, color: "#b0c0b6", fontWeight: 600 }}>
+                          {i === 0 ? "Primary" : `Image ${i + 1}`}
+                        </span>
+                        <input id={`img-${i}`} type="file" accept="image/*" onChange={(e) => handleImagePick(e, i)} style={{ display: "none" }} />
+                      </label>
+                    )}
                   </div>
-
-                  {/* Upload Instructions */}
-                  <div className="text-sm text-[var(--primary-base)] space-y-1">
-                    <p>• Supported formats: JPG, PNG, WebP</p>
-                    <p>• Maximum file size: 5MB per image</p>
-                    <p>• Recommended dimensions: 800x800px or larger</p>
-                    <p>
-                      • The first image will be used as the primary product
-                      image
-                    </p>
-                  </div>
-
-                  {imageError && (
-                    <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
-                      {imageError}
-                    </div>
-                  )}
-                </div>
+                ))}
               </div>
 
-              {/* Basic Information */}
-              <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)] p-6">
-                <h2 className="text-lg font-medium text-[var(--secondary-black)] mb-4">
-                  Basic Information
-                </h2>
+              {imageError && (
+                <div style={{ marginTop: 12, padding: "9px 12px", background: "rgba(212,60,60,.07)", border: "1px solid rgba(212,60,60,.18)", borderRadius: 7, fontSize: 12.5, color: "#9b2020" }}>
+                  {imageError}
+                </div>
+              )}
+            </div>
 
-                {/* Category dropdown (matches admin panel categories) */}
-                <div className="mb-6">
-                  <label
-                    htmlFor="category"
-                    className="block text-sm font-medium text-[var(--secondary-black)] mb-2"
-                  >
-                    Category *
-                  </label>
-                  <select
-                    id="category"
-                    name="category"
-                    className="input w-full"
-                    required
-                    value={formData.category}
-                    onChange={handleInputChange}
-                  >
-                    <option value="" disabled>
-                      Select a category
-                    </option>
-                    {ADMIN_CATALOG_PRODUCT_CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
+            {/* Basic Info */}
+            <div style={card}>
+              <h2 style={{ fontSize: 14, fontWeight: 800, color: "#1c2b23", margin: "0 0 18px" }}>Basic Information</h2>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={labelSt}>Category *</label>
+                <select name="category" required value={formData.category} onChange={handleField} style={inputSt}>
+                  <option value="" disabled>Select a category</option>
+                  {ADMIN_CATALOG_PRODUCT_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={labelSt}>Product Name *</label>
+                <input
+                  type="text"
+                  name="name"
+                  required
+                  maxLength={255}
+                  value={formData.name}
+                  onChange={handleField}
+                  placeholder="e.g., Organic Roma Tomatoes"
+                  style={inputSt}
+                />
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={labelSt}>Short Description</label>
+                <input
+                  type="text"
+                  name="short_description"
+                  maxLength={500}
+                  value={formData.short_description || ""}
+                  onChange={handleField}
+                  placeholder="Brief tagline for listings"
+                  style={inputSt}
+                />
+              </div>
+
+              <div>
+                <label style={labelSt}>Full Description</label>
+                <textarea
+                  name="description"
+                  rows={4}
+                  value={formData.description || ""}
+                  onChange={handleField}
+                  placeholder="Growing methods, certifications, harvest schedule, packaging details…"
+                  style={{ ...inputSt, resize: "vertical" as const }}
+                />
+              </div>
+            </div>
+
+            {/* Pricing & Inventory */}
+            <div style={card}>
+              <h2 style={{ fontSize: 14, fontWeight: 800, color: "#1c2b23", margin: "0 0 18px" }}>Pricing & Inventory</h2>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                <div>
+                  <label style={labelSt}>Price per unit *</label>
+                  <div style={{ position: "relative" }}>
+                    <span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", fontSize: 13.5, color: "#8a9e92", pointerEvents: "none" }}>$</span>
+                    <input
+                      type="number"
+                      name="base_price"
+                      required
+                      min="0"
+                      step="0.01"
+                      value={formData.base_price}
+                      onChange={handleField}
+                      placeholder="0.00"
+                      style={{ ...inputSt, paddingLeft: 26, textAlign: "right" as const }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={labelSt}>Unit of Measurement *</label>
+                  <select name="unit_of_measurement" required value={formData.unit_of_measurement} onChange={handleField} style={inputSt}>
+                    <option value={MeasurementUnit.BAG}>Bag</option>
+                    <option value={MeasurementUnit.BUCKET}>Bucket</option>
+                    <option value={MeasurementUnit.PIECE}>Piece</option>
+                    <option value={MeasurementUnit.DOZEN}>Dozen</option>
+                    <option value={MeasurementUnit.KG}>Kilogram (kg)</option>
+                    <option value={MeasurementUnit.G}>Gram (g)</option>
+                    <option value={MeasurementUnit.LB}>Pound (lb)</option>
+                    <option value={MeasurementUnit.OZ}>Ounce (oz)</option>
+                    <option value={MeasurementUnit.LITER}>Liter</option>
+                    <option value={MeasurementUnit.ML}>Milliliter (ml)</option>
+                    <option value={MeasurementUnit.GALLON}>Gallon</option>
                   </select>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="md:col-span-2">
-                    <label
-                      htmlFor="name"
-                      className="block text-sm font-medium text-[var(--secondary-black)] mb-2"
-                    >
-                      Product Name *
-                    </label>
-                    <input
-                      type="text"
-                      id="name"
-                      name="name"
-                      required
-                      maxLength={255}
-                      value={formData.name}
-                      onChange={handleInputChange}
-                      className="input w-full"
-                      placeholder="e.g., Organic Roma Tomatoes"
-                    />
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label
-                      htmlFor="short_description"
-                      className="block text-sm font-medium text-[var(--secondary-black)] mb-2"
-                    >
-                      Short Description
-                    </label>
-                    <input
-                      type="text"
-                      id="short_description"
-                      name="short_description"
-                      maxLength={500}
-                      value={formData.short_description || ""}
-                      onChange={handleInputChange}
-                      className="input w-full"
-                      placeholder="Brief product description for listings"
-                    />
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label
-                      htmlFor="description"
-                      className="block text-sm font-medium text-[var(--secondary-black)] mb-2"
-                    >
-                      Full Description
-                    </label>
-                    <textarea
-                      id="description"
-                      name="description"
-                      rows={4}
-                      value={formData.description || ""}
-                      onChange={handleInputChange}
-                      className="input w-full"
-                      placeholder="Detailed product description, growing methods, certifications, etc."
-                    />
-                  </div>
+                <div>
+                  <label style={labelSt}>Stock Quantity</label>
+                  <input
+                    type="number"
+                    name="stock_quantity"
+                    min="0"
+                    value={formData.stock_quantity}
+                    onChange={handleField}
+                    placeholder="0"
+                    style={inputSt}
+                  />
                 </div>
               </div>
 
-              {/* Pricing & Inventory */}
-              <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)] p-6">
-                <h2 className="text-lg font-medium text-[var(--secondary-black)] mb-4">
-                  Pricing & Inventory
-                </h2>
+              <p style={{ fontSize: 11.5, color: "#b0c0b6", marginTop: 12, marginBottom: 0 }}>
+                Price displayed to buyers is per selected unit of measurement.
+              </p>
+            </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label
-                      htmlFor="base_price"
-                      className="block text-sm font-medium text-[var(--secondary-black)] mb-2"
-                    >
-                      Price per unit *
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--primary-base)]">
-                        $
-                      </span>
+            {/* Attributes */}
+            <div style={card}>
+              <h2 style={{ fontSize: 14, fontWeight: 800, color: "#1c2b23", margin: "0 0 16px" }}>Product Attributes</h2>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {[
+                  { name: "is_featured", label: "Featured Product", desc: "Show this product in featured sections" },
+                  { name: "is_organic", label: "Organic Product", desc: "Certified or naturally grown without synthetic inputs" },
+                ].map(({ name, label, desc }) => (
+                  <label key={name} style={{ display: "flex", alignItems: "flex-start", gap: 12, cursor: "pointer" }}>
+                    <div style={{ position: "relative", flexShrink: 0, marginTop: 2 }}>
                       <input
-                        type="number"
-                        id="base_price"
-                        name="base_price"
-                        required
-                        min="0"
-                        step="0.01"
-                        value={formData.base_price}
-                        onChange={handleInputChange}
-                        className="input w-full pl-8 text-right"
-                        placeholder="0.00"
+                        type="checkbox"
+                        name={name}
+                        checked={(formData as any)[name]}
+                        onChange={handleField}
+                        style={{ width: 16, height: 16, accentColor: "#2d4a3e", cursor: "pointer" }}
                       />
                     </div>
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-[var(--secondary-black)] mb-2">
-                      Quantity and unit
-                    </label>
-                    <div className="flex gap-3">
-                      <input
-                        type="number"
-                        id="stock_quantity"
-                        name="stock_quantity"
-                        min="0"
-                        value={formData.stock_quantity}
-                        onChange={handleInputChange}
-                        className="input w-32"
-                        placeholder="0"
-                      />
-                      <select
-                        id="unit_of_measurement"
-                        name="unit_of_measurement"
-                        required
-                        value={formData.unit_of_measurement}
-                        onChange={handleInputChange}
-                        className="input w-full"
-                      >
-                        <option value={MeasurementUnit.BAG}>Bag</option>
-                        <option value={MeasurementUnit.BUCKET}>Bucket</option>
-                        <option value={MeasurementUnit.PIECE}>Piece</option>
-                        <option value={MeasurementUnit.DOZEN}>Dozen</option>
-                        <option value={MeasurementUnit.KG}>Kilogram</option>
-                        <option value={MeasurementUnit.G}>Gram</option>
-                        <option value={MeasurementUnit.LB}>Pound</option>
-                        <option value={MeasurementUnit.OZ}>Ounce</option>
-                        <option value={MeasurementUnit.LITER}>Liter</option>
-                        <option value={MeasurementUnit.ML}>Milliliter</option>
-                        <option value={MeasurementUnit.GALLON}>Gallon</option>
-                      </select>
+                    <div>
+                      <div style={{ fontSize: 13.5, fontWeight: 600, color: "#1c2b23" }}>{label}</div>
+                      <div style={{ fontSize: 12, color: "#8a9e92", marginTop: 2 }}>{desc}</div>
                     </div>
-                    <p className="mt-2 text-xs text-[var(--primary-base)]">
-                      Price shown is per selected unit.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Product Attributes */}
-              <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)] p-6">
-                <h2 className="text-lg font-medium text-[var(--secondary-black)] mb-4">
-                  Product Attributes
-                </h2>
-
-                <div className="space-y-4">
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      name="is_featured"
-                      checked={formData.is_featured}
-                      onChange={handleInputChange}
-                      className="mr-3"
-                    />
-                    <span className="text-sm text-[var(--secondary-black)]">
-                      Featured Product
-                    </span>
                   </label>
-
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      name="is_organic"
-                      checked={formData.is_organic}
-                      onChange={handleInputChange}
-                      className="mr-3"
-                    />
-                    <span className="text-sm text-[var(--secondary-black)]">
-                      Organic Product
-                    </span>
-                  </label>
-                </div>
+                ))}
               </div>
+            </div>
 
-              {/* Form Actions */}
-              <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-[var(--secondary-soft-highlight)]">
-                <div className="flex gap-3 order-2 sm:order-1">
+            {/* Actions */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", paddingTop: 4 }}>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => router.back()}
+                  disabled={isSubmitting}
+                  style={{
+                    padding: "9px 18px",
+                    border: "1px solid #ebe7df",
+                    borderRadius: 999,
+                    background: "#fff",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "#1c2b23",
+                    cursor: isSubmitting ? "not-allowed" : "pointer",
+                    fontFamily: "inherit",
+                    opacity: isSubmitting ? 0.5 : 1,
+                  }}
+                >
+                  Cancel
+                </button>
+
+                {(formData.name || formData.category || formData.base_price > 0) && (
                   <button
                     type="button"
-                    onClick={() => router.back()}
-                    className="btn btn-ghost"
                     disabled={isSubmitting}
-                  >
-                    Cancel
-                  </button>
-
-                  {(formData.name ||
-                    formData.category ||
-                    formData.base_price > 0) && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (
-                          confirm(
-                            "Are you sure you want to clear the draft? This cannot be undone."
-                          )
-                        ) {
-                          setFormData({
-                            name: "",
-                            category: "",
-                            base_price: 0,
-                            unit_of_measurement: MeasurementUnit.PIECE,
-                            stock_quantity: 0,
-                            condition: ProductCondition.NEW,
-                            status: ProductStatus.DRAFT,
-                            is_featured: false,
-                            is_organic: false,
-                          });
-                          setImages(Array(5).fill(null));
-                          clearDraft();
-                        }
-                      }}
-                      className="btn btn-ghost text-red-600 hover:bg-red-50"
-                      disabled={isSubmitting}
-                    >
-                      Clear Draft
-                    </button>
-                  )}
-                </div>
-
-                <div className="flex gap-3 order-1 sm:order-2 sm:ml-auto">
-                  <button
-                    type="submit"
-                    onClick={(e) => {
-                      setFormData((prev) => ({
-                        ...prev,
-                        status: ProductStatus.DRAFT,
-                      }));
-                      handleSubmit(e, ProductStatus.DRAFT);
+                    onClick={() => {
+                      if (!confirm("Clear this draft? This cannot be undone.")) return;
+                      setFormData({
+                        name: "", category: "", base_price: 0,
+                        unit_of_measurement: MeasurementUnit.PIECE,
+                        stock_quantity: 0, condition: ProductCondition.NEW,
+                        status: ProductStatus.DRAFT, is_featured: false, is_organic: false,
+                      });
+                      setImages(Array(5).fill(null));
+                      clearDraft();
                     }}
-                    className="btn btn-ghost"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? "Saving..." : "Save as Draft"}
-                  </button>
-
-                  <button
-                    type="submit"
-                    onClick={(e) => {
-                      setFormData((prev) => ({
-                        ...prev,
-                        status: ProductStatus.ACTIVE,
-                      }));
-                      handleSubmit(e, ProductStatus.ACTIVE);
+                    style={{
+                      padding: "9px 18px",
+                      border: "1px solid #ebe7df",
+                      borderRadius: 999,
+                      background: "#fff",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "#9b2020",
+                      cursor: isSubmitting ? "not-allowed" : "pointer",
+                      fontFamily: "inherit",
+                      opacity: isSubmitting ? 0.5 : 1,
                     }}
-                    className="btn btn-primary"
-                    disabled={isSubmitting}
                   >
-                    {isSubmitting
-                      ? images.some((img) => img !== null)
-                        ? "Publishing & uploading images..."
-                        : "Publishing..."
-                      : "Publish Product"}
+                    Clear Draft
                   </button>
-                </div>
+                )}
               </div>
-            </form>
+
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={() => handleSubmit(ProductStatus.DRAFT)}
+                  style={{
+                    padding: "9px 18px",
+                    border: "1px solid #ebe7df",
+                    borderRadius: 999,
+                    background: "#fff",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "#1c2b23",
+                    cursor: isSubmitting ? "not-allowed" : "pointer",
+                    fontFamily: "inherit",
+                    opacity: isSubmitting ? 0.5 : 1,
+                  }}
+                >
+                  Save as Draft
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isSubmitting || !formData.name || !formData.category || formData.base_price <= 0}
+                  onClick={() => handleSubmit(ProductStatus.ACTIVE)}
+                  style={{
+                    padding: "9px 22px",
+                    border: "none",
+                    borderRadius: 999,
+                    background:
+                      isSubmitting || !formData.name || !formData.category || formData.base_price <= 0
+                        ? "#f0ece4"
+                        : "#d4783c",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color:
+                      isSubmitting || !formData.name || !formData.category || formData.base_price <= 0
+                        ? "#b0c0b6"
+                        : "#fff",
+                    cursor:
+                      isSubmitting || !formData.name || !formData.category || formData.base_price <= 0
+                        ? "not-allowed"
+                        : "pointer",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  {isSubmitting ? submitLabel() : "Publish Product"}
+                </button>
+              </div>
+            </div>
           </div>
 
-          {/* Right Column - Preview Panel */}
-          <div className="xl:col-span-2">
-            <div className="sticky top-6">
-              <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)] p-6">
-                <h3 className="text-lg font-medium text-[var(--secondary-black)] mb-4">
-                  Product Preview
-                </h3>
+          {/* ── RIGHT: live preview ── */}
+          <div style={{ position: "sticky", top: 72 }}>
+            <div style={card}>
+              <h3 style={{ fontSize: 12, fontWeight: 700, color: "#8a9e92", textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 16px" }}>
+                Live Preview
+              </h3>
 
-                {/* Product Card Preview */}
-                <div className="border border-[var(--secondary-soft-highlight)] rounded-xl overflow-hidden">
-                  {/* Product Image */}
-                  <div className="aspect-square bg-gray-50 relative">
-                    {images[0] ? (
-                      <img
-                        src={images[0].preview}
-                        alt="Product preview"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <div className="text-center">
-                          <svg
-                            className="w-12 h-12 text-gray-300 mx-auto mb-2"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                            />
-                          </svg>
-                          <p className="text-sm text-gray-400">
-                            No image uploaded
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Image indicators */}
-                    {images.filter((img) => img !== null).length > 1 && (
-                      <div className="absolute bottom-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
-                        +{images.filter((img) => img !== null).length - 1} more
-                      </div>
-                    )}
-
-                    {/* Status badges */}
-                    <div className="absolute top-2 left-2 flex flex-col gap-1">
-                      {formData.is_featured && (
-                        <span className="bg-yellow-500 text-white text-xs px-2 py-1 rounded">
-                          Featured
-                        </span>
-                      )}
-                      {formData.is_organic && (
-                        <span className="bg-green-500 text-white text-xs px-2 py-1 rounded">
-                          Organic
-                        </span>
-                      )}
+              {/* Card preview */}
+              <div style={{ border: "1px solid #ebe7df", borderRadius: 10, overflow: "hidden" }}>
+                {/* Image */}
+                <div style={{ aspectRatio: "1", background: "#f5f2ec", position: "relative" }}>
+                  {images[0] ? (
+                    <img src={images[0].preview} alt="Preview" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                  ) : (
+                    <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="#d4c8b8" strokeWidth="1.5" width={36} height={36}>
+                        <rect x="3" y="3" width="18" height="18" rx="2" />
+                        <path d="M3 9h18M9 21V9" />
+                      </svg>
                     </div>
-                  </div>
+                  )}
 
-                  {/* Product Info */}
-                  <div className="p-4">
-                    <h4 className="font-medium text-[var(--secondary-black)] mb-2">
-                      {formData.name || "Product Name"}
-                    </h4>
+                  {images.filter(Boolean).length > 1 && (
+                    <span style={{ position: "absolute", bottom: 8, right: 8, padding: "3px 8px", background: "rgba(0,0,0,.5)", color: "#fff", fontSize: 10, fontWeight: 700, borderRadius: 99 }}>
+                      +{images.filter(Boolean).length - 1}
+                    </span>
+                  )}
 
-                    {formData.short_description && (
-                      <p className="text-sm text-[var(--primary-base)] mb-3 line-clamp-2">
-                        {formData.short_description}
-                      </p>
+                  <div style={{ position: "absolute", top: 8, left: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+                    {formData.is_featured && (
+                      <span style={{ padding: "2px 7px", background: "#d4783c", color: "#fff", fontSize: 9.5, fontWeight: 700, borderRadius: 99 }}>FEATURED</span>
                     )}
-
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg font-semibold text-[var(--secondary-black)]">
-                          ${formData.base_price.toFixed(2)}
-                        </span>
-                        <span className="text-sm text-[var(--primary-base)]">
-                          / {formData.unit_of_measurement}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-[var(--primary-base)]">
-                        Category: {formData.category || "Not set"}
-                      </span>
-                      <span
-                        className={`px-2 py-1 rounded text-xs ${
-                          (formData.stock_quantity ?? 0) > 0
-                            ? "bg-green-100 text-green-800"
-                            : "bg-red-100 text-red-800"
-                        }`}
-                      >
-                        {(formData.stock_quantity ?? 0) > 0
-                          ? "In Stock"
-                          : "Out of Stock"}
-                      </span>
-                    </div>
-
-                    {formData.tags && formData.tags.length > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-1">
-                        {formData.tags.slice(0, 3).map((tag, index) => (
-                          <span
-                            key={index}
-                            className="inline-block px-2 py-1 text-xs bg-[var(--primary-accent1)] text-[var(--secondary-black)] rounded"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                        {formData.tags.length > 3 && (
-                          <span className="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">
-                            +{formData.tags.length - 3}
-                          </span>
-                        )}
-                      </div>
+                    {formData.is_organic && (
+                      <span style={{ padding: "2px 7px", background: "#2d4a3e", color: "#f5f1ea", fontSize: 9.5, fontWeight: 700, borderRadius: 99 }}>ORGANIC</span>
                     )}
                   </div>
                 </div>
 
-                {/* Preview Info */}
-                <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                  <p className="text-xs text-[var(--primary-base)] mb-2">
-                    <strong>Preview:</strong> This is how your product will
-                    appear to buyers
-                  </p>
-                  <div className="text-xs text-[var(--primary-base)] space-y-1">
-                    <div>
-                      Status:{" "}
-                      <span className="capitalize">{formData.status}</span>
-                    </div>
-                    <div>
-                      Stock: {formData.stock_quantity}{" "}
-                      {formData.unit_of_measurement}
-                    </div>
+                {/* Info */}
+                <div style={{ padding: "14px 14px 16px" }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: "#1c2b23", marginBottom: 4 }}>
+                    {formData.name || <span style={{ color: "#b0c0b6" }}>Product name</span>}
                   </div>
+                  {formData.short_description && (
+                    <div style={{ fontSize: 12, color: "#8a9e92", marginBottom: 8, lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as any, overflow: "hidden" }}>
+                      {formData.short_description}
+                    </div>
+                  )}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div>
+                      <span style={{ fontSize: 16, fontWeight: 800, color: "#1c2b23" }}>
+                        ${formData.base_price > 0 ? formData.base_price.toFixed(2) : "0.00"}
+                      </span>
+                      <span style={{ fontSize: 11, color: "#8a9e92", marginLeft: 4 }}>/ {formData.unit_of_measurement}</span>
+                    </div>
+                    <span style={{
+                      padding: "2px 8px",
+                      borderRadius: 99,
+                      fontSize: 10.5,
+                      fontWeight: 700,
+                      background: (formData.stock_quantity ?? 0) > 0 ? "rgba(45,74,62,.10)" : "rgba(212,60,60,.10)",
+                      color: (formData.stock_quantity ?? 0) > 0 ? "#2d4a3e" : "#9b2020",
+                    }}>
+                      {(formData.stock_quantity ?? 0) > 0 ? "In Stock" : "Out of Stock"}
+                    </span>
+                  </div>
+                  {formData.category && (
+                    <div style={{ fontSize: 11, color: "#b0c0b6", marginTop: 8 }}>{formData.category}</div>
+                  )}
                 </div>
               </div>
+
+              {/* Status note */}
+              <div style={{ marginTop: 14, padding: "11px 14px", background: "#faf8f4", borderRadius: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, color: "#8a9e92" }}>
+                  <span>Status</span>
+                  <span style={{ fontWeight: 700, color: "#1c2b23", textTransform: "capitalize" }}>{formData.status ?? "draft"}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, color: "#8a9e92", marginTop: 6 }}>
+                  <span>Stock</span>
+                  <span style={{ fontWeight: 700, color: "#1c2b23" }}>{formData.stock_quantity ?? 0} {formData.unit_of_measurement}</span>
+                </div>
+              </div>
+
+              <p style={{ fontSize: 11, color: "#b0c0b6", textAlign: "center", marginTop: 12, marginBottom: 0 }}>
+                This is how buyers will see your product
+              </p>
             </div>
           </div>
         </div>
       </main>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

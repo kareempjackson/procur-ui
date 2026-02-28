@@ -3,1638 +3,798 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import {
-  MagnifyingGlassIcon,
-  FunnelIcon,
-  MapPinIcon,
-  StarIcon,
-  ClockIcon,
-  CheckBadgeIcon,
-  UserGroupIcon,
-  CalendarIcon,
-  ArrowPathIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-} from "@heroicons/react/24/outline";
 import { useAppDispatch, useAppSelector } from "@/store";
-import { addDays, formatShortDate } from "@/lib/utils/date";
 import { useToast } from "@/components/ui/Toast";
 import {
   fetchProducts,
   fetchSellers,
   fetchHarvestUpdates,
   fetchMarketplaceStats,
-  addHarvestComment,
-  setFilters,
-  clearFilters,
   setSelectedCategory as setSelectedCategoryAction,
 } from "@/store/slices/buyerMarketplaceSlice";
 import { fetchCart, addToCartAsync } from "@/store/slices/buyerCartSlice";
-import ProcurLoader from "@/components/ProcurLoader";
-import SupplierAvatar from "@/components/buyer/SupplierAvatar";
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function SH({ title, linkText, linkHref }: { title: string; linkText?: string; linkHref?: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", margin: "0 0 20px" }}>
+      <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-.35px", color: "#1c2b23", margin: 0 }}>{title}</h2>
+      {linkText && linkHref && (
+        <Link href={linkHref} style={{ fontSize: 12, fontWeight: 600, color: "#2d4a3e", textDecoration: "none" }}>{linkText} →</Link>
+      )}
+    </div>
+  );
+}
+
+function ProductImg({ src, alt, sizes }: { src?: string | null; alt: string; sizes?: string }) {
+  const [err, setErr] = useState(false);
+  const fb = "https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=400&h=400&fit=crop";
+  return <Image src={err || !src ? fb : src} alt={alt} fill className="object-cover" sizes={sizes ?? "180px"} onError={() => setErr(true)} />;
+}
+
+const FARM_COVERS = [
+  "https://images.unsplash.com/photo-1500937386664-56d1dfef3854?w=600&h=200&fit=crop",
+  "https://images.unsplash.com/photo-1464226184884-fa280b87c399?w=600&h=200&fit=crop",
+  "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=600&h=200&fit=crop",
+  "https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=600&h=200&fit=crop",
+  "https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=600&h=200&fit=crop",
+];
+function farmCoverFb(name: string) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffff;
+  return FARM_COVERS[h % FARM_COVERS.length];
+}
+
+function SellerCoverImg({ src, alt, name }: { src?: string | null; alt: string; name: string }) {
+  const [err, setErr] = useState(false);
+  return <Image src={err || !src ? farmCoverFb(name) : src} alt={alt} fill className="object-cover" sizes="400px" onError={() => setErr(true)} />;
+}
+
+function SellerLogoImg({ src, alt, name, size }: { src?: string | null; alt: string; name: string; size: number }) {
+  const [err, setErr] = useState(false);
+  if (!src || err) return <span style={{ fontSize: size * 0.4, fontWeight: 700, color: "#f5f1ea" }}>{name.charAt(0).toUpperCase()}</span>;
+  return <Image src={src} alt={alt} fill className="object-cover" sizes={`${size}px`} onError={() => setErr(true)} />;
+}
+
+const AVATAR_COLORS = ["#2d4a3e", "#3e5549", "#1c2b23", "#407178", "#653011", "#c26838"];
+function avatarColor(name: string) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffff;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+const COVER_COLORS = ["#1e3a2f", "#2d4a3e", "#3a5a4a", "#1a2e25", "#243530"];
+function coverColor(name: string) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 17 + name.charCodeAt(i)) & 0xffff;
+  return COVER_COLORS[h % COVER_COLORS.length];
+}
+
+const CATEGORIES = [
+  "Vegetables", "Fruits", "Herbs", "Grains", "Legumes",
+  "Root Crops", "Meat & Poultry", "Leafy Greens", "Organic", "Export Ready",
+];
+
+const HERO_BG = [
+  "linear-gradient(135deg, #1c2b23 0%, #2d4a3e 60%, #3a5a4a 100%)",
+  "linear-gradient(135deg, #243530 0%, #1e3a2f 60%, #2d4a3e 100%)",
+  "linear-gradient(135deg, #1a2e25 0%, #2d4a3e 60%, #1c2b23 100%)",
+];
+
+const MIN_ORDER = 30;
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
 export default function BuyerClient() {
   const dispatch = useAppDispatch();
   const { show } = useToast();
-  const {
-    products,
-    sellers,
-    harvestUpdates,
-    stats,
-    filters,
-    selectedCategory,
-    status,
-    error,
-    pagination,
-  } = useAppSelector((state) => state.buyerMarketplace);
-  const { cart } = useAppSelector((state) => state.buyerCart);
+
+  const { products, sellers, harvestUpdates, selectedCategory, status, pagination } =
+    useAppSelector((s) => s.buyerMarketplace);
+  const { cart, optimisticCount } = useAppSelector((s) => s.buyerCart);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
-  const [showHarvestFeed, setShowHarvestFeed] = useState(true);
-  const [hasOverflow, setHasOverflow] = useState(false);
-  const categoryScrollRef = useRef<HTMLDivElement>(null);
-  const productsScrollRef = useRef<HTMLDivElement | null>(null);
-  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
-  const inFlightPageRef = useRef<number | null>(null);
-
-  type SortOption = "newest" | "price_asc" | "price_desc" | "popular";
-  const sortOptions: readonly SortOption[] = [
-    "newest",
-    "price_asc",
-    "price_desc",
-    "popular",
-  ] as const;
-  const [sortOption, setSortOption] = useState<SortOption>("newest");
-
-  // Filter states (local UI state that syncs with Redux)
-  const [selectedAvailability, setSelectedAvailability] = useState<string[]>(
-    []
-  );
-  const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
-  const [selectedCertifications, setSelectedCertifications] = useState<
-    string[]
-  >([]);
+  const [selAvail, setSelAvail] = useState<string[]>([]);
+  const [selCountries, setSelCountries] = useState<string[]>([]);
+  const [selCerts, setSelCerts] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 100]);
-  const now = new Date();
+  const [heroSlide, setHeroSlide] = useState(0);
+  const [showHarvestDrawer, setShowHarvestDrawer] = useState(false);
 
-  const sortQuery = useMemo(() => {
-    switch (sortOption) {
-      case "price_asc":
-        return { sort_by: "current_price", sort_order: "asc" as const };
-      case "price_desc":
-        return { sort_by: "current_price", sort_order: "desc" as const };
-      case "popular":
-        // Backend support may vary; we still send this so API can choose an appropriate definition.
-        return { sort_by: "popularity", sort_order: "desc" as const };
-      case "newest":
-      default:
-        return { sort_by: "created_at", sort_order: "desc" as const };
-    }
-  }, [sortOption]);
+  const productScrollRef = useRef<HTMLDivElement | null>(null);
 
-  // Categories for horizontal scroll (eBay-style)
-  const categories = [
-    { name: "All Categories", icon: "🌾" },
-    { name: "Vegetables", icon: "🥬" },
-    { name: "Fruits", icon: "🍎" },
-    { name: "Herbs", icon: "🌿" },
-    { name: "Grains", icon: "🌾" },
-    { name: "Legumes", icon: "🫘" },
-    { name: "Root Crops", icon: "🥔" },
-    { name: "Meat & Poultry", icon: "🍗" },
-    { name: "Leafy Greens", icon: "🥗" },
-    { name: "Organic", icon: "✨" },
-    { name: "Export Ready", icon: "🌍" },
-  ];
+  type Sort = "newest" | "price_asc" | "price_desc" | "popular";
+  const [sort, setSort] = useState<Sort>("newest");
+  const [qtys, setQtys] = useState<Record<string, number>>({});
 
-  // Fetch data on component mount ONCE
+  const productsRef = useRef<HTMLDivElement | null>(null);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const inFlightRef = useRef<number | null>(null);
+
+  // Hero auto-rotate
   useEffect(() => {
-    dispatch(fetchProducts({}));
+    const id = setInterval(() => setHeroSlide((s) => (s + 1) % 3), 5000);
+    return () => clearInterval(id);
+  }, []);
+
+  const sortQ = useMemo(() => {
+    if (sort === "price_asc") return { sort_by: "current_price", sort_order: "asc" as const };
+    if (sort === "price_desc") return { sort_by: "current_price", sort_order: "desc" as const };
+    if (sort === "popular") return { sort_by: "popularity", sort_order: "desc" as const };
+    return { sort_by: "created_at", sort_order: "desc" as const };
+  }, [sort]);
+
+  useEffect(() => {
     dispatch(fetchSellers({ page: 1, limit: 6 }));
-    dispatch(fetchHarvestUpdates({ page: 1, limit: 10 }));
+    dispatch(fetchHarvestUpdates({ page: 1, limit: 12 }));
     dispatch(fetchMarketplaceStats());
-    dispatch(fetchCart());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty dependency array - only run once on mount
+  }, []);
 
-  // Fetch products when filters change (debounced to avoid too many API calls)
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      const updatedFilters = {
+    const id = setTimeout(() => {
+      dispatch(fetchProducts({
         search: searchQuery || undefined,
-        category:
-          selectedCategory !== "All Categories" ? selectedCategory : undefined,
-        in_stock: selectedAvailability.includes("Available Now")
-          ? true
-          : undefined,
-        tags:
-          selectedCertifications.length > 0
-            ? selectedCertifications
-            : undefined,
+        category: selectedCategory !== "All Categories" ? selectedCategory : undefined,
+        in_stock: selAvail.includes("Available Now") ? true : undefined,
+        tags: selCerts.length ? selCerts : undefined,
         min_price: priceRange[0] !== 0 ? priceRange[0] : undefined,
         max_price: priceRange[1] !== 100 ? priceRange[1] : undefined,
-        ...sortQuery,
-      };
+        ...sortQ, page: 1, limit: pagination.itemsPerPage || 20,
+      }));
+    }, 300);
+    return () => clearTimeout(id);
+  }, [searchQuery, selectedCategory, selAvail, selCerts, priceRange, sortQ, pagination.itemsPerPage, dispatch]);
 
-      // Only fetch if filters have changed
-      dispatch(
-        fetchProducts({
-          ...updatedFilters,
-          page: 1,
-          limit: pagination.itemsPerPage || 20,
-        })
-      );
-    }, 300); // 300ms debounce
+  const currentQ = useMemo(() => ({
+    search: searchQuery || undefined,
+    category: selectedCategory !== "All Categories" ? selectedCategory : undefined,
+    in_stock: selAvail.includes("Available Now") ? true : undefined,
+    tags: selCerts.length ? selCerts : undefined,
+    min_price: priceRange[0] !== 0 ? priceRange[0] : undefined,
+    max_price: priceRange[1] !== 100 ? priceRange[1] : undefined,
+    ...sortQ, limit: pagination.itemsPerPage || 20,
+  }), [searchQuery, selectedCategory, selAvail, selCerts, priceRange, sortQ, pagination.itemsPerPage]);
 
-    return () => clearTimeout(timeoutId);
-  }, [
-    searchQuery,
-    selectedCategory,
-    selectedAvailability,
-    selectedCertifications,
-    priceRange,
-    sortQuery,
-    pagination.itemsPerPage,
-    dispatch,
-  ]); // Removed 'filters' and 'selectedCountries' (not used)
+  const currentQKey = useMemo(() => JSON.stringify(currentQ), [currentQ]);
 
-  // Keep a single source of truth for the "current" product query used by load-more.
-  const currentProductQuery = useMemo(
-    () => ({
-      search: searchQuery || undefined,
-      category:
-        selectedCategory !== "All Categories" ? selectedCategory : undefined,
-      in_stock: selectedAvailability.includes("Available Now")
-        ? true
-        : undefined,
-      tags:
-        selectedCertifications.length > 0 ? selectedCertifications : undefined,
-      min_price: priceRange[0] !== 0 ? priceRange[0] : undefined,
-      max_price: priceRange[1] !== 100 ? priceRange[1] : undefined,
-      ...sortQuery,
-      limit: pagination.itemsPerPage || 20,
-    }),
-    [
-      searchQuery,
-      selectedCategory,
-      selectedAvailability,
-      selectedCertifications,
-      priceRange,
-      sortQuery,
-      pagination.itemsPerPage,
-    ]
-  );
+  const canLoadMore = products.length > 0 && products.length < pagination.totalItems && pagination.currentPage < pagination.totalPages;
 
-  const currentProductQueryKey = useMemo(
-    () => JSON.stringify(currentProductQuery),
-    [currentProductQuery]
-  );
-
-  const canLoadMoreProducts =
-    products.length > 0 &&
-    products.length < pagination.totalItems &&
-    pagination.currentPage < pagination.totalPages;
-
-  const handleLoadMoreProducts = () => {
-    if (!canLoadMoreProducts) return;
-    if (status === "loading") return;
-    const nextPage = (pagination.currentPage || 1) + 1;
-    if (inFlightPageRef.current === nextPage) return;
-    inFlightPageRef.current = nextPage;
-    dispatch(
-      fetchProducts({
-        ...currentProductQuery,
-        page: nextPage,
-      })
-    );
+  const loadMore = () => {
+    if (!canLoadMore || status === "loading") return;
+    const next = (pagination.currentPage || 1) + 1;
+    if (inFlightRef.current === next) return;
+    inFlightRef.current = next;
+    dispatch(fetchProducts({ ...currentQ, page: next }));
   };
 
-  // Reset infinite-scroll tracking when the query changes.
-  useEffect(() => {
-    inFlightPageRef.current = null;
-  }, [currentProductQueryKey]);
+  useEffect(() => { inFlightRef.current = null; }, [currentQKey]);
+  useEffect(() => { if (status !== "loading") inFlightRef.current = null; }, [status, pagination.currentPage]);
 
-  // Infinite scroll: when the sentinel enters view, fetch the next page (if any)
   useEffect(() => {
-    const el = loadMoreSentinelRef.current;
+    const el = sentinelRef.current;
     if (!el) return;
+    const obs = new IntersectionObserver(([e]) => { if (e?.isIntersecting && canLoadMore) loadMore(); }, { rootMargin: "400px 0px" });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [canLoadMore, status, pagination.currentPage, currentQKey]);
 
-    const scrollRoot = productsScrollRef.current;
-    const useScrollContainerRoot =
-      !!scrollRoot && scrollRoot.scrollHeight > scrollRoot.clientHeight;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (!entry?.isIntersecting) return;
-        if (!canLoadMoreProducts) return;
-        handleLoadMoreProducts();
-      },
-      {
-        // If products are in their own scroll container (desktop split view),
-        // observe relative to that container; otherwise fall back to viewport scrolling.
-        root: useScrollContainerRoot ? scrollRoot : null,
-        rootMargin: "400px 0px",
-        threshold: 0,
-      }
-    );
-
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [canLoadMoreProducts, status, pagination.currentPage, currentProductQueryKey]);
-
-  // Allow retry after success/failure (e.g., scrolling again after a transient error)
-  useEffect(() => {
-    if (status === "loading") return;
-    inFlightPageRef.current = null;
-  }, [status, pagination.currentPage]);
-
-  // Mock data removed - now using Redux state (products, harvestUpdates, sellers)
-  const mockDataPlaceholder = [
-    {
-      id: 1,
-      farmName: "Caribbean Farms Co.",
-      farmAvatar:
-        "https://ui-avatars.com/api/?name=Caribbean+Farms&background=CB5927&color=fff",
-      location: "Kingston, Jamaica",
-      timeAgo: "2 hours ago",
-      content:
-        "🌱 Exciting news! Our organic tomato harvest is starting next week. Pre-orders now available for 500kg batches. First-grade quality guaranteed!",
-      images: [
-        "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      ],
-      likes: 42,
-      comments: 8,
-      harvestDate: formatShortDate(addDays(now, 5)),
-      verified: true,
-    },
-    {
-      id: 2,
-      farmName: "Tropical Harvest Ltd",
-      farmAvatar:
-        "https://ui-avatars.com/api/?name=Tropical+Harvest&background=407178&color=fff",
-      location: "Santo Domingo, DR",
-      timeAgo: "5 hours ago",
-      content:
-        "Just completed our mango harvest! 🥭 Premium Alphonso variety, perfect for export. Available in 20kg crates. Limited stock!",
-      images: [
-        "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      ],
-      likes: 67,
-      comments: 15,
-      harvestDate: "Available Now",
-      verified: true,
-    },
-    {
-      id: 3,
-      farmName: "Island Fresh Produce",
-      farmAvatar:
-        "https://ui-avatars.com/api/?name=Island+Fresh&background=6C715D&color=fff",
-      location: "Bridgetown, Barbados",
-      timeAgo: "1 day ago",
-      content:
-        "Our sweet potato harvest exceeded expectations! 🍠 2 tons available for immediate delivery. Organic certified and ready for local or export markets.",
-      images: [
-        "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      ],
-      likes: 89,
-      comments: 12,
-      harvestDate: "Available Now",
-      verified: true,
-    },
-  ];
-
-  // Available Harvests - Expanded with more variety
-  const allHarvests = [
-    {
-      id: 1,
-      name: "Organic Cherry Tomatoes",
-      farm: "Caribbean Farms Co.",
-      farmRating: 4.8,
-      location: "Kingston, Jamaica",
-      country: "Jamaica",
-      price: 3.5,
-      unit: "lb",
-      minOrder: "100 lbs",
-      availability: "Pre-order",
-      availabilityDate: formatShortDate(addDays(now, 5)),
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      discount: "15% off pre-order",
-      tags: ["Organic", "Pre-order"],
-      verified: true,
-      category: "Vegetables",
-    },
-    {
-      id: 2,
-      name: "Alphonso Mangoes",
-      farm: "Tropical Harvest Ltd",
-      farmRating: 4.9,
-      location: "Santo Domingo, DR",
-      country: "Dominican Republic",
-      price: 4.2,
-      unit: "lb",
-      minOrder: "50 lbs",
-      availability: "Available Now",
-      availabilityDate: "Available Now",
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      discount: null,
-      tags: ["Export Ready", "Premium"],
-      verified: true,
-      category: "Fruits",
-    },
-    {
-      id: 3,
-      name: "Sweet Potatoes",
-      farm: "Island Fresh Produce",
-      farmRating: 4.7,
-      location: "Bridgetown, Barbados",
-      country: "Barbados",
-      price: 1.8,
-      unit: "lb",
-      minOrder: "200 lbs",
-      availability: "Available Now",
-      availabilityDate: "Available Now",
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      discount: "20% off bulk",
-      tags: ["Organic", "Bulk"],
-      verified: true,
-      category: "Root Crops",
-    },
-    {
-      id: 4,
-      name: "Fresh Lettuce",
-      farm: "Green Valley Cooperative",
-      farmRating: 4.6,
-      location: "Port of Spain, Trinidad",
-      country: "Trinidad and Tobago",
-      price: 2.25,
-      unit: "head",
-      minOrder: "50 heads",
-      availability: "Pre-order",
-      availabilityDate: formatShortDate(addDays(now, 2)),
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      discount: null,
-      tags: ["Hydroponic", "Local"],
-      verified: false,
-      category: "Leafy Greens",
-    },
-    {
-      id: 5,
-      name: "Scotch Bonnet Peppers",
-      farm: "Spice Island Farms",
-      farmRating: 4.9,
-      location: "St. George's, Grenada",
-      country: "Grenada",
-      price: 5.8,
-      unit: "lb",
-      minOrder: "25 lbs",
-      availability: "Available Now",
-      availabilityDate: "Available Now",
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      discount: null,
-      tags: ["Hot", "Export Ready"],
-      verified: true,
-      category: "Vegetables",
-    },
-    {
-      id: 6,
-      name: "Organic Basil",
-      farm: "Herb Haven",
-      farmRating: 4.5,
-      location: "Castries, St. Lucia",
-      country: "St. Lucia",
-      price: 8.5,
-      unit: "bunch",
-      minOrder: "20 bunches",
-      availability: "Pre-order",
-      availabilityDate: formatShortDate(addDays(now, 1)),
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      discount: "10% off",
-      tags: ["Organic", "Fresh"],
-      verified: true,
-      category: "Herbs",
-    },
-    {
-      id: 7,
-      name: "Fresh Coconuts",
-      farm: "Palm Paradise",
-      farmRating: 4.7,
-      location: "Nassau, Bahamas",
-      country: "Bahamas",
-      price: 2.0,
-      unit: "each",
-      minOrder: "100 units",
-      availability: "Available Now",
-      availabilityDate: "Available Now",
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      discount: null,
-      tags: ["Fresh", "Export Ready"],
-      verified: true,
-      category: "Fruits",
-    },
-    {
-      id: 8,
-      name: "Organic Spinach",
-      farm: "Green Leaf Farms",
-      farmRating: 4.6,
-      location: "Kingston, Jamaica",
-      country: "Jamaica",
-      price: 3.0,
-      unit: "lb",
-      minOrder: "75 lbs",
-      availability: "Available Now",
-      availabilityDate: "Available Now",
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      discount: "5% off",
-      tags: ["Organic", "Local"],
-      verified: true,
-      category: "Leafy Greens",
-    },
-    {
-      id: 9,
-      name: "Plantains",
-      farm: "Caribbean Harvest Co.",
-      farmRating: 4.8,
-      location: "Santo Domingo, DR",
-      country: "Dominican Republic",
-      price: 1.5,
-      unit: "lb",
-      minOrder: "200 lbs",
-      availability: "Pre-order",
-      availabilityDate: formatShortDate(addDays(now, 10)),
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      discount: null,
-      tags: ["Bulk", "Export Ready"],
-      verified: true,
-      category: "Fruits",
-    },
-    {
-      id: 10,
-      name: "Organic Ginger",
-      farm: "Spice Valley",
-      farmRating: 4.9,
-      location: "Port of Spain, Trinidad",
-      country: "Trinidad and Tobago",
-      price: 12.0,
-      unit: "lb",
-      minOrder: "25 lbs",
-      availability: "Available Now",
-      availabilityDate: "Available Now",
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      discount: "10% off bulk",
-      tags: ["Organic", "Premium"],
-      verified: true,
-      category: "Herbs",
-    },
-    {
-      id: 11,
-      name: "Bell Peppers",
-      farm: "Veggie Garden Ltd",
-      farmRating: 4.4,
-      location: "Bridgetown, Barbados",
-      country: "Barbados",
-      price: 4.0,
-      unit: "lb",
-      minOrder: "50 lbs",
-      availability: "Pre-order",
-      availabilityDate: formatShortDate(addDays(now, 8)),
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      discount: null,
-      tags: ["Fresh", "Local"],
-      verified: false,
-      category: "Vegetables",
-    },
-    {
-      id: 12,
-      name: "Papaya",
-      farm: "Tropical Fruits Inc",
-      farmRating: 4.7,
-      location: "Nassau, Bahamas",
-      country: "Bahamas",
-      price: 3.8,
-      unit: "lb",
-      minOrder: "100 lbs",
-      availability: "Available Now",
-      availabilityDate: "Available Now",
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-      discount: "15% off",
-      tags: ["Fresh", "Export Ready"],
-      verified: true,
-      category: "Fruits",
-    },
-  ];
-
-  // Featured Suppliers
-  const featuredSuppliers = [
-    {
-      id: 1,
-      name: "Caribbean Farms Co.",
-      location: "Kingston, Jamaica",
-      rating: 4.8,
-      totalReviews: 234,
-      products: 47,
-      responseTime: "< 2 hours",
-      verified: true,
-      certifications: ["Organic", "Fair Trade"],
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-    },
-    {
-      id: 2,
-      name: "Tropical Harvest Ltd",
-      location: "Santo Domingo, DR",
-      rating: 4.9,
-      totalReviews: 189,
-      products: 32,
-      responseTime: "< 1 hour",
-      verified: true,
-      certifications: ["Export Ready", "GAP"],
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-    },
-    {
-      id: 3,
-      name: "Island Fresh Produce",
-      location: "Bridgetown, Barbados",
-      rating: 4.7,
-      totalReviews: 156,
-      products: 28,
-      responseTime: "< 3 hours",
-      verified: true,
-      certifications: ["Organic", "Local"],
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-    },
-    {
-      id: 4,
-      name: "Green Valley Cooperative",
-      location: "Port of Spain, Trinidad",
-      rating: 4.6,
-      totalReviews: 98,
-      products: 24,
-      responseTime: "< 4 hours",
-      verified: false,
-      certifications: ["Hydroponic"],
-      image: "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg",
-    },
-  ];
-
-  const MIN_ORDER_AMOUNT = 30;
-  const getMinOrderQuantityForPrice = (price?: number) => {
-    if (!price || price <= 0) return 1;
-    return Math.max(1, Math.ceil(MIN_ORDER_AMOUNT / price));
-  };
-
-  const [cardQuantities, setCardQuantities] = useState<Record<string, number>>(
-    {}
-  );
+  const getMin = (p?: number) => Math.max(1, Math.ceil(MIN_ORDER / (p && p > 0 ? p : 1)));
 
   useEffect(() => {
-    // Initialize quantities for newly loaded products (don't clobber user's edits)
-    setCardQuantities((prev) => {
-      const next = { ...prev };
-      for (const p of products) {
-        const id = String(p.id);
-        if (next[id] == null) {
-          next[id] = getMinOrderQuantityForPrice(p.current_price);
-        }
-      }
-      return next;
+    setQtys((prev) => {
+      const n = { ...prev };
+      products.forEach((p) => { const id = String(p.id); if (n[id] == null) n[id] = getMin(p.current_price); });
+      return n;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [products]);
 
-  const handleAddToCart = async (productId: string) => {
+  // How many units of this product are already in the cart
+  const cartQtyFor = (productId: string): number => {
+    if (!cart?.seller_groups) return 0;
+    for (const g of cart.seller_groups)
+      for (const item of g.items)
+        if (String(item.product_id) === String(productId)) return item.quantity;
+    return 0;
+  };
+
+  // Returns { can: true } when orderable, or { can: false, label } when not
+  const orderStatus = (p: (typeof products)[0]): { can: boolean; label: string } => {
+    if (!p.stock_quantity || p.stock_quantity <= 0) return { can: false, label: "Sold out" };
+    const min = getMin(p.current_price);
+    if (p.stock_quantity < min) return { can: false, label: "Low stock" };
+    const remaining = p.stock_quantity - cartQtyFor(String(p.id));
+    if (remaining <= 0) return { can: false, label: "In cart" };
+    if (remaining < min) return { can: false, label: "In cart" };
+    return { can: true, label: "" };
+  };
+
+  const canOrder = (p: (typeof products)[0]) => orderStatus(p).can;
+
+  const addToCart = async (productId: string) => {
     const id = String(productId);
-    const product = products.find((p) => String(p.id) === id);
-    if (!product) {
-      show({
-        variant: "error",
-        title: "Couldn't add to cart",
-        message: "Product not found. Please refresh and try again.",
-      });
-      return;
-    }
-
-    if ((product.stock_quantity || 0) <= 0) {
-      show({
-        variant: "warning",
-        title: "Out of stock",
-        message: `${product.name} is currently out of stock.`,
-      });
-      return;
-    }
-
-    const maxOrder = product?.stock_quantity || 5000;
-    const minOrder = getMinOrderQuantityForPrice(product?.current_price);
-    const desired = cardQuantities[id] ?? minOrder;
-    const quantity = Math.max(minOrder, Math.min(maxOrder, desired));
-
+    const p = products.find((x) => String(x.id) === id);
+    if (!p) { show({ variant: "error", title: "Couldn't add to cart", message: "Product not found." }); return; }
+    const status = orderStatus(p);
+    if (!status.can) { show({ variant: "warning", title: "Can't add to cart", message: status.label }); return; }
+    const min = getMin(p.current_price);
+    const remaining = p.stock_quantity - cartQtyFor(id);
+    const qty = Math.max(min, Math.min(remaining, qtys[id] ?? min));
     try {
-      await dispatch(addToCartAsync({ productId: id, quantity })).unwrap();
-      show({
-        variant: "success",
-        title: "Added to cart",
-        message: `Added ${quantity} ${product.unit_of_measurement} to your cart.`,
-      });
+      await dispatch(addToCartAsync({ productId: id, quantity: qty })).unwrap();
+      show({ variant: "success", title: "Added to cart", message: `Added ${qty} ${p.unit_of_measurement}.` });
     } catch (e: any) {
-      show({
-        variant: "error",
-        title: "Couldn't add to cart",
-        message: e?.message || "Please try again.",
-      });
+      show({ variant: "error", title: "Couldn't add", message: e?.message || "Please try again." });
     }
   };
 
-  // Check if categories overflow (need scroll arrows)
-  useEffect(() => {
-    const checkOverflow = () => {
-      if (categoryScrollRef.current) {
-        const { scrollWidth, clientWidth } = categoryScrollRef.current;
-        setHasOverflow(scrollWidth > clientWidth);
-      }
-    };
-
-    checkOverflow();
-    window.addEventListener("resize", checkOverflow);
-    return () => window.removeEventListener("resize", checkOverflow);
-  }, []);
-
-  const scrollCategories = (direction: "left" | "right") => {
-    if (categoryScrollRef.current) {
-      const scrollAmount = 300;
-      categoryScrollRef.current.scrollBy({
-        left: direction === "left" ? -scrollAmount : scrollAmount,
-        behavior: "smooth",
-      });
-    }
-  };
-
-  // Filter functions
-  const toggleFilter = (
-    filterArray: string[],
-    setFilter: (arr: string[]) => void,
-    value: string
-  ) => {
-    if (filterArray.includes(value)) {
-      setFilter(filterArray.filter((item) => item !== value));
-    } else {
-      setFilter([...filterArray, value]);
-    }
-  };
-
-  const clearAllFilters = () => {
-    setSelectedAvailability([]);
-    setSelectedCountries([]);
-    setSelectedCertifications([]);
-    setPriceRange([0, 100]);
-    setSearchQuery("");
-    setSortOption("newest");
-    dispatch(setSelectedCategoryAction("All Categories"));
-    // No need to dispatch clearFilters - the useEffect will handle fetching
-  };
-
-  // Get unique countries from products (for filter options) - memoized
-  const countries = React.useMemo(() => {
-    const getCountry = (location?: string) => {
-      if (!location) return "";
-      const parts = location.split(",");
-      return parts[parts.length - 1].trim();
-    };
-    return Array.from(
-      new Set(products.map((p) => getCountry(p.seller.location)))
-    )
-      .filter(Boolean)
-      .sort();
+  const countries = useMemo(() => {
+    const ex = (loc?: string) => loc?.split(",").at(-1)?.trim() ?? "";
+    return [...new Set(products.map((p) => ex(p.seller.location)))].filter(Boolean).sort();
   }, [products]);
 
-  // Products to display after applying client-side filters/sort that aren't guaranteed server-side.
-  const displayedProducts = React.useMemo(() => {
-    const getCountry = (location?: string) => {
-      if (!location) return "";
-      const parts = location.split(",");
-      return parts[parts.length - 1].trim();
-    };
-    const [rawMin, rawMax] = priceRange;
-    const min = Number.isFinite(rawMin) ? rawMin : 0;
-    const max = Number.isFinite(rawMax) ? rawMax : 100;
-    const low = Math.min(min, max);
-    const high = Math.max(min, max);
+  const certs = useMemo(() => [...new Set(products.flatMap((p) => p.tags || []))].sort(), [products]);
 
-    let next = products;
+  const displayed = useMemo(() => {
+    const ex = (loc?: string) => loc?.split(",").at(-1)?.trim() ?? "";
+    const [lo, hi] = priceRange;
+    let list = products;
+    if (selCountries.length) list = list.filter((p) => selCountries.includes(ex(p.seller.location)));
+    if (lo !== 0 || hi !== 100) list = list.filter((p) => { const pr = Number(p.current_price); return isFinite(pr) && pr >= lo && pr <= (hi || Infinity); });
+    if (sort === "price_asc") list = [...list].sort((a, b) => (a.current_price ?? 0) - (b.current_price ?? 0));
+    if (sort === "price_desc") list = [...list].sort((a, b) => (b.current_price ?? 0) - (a.current_price ?? 0));
+    return list;
+  }, [products, selCountries, priceRange, sort]);
 
-    if (selectedCountries.length > 0) {
-      next = next.filter((p) =>
-        selectedCountries.includes(getCountry(p.seller.location))
-      );
-    }
+  const filterCount = selAvail.length + selCountries.length + selCerts.length + (priceRange[0] !== 0 || priceRange[1] !== 100 ? 1 : 0);
 
-    // Price range fallback: keeps UI responsive even if the API doesn't filter by price.
-    if (low !== 0 || high !== 100) {
-      next = next.filter((p) => {
-        const price = Number(p.current_price);
-        if (!Number.isFinite(price)) return false;
-        if (low !== 0 && price < low) return false;
-        if (high !== 100 && price > high) return false;
-        return true;
-      });
-    }
+  const toggle = (arr: string[], set: (v: string[]) => void, val: string) =>
+    set(arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val]);
 
-    // Sorting fallback for price. "Newest" is handled by API sort, but we still keep stable ordering client-side.
-    if (sortOption === "price_asc") {
-      next = [...next].sort((a, b) => (a.current_price ?? 0) - (b.current_price ?? 0));
-    } else if (sortOption === "price_desc") {
-      next = [...next].sort((a, b) => (b.current_price ?? 0) - (a.current_price ?? 0));
-    }
+  const clearFilters = () => {
+    setSelAvail([]); setSelCountries([]); setSelCerts([]); setPriceRange([0, 100]);
+    setSearchQuery(""); setSort("newest"); dispatch(setSelectedCategoryAction("All Categories"));
+  };
 
-    return next;
-  }, [products, selectedCountries, priceRange, sortOption]);
+  const cartCount = (cart?.unique_products ?? 0) + optimisticCount;
 
-  // Get unique certifications from products (for filter options) - memoized
-  const certifications = React.useMemo(() => {
-    return Array.from(new Set(products.flatMap((p) => p.tags || []))).sort();
-  }, [products]);
-
-  const activeFiltersCount =
-    selectedAvailability.length +
-    selectedCountries.length +
-    selectedCertifications.length +
-    (priceRange[0] !== 0 || priceRange[1] !== 100 ? 1 : 0);
-
+  // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-white">
-      <main>
-        {/* Search Section */}
-        <section className="bg-white border-b border-[var(--secondary-soft-highlight)]/30">
-          <div className="max-w-[1400px] mx-auto px-6 py-5">
-            <div className="flex gap-3 items-center">
-              <div className="flex-1">
-                <div className="flex items-center rounded-full border border-[var(--secondary-soft-highlight)]/40 bg-white">
-                  <input
-                    type="text"
-                    placeholder="Search for produce, farms, or categories"
-                    className="flex-1 px-5 py-3 text-sm outline-none bg-transparent placeholder:text-[var(--secondary-muted-edge)] text-[var(--secondary-black)]"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                  <button className="m-1 h-10 w-10 inline-flex items-center justify-center rounded-full bg-[var(--primary-accent2)] text-white hover:bg-[var(--primary-accent3)] transition-colors">
-                    <MagnifyingGlassIcon className="h-5 w-5" />
-                  </button>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className="relative flex items-center gap-2 px-4 py-2.5 bg-white border border-[var(--secondary-soft-highlight)]/40 rounded-full hover:bg-[var(--primary-background)] transition-colors duration-200"
-              >
-                <FunnelIcon className="h-4 w-4 text-[var(--secondary-black)]" />
-                <span className="font-medium text-sm text-[var(--secondary-black)]">
-                  Filters
-                </span>
-                {activeFiltersCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 bg-[var(--primary-accent2)] text-white text-[10px] rounded-full h-5 w-5 flex items-center justify-center font-semibold">
-                    {activeFiltersCount}
-                  </span>
-                )}
-              </button>
-            </div>
+    <div style={{ fontFamily: "'Urbanist', system-ui, sans-serif", background: "#faf8f4", minHeight: "100vh", overflowX: "hidden", color: "#1c2b23" }}>
 
-            {/* Category Scroll - eBay Style */}
-            <div className="relative mt-4">
-              {hasOverflow && (
-                <>
-                  <button
-                    onClick={() => scrollCategories("left")}
-                    className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white border border-[var(--secondary-soft-highlight)]/40 rounded-full p-1 hover:bg-gray-50 transition-all duration-200"
-                  >
-                    <ChevronLeftIcon className="h-3 w-3 text-[var(--secondary-black)]" />
-                  </button>
-                  <button
-                    onClick={() => scrollCategories("right")}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white border border-[var(--secondary-soft-highlight)]/40 rounded-full p-1 hover:bg-gray-50 transition-all duration-200"
-                  >
-                    <ChevronRightIcon className="h-3 w-3 text-[var(--secondary-black)]" />
-                  </button>
-                </>
-              )}
-              <div
-                ref={categoryScrollRef}
-                className={`flex gap-2 overflow-x-auto scrollbar-hide scroll-smooth ${
-                  hasOverflow ? "px-6" : "px-0"
-                }`}
-                style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-              >
-                {categories.map((category) => (
-                  <button
-                    key={category.name}
-                    onClick={() =>
-                      dispatch(setSelectedCategoryAction(category.name))
-                    }
-                    className={`flex-shrink-0 px-4 py-2 rounded-full font-medium text-sm transition-colors duration-200 whitespace-nowrap ${
-                      selectedCategory === category.name
-                        ? "bg-[var(--primary-accent2)] text-white"
-                        : "bg-white text-[var(--secondary-black)] hover:bg-[var(--primary-background)] border border-[var(--secondary-soft-highlight)]/40"
-                    }`}
-                  >
-                    {category.name}
-                  </button>
-                ))}
-              </div>
-            </div>
+      {/* ── Filter overlay ── */}
+      <div onClick={() => setShowFilters(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.35)", zIndex: 300, opacity: showFilters ? 1 : 0, pointerEvents: showFilters ? "auto" : "none", transition: "opacity .2s" }} />
+
+      {/* ── Filter drawer ── */}
+      <div style={{ position: "fixed", top: 0, left: 0, bottom: 0, width: 300, background: "#fff", zIndex: 301, transform: showFilters ? "translateX(0)" : "translateX(-100%)", transition: "transform .3s cubic-bezier(.4,0,.2,1)", display: "flex", flexDirection: "column", borderRadius: "0 16px 16px 0" }}>
+        <div style={{ padding: "16px 18px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #ebe7df" }}>
+          <span style={{ fontSize: 14, fontWeight: 700 }}>Filters</span>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={clearFilters} style={{ fontSize: 11.5, fontWeight: 600, color: "#d4783c", background: "none", border: "none", cursor: "pointer" }}>Clear all</button>
+            <button onClick={() => setShowFilters(false)} style={{ width: 26, height: 26, borderRadius: "50%", background: "#f5f1ea", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="#1c2b23" strokeWidth="2" strokeLinecap="round" width={13} height={13}><path d="M18 6L6 18M6 6l12 12" /></svg>
+            </button>
           </div>
-        </section>
-
-        {/* Filter Panel */}
-        {showFilters && (
-          <div className="bg-white border-b border-[var(--secondary-soft-highlight)]/30">
-            <div className="max-w-[1400px] mx-auto px-6 py-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-[var(--secondary-black)]">
-                  Filter Products
-                </h3>
-                <button
-                  onClick={clearAllFilters}
-                  className="text-xs text-[var(--primary-accent2)] hover:underline font-medium"
-                >
-                  Clear All
-                </button>
-              </div>
-
-              <div className="grid md:grid-cols-4 gap-4">
-                {/* Availability Filter */}
-                <div>
-                  <h4 className="text-xs font-semibold text-[var(--secondary-black)] mb-2">
-                    Availability
-                  </h4>
-                  <div className="space-y-1.5">
-                    {["Available Now", "Pre-order"].map((option) => (
-                      <label
-                        key={option}
-                        className="flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedAvailability.includes(option)}
-                          onChange={() =>
-                            toggleFilter(
-                              selectedAvailability,
-                              setSelectedAvailability,
-                              option
-                            )
-                          }
-                          className="w-3.5 h-3.5 rounded border-[var(--secondary-soft-highlight)] text-[var(--primary-accent2)] focus:ring-[var(--primary-accent2)]"
-                        />
-                        <span className="text-xs text-[var(--secondary-black)]">
-                          {option}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Country Filter */}
-                <div>
-                  <h4 className="text-xs font-semibold text-[var(--secondary-black)] mb-2">
-                    Country
-                  </h4>
-                  <div className="space-y-1.5 max-h-28 overflow-y-auto">
-                    <label className="flex items-center gap-1.5 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedCountries.length === 0}
-                        onChange={() => setSelectedCountries([])}
-                        className="w-3.5 h-3.5 rounded border-[var(--secondary-soft-highlight)] text-[var(--primary-accent2)] focus:ring-[var(--primary-accent2)]"
-                      />
-                      <span className="text-xs text-[var(--secondary-black)]">
-                        All Countries
-                      </span>
-                    </label>
-                    {countries.map((country) => (
-                      <label
-                        key={country}
-                        className="flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedCountries.includes(country)}
-                          onChange={() =>
-                            toggleFilter(
-                              selectedCountries,
-                              setSelectedCountries,
-                              country
-                            )
-                          }
-                          className="w-3.5 h-3.5 rounded border-[var(--secondary-soft-highlight)] text-[var(--primary-accent2)] focus:ring-[var(--primary-accent2)]"
-                        />
-                        <span className="text-xs text-[var(--secondary-black)]">
-                          {country}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Certifications/Tags Filter */}
-                <div>
-                  <h4 className="text-xs font-semibold text-[var(--secondary-black)] mb-2">
-                    Certifications
-                  </h4>
-                  <div className="space-y-1.5 max-h-28 overflow-y-auto">
-                    {certifications.map((cert) => (
-                      <label
-                        key={cert}
-                        className="flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedCertifications.includes(cert)}
-                          onChange={() =>
-                            toggleFilter(
-                              selectedCertifications,
-                              setSelectedCertifications,
-                              cert
-                            )
-                          }
-                          className="w-3.5 h-3.5 rounded border-[var(--secondary-soft-highlight)] text-[var(--primary-accent2)] focus:ring-[var(--primary-accent2)]"
-                        />
-                        <span className="text-xs text-[var(--secondary-black)]">
-                          {cert}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Price Range Filter */}
-                <div>
-                  <h4 className="text-xs font-semibold text-[var(--secondary-black)] mb-2">
-                    Price Range (per unit)
-                  </h4>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-1.5">
-                      <input
-                        type="number"
-                        value={priceRange[0]}
-                        onChange={(e) =>
-                          setPriceRange([Number(e.target.value), priceRange[1]])
-                        }
-                        className="w-16 px-2 py-1 text-xs border border-[var(--secondary-soft-highlight)]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)]"
-                        placeholder="Min"
-                      />
-                      <span className="text-xs text-[var(--secondary-muted-edge)]">
-                        to
-                      </span>
-                      <input
-                        type="number"
-                        value={priceRange[1]}
-                        onChange={(e) =>
-                          setPriceRange([priceRange[0], Number(e.target.value)])
-                        }
-                        className="w-16 px-2 py-1 text-xs border border-[var(--secondary-soft-highlight)]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)]"
-                        placeholder="Max"
-                      />
-                    </div>
-                    <div className="text-[10px] text-[var(--secondary-muted-edge)]">
-                      ${priceRange[0]} - ${priceRange[1]}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Active Filters Display */}
-              {activeFiltersCount > 0 && (
-                <div className="mt-4 pt-3 border-t border-[var(--secondary-soft-highlight)]/30">
-                  <div className="flex flex-wrap gap-1.5">
-                    {selectedAvailability.map((filter) => (
-                      <span
-                        key={filter}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-[var(--primary-accent2)]/10 text-[var(--primary-accent2)] rounded-full text-xs"
-                      >
-                        {filter}
-                        <button
-                          onClick={() =>
-                            toggleFilter(
-                              selectedAvailability,
-                              setSelectedAvailability,
-                              filter
-                            )
-                          }
-                          className="hover:text-[var(--primary-accent3)]"
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                    {selectedCountries.map((filter) => (
-                      <span
-                        key={filter}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-[var(--primary-accent2)]/10 text-[var(--primary-accent2)] rounded-full text-xs"
-                      >
-                        {filter}
-                        <button
-                          onClick={() =>
-                            toggleFilter(
-                              selectedCountries,
-                              setSelectedCountries,
-                              filter
-                            )
-                          }
-                          className="hover:text-[var(--primary-accent3)]"
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                    {selectedCertifications.map((filter) => (
-                      <span
-                        key={filter}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-[var(--primary-accent2)]/10 text-[var(--primary-accent2)] rounded-full text-xs"
-                      >
-                        {filter}
-                        <button
-                          onClick={() =>
-                            toggleFilter(
-                              selectedCertifications,
-                              setSelectedCertifications,
-                              filter
-                            )
-                          }
-                          className="hover:text-[var(--primary-accent3)]"
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+        </div>
+        <div style={{ padding: "14px 18px", flex: 1, overflowY: "auto" }}>
+          {/* Availability */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#8a9e92", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 8 }}>Availability</div>
+            {["Available Now", "Pre-order"].map((opt) => (
+              <label key={opt} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, cursor: "pointer" }}>
+                <input type="checkbox" checked={selAvail.includes(opt)} onChange={() => toggle(selAvail, setSelAvail, opt)} style={{ accentColor: "#d4783c", width: 14, height: 14 }} />
+                <span style={{ fontSize: 13 }}>{opt}</span>
+              </label>
+            ))}
           </div>
-        )}
-
-        <div className="max-w-[1400px] mx-auto px-6 py-8">
-          <div className="grid gap-5 lg:grid-cols-3">
-            {/* Main Content - Products */}
-            <div className="space-y-6 lg:col-span-2">
-              {/* Available Harvests Grid */}
-              <section>
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h2 className="text-lg font-medium text-[var(--secondary-black)]">
-                      Available Harvests
-                    </h2>
-                    <p className="text-xs text-[var(--secondary-muted-edge)] mt-0.5">
-                      Showing {displayedProducts.length} of{" "}
-                      {pagination.totalItems} products
-                    </p>
-                  </div>
-                  <select
-                    value={sortOption}
-                    onChange={(e) => {
-                      const next = e.target.value as SortOption;
-                      if (!sortOptions.includes(next)) return;
-                      setSortOption(next);
-                    }}
-                    className="px-3 py-1.5 bg-white border border-[var(--secondary-soft-highlight)]/30 rounded-full text-xs font-medium text-[var(--secondary-black)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)]"
-                  >
-                    <option value="newest">Sort: Newest</option>
-                    <option value="price_asc">Price: Low to High</option>
-                    <option value="price_desc">Price: High to Low</option>
-                    <option value="popular">Most Popular</option>
-                  </select>
-                </div>
-
-                <div
-                  ref={productsScrollRef}
-                  className="lg:max-h-[calc(100svh-12rem)] lg:overflow-y-auto lg:pr-1"
-                >
-                {status === "loading" && products.length === 0 ? (
-                  <ProcurLoader size="md" text="Loading products..." />
-                ) : displayedProducts.length === 0 ? (
-                  <div className="bg-white rounded-2xl p-12 text-center border border-[var(--secondary-soft-highlight)]/20">
-                    <FunnelIcon className="h-12 w-12 text-[var(--secondary-muted-edge)] mx-auto mb-3 opacity-50" />
-                    <h3 className="text-lg font-semibold text-[var(--secondary-black)] mb-1.5">
-                      No products found
-                    </h3>
-                    <p className="text-sm text-[var(--secondary-muted-edge)] mb-4">
-                      Try adjusting your filters to see more results
-                    </p>
-                    <button
-                      onClick={clearAllFilters}
-                      className="px-4 py-2 bg-[var(--primary-accent2)] text-white rounded-full text-sm font-medium hover:bg-[var(--primary-accent3)] transition-all duration-200"
-                    >
-                      Clear All Filters
-                    </button>
-                  </div>
-                ) : (
-                  <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                    {displayedProducts.map((product) => {
-                      const displayRating =
-                        typeof product.average_rating === "number"
-                          ? product.average_rating
-                          : typeof product.seller?.average_rating === "number"
-                            ? product.seller.average_rating
-                            : null;
-
-                      return (
-                        <Link
-                          key={product.id}
-                          href={`/buyer/product/${product.id}`}
-                          className="bg-white rounded-xl overflow-hidden border border-[var(--secondary-soft-highlight)]/20 hover:bg-[var(--primary-background)]/40 transition-colors duration-200 group block"
-                        >
-                        <div className="relative h-32">
-                          <Image
-                            src={
-                              product.image_url ||
-                              "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg"
-                            }
-                            alt={product.name}
-                            fill
-                            className="object-cover group-hover:scale-105 transition-transform duration-500"
-                          />
-                          {product.sale_price &&
-                            product.sale_price < product.base_price && (
-                              <div className="absolute top-1.5 left-1.5 bg-[var(--primary-accent2)] text-white px-1.5 py-0.5 rounded text-[10px] font-bold">
-                                {Math.round(
-                                  ((product.base_price - product.sale_price) /
-                                    product.base_price) *
-                                    100
-                                )}
-                                % off
-                              </div>
-                            )}
-                          {typeof displayRating === "number" && (
-                            <div className="absolute bottom-1.5 right-1.5 flex items-center gap-0.5 bg-white/90 backdrop-blur-sm px-1.5 py-0.5 rounded-full">
-                              <StarIcon className="h-2.5 w-2.5 fill-yellow-400 text-yellow-400" />
-                              <span className="text-[10px] font-bold">
-                                {displayRating.toFixed(1)}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="p-3">
-                          <h3 className="font-semibold text-sm text-[var(--secondary-black)] mb-2 group-hover:text-[var(--primary-accent2)] transition-colors line-clamp-1">
-                            {product.name}
-                          </h3>
-
-                          <div
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              window.location.href = `/buyer/supplier/${product.seller.id}`;
-                            }}
-                            className="flex items-center gap-1.5 mb-2 group/supplier cursor-pointer"
-                          >
-                            <SupplierAvatar
-                              name={product.seller.name}
-                              imageUrl={product.seller.logo_url}
-                              size="xs"
-                            />
-                            <span className="text-[11px] text-[var(--secondary-muted-edge)] truncate group-hover/supplier:text-[var(--primary-accent2)] transition-colors">
-                              {product.seller.name}
-                            </span>
-                            {product.seller.is_verified && (
-                              <CheckBadgeIcon className="h-2.5 w-2.5 text-[var(--primary-accent2)] flex-shrink-0" />
-                            )}
-                          </div>
-
-                          <div className="flex items-center gap-1 text-[11px] text-[var(--secondary-muted-edge)] mb-2">
-                            <MapPinIcon className="h-2.5 w-2.5 flex-shrink-0" />
-                            <span className="truncate">
-                              {product.seller.location || "Caribbean"}
-                            </span>
-                          </div>
-
-                          <div className="flex flex-wrap gap-1 mb-2">
-                            {(product.tags || []).slice(0, 2).map((tag) => (
-                              <span
-                                key={tag}
-                                className="px-1.5 py-0.5 bg-[var(--primary-background)] rounded text-[10px] font-medium text-[var(--secondary-black)]"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-
-                          <div className="flex items-center justify-between pt-2 border-t border-[var(--secondary-soft-highlight)]/20">
-                            <div>
-                              <div className="text-lg font-bold text-[var(--secondary-black)] leading-none">
-                                ${product.current_price.toFixed(2)}
-                                <span className="text-[10px] font-normal text-[var(--secondary-muted-edge)]">
-                                  /{product.unit_of_measurement}
-                                </span>
-                              </div>
-                              <div className="text-[10px] text-[var(--secondary-muted-edge)] mt-0.5">
-                                {product.stock_quantity > 0
-                                  ? `${product.stock_quantity} ${product.unit_of_measurement} available`
-                                  : "Out of stock"}
-                              </div>
-                            </div>
-                            {product.stock_quantity === 0 ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-black/5 text-[var(--secondary-muted-edge)] rounded-full text-[10px] font-medium">
-                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                                </svg>
-                                Sold Out
-                              </span>
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                <div className="flex items-center gap-1 border border-[var(--secondary-soft-highlight)]/30 rounded-full px-1.5 py-1">
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      const min = Math.max(
-                                        1,
-                                        Math.ceil(30 / (product.current_price || 1))
-                                      );
-                                      setCardQuantities((prev) => {
-                                        const current =
-                                          prev[String(product.id)] ?? min;
-                                        return {
-                                          ...prev,
-                                          [String(product.id)]: Math.max(
-                                            min,
-                                            current - 1
-                                          ),
-                                        };
-                                      });
-                                    }}
-                                    className="w-6 h-6 rounded-full hover:bg-[var(--primary-background)] transition-colors text-[var(--secondary-black)] text-xs font-bold"
-                                    aria-label="Decrease quantity"
-                                  >
-                                    −
-                                  </button>
-                                  <input
-                                    type="number"
-                                    inputMode="numeric"
-                                    value={
-                                      cardQuantities[String(product.id)] ??
-                                      Math.max(
-                                        1,
-                                        Math.ceil(30 / (product.current_price || 1))
-                                      )
-                                    }
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                    }}
-                                    onChange={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      const raw = Number(e.target.value);
-                                      const min = Math.max(
-                                        1,
-                                        Math.ceil(30 / (product.current_price || 1))
-                                      );
-                                      const max = product.stock_quantity || 5000;
-                                      if (!Number.isFinite(raw)) return;
-                                      const next = Math.max(
-                                        min,
-                                        Math.min(max, Math.floor(raw))
-                                      );
-                                      setCardQuantities((prev) => ({
-                                        ...prev,
-                                        [String(product.id)]: next,
-                                      }));
-                                    }}
-                                    min={Math.max(
-                                      1,
-                                      Math.ceil(30 / (product.current_price || 1))
-                                    )}
-                                    max={product.stock_quantity || 5000}
-                                    className="w-10 text-center text-xs bg-transparent outline-none text-[var(--secondary-black)]"
-                                    aria-label="Quantity"
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      const min = Math.max(
-                                        1,
-                                        Math.ceil(30 / (product.current_price || 1))
-                                      );
-                                      const max = product.stock_quantity || 5000;
-                                      setCardQuantities((prev) => {
-                                        const current =
-                                          prev[String(product.id)] ?? min;
-                                        return {
-                                          ...prev,
-                                          [String(product.id)]: Math.min(
-                                            max,
-                                            current + 1
-                                          ),
-                                        };
-                                      });
-                                    }}
-                                    className="w-6 h-6 rounded-full hover:bg-[var(--primary-background)] transition-colors text-[var(--secondary-black)] text-xs font-bold"
-                                    aria-label="Increase quantity"
-                                  >
-                                    +
-                                  </button>
-                                </div>
-                                <button
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    handleAddToCart(product.id);
-                                  }}
-                                  className="px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 bg-[var(--primary-accent2)] text-white hover:bg-[var(--primary-accent3)]"
-                                >
-                                  Add
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Infinite scroll footer (Products) */}
-                {products.length > 0 && (
-                  <div className="text-center mt-6 flex flex-col items-center gap-2">
-                    <div className="text-sm text-[var(--secondary-muted-edge)]">
-                      Showing{" "}
-                      {Math.min(products.length, pagination.totalItems)} of{" "}
-                      {pagination.totalItems} products
-                    </div>
-
-                    {canLoadMoreProducts ? (
-                      <div
-                        ref={loadMoreSentinelRef}
-                        className="w-full flex items-center justify-center py-4"
-                      >
-                        {status === "loading" ? (
-                          <div className="flex items-center gap-2 text-xs text-[var(--secondary-muted-edge)]">
-                            <ArrowPathIcon className="h-4 w-4 animate-spin" />
-                            Loading more...
-                          </div>
-                        ) : (
-                          <span className="text-xs text-[var(--secondary-muted-edge)]">
-                            Scroll to load more
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="text-xs text-[var(--secondary-muted-edge)]">
-                        You’ve reached the end
-                      </div>
-                    )}
-                  </div>
-                )}
-                </div>
-              </section>
+          {/* Country */}
+          {countries.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#8a9e92", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 8 }}>Country</div>
+              {countries.map((c) => (
+                <label key={c} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, cursor: "pointer" }}>
+                  <input type="checkbox" checked={selCountries.includes(c)} onChange={() => toggle(selCountries, setSelCountries, c)} style={{ accentColor: "#d4783c", width: 14, height: 14 }} />
+                  <span style={{ fontSize: 13 }}>{c}</span>
+                </label>
+              ))}
             </div>
-
-            {/* Sidebar - Right Side */}
-            <div className="space-y-5 lg:sticky lg:top-24 lg:max-h-[calc(100svh-7rem)] lg:overflow-y-auto lg:pr-1">
-              {/* Harvest Social Feed - Toggleable */}
-              <section className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/20 overflow-hidden">
-                <button
-                  onClick={() => setShowHarvestFeed(!showHarvestFeed)}
-                  className="w-full p-4 flex items-center justify-between hover:bg-[var(--primary-background)] transition-colors duration-200"
-                >
-                  <div className="flex items-center gap-1.5">
-                    <CalendarIcon className="h-4 w-4 text-[var(--primary-accent2)]" />
-                    <h3 className="text-sm font-semibold text-[var(--secondary-black)]">
-                      Harvest Updates
-                    </h3>
-                  </div>
-                  <ChevronRightIcon
-                    className={`h-4 w-4 text-[var(--secondary-muted-edge)] transition-transform duration-200 ${
-                      showHarvestFeed ? "rotate-90" : ""
-                    }`}
-                  />
-                </button>
-
-                {showHarvestFeed && (
-                  <div className="max-h-[500px] overflow-y-auto border-t border-[var(--secondary-soft-highlight)]/20">
-                    {harvestUpdates.length === 0 ? (
-                      <div className="p-6 text-center text-sm text-[var(--secondary-muted-edge)]">
-                        No harvest updates available
-                      </div>
-                    ) : (
-                      <div className="p-1 divide-y divide-[var(--secondary-soft-highlight)]/20">
-                        {harvestUpdates.map((update) => {
-                          const preview =
-                            update.content?.trim() ||
-                            (update as any)?.notes?.trim() ||
-                            [
-                              update.crop?.trim(),
-                              update.quantity != null
-                                ? `${update.quantity}${update.unit ? ` ${update.unit}` : ""}`
-                                : undefined,
-                            ]
-                              .filter(Boolean)
-                              .join(" • ");
-
-                          return (
-                            <div
-                              key={update.id}
-                              className="px-3 py-3"
-                            >
-                            {/* Compact Post Header */}
-                              <div className="flex items-center gap-2 mb-2">
-                                <div className="relative w-9 h-9 rounded-full overflow-hidden flex-shrink-0 bg-[var(--primary-accent2)]/10 flex items-center justify-center ring-1 ring-black/5">
-                                {update.farm_avatar ? (
-                                  <Image
-                                    src={update.farm_avatar}
-                                    alt={update.farm_name}
-                                    fill
-                                    className="object-cover"
-                                  />
-                                ) : (
-                                  <span className="text-xs font-bold text-[var(--primary-accent2)]">
-                                    {update.farm_name.charAt(0)}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-1">
-                                    <h4 className="font-semibold text-[13px] text-[var(--secondary-black)] truncate">
-                                    {update.farm_name}
-                                  </h4>
-                                  {update.is_verified && (
-                                    <CheckBadgeIcon className="h-3 w-3 text-[var(--primary-accent2)] flex-shrink-0" />
-                                  )}
-                                </div>
-                                  <div className="flex items-center gap-1 text-[11px] text-[var(--secondary-muted-edge)]">
-                                  <ClockIcon className="h-2.5 w-2.5" />
-                                  {update.time_ago}
-                                </div>
-                              </div>
-                                <div className="px-2 py-1 bg-[var(--secondary-highlight1)]/20 rounded-full text-[11px] font-medium text-[var(--secondary-black)] whitespace-nowrap border border-[var(--secondary-soft-highlight)]/20">
-                                {update.expected_harvest_window}
-                              </div>
-                            </div>
-
-                            {preview ? (
-                                <p className="text-xs text-[var(--secondary-muted-edge)] leading-relaxed line-clamp-2">
-                                {preview}
-                              </p>
-                            ) : null}
-
-                            {/* Compact Post Image */}
-                            {update.images && update.images.length > 0 && (
-                                <div className="relative h-28 rounded-xl overflow-hidden mt-2 ring-1 ring-black/5">
-                                <Image
-                                  src={update.images[0]}
-                                  alt="Harvest update"
-                                  fill
-                                  className="object-cover"
-                                />
-                              </div>
-                            )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </section>
-
-              {/* Featured Suppliers */}
-              <section className="bg-white rounded-2xl p-4 border border-[var(--secondary-soft-highlight)]/20">
-                <h3 className="text-sm font-semibold text-[var(--secondary-black)] mb-3 flex items-center gap-1.5">
-                  <UserGroupIcon className="h-4 w-4 text-[var(--primary-accent2)]" />
-                  Featured Suppliers
-                </h3>
-                {sellers.length === 0 ? (
-                  <div className="text-center py-4 text-sm text-[var(--secondary-muted-edge)]">
-                    No suppliers available
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {sellers.slice(0, 6).map((supplier) => (
-                      <Link
-                        key={supplier.id}
-                        href={{
-                          pathname: `/buyer/supplier/${supplier.id}`,
-                          query: {
-                            name: supplier.name,
-                            location: supplier.location || "",
-                            verified: supplier.is_verified ? "1" : "0",
-                            products: String(supplier.product_count || 0),
-                          },
-                        }}
-                        className="block group"
-                      >
-                        <div className="flex gap-2">
-                          <SupplierAvatar
-                            name={supplier.name}
-                            imageUrl={supplier.logo_url}
-                            size="lg"
-                            className="rounded-xl group-hover:scale-110 transition-transform duration-300"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1 mb-0.5">
-                              <h4 className="font-semibold text-xs text-[var(--secondary-black)] truncate group-hover:text-[var(--primary-accent2)] transition-colors">
-                                {supplier.name}
-                              </h4>
-                              {supplier.is_verified && (
-                                <CheckBadgeIcon className="h-3 w-3 text-[var(--primary-accent2)] flex-shrink-0" />
-                              )}
-                            </div>
-                            <div className="flex items-center gap-0.5 text-[10px] text-[var(--secondary-muted-edge)] mb-1">
-                              <MapPinIcon className="h-2.5 w-2.5" />
-                              <span className="truncate">
-                                {supplier.location || "Caribbean"}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between text-[10px]">
-                              <div className="flex items-center gap-0.5">
-                                <StarIcon className="h-2.5 w-2.5 fill-yellow-400 text-yellow-400" />
-                                <span className="font-medium">
-                                  {typeof supplier.average_rating === "number"
-                                    ? supplier.average_rating.toFixed(1)
-                                    : "—"}
-                                </span>
-                                <span className="text-[var(--secondary-muted-edge)]">
-                                  ({supplier.review_count || 0})
-                                </span>
-                              </div>
-                              <span className="text-[var(--secondary-muted-edge)]">
-                                {supplier.product_count || 0} products
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-                <Link
-                  href="/buyer/suppliers"
-                  className="block w-full mt-3 py-2 text-xs font-medium text-[var(--primary-accent2)] hover:bg-[var(--primary-background)] rounded-lg transition-colors duration-200 text-center"
-                >
-                  View All Suppliers →
-                </Link>
-              </section>
-
-              {/* Quick Stats - Live Marketplace Data */}
-              <section className="bg-gradient-to-br from-[var(--primary-accent2)] to-[var(--primary-accent3)] rounded-2xl p-4 text-white">
-                <h3 className="text-sm font-semibold mb-3">
-                  Marketplace Stats
-                </h3>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs opacity-90">Active Harvests</span>
-                    <span className="text-base font-bold">
-                      {stats
-                        ? stats.total_products.toLocaleString()
-                        : status === "loading"
-                          ? "—"
-                          : "0"}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs opacity-90">
-                      Verified Suppliers
-                    </span>
-                    <span className="text-base font-bold">
-                      {stats
-                        ? stats.total_sellers.toLocaleString()
-                        : status === "loading"
-                          ? "—"
-                          : "0"}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs opacity-90">
-                      This Week&apos;s Orders
-                    </span>
-                    <span className="text-base font-bold">
-                      {stats
-                        ? stats.new_products_this_week.toLocaleString()
-                        : status === "loading"
-                          ? "—"
-                          : "0"}
-                    </span>
-                  </div>
-                </div>
-              </section>
-
-              {/* Help & Support */}
-              <section className="bg-[var(--secondary-highlight1)]/10 rounded-2xl p-4 border border-[var(--secondary-highlight1)]/30">
-                <h3 className="text-sm font-semibold text-[var(--secondary-black)] mb-2">
-                  Need Help?
-                </h3>
-                <p className="text-xs text-[var(--secondary-muted-edge)] mb-3">
-                  Our team is here to assist you with orders, suppliers, and
-                  more.
-                </p>
-                <button className="w-full py-2 bg-[var(--secondary-black)] text-white rounded-full text-xs font-medium hover:bg-[var(--secondary-muted-edge)] transition-colors duration-200">
-                  Contact Support
-                </button>
-              </section>
+          )}
+          {/* Certifications */}
+          {certs.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#8a9e92", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 8 }}>Certifications</div>
+              {certs.map((c) => (
+                <label key={c} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, cursor: "pointer" }}>
+                  <input type="checkbox" checked={selCerts.includes(c)} onChange={() => toggle(selCerts, setSelCerts, c)} style={{ accentColor: "#d4783c", width: 14, height: 14 }} />
+                  <span style={{ fontSize: 13 }}>{c}</span>
+                </label>
+              ))}
+            </div>
+          )}
+          {/* Price */}
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#8a9e92", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 8 }}>Price per unit</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input type="number" value={priceRange[0]} onChange={(e) => setPriceRange([+e.target.value, priceRange[1]])} placeholder="Min" style={{ width: 76, padding: "6px 8px", border: "1px solid #e8e4dc", borderRadius: 8, fontSize: 13, outline: "none" }} />
+              <span style={{ color: "#8a9e92" }}>–</span>
+              <input type="number" value={priceRange[1]} onChange={(e) => setPriceRange([priceRange[0], +e.target.value])} placeholder="Max" style={{ width: 76, padding: "6px 8px", border: "1px solid #e8e4dc", borderRadius: 8, fontSize: 13, outline: "none" }} />
             </div>
           </div>
         </div>
-      </main>
+        <div style={{ padding: "12px 18px 18px", borderTop: "1px solid #ebe7df" }}>
+          <button onClick={() => setShowFilters(false)} style={{ width: "100%", padding: 11, background: "#2d4a3e", color: "#f5f1ea", border: "none", borderRadius: 999, fontSize: 14, fontWeight: 700, cursor: "pointer" }}>Show results</button>
+        </div>
+      </div>
+
+      {/* ── Harvest drawer overlay ── */}
+      <div onClick={() => setShowHarvestDrawer(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.4)", zIndex: 400, opacity: showHarvestDrawer ? 1 : 0, pointerEvents: showHarvestDrawer ? "auto" : "none", transition: "opacity .25s" }} />
+
+      {/* ── Harvest timeline drawer (right side) ── */}
+      <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: 380, background: "#faf8f4", zIndex: 401, transform: showHarvestDrawer ? "translateX(0)" : "translateX(100%)", transition: "transform .35s cubic-bezier(.4,0,.2,1)", display: "flex", flexDirection: "column" }}>
+        {/* Drawer header */}
+        <div style={{ padding: "22px 24px 18px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexShrink: 0 }}>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: "#1c2b23", letterSpacing: "-.3px" }}>Farm Updates</div>
+            <div style={{ fontSize: 12, color: "#8a9e92", marginTop: 3 }}>Live reports from your suppliers</div>
+          </div>
+          <button onClick={() => setShowHarvestDrawer(false)} style={{ width: 32, height: 32, borderRadius: "50%", background: "#ebe7df", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="#1c2b23" strokeWidth="2" strokeLinecap="round" width={13} height={13}><path d="M18 6L6 18M6 6l12 12" /></svg>
+          </button>
+        </div>
+
+        {/* Update list */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "0 16px 16px" }}>
+          {harvestUpdates.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "64px 0", color: "#8a9e92" }}>
+              <div style={{ fontSize: 28, marginBottom: 10, opacity: 0.4 }}>🌾</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#3e5549" }}>No updates yet</div>
+              <div style={{ fontSize: 12, marginTop: 4 }}>Farmers haven&apos;t posted updates yet</div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              {harvestUpdates.map((u, idx) => {
+                const text = u.content?.trim() || "";
+                const timeLabel = u.time_ago || "Recently";
+                return (
+                  <div key={u.id} style={{ padding: "18px 0", borderBottom: idx < harvestUpdates.length - 1 ? "1px solid #ebe7df" : "none" }}>
+                    {/* Farm row */}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                        <div style={{ width: 28, height: 28, borderRadius: 8, background: avatarColor(u.farm_name || ""), display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: "#f5f1ea" }}>{(u.farm_name || "?").charAt(0).toUpperCase()}</span>
+                        </div>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: "#1c2b23" }}>{u.farm_name || "Unknown Farm"}</span>
+                      </div>
+                      <span style={{ fontSize: 10.5, color: "#b0b8b4" }}>{timeLabel}</span>
+                    </div>
+
+                    {/* Crop details */}
+                    {u.crop && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: text ? 7 : 10 }}>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: "#2d4a3e" }}>{u.crop}</span>
+                        {u.quantity != null && <span style={{ fontSize: 11.5, color: "#8a9e92" }}>· {u.quantity}{u.unit ? ` ${u.unit}` : ""}</span>}
+                        {u.expected_harvest_window && <span style={{ fontSize: 11, color: "#aab4b0" }}>· {u.expected_harvest_window}</span>}
+                      </div>
+                    )}
+
+                    {/* Notes */}
+                    {text && (
+                      <p style={{ fontSize: 12, color: "#6a7f73", lineHeight: 1.6, margin: "0 0 10px" }}>{text}</p>
+                    )}
+
+                    <Link href={`/suppliers/${u.seller_org_id}`} onClick={() => setShowHarvestDrawer(false)} style={{ fontSize: 11.5, fontWeight: 600, color: "#2d4a3e", textDecoration: "none" }}>
+                      View farm →
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Drawer footer */}
+        <div style={{ padding: "14px 16px 24px", flexShrink: 0 }}>
+          <Link href="/requests" onClick={() => setShowHarvestDrawer(false)} style={{ display: "block", textAlign: "center", padding: "12px", background: "#1c2b23", color: "#f5f1ea", borderRadius: 12, fontSize: 13, fontWeight: 700, textDecoration: "none", letterSpacing: "-.1px" }}>
+            View all harvest reports
+          </Link>
+        </div>
+      </div>
+
+      {/* ── Category sub-nav (NOT sticky — scrolls with page, no gap) ── */}
+      <div style={{ background: "#243530" }}>
+        <div style={{ maxWidth: 1300, margin: "0 auto", padding: "0 20px", height: 38, display: "flex", alignItems: "center", gap: 4, overflowX: "auto", scrollbarWidth: "none" }}>
+          {/* Filter toggle */}
+          <button onClick={() => setShowFilters(true)} style={{ display: "flex", alignItems: "center", gap: 5, paddingRight: 14, height: "100%", fontSize: 12, fontWeight: 700, color: "#f5f1ea", cursor: "pointer", flexShrink: 0, marginRight: 4, background: "none", border: "none", borderRight: "1px solid rgba(245,241,234,.12)" }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width={13} height={13}><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
+            Filters
+            {filterCount > 0 && <span style={{ background: "#d4783c", color: "#fff", fontSize: 9, fontWeight: 700, width: 14, height: 14, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{filterCount}</span>}
+          </button>
+          {/* Category chips */}
+          {CATEGORIES.map((cat) => (
+            <button key={cat} onClick={() => dispatch(setSelectedCategoryAction(selectedCategory === cat ? "All Categories" : cat))} style={{ padding: "2px 11px", fontSize: 11.5, fontWeight: selectedCategory === cat ? 700 : 500, color: selectedCategory === cat ? "#fff" : "rgba(245,241,234,.55)", background: "transparent", border: "none", borderBottom: selectedCategory === cat ? "2px solid #fff" : "2px solid transparent", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0, transition: "color .15s", paddingBottom: 4 }}>
+              {cat}
+            </button>
+          ))}
+          <button
+            onClick={() => setShowHarvestDrawer(true)}
+            style={{ display: "flex", alignItems: "center", gap: 5, marginLeft: "auto", flexShrink: 0, paddingLeft: 16, background: "none", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "rgba(245,241,234,.7)", whiteSpace: "nowrap", fontFamily: "inherit" }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width={12} height={12}><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" /><path d="M12 8v4l3 3" /></svg>
+            Farm Updates
+            {harvestUpdates.length > 0 && <span style={{ background: "rgba(212,120,60,.8)", color: "#fff", fontSize: 9, fontWeight: 700, minWidth: 14, height: 14, borderRadius: 999, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0 3px" }}>{harvestUpdates.length}</span>}
+          </button>
+        </div>
+      </div>
+
+      {/* ── Cart reminder ── */}
+      {cartCount > 0 && (
+        <div style={{ background: "#fff7f0", borderBottom: "1px solid #f0d5c0", padding: "9px 0" }}>
+          <div style={{ maxWidth: 1300, margin: "0 auto", padding: "0 20px", display: "flex", alignItems: "center", gap: 10 }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="#d4783c" strokeWidth="1.5" width={16} height={16}><circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" /><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6" /></svg>
+            <span style={{ fontSize: 13, color: "#1c2b23" }}>
+              <strong>{cartCount} item{cartCount !== 1 ? "s" : ""}</strong> in your cart
+              {cart?.subtotal ? ` ($${Number(cart.subtotal).toFixed(2)})` : ""}
+            </span>
+            <Link href="/cart" style={{ fontSize: 13, fontWeight: 700, color: "#d4783c", textDecoration: "none", marginLeft: 2 }}>Complete order →</Link>
+          </div>
+        </div>
+      )}
+
+      {/* ── Hero ── */}
+      <div
+        style={{
+          background: HERO_BG[heroSlide],
+          minHeight: 360,
+          position: "relative",
+          overflow: "hidden",
+          display: "flex",
+          alignItems: "stretch",
+        }}
+      >
+        {/* Subtle circle decoration */}
+        <div style={{ position: "absolute", top: -80, right: -100, width: 500, height: 500, borderRadius: "50%", background: "rgba(255,255,255,.025)", pointerEvents: "none" }} />
+
+        <div
+          style={{
+            maxWidth: 1300,
+            margin: "0 auto",
+            padding: "52px 20px",
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 32,
+          }}
+        >
+          {/* Left: text */}
+          <div style={{ flex: 1, maxWidth: 520 }}>
+            <h1
+              className="buyer-hero-h1"
+              key={heroSlide}
+              style={{ fontSize: 42, fontWeight: 800, color: "#f5f1ea", lineHeight: 1.12, letterSpacing: "-1px", margin: "0 0 16px" }}
+            >
+              {[
+                "Fresh Caribbean produce, direct from the farm",
+                "See what's growing before it's harvested",
+                "Build trusted supplier relationships",
+              ][heroSlide]}
+            </h1>
+            <p style={{ fontSize: 15, color: "rgba(245,241,234,.68)", lineHeight: 1.65, margin: "0 0 32px", maxWidth: 420 }}>
+              {[
+                "Shop verified farms, track your orders, and get produce that's never more than a day from harvest.",
+                "Harvest updates from real farmers: crops, quantities, timelines. Pre-order before it sells out.",
+                "Message suppliers directly, compare pricing, and lock in reliable sourcing for your business.",
+              ][heroSlide]}
+            </p>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <a href="#all-harvests" style={{ padding: "13px 28px", background: "#d4783c", color: "#fff", fontSize: 14, fontWeight: 700, borderRadius: 999, textDecoration: "none" }}>
+                Shop now
+              </a>
+              <button onClick={() => setShowHarvestDrawer(true)} style={{ padding: "13px 24px", background: "rgba(255,255,255,.1)", color: "#f5f1ea", fontSize: 13, fontWeight: 600, borderRadius: 999, border: "1px solid rgba(255,255,255,.15)", cursor: "pointer", fontFamily: "inherit" }}>
+                Farm updates
+              </button>
+            </div>
+          </div>
+
+          {/* Right: Featured Picks — 3-card CSS grid */}
+          <div className="hero-picks" style={{ flexShrink: 0, width: 320 }}>
+            {/* Header row */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".12em", color: "rgba(245,241,234,.45)", textTransform: "uppercase" }}>Featured picks</span>
+              <Link href="/suppliers" style={{ fontSize: 11.5, fontWeight: 600, color: "rgba(245,241,234,.6)", textDecoration: "none" }}>View all →</Link>
+            </div>
+
+            {products.length >= 3 ? (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "140px 140px", gap: 8, height: 288 }}>
+                {/* Left large card — spans 2 rows */}
+                <Link href={`/product/${products[0].id}`} style={{ gridRow: "1 / 3", position: "relative", borderRadius: 14, overflow: "hidden", textDecoration: "none", display: "block" }}>
+                  <ProductImg src={products[0].image_url} alt={products[0].name} sizes="160px" />
+                  <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 40%, rgba(0,0,0,.82) 100%)" }} />
+                  <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "12px 12px 14px" }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 700, color: "#fff", marginBottom: 4, lineHeight: 1.2 }}>{products[0].name}</div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: "#d4783c" }}>
+                      ${products[0].current_price?.toFixed(2)}<span style={{ fontSize: 10, fontWeight: 400, color: "rgba(255,255,255,.55)" }}>/{products[0].unit_of_measurement}</span>
+                    </div>
+                    {canOrder(products[0])
+                      ? <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); addToCart(products[0].id); }} style={{ marginTop: 8, width: "100%", padding: "7px 0", background: "#d4783c", color: "#fff", border: "none", borderRadius: 999, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>+ Add to cart</button>
+                      : <div style={{ marginTop: 8, width: "100%", padding: "7px 0", background: "rgba(255,255,255,.15)", color: "rgba(255,255,255,.5)", borderRadius: 999, fontSize: 11, fontWeight: 600, textAlign: "center", fontFamily: "inherit" }}>{orderStatus(products[0]).label}</div>}
+                  </div>
+                </Link>
+
+                {/* Top-right card */}
+                <Link href={`/product/${products[1].id}`} style={{ position: "relative", borderRadius: 12, overflow: "hidden", textDecoration: "none", background: "rgba(255,255,255,.09)", display: "flex", flexDirection: "column" }}>
+                  <div style={{ position: "relative", flex: 1 }}>
+                    <ProductImg src={products[1].image_url} alt={products[1].name} sizes="160px" />
+                  </div>
+                  <div style={{ padding: "8px 10px 10px", background: "rgba(0,0,0,.35)" }}>
+                    <div style={{ fontSize: 11.5, fontWeight: 700, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{products[1].name}</div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 3 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: "#d4783c" }}>${products[1].current_price?.toFixed(2)}</span>
+                      {canOrder(products[1])
+                        ? <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); addToCart(products[1].id); }} style={{ width: 22, height: 22, borderRadius: "50%", background: "#d4783c", color: "#fff", border: "none", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit", lineHeight: 1 }}>+</button>
+                        : <span style={{ fontSize: 9, color: "rgba(255,255,255,.45)", fontWeight: 600 }}>{orderStatus(products[1]).label}</span>}
+                    </div>
+                  </div>
+                </Link>
+
+                {/* Bottom-right card */}
+                <Link href={`/product/${products[2].id}`} style={{ position: "relative", borderRadius: 12, overflow: "hidden", textDecoration: "none", background: "rgba(255,255,255,.09)", display: "flex", flexDirection: "column" }}>
+                  <div style={{ position: "relative", flex: 1 }}>
+                    <ProductImg src={products[2].image_url} alt={products[2].name} sizes="160px" />
+                  </div>
+                  <div style={{ padding: "8px 10px 10px", background: "rgba(0,0,0,.35)" }}>
+                    <div style={{ fontSize: 11.5, fontWeight: 700, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{products[2].name}</div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 3 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: "#d4783c" }}>${products[2].current_price?.toFixed(2)}</span>
+                      {canOrder(products[2])
+                        ? <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); addToCart(products[2].id); }} style={{ width: 22, height: 22, borderRadius: "50%", background: "#d4783c", color: "#fff", border: "none", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit", lineHeight: 1 }}>+</button>
+                        : <span style={{ fontSize: 9, color: "rgba(255,255,255,.45)", fontWeight: 600 }}>{orderStatus(products[2]).label}</span>}
+                    </div>
+                  </div>
+                </Link>
+              </div>
+            ) : (
+              /* Skeleton while loading */
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "140px 140px", gap: 8, height: 288 }}>
+                <div className="skel" style={{ gridRow: "1/3", borderRadius: 14 }} />
+                <div className="skel" style={{ borderRadius: 12 }} />
+                <div className="skel" style={{ borderRadius: 12 }} />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Slide dots */}
+        <div style={{ position: "absolute", bottom: 18, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 6 }}>
+          {[0, 1, 2].map((i) => (
+            <button key={i} onClick={() => setHeroSlide(i)} style={{ width: i === heroSlide ? 20 : 6, height: 6, borderRadius: 3, background: i === heroSlide ? "#d4783c" : "rgba(245,241,234,.3)", border: "none", cursor: "pointer", transition: "width .3s, background .3s", padding: 0 }} />
+          ))}
+        </div>
+      </div>
+
+      {/* ── Best of the Season ── */}
+      <div style={{ paddingTop: 48 }}>
+        <div style={{ maxWidth: 1300, margin: "0 auto", padding: "0 20px" }}>
+          <SH title="Best of the season" linkText="Browse all" linkHref="/suppliers" />
+          {/* Scroll container with arrow buttons */}
+          <div style={{ position: "relative" }}>
+            {/* Left arrow */}
+            <button
+              onClick={() => productScrollRef.current?.scrollBy({ left: -340, behavior: "smooth" })}
+              aria-label="Scroll left"
+              style={{ position: "absolute", left: -14, top: "50%", transform: "translateY(-50%)", zIndex: 10, width: 34, height: 34, borderRadius: "50%", background: "#fff", border: "1px solid #e8e4dc", boxShadow: "0 2px 8px rgba(0,0,0,.1)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="#1c2b23" strokeWidth="2.5" strokeLinecap="round" width={14} height={14}><path d="M15 18l-6-6 6-6" /></svg>
+            </button>
+
+            <div ref={productScrollRef} className="v6-prod-scroll" style={{ paddingBottom: 6 }}>
+              {status === "loading" && products.length === 0
+                ? [...Array(6)].map((_, i) => <div key={i} className="skel" style={{ flex: "0 0 176px", height: 240, borderRadius: 12, flexShrink: 0 }} />)
+                : products.slice(0, 12).map((p) => (
+                    <Link key={p.id} href={`/product/${p.id}`} style={{ flex: "0 0 176px", background: "#f5f1ea", borderRadius: 12, overflow: "hidden", textDecoration: "none", color: "inherit", flexShrink: 0, border: "1px solid #e8e4dc" }}>
+                      <div style={{ width: "100%", aspectRatio: "1/1", position: "relative" }}>
+                        <ProductImg src={p.image_url} alt={p.name} sizes="180px" />
+                        {p.sale_price && p.sale_price < p.base_price && (
+                          <div style={{ position: "absolute", top: 6, left: 6, background: "#d4783c", color: "#fff", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>
+                            {Math.round(((p.base_price - p.sale_price) / p.base_price) * 100)}% off
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ padding: "10px 12px 12px" }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+                        <div style={{ fontSize: 10.5, color: "#8a9e92", marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.seller?.name}</div>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: "#2d4a3e" }}>
+                            ${p.current_price?.toFixed(2)}<span style={{ fontSize: 10, fontWeight: 400, color: "#8a9e92" }}> /{p.unit_of_measurement}</span>
+                          </div>
+                          {(() => { const os = orderStatus(p); return os.can
+                            ? <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); addToCart(p.id); }} style={{ background: "#d4783c", color: "#fff", border: "none", borderRadius: 999, padding: "5px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Add</button>
+                            : <span style={{ fontSize: 10, color: "#8a9e92" }}>{os.label}</span>; })()}
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+            </div>
+
+            {/* Right arrow */}
+            <button
+              onClick={() => productScrollRef.current?.scrollBy({ left: 340, behavior: "smooth" })}
+              aria-label="Scroll right"
+              style={{ position: "absolute", right: -14, top: "50%", transform: "translateY(-50%)", zIndex: 10, width: 34, height: 34, borderRadius: "50%", background: "#fff", border: "1px solid #e8e4dc", boxShadow: "0 2px 8px rgba(0,0,0,.1)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="#1c2b23" strokeWidth="2.5" strokeLinecap="round" width={14} height={14}><path d="M9 18l6-6-6-6" /></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Meet the Farmers ── */}
+      <div style={{ paddingTop: 48 }}>
+        <div style={{ maxWidth: 1300, margin: "0 auto", padding: "0 20px" }}>
+          <SH title="Meet the farmers" linkText="All suppliers" linkHref="/suppliers" />
+          <div className="v6-seller-grid">
+            {status === "loading" && sellers.length === 0
+              ? [...Array(4)].map((_, i) => <div key={i} className="skel" style={{ borderRadius: 12, height: 200 }} />)
+              : sellers.slice(0, 4).map((seller) => (
+                  <Link key={seller.id} href={`/suppliers/${seller.id}`} style={{ background: "#f5f1ea", borderRadius: 12, overflow: "hidden", textDecoration: "none", color: "inherit", display: "block", border: "1px solid #e8e4dc" }}>
+                    <div style={{ height: 96, position: "relative", background: coverColor(seller.name), overflow: "hidden" }}>
+                      <SellerCoverImg src={seller.header_image_url} alt={seller.name} name={seller.name} />
+                    </div>
+                    <div style={{ padding: "0 14px 14px", marginTop: -22, position: "relative" }}>
+                      <div style={{ width: 44, height: 44, borderRadius: 10, background: avatarColor(seller.name), display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 8, border: "2px solid #f5f1ea", position: "relative", overflow: "hidden" }}>
+                        <SellerLogoImg src={seller.logo_url} alt={seller.name} name={seller.name} size={44} />
+                      </div>
+                      <div style={{ fontSize: 14, fontWeight: 700, marginTop: 6, marginBottom: 2 }}>{seller.name}</div>
+                      <div style={{ fontSize: 11, color: "#8a9e92", marginBottom: 8 }}>{seller.location || "Grenada"}</div>
+                      {seller.completed_orders != null
+                        ? <div style={{ fontSize: 11, color: "#6a7f73" }}>{seller.completed_orders} orders completed</div>
+                        : <div style={{ fontSize: 11, color: "#6a7f73" }}>Verified supplier</div>}
+                      {seller.average_rating != null && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 6 }}>
+                          <svg viewBox="0 0 24 24" fill="#d4783c" width={11} height={11}><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" /></svg>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: "#3e5549" }}>{seller.average_rating.toFixed(1)}</span>
+                          {seller.review_count != null && <span style={{ fontSize: 11, color: "#8a9e92" }}>({seller.review_count})</span>}
+                        </div>
+                      )}
+                    </div>
+                  </Link>
+                ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── All Harvests ── */}
+      <div id="all-harvests" style={{ paddingTop: 52, paddingBottom: 64 }}>
+        <div style={{ maxWidth: 1300, margin: "0 auto", padding: "0 20px" }}>
+          {/* Header row */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, gap: 12, flexWrap: "wrap" }}>
+            <div>
+              <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-.35px", margin: 0 }}>
+                {selectedCategory && selectedCategory !== "All Categories" ? selectedCategory : "All Harvests"}
+              </h2>
+              {pagination.totalItems > 0 && <p style={{ fontSize: 12, color: "#8a9e92", margin: "2px 0 0" }}>{Math.min(displayed.length, pagination.totalItems)} of {pagination.totalItems} products</p>}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {/* Inline search */}
+              <div style={{ display: "flex", alignItems: "center", background: "#f5f1ea", border: "1px solid #e8e4dc", borderRadius: 999, height: 34, paddingLeft: 10 }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#8a9e92" strokeWidth="2" strokeLinecap="round" width={13} height={13}><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
+                <input type="text" placeholder="Search…" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ background: "transparent", border: "none", outline: "none", fontSize: 13, padding: "0 10px", width: 130, fontFamily: "inherit" }} />
+              </div>
+              {selectedCategory && selectedCategory !== "All Categories" && (
+                <button onClick={() => dispatch(setSelectedCategoryAction("All Categories"))} style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 10px", background: "#f5f1ea", border: "1px solid #e8e4dc", borderRadius: 999, fontSize: 12, fontWeight: 600, color: "#3e5549", cursor: "pointer" }}>{selectedCategory} ×</button>
+              )}
+              <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} style={{ padding: "5px 10px", background: "#f5f1ea", border: "1px solid #e8e4dc", borderRadius: 999, fontSize: 12, fontWeight: 600, color: "#1c2b23", cursor: "pointer", outline: "none" }}>
+                <option value="newest">Newest</option>
+                <option value="price_asc">Price ↑</option>
+                <option value="price_desc">Price ↓</option>
+                <option value="popular">Popular</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Active filter chips */}
+          {filterCount > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
+              {[...selAvail.map((f) => ({ f, arr: selAvail, set: setSelAvail })), ...selCountries.map((f) => ({ f, arr: selCountries, set: setSelCountries })), ...selCerts.map((f) => ({ f, arr: selCerts, set: setSelCerts }))].map(({ f, arr, set }) => (
+                <span key={f} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", background: "rgba(212,120,60,.1)", color: "#d4783c", borderRadius: 999, fontSize: 11, fontWeight: 600 }}>
+                  {f}<button onClick={() => toggle(arr, set, f)} style={{ background: "none", border: "none", cursor: "pointer", color: "#d4783c", padding: 0, fontSize: 13 }}>×</button>
+                </span>
+              ))}
+              <button onClick={clearFilters} style={{ fontSize: 11, fontWeight: 600, color: "#8a9e92", background: "none", border: "none", cursor: "pointer" }}>Clear all</button>
+            </div>
+          )}
+
+          {/* Grid */}
+          <div ref={productsRef}>
+            {status === "loading" && products.length === 0 ? (
+              <div className="v6-pgrid">{[...Array(8)].map((_, i) => <div key={i} className="skel" style={{ borderRadius: 12, height: 260 }} />)}</div>
+            ) : displayed.length === 0 ? (
+              <div style={{ padding: "56px 0", textAlign: "center" }}>
+                <div style={{ fontSize: 36, marginBottom: 10 }}>🔍</div>
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>No products found</div>
+                <div style={{ fontSize: 13, color: "#8a9e92", marginBottom: 20 }}>Try adjusting your filters or search</div>
+                <button onClick={clearFilters} style={{ padding: "10px 24px", background: "#2d4a3e", color: "#f5f1ea", border: "none", borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Clear filters</button>
+              </div>
+            ) : (
+              <div className="v6-pgrid">
+                {displayed.map((p) => {
+                  const rating = typeof p.average_rating === "number" ? p.average_rating : typeof p.seller?.average_rating === "number" ? p.seller.average_rating : null;
+                  const min = getMin(p.current_price);
+                  const qty = qtys[String(p.id)] ?? min;
+                  return (
+                    <Link key={p.id} href={`/product/${p.id}`} style={{ background: "#f5f1ea", borderRadius: 12, overflow: "hidden", textDecoration: "none", color: "inherit", display: "block", border: "1px solid #e8e4dc" }}>
+                      <div style={{ position: "relative", height: 140 }}>
+                        <ProductImg src={p.image_url} alt={p.name} sizes="220px" />
+                        {p.sale_price && p.sale_price < p.base_price && (
+                          <div style={{ position: "absolute", top: 6, left: 6, background: "#d4783c", color: "#fff", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>{Math.round(((p.base_price - p.sale_price) / p.base_price) * 100)}% off</div>
+                        )}
+                        {rating !== null && (
+                          <div style={{ position: "absolute", bottom: 6, right: 6, background: "rgba(255,255,255,.9)", borderRadius: 999, padding: "2px 7px", display: "flex", alignItems: "center", gap: 3 }}>
+                            <svg viewBox="0 0 24 24" fill="#d4783c" width={10} height={10}><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" /></svg>
+                            <span style={{ fontSize: 10, fontWeight: 700 }}>{(rating as number).toFixed(1)}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ padding: "10px 12px 12px" }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+                        <div style={{ fontSize: 10.5, color: "#8a9e92", marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 3 }}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width={9} height={9}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg>
+                          {p.seller.location || "Caribbean"}
+                        </div>
+                        {(p.tags || []).slice(0, 2).length > 0 && (
+                          <div style={{ display: "flex", gap: 4, marginBottom: 8, flexWrap: "wrap" }}>
+                            {(p.tags || []).slice(0, 2).map((t) => <span key={t} style={{ padding: "1px 7px", background: "#ebe7df", borderRadius: 4, fontSize: 10, fontWeight: 600, color: "#3e5549" }}>{t}</span>)}
+                          </div>
+                        )}
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 8, borderTop: "1px solid #e8e4dc" }}>
+                          <div>
+                            <div style={{ fontSize: 16, fontWeight: 700, color: "#2d4a3e", lineHeight: 1 }}>${p.current_price?.toFixed(2)}<span style={{ fontSize: 10, fontWeight: 400, color: "#8a9e92" }}> /{p.unit_of_measurement}</span></div>
+                            <div style={{ fontSize: 10, color: "#8a9e92", marginTop: 2 }}>{(() => { const os = orderStatus(p); return os.can ? `${p.stock_quantity - cartQtyFor(String(p.id))} ${p.unit_of_measurement} avail.` : os.label; })()}</div>
+                          </div>
+                          {!canOrder(p) ? (
+                            <span style={{ fontSize: 10, color: "#8a9e92", fontWeight: 600, padding: "5px 10px", background: "#ebe7df", borderRadius: 999 }}>{orderStatus(p).label}</span>
+                          ) : (
+                            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 3, border: "1px solid #e8e4dc", borderRadius: 999, padding: "3px 5px" }}>
+                                <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setQtys((prev) => ({ ...prev, [String(p.id)]: Math.max(min, qty - 1) })); }} style={{ width: 18, height: 18, borderRadius: "50%", background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                                <span style={{ fontSize: 11, fontWeight: 600, minWidth: 20, textAlign: "center" }}>{qty}</span>
+                                <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setQtys((prev) => ({ ...prev, [String(p.id)]: Math.min(p.stock_quantity || 5000, qty + 1) })); }} style={{ width: 18, height: 18, borderRadius: "50%", background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                              </div>
+                              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); addToCart(p.id); }} style={{ padding: "5px 11px", background: "#d4783c", color: "#fff", border: "none", borderRadius: 999, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Add</button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Infinite scroll sentinel */}
+            {displayed.length > 0 && (
+              <div style={{ marginTop: 24, textAlign: "center" }}>
+                {canLoadMore ? (
+                  <div ref={sentinelRef} style={{ padding: "16px 0" }}>
+                    {status === "loading" ? (
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 13, color: "#8a9e92" }}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width={16} height={16} style={{ animation: "spin 1s linear infinite" }}>
+                          <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeOpacity=".25" /><path d="M21 12a9 9 0 00-9-9" />
+                        </svg>
+                        Loading more…
+                      </div>
+                    ) : <span style={{ fontSize: 12, color: "#8a9e92" }}>Scroll for more</span>}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, color: "#8a9e92", padding: "12px 0" }}>All {pagination.totalItems} products shown</div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
     </div>
   );
 }

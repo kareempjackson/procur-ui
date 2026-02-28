@@ -477,6 +477,22 @@ html {
   gap: 10px;
 }
 
+/* Harvest feed grid — featured card spans 2 cols, collapses to 1 on narrow */
+.v6-harvest-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+}
+@media (max-width: 680px) {
+  .v6-harvest-grid > *:first-child { grid-column: span 1 !important; flex-direction: column !important; }
+  .v6-harvest-grid > *:first-child .harvest-feat-img { width: 100% !important; height: 160px !important; }
+}
+/* Hero floating images — hide on mobile */
+@media (max-width: 768px) {
+  .hero-product-row { display: none !important; }
+  .buyer-hero-h1 { font-size: 28px !important; letter-spacing: -.4px !important; }
+}
+
 .v6-t-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -555,6 +571,14 @@ html {
   display: flex; justify-content: space-between; align-items: center;
 }
 .v6-ft-links { display: flex; gap: 16px; flex-wrap: wrap; }
+
+/* ── Buyer nav mobile hamburger ── */
+@media (min-width: 769px) {
+  .btn-mobile-menu { display: none !important; }
+}
+@media (max-width: 768px) {
+  .btn-mobile-menu { display: flex !important; }
+}
 
 /* ── ≤ 768px tablet ── */
 @media (max-width: 768px) {

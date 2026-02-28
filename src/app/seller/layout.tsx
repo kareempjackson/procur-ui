@@ -1,6 +1,6 @@
 import AuthGuard from "@/components/AuthGuard";
 import SellerTopNavigation from "@/components/navigation/SellerTopNavigation";
-import Footer from "@/components/footer/Footer";
+import ProcurFooter from "@/components/footer/ProcurFooter";
 import { ToastProvider } from "@/components/ui/Toast";
 import type { Metadata } from "next";
 
@@ -18,10 +18,10 @@ export default function SellerLayout({
   return (
     <ToastProvider>
       <AuthGuard allowAccountTypes={["seller"]}>
-        <div className="bg-white min-h-screen flex flex-col">
+        <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#faf8f4" }}>
           <SellerTopNavigation />
-          <main className="flex-1">{children}</main>
-          <Footer />
+          <main style={{ flex: 1 }}>{children}</main>
+          <ProcurFooter />
         </div>
       </AuthGuard>
     </ToastProvider>

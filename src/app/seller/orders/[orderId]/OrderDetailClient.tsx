@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ArrowDownTrayIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
 import { useAppDispatch, useAppSelector } from "@/store";
 import {
   fetchOrderDetail,
@@ -21,9 +20,7 @@ interface OrderDetailClientProps {
   orderId: string;
 }
 
-function classNames(...classes: (string | false | null | undefined)[]) {
-  return classes.filter(Boolean).join(" ");
-}
+// ── helpers ──────────────────────────────────────────────────────────────────
 
 function normalizeAddressToLines(address: any): string[] {
   if (!address) return [];
@@ -44,6 +41,42 @@ function normalizeAddressToLines(address: any): string[] {
     .filter(Boolean);
 }
 
+const STATUS_META: Record<string, { bg: string; color: string }> = {
+  pending:    { bg: "rgba(212,120,60,.12)", color: "#c26838" },
+  confirmed:  { bg: "rgba(45,74,62,.10)",  color: "#2d4a3e" },
+  accepted:   { bg: "rgba(45,74,62,.10)",  color: "#2d4a3e" },
+  preparing:  { bg: "rgba(212,120,60,.12)", color: "#c26838" },
+  ready:      { bg: "rgba(212,120,60,.12)", color: "#c26838" },
+  in_transit: { bg: "rgba(45,74,62,.10)",  color: "#2d4a3e" },
+  shipped:    { bg: "rgba(45,74,62,.10)",  color: "#2d4a3e" },
+  delivered:  { bg: "rgba(45,74,62,.12)",  color: "#1a4035" },
+  cancelled:  { bg: "rgba(0,0,0,.06)",     color: "#6a7f73" },
+  rejected:   { bg: "rgba(0,0,0,.06)",     color: "#6a7f73" },
+};
+
+const PAYMENT_META: Record<string, { bg: string; color: string }> = {
+  paid:    { bg: "rgba(45,74,62,.10)",  color: "#2d4a3e" },
+  pending: { bg: "rgba(212,120,60,.12)", color: "#c26838" },
+  failed:  { bg: "rgba(212,60,60,.10)", color: "#9b2020" },
+};
+
+function pill(meta: { bg: string; color: string } | undefined): React.CSSProperties {
+  return {
+    display: "inline-flex",
+    alignItems: "center",
+    padding: "3px 10px",
+    borderRadius: 999,
+    fontSize: 11.5,
+    fontWeight: 700,
+    letterSpacing: ".03em",
+    background: meta?.bg ?? "rgba(0,0,0,.06)",
+    color: meta?.color ?? "#6a7f73",
+    textTransform: "uppercase" as const,
+  };
+}
+
+// ── component ─────────────────────────────────────────────────────────────────
+
 export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
   const router = useRouter();
   const dispatch = useAppDispatch();
@@ -54,21 +87,12 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
 
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [downloadingReceipt, setDownloadingReceipt] = useState(false);
+  const [rejectForm, setRejectForm] = useState({ reason: "", seller_notes: "" });
 
-  // Reject form state
-  const [rejectForm, setRejectForm] = useState({
-    reason: "",
-    seller_notes: "",
-  });
-
-  // Fetch order details and timeline on mount
   useEffect(() => {
     dispatch(fetchOrderDetail(orderId));
     dispatch(fetchOrderTimeline(orderId));
-
-    return () => {
-      dispatch(clearCurrentOrder());
-    };
+    return () => { dispatch(clearCurrentOrder()); };
   }, [dispatch, orderId]);
 
   const handleAcceptOrder = async () => {
@@ -79,77 +103,31 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
   };
 
   const handleRejectOrder = async () => {
-    const result = await dispatch(
-      rejectOrder({ orderId, rejectData: rejectForm })
-    );
+    const result = await dispatch(rejectOrder({ orderId, rejectData: rejectForm }));
     if (rejectOrder.fulfilled.match(result)) {
       setShowRejectModal(false);
-      // Refresh timeline
       dispatch(fetchOrderTimeline(orderId));
     }
   };
 
-  const formatCurrency = (amount: number, currency = "USD") => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency,
-    }).format(amount);
-  };
+  const fmt = (amount: number, currency = "USD") =>
+    new Intl.NumberFormat("en-US", { style: "currency", currency }).format(amount);
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return "Not set";
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  };
+  const fmtDate = (d?: string) =>
+    d
+      ? new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
+      : "Not set";
 
-  const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleString("en-US", {
+  const fmtDateTime = (d: string) =>
+    new Date(d).toLocaleString("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
     });
-  };
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "pending":
-        return "bg-[#E0A374]/20 text-[#CB5927]";
-      case "confirmed":
-      case "accepted":
-        return "bg-[#A6B1E7]/20 text-[#8091D5]";
-      case "preparing":
-      case "ready":
-        return "bg-[#E0A374]/20 text-[#CB5927]";
-      case "in_transit":
-      case "shipped":
-        return "bg-[#A6B1E7]/20 text-[#8091D5]";
-      case "delivered":
-        return "bg-[#C0D1C7]/20 text-[#407178]";
-      case "cancelled":
-      case "rejected":
-        return "bg-[#6C715D]/20 text-[#6C715D]";
-      default:
-        return "bg-[#6C715D]/20 text-[#6C715D]";
-    }
-  };
-
-  const getPaymentStatusColor = (status?: string) => {
-    switch (status?.toLowerCase()) {
-      case "paid":
-        return "bg-[#C0D1C7]/20 text-[#407178]";
-      case "pending":
-        return "bg-[#E0A374]/20 text-[#CB5927]";
-      case "failed":
-        return "bg-[#CB5927]/20 text-[#653011]";
-      default:
-        return "bg-[#6C715D]/20 text-[#6C715D]";
-    }
-  };
+  // ── loading / error states ───────────────────────────────────────────────
 
   if (currentOrderStatus === "loading" && !currentOrder) {
     return <ProcurLoader size="lg" text="Loading order details..." />;
@@ -157,18 +135,16 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
 
   if (currentOrderStatus === "failed" && !currentOrder) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-6xl mb-4">😞</div>
-          <h2 className="text-2xl font-semibold text-[var(--secondary-black)] mb-2">
-            Order Not Found
-          </h2>
-          <p className="text-[var(--secondary-muted-edge)] mb-6">
+      <div style={{ minHeight: "100vh", background: "#faf8f4", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 56, marginBottom: 16 }}>😞</div>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: "#1c2b23", marginBottom: 8 }}>Order Not Found</h2>
+          <p style={{ fontSize: 14, color: "#8a9e92", marginBottom: 24 }}>
             {error || "The order you're looking for doesn't exist."}
           </p>
           <Link
             href="/seller/orders"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-[var(--primary-accent2)] text-white rounded-full font-medium hover:bg-[var(--primary-accent3)] transition-all duration-200"
+            style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 22px", background: "#d4783c", color: "#fff", borderRadius: 999, fontSize: 14, fontWeight: 600, textDecoration: "none" }}
           >
             Back to Orders
           </Link>
@@ -179,19 +155,20 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
 
   if (!currentOrder) return null;
 
-  const canAccept = currentOrder.status === "pending";
-  // Order status updates are now handled internally by the admin team
+  // ── derived values ───────────────────────────────────────────────────────
 
+  const canAccept = currentOrder.status === "pending";
   const paymentStatus = (currentOrder.payment_status || "").toLowerCase();
   const orderStatus = (currentOrder.status || "").toLowerCase();
-  const showPaymentStatusPill =
-    Boolean(paymentStatus) && paymentStatus !== orderStatus;
+  const showPaymentPill = Boolean(paymentStatus) && paymentStatus !== orderStatus;
   const canDownloadReceipt = ["paid", "settled"].includes(paymentStatus);
   const receiptBuyerName =
     currentOrder.buyer_info?.organization_name ||
     currentOrder.buyer_info?.business_name ||
     currentOrder.buyer_org_id ||
     "Buyer";
+
+  // ── PDF download ─────────────────────────────────────────────────────────
 
   const handleDownloadReceipt = async () => {
     if (!currentOrder) return;
@@ -207,25 +184,15 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
         (currentOrder as any)?.invoice_number || currentOrder.order_number || orderId
       }.pdf`;
 
-      const parseFilenameFromContentDisposition = (headerValue?: string) => {
-        if (!headerValue) return null;
-        // Supports:
-        // - filename="file.pdf"
-        // - filename=file.pdf
-        // - filename*=UTF-8''file%20name.pdf
-        const utf8Match = headerValue.match(/filename\*\s*=\s*UTF-8''([^;]+)/i);
-        if (utf8Match?.[1]) {
-          try {
-            return decodeURIComponent(utf8Match[1].replace(/(^"|"$)/g, ""));
-          } catch {
-            return utf8Match[1].replace(/(^"|"$)/g, "");
-          }
+      const parseFilename = (header?: string) => {
+        if (!header) return null;
+        const utf8 = header.match(/filename\*\s*=\s*UTF-8''([^;]+)/i);
+        if (utf8?.[1]) {
+          try { return decodeURIComponent(utf8[1].replace(/(^"|"$)/g, "")); }
+          catch { return utf8[1].replace(/(^"|"$)/g, ""); }
         }
-
-        const asciiMatch = headerValue.match(/filename\s*=\s*("?)([^";]+)\1/i);
-        if (asciiMatch?.[2]) return asciiMatch[2];
-
-        return null;
+        const ascii = header.match(/filename\s*=\s*("?)([^";]+)\1/i);
+        return ascii?.[2] ?? null;
       };
 
       const downloadBlob = (blob: Blob, filename: string) => {
@@ -237,8 +204,6 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
           a.rel = "noopener";
           a.style.display = "none";
           document.body.appendChild(a);
-
-          // iOS Safari can be unreliable with `download` for blob URLs; open in a new tab as a fallback.
           if (typeof (a as any).download === "undefined") {
             window.open(url, "_blank", "noopener,noreferrer");
           } else {
@@ -246,7 +211,6 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
           }
           a.remove();
         } finally {
-          // Delay revoke slightly to avoid Safari cancelling the download.
           setTimeout(() => window.URL.revokeObjectURL(url), 1000);
         }
       };
@@ -257,27 +221,17 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
         headers: { Accept: "application/pdf" },
       });
 
-      const contentType =
-        (res.headers?.["content-type"] as string | undefined) || "";
+      const contentType = (res.headers?.["content-type"] as string | undefined) || "";
       const blob = res.data as Blob;
 
-      // If backend returns JSON error, don't silently download it as a .pdf.
       if (!contentType.toLowerCase().includes("application/pdf")) {
         let message = "Receipt download failed.";
-        try {
-          const text = await blob.text();
-          message = text || message;
-        } catch {
-          // ignore
-        }
+        try { message = (await blob.text()) || message; } catch { /* ignore */ }
         throw new Error(message);
       }
 
-      const contentDisposition = res.headers?.[
-        "content-disposition"
-      ] as string | undefined;
       const filename =
-        parseFilenameFromContentDisposition(contentDisposition) ||
+        parseFilename(res.headers?.["content-disposition"] as string | undefined) ||
         fallbackFilename;
 
       downloadBlob(blob, filename);
@@ -289,35 +243,84 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
     }
   };
 
+  // ── shared styles ────────────────────────────────────────────────────────
+
+  const card: React.CSSProperties = {
+    background: "#fff",
+    border: "1px solid #ebe7df",
+    borderRadius: 10,
+    padding: 24,
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "9px 12px",
+    border: "1px solid #ebe7df",
+    borderRadius: 8,
+    fontSize: 13,
+    fontFamily: "'Urbanist', system-ui, sans-serif",
+    color: "#1c2b23",
+    background: "#fff",
+    outline: "none",
+    boxSizing: "border-box" as const,
+  };
+
+  const labelStyle: React.CSSProperties = {
+    display: "block",
+    fontSize: 12,
+    fontWeight: 600,
+    color: "#8a9e92",
+    marginBottom: 6,
+    textTransform: "uppercase" as const,
+    letterSpacing: ".04em",
+  };
+
+  // ── render ───────────────────────────────────────────────────────────────
+
   return (
-    <div className="min-h-screen bg-white">
-      <main className="max-w-7xl mx-auto px-6 py-10">
-        {/* Top Bar (match buyer styling) */}
-        <div className="flex items-center justify-between mb-8">
+    <div style={{ minHeight: "100vh", background: "#faf8f4", fontFamily: "'Urbanist', system-ui, sans-serif" }}>
+      <main style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 20px 60px" }}>
+
+        {/* Top bar */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
           <Link
             href="/seller/orders"
-            className="flex items-center gap-2 text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)]"
+            style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13.5, fontWeight: 600, color: "#d4783c", textDecoration: "none" }}
           >
-            <ArrowLeftIcon className="h-4 w-4" />
-            <span className="font-medium">Back to Orders</span>
+            {/* arrow-left */}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width={15} height={15}>
+              <path d="M19 12H5M12 5l-7 7 7 7" />
+            </svg>
+            Back to Orders
           </Link>
 
-          <div className="flex items-center gap-3">
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <button
               type="button"
               onClick={handleDownloadReceipt}
               disabled={!canDownloadReceipt || downloadingReceipt}
-              className="flex items-center gap-2 px-5 py-2 border border-[var(--secondary-soft-highlight)]/30 text-[var(--secondary-black)] rounded-full hover:bg-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              title={
-                canDownloadReceipt
-                  ? "Download Receipt"
-                  : "Receipt available once payment is complete"
-              }
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "8px 16px",
+                border: "1px solid #ebe7df",
+                borderRadius: 999,
+                background: "#fff",
+                fontSize: 13,
+                fontWeight: 600,
+                color: canDownloadReceipt ? "#1c2b23" : "#b0c0b6",
+                cursor: canDownloadReceipt && !downloadingReceipt ? "pointer" : "not-allowed",
+                opacity: downloadingReceipt ? 0.7 : 1,
+                fontFamily: "inherit",
+              }}
+              title={canDownloadReceipt ? "Download Receipt" : "Receipt available once payment is complete"}
             >
-              <ArrowDownTrayIcon className="h-4 w-4" />
-              <span className="text-sm font-medium">
-                {downloadingReceipt ? "Preparing Receipt..." : "Download Receipt"}
-              </span>
+              {/* download icon */}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width={14} height={14}>
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+              </svg>
+              {downloadingReceipt ? "Preparing..." : "Download Receipt"}
             </button>
 
             {canAccept && (
@@ -325,17 +328,36 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
                 <button
                   type="button"
                   onClick={handleAcceptOrder}
-                  className="px-5 py-2 bg-[var(--primary-base)] text-white rounded-full text-sm font-medium hover:opacity-90 transition-all duration-200"
                   disabled={currentOrderStatus === "loading"}
+                  style={{
+                    padding: "8px 18px",
+                    background: "#2d4a3e",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 999,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: currentOrderStatus === "loading" ? "not-allowed" : "pointer",
+                    opacity: currentOrderStatus === "loading" ? 0.7 : 1,
+                    fontFamily: "inherit",
+                  }}
                 >
-                  {currentOrderStatus === "loading"
-                    ? "Accepting..."
-                    : "Accept Order"}
+                  {currentOrderStatus === "loading" ? "Accepting…" : "Accept Order"}
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowRejectModal(true)}
-                  className="px-5 py-2 bg-white border border-[var(--secondary-soft-highlight)]/30 text-[var(--secondary-black)] rounded-full text-sm font-medium hover:bg-white transition-all duration-200"
+                  style={{
+                    padding: "8px 18px",
+                    background: "#fff",
+                    color: "#1c2b23",
+                    border: "1px solid #ebe7df",
+                    borderRadius: 999,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                  }}
                 >
                   Reject Order
                 </button>
@@ -344,322 +366,234 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
           </div>
         </div>
 
-        {/* Error Display */}
+        {/* Error banner */}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
-            <p className="text-red-800 text-sm">{error}</p>
+          <div style={{ marginBottom: 20, padding: "12px 16px", background: "rgba(212,60,60,.08)", border: "1px solid rgba(212,60,60,.2)", borderRadius: 8, fontSize: 13, color: "#9b2020" }}>
+            {error}
           </div>
         )}
 
-        {/* Main Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Order Details */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Order Header (match buyer styling) */}
-            <div className="bg-white rounded-3xl border border-[var(--secondary-soft-highlight)]/20 p-6">
-              <div className="flex items-start justify-between mb-4">
+        {/* 2-col grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 24, alignItems: "start" }}>
+
+          {/* ── LEFT column ── */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+            {/* Order header */}
+            <div style={card}>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                 <div>
-                  <h1 className="text-2xl font-bold text-[var(--secondary-black)] mb-2">
+                  <h1 style={{ fontSize: 20, fontWeight: 800, color: "#1c2b23", margin: 0, marginBottom: 6 }}>
                     Order {currentOrder.order_number}
                   </h1>
-                  <div className="flex items-center gap-3 text-sm text-[var(--secondary-muted-edge)]">
-                    <div>
-                      Placed on{" "}
-                      {new Date(currentOrder.created_at).toLocaleDateString(
-                        "en-US",
-                        {
-                          month: "long",
-                          day: "numeric",
-                          year: "numeric",
-                        }
-                      )}
-                    </div>
-                    <div className="text-[var(--secondary-muted-edge)]">•</div>
-                    <div className="truncate">
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: "#8a9e92" }}>
+                    <span>Placed {new Date(currentOrder.created_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</span>
+                    <span>·</span>
+                    <span>
                       Buyer:{" "}
-                      <span className="text-[var(--secondary-black)] font-medium">
-                        {receiptBuyerName}
-                      </span>
-                    </div>
+                      <span style={{ color: "#1c2b23", fontWeight: 600 }}>{receiptBuyerName}</span>
+                    </span>
                   </div>
                 </div>
-                <div className="flex flex-col items-end gap-2">
-                  <span
-                    className={classNames(
-                      "inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold",
-                      getStatusColor(currentOrder.status)
-                    )}
-                  >
-                    {currentOrder.status.replace(/_/g, " ").toUpperCase()}
+
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                  <span style={pill(STATUS_META[orderStatus])}>
+                    {currentOrder.status.replace(/_/g, " ")}
                   </span>
-                  {showPaymentStatusPill && (
-                    <span
-                      className={classNames(
-                        "inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold",
-                        getPaymentStatusColor(currentOrder.payment_status)
-                      )}
-                    >
-                      {currentOrder.payment_status?.toUpperCase() || "UNKNOWN"}
+                  {showPaymentPill && (
+                    <span style={pill(PAYMENT_META[paymentStatus])}>
+                      {currentOrder.payment_status}
                     </span>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Order Items */}
-            <div className="bg-white rounded-3xl border border-[var(--secondary-soft-highlight)]/20 overflow-hidden">
-              <div className="p-6 border-b border-[var(--secondary-soft-highlight)]/20">
-                <h2 className="text-lg font-semibold text-[var(--secondary-black)]">
-                  Order Items
-                </h2>
-              </div>
-              <div className="divide-y divide-[var(--secondary-soft-highlight)]/20">
-                {currentOrder.items?.map((item) => {
-                  const imageUrl =
-                    (item as any)?.product_image ||
-                    (item as any)?.product_snapshot?.product_images?.find(
-                      (img: any) => img.is_primary
-                    )?.image_url ||
-                    (item as any)?.product_snapshot?.image_url ||
-                    null;
-
-                  return (
-                    <div key={item.id} className="p-6 flex items-center gap-4">
-                      <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
-                        {imageUrl && (
-                          <Image
-                            src={imageUrl}
-                            alt={item.product_name}
-                            fill
-                            className="object-cover"
-                          />
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="font-medium text-[var(--secondary-black)] mb-1">
-                          {item.product_name}
-                        </h3>
-                        {item.product_sku && (
-                          <p className="text-sm text-[var(--secondary-muted-edge)]">
-                            SKU: {item.product_sku}
-                          </p>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm text-[var(--secondary-muted-edge)] mb-1">
-                          Qty: {item.quantity}
-                        </p>
-                        <p className="font-semibold text-[var(--secondary-black)]">
-                          {formatCurrency(
-                            item.unit_price,
-                            currentOrder.currency
-                          )}{" "}
-                          each
-                        </p>
-                      </div>
-                      <div className="text-right min-w-[100px]">
-                        <p className="text-lg font-bold text-[var(--secondary-black)]">
-                          {formatCurrency(
-                            item.total_price,
-                            currentOrder.currency
-                          )}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
+            {/* Order items */}
+            <div style={{ ...card, padding: 0, overflow: "hidden" }}>
+              <div style={{ padding: "16px 24px", borderBottom: "1px solid #ebe7df" }}>
+                <h2 style={{ fontSize: 15, fontWeight: 700, color: "#1c2b23", margin: 0 }}>Order Items</h2>
               </div>
 
-              {/* Order Summary */}
-              <div className="p-6 bg-[var(--primary-background)] border-t border-[var(--secondary-soft-highlight)]/20">
-                <div className="space-y-2 max-w-md ml-auto">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-[var(--secondary-muted-edge)]">
-                      Subtotal
-                    </span>
-                    <span className="font-medium text-[var(--secondary-black)]">
-                      {formatCurrency(
-                        currentOrder.subtotal,
-                        currentOrder.currency
+              {currentOrder.items?.map((item, i) => {
+                const imageUrl =
+                  (item as any)?.product_image ||
+                  (item as any)?.product_snapshot?.product_images?.find(
+                    (img: any) => img.is_primary
+                  )?.image_url ||
+                  (item as any)?.product_snapshot?.image_url ||
+                  null;
+
+                return (
+                  <div
+                    key={item.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 16,
+                      padding: "16px 24px",
+                      borderBottom: i < (currentOrder.items?.length ?? 1) - 1 ? "1px solid #f5f2ec" : "none",
+                    }}
+                  >
+                    <div style={{ width: 60, height: 60, borderRadius: 8, overflow: "hidden", background: "#f5f2ec", flexShrink: 0, position: "relative" }}>
+                      {imageUrl && (
+                        <Image src={imageUrl} alt={item.product_name} fill style={{ objectFit: "cover" }} />
                       )}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-[var(--secondary-muted-edge)]">
-                      Tax
-                    </span>
-                    <span className="font-medium text-[var(--secondary-black)]">
-                      {formatCurrency(
-                        currentOrder.tax_amount,
-                        currentOrder.currency
-                      )}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-[var(--secondary-muted-edge)]">
-                      Shipping
-                    </span>
-                    <span className="font-medium text-[var(--secondary-black)]">
-                      {formatCurrency(
-                        currentOrder.shipping_amount,
-                        currentOrder.currency
-                      )}
-                    </span>
-                  </div>
-                  {currentOrder.discount_amount > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-[var(--secondary-muted-edge)]">
-                        Discount
-                      </span>
-                      <span className="font-medium text-green-600">
-                        -
-                        {formatCurrency(
-                          currentOrder.discount_amount,
-                          currentOrder.currency
-                        )}
-                      </span>
                     </div>
-                  )}
-                  <div className="flex justify-between text-lg font-bold pt-2 border-t border-[var(--secondary-soft-highlight)]">
-                    <span className="text-[var(--secondary-black)]">Total</span>
-                    <span className="text-[var(--primary-accent2)]">
-                      {formatCurrency(
-                        currentOrder.total_amount,
-                        currentOrder.currency
+
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: "#1c2b23", marginBottom: 3 }}>
+                        {item.product_name}
+                      </div>
+                      {item.product_sku && (
+                        <div style={{ fontSize: 12, color: "#8a9e92" }}>SKU: {item.product_sku}</div>
                       )}
-                    </span>
+                    </div>
+
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontSize: 12, color: "#8a9e92", marginBottom: 3 }}>Qty: {item.quantity}</div>
+                      <div style={{ fontSize: 13, color: "#1c2b23", fontWeight: 500 }}>
+                        {fmt(item.unit_price, currentOrder.currency)} ea
+                      </div>
+                    </div>
+
+                    <div style={{ textAlign: "right", minWidth: 90 }}>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: "#1c2b23" }}>
+                        {fmt(item.total_price, currentOrder.currency)}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Order totals */}
+              <div style={{ padding: "16px 24px", borderTop: "1px solid #ebe7df", background: "#faf8f4" }}>
+                <div style={{ maxWidth: 280, marginLeft: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
+                  {[
+                    { label: "Subtotal", value: fmt(currentOrder.subtotal, currentOrder.currency) },
+                    { label: "Tax",      value: fmt(currentOrder.tax_amount, currentOrder.currency) },
+                    { label: "Shipping", value: fmt(currentOrder.shipping_amount, currentOrder.currency) },
+                    ...(currentOrder.discount_amount > 0
+                      ? [{ label: "Discount", value: `-${fmt(currentOrder.discount_amount, currentOrder.currency)}`, red: true }]
+                      : []),
+                  ].map(({ label, value, red }: any) => (
+                    <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                      <span style={{ color: "#8a9e92" }}>{label}</span>
+                      <span style={{ fontWeight: 500, color: red ? "#16a34a" : "#1c2b23" }}>{value}</span>
+                    </div>
+                  ))}
+
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 16, fontWeight: 800, paddingTop: 10, borderTop: "1px solid #ebe7df" }}>
+                    <span style={{ color: "#1c2b23" }}>Total</span>
+                    <span style={{ color: "#d4783c" }}>{fmt(currentOrder.total_amount, currentOrder.currency)}</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Shipping Information */}
-            <div className="bg-white rounded-3xl border border-[var(--secondary-soft-highlight)]/20 p-6">
-              <h2 className="text-lg font-semibold text-[var(--secondary-black)] mb-4">
-                Shipping Information
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Full Shipping Address from Seller */}
+            {/* Shipping information */}
+            <div style={card}>
+              <h2 style={{ fontSize: 15, fontWeight: 700, color: "#1c2b23", margin: "0 0 18px" }}>Shipping Information</h2>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+                {/* Shipping address */}
                 <div>
-                  <h3 className="text-sm font-medium text-[var(--secondary-muted-edge)] mb-2">
-                    Shipping Address
-                  </h3>
+                  <div style={labelStyle}>Shipping Address</div>
                   {currentOrder.shipping_address ? (
-                    <div className="text-sm text-[var(--secondary-black)] space-y-1">
-                      {(currentOrder.shipping_address.contact_name ||
-                        currentOrder.shipping_address.name) && (
-                        <p className="font-medium">
-                          {currentOrder.shipping_address.contact_name ||
-                            currentOrder.shipping_address.name}
-                        </p>
+                    <div style={{ fontSize: 13, color: "#1c2b23", lineHeight: 1.6 }}>
+                      {(currentOrder.shipping_address.contact_name || currentOrder.shipping_address.name) && (
+                        <div style={{ fontWeight: 600 }}>
+                          {currentOrder.shipping_address.contact_name || currentOrder.shipping_address.name}
+                        </div>
                       )}
                       {currentOrder.shipping_address.company && (
-                        <p className="text-[var(--secondary-muted-edge)]">
-                          {currentOrder.shipping_address.company}
-                        </p>
+                        <div style={{ color: "#8a9e92" }}>{currentOrder.shipping_address.company}</div>
                       )}
                       {(currentOrder.shipping_address.street ||
                         currentOrder.shipping_address.street_address ||
                         currentOrder.shipping_address.address_line1) && (
-                        <p>
+                        <div>
                           {currentOrder.shipping_address.street ||
                             currentOrder.shipping_address.street_address ||
                             currentOrder.shipping_address.address_line1}
-                        </p>
+                        </div>
                       )}
                       {(currentOrder.shipping_address.apartment ||
                         currentOrder.shipping_address.address_line2) && (
-                        <p>
+                        <div>
                           {currentOrder.shipping_address.apartment ||
                             currentOrder.shipping_address.address_line2}
-                        </p>
+                        </div>
                       )}
                       {(currentOrder.shipping_address.city ||
                         currentOrder.shipping_address.state ||
                         currentOrder.shipping_address.postal_code ||
                         currentOrder.shipping_address.zip) && (
-                        <p>
+                        <div>
                           {currentOrder.shipping_address.city}
                           {currentOrder.shipping_address.state &&
                             `, ${currentOrder.shipping_address.state}`}{" "}
                           {currentOrder.shipping_address.postal_code ??
                             currentOrder.shipping_address.zip}
-                        </p>
+                        </div>
                       )}
                       {currentOrder.shipping_address.country && (
-                        <p>{currentOrder.shipping_address.country}</p>
+                        <div>{currentOrder.shipping_address.country}</div>
                       )}
                       {(currentOrder.shipping_address.contact_phone ||
                         currentOrder.shipping_address.phone ||
                         currentOrder.shipping_address.email) && (
-                        <div className="pt-2 space-y-1 text-[var(--secondary-muted-edge)]">
+                        <div style={{ marginTop: 8, color: "#8a9e92" }}>
                           {(currentOrder.shipping_address.contact_phone ||
                             currentOrder.shipping_address.phone) && (
-                            <p>
+                            <div>
                               Phone:{" "}
                               {currentOrder.shipping_address.contact_phone ||
                                 currentOrder.shipping_address.phone}
-                            </p>
+                            </div>
                           )}
                           {currentOrder.shipping_address.email && (
-                            <p>Email: {currentOrder.shipping_address.email}</p>
+                            <div>Email: {currentOrder.shipping_address.email}</div>
                           )}
                         </div>
                       )}
                       {currentOrder.shipping_address.additional_info && (
-                        <p className="pt-2 text-xs text-[var(--secondary-muted-edge)]">
+                        <div style={{ marginTop: 8, fontSize: 12, color: "#8a9e92" }}>
                           {currentOrder.shipping_address.additional_info}
-                        </p>
+                        </div>
                       )}
                     </div>
                   ) : (
-                    <p className="text-sm text-[var(--secondary-muted-edge)]">
-                      No address provided
-                    </p>
+                    <div style={{ fontSize: 13, color: "#8a9e92" }}>No address provided</div>
                   )}
                 </div>
 
                 {/* Delivery details */}
                 <div>
-                  <h3 className="text-sm font-medium text-[var(--secondary-muted-edge)] mb-2">
-                    Delivery Details
-                  </h3>
-                  <div className="space-y-2 text-sm">
+                  <div style={labelStyle}>Delivery Details</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 13 }}>
                     {currentOrder.shipping_method && (
                       <div>
-                        <span className="text-[var(--secondary-muted-edge)]">
-                          Method:{" "}
-                        </span>
-                        <span className="text-[var(--secondary-black)] font-medium">
-                          {currentOrder.shipping_method}
-                        </span>
+                        <span style={{ color: "#8a9e92" }}>Method: </span>
+                        <span style={{ fontWeight: 600, color: "#1c2b23" }}>{currentOrder.shipping_method}</span>
                       </div>
                     )}
                     {typeof currentOrder.shipping_amount === "number" && (
                       <div>
-                        <span className="text-[var(--secondary-muted-edge)]">
-                          Shipping Cost:{" "}
-                        </span>
-                        <span className="text-[var(--secondary-black)] font-medium">
-                          {formatCurrency(
-                            currentOrder.shipping_amount,
-                            currentOrder.currency
-                          )}
+                        <span style={{ color: "#8a9e92" }}>Shipping cost: </span>
+                        <span style={{ fontWeight: 600, color: "#1c2b23" }}>
+                          {fmt(currentOrder.shipping_amount, currentOrder.currency)}
                         </span>
                       </div>
                     )}
                     {currentOrder.tracking_number && (
                       <div>
-                        <span className="text-[var(--secondary-muted-edge)]">
-                          Tracking:{" "}
-                        </span>
+                        <span style={{ color: "#8a9e92" }}>Tracking: </span>
                         <a
-                          className="text-[var(--primary-accent2)] font-medium hover:underline"
-                          href={`https://parcelsapp.com/en/tracking/${encodeURIComponent(
-                            currentOrder.tracking_number
-                          )}`}
+                          href={`https://parcelsapp.com/en/tracking/${encodeURIComponent(currentOrder.tracking_number)}`}
                           target="_blank"
                           rel="noopener noreferrer"
+                          style={{ color: "#d4783c", fontWeight: 600, textDecoration: "none" }}
                         >
                           {currentOrder.tracking_number}
                         </a>
@@ -667,75 +601,55 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
                     )}
                     {currentOrder.estimated_delivery_date && (
                       <div>
-                        <span className="text-[var(--secondary-muted-edge)]">
-                          Est. Delivery:{" "}
-                        </span>
-                        <span className="text-[var(--secondary-black)] font-medium">
-                          {formatDate(currentOrder.estimated_delivery_date)}
+                        <span style={{ color: "#8a9e92" }}>Est. Delivery: </span>
+                        <span style={{ fontWeight: 600, color: "#1c2b23" }}>
+                          {fmtDate(currentOrder.estimated_delivery_date)}
                         </span>
                       </div>
                     )}
                     {currentOrder.actual_delivery_date && (
                       <div>
-                        <span className="text-[var(--secondary-muted-edge)]">
-                          Actual Delivery:{" "}
-                        </span>
-                        <span className="text-[var(--secondary-black)] font-medium">
-                          {formatDate(currentOrder.actual_delivery_date)}
+                        <span style={{ color: "#8a9e92" }}>Delivered: </span>
+                        <span style={{ fontWeight: 600, color: "#1c2b23" }}>
+                          {fmtDate(currentOrder.actual_delivery_date)}
                         </span>
                       </div>
                     )}
+
+                    {/* Delivery instructions */}
                     {currentOrder.buyer_notes && (
-                      <div className="pt-2">
-                        <span className="block text-[var(--secondary-muted-edge)] mb-1">
-                          Delivery instructions
-                        </span>
-                        <p className="text-[var(--secondary-black)] bg-[var(--primary-background)] rounded-xl p-3">
+                      <div style={{ marginTop: 4 }}>
+                        <div style={{ color: "#8a9e92", marginBottom: 4 }}>Delivery instructions</div>
+                        <p style={{ margin: 0, padding: "10px 12px", background: "#f5f2ec", borderRadius: 8, color: "#1c2b23", lineHeight: 1.5 }}>
                           {currentOrder.buyer_notes}
                         </p>
                       </div>
                     )}
-                    {/* Billing address (if different) */}
-                    {currentOrder.billing_address && (
-                      <div className="pt-2">
-                        <span className="block text-[var(--secondary-muted-edge)] mb-1">
-                          Billing address
-                        </span>
-                        {(() => {
-                          const shippingLines = normalizeAddressToLines(
-                            currentOrder.shipping_address
-                          );
-                          const billingLines = normalizeAddressToLines(
-                            currentOrder.billing_address
-                          );
-                          const isSame =
-                            shippingLines.join(" | ") ===
-                            billingLines.join(" | ");
 
-                          if (isSame) {
-                            return (
-                              <p className="text-xs text-[var(--secondary-muted-edge)]">
-                                Same as shipping address
-                              </p>
-                            );
-                          }
-
-                          return (
-                            <div className="text-sm text-[var(--secondary-black)] space-y-1">
-                              {billingLines.map((line, idx) => (
-                                <p key={`${line}-${idx}`}>{line}</p>
-                              ))}
+                    {/* Billing address if different */}
+                    {currentOrder.billing_address && (() => {
+                      const shippingLines = normalizeAddressToLines(currentOrder.shipping_address);
+                      const billingLines = normalizeAddressToLines(currentOrder.billing_address);
+                      const isSame = shippingLines.join(" | ") === billingLines.join(" | ");
+                      return (
+                        <div style={{ marginTop: 4 }}>
+                          <div style={{ color: "#8a9e92", marginBottom: 4 }}>Billing address</div>
+                          {isSame ? (
+                            <div style={{ fontSize: 12, color: "#8a9e92" }}>Same as shipping address</div>
+                          ) : (
+                            <div style={{ fontSize: 13, color: "#1c2b23", lineHeight: 1.6 }}>
+                              {billingLines.map((line, idx) => <div key={`${line}-${idx}`}>{line}</div>)}
                             </div>
-                          );
-                        })()}
-                      </div>
-                    )}
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Internal notes */}
                     {currentOrder.internal_notes && (
-                      <div className="pt-2">
-                        <span className="block text-[var(--secondary-muted-edge)] mb-1">
-                          Packaging / Internal Notes
-                        </span>
-                        <p className="text-[var(--secondary-black)] bg-[var(--primary-background)] rounded-xl p-3">
+                      <div style={{ marginTop: 4 }}>
+                        <div style={{ color: "#8a9e92", marginBottom: 4 }}>Packaging / Internal notes</div>
+                        <p style={{ margin: 0, padding: "10px 12px", background: "#f5f2ec", borderRadius: 8, color: "#1c2b23", lineHeight: 1.5 }}>
                           {currentOrder.internal_notes}
                         </p>
                       </div>
@@ -745,29 +659,23 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
               </div>
             </div>
 
-            {/* Notes */}
+            {/* Notes (buyer + seller) */}
             {(currentOrder.buyer_notes || currentOrder.seller_notes) && (
-              <div className="bg-white rounded-3xl border border-[var(--secondary-soft-highlight)]/20 p-6">
-                <h2 className="text-lg font-semibold text-[var(--secondary-black)] mb-4">
-                  Notes
-                </h2>
-                <div className="space-y-4">
+              <div style={card}>
+                <h2 style={{ fontSize: 15, fontWeight: 700, color: "#1c2b23", margin: "0 0 16px" }}>Notes</h2>
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                   {currentOrder.buyer_notes && (
                     <div>
-                      <h3 className="text-sm font-medium text-[var(--secondary-muted-edge)] mb-2">
-                        Buyer Notes
-                      </h3>
-                      <p className="text-sm text-[var(--secondary-black)] p-3 bg-[var(--primary-background)] rounded-xl">
+                      <div style={labelStyle}>Buyer Notes</div>
+                      <p style={{ margin: 0, padding: "10px 12px", background: "#f5f2ec", borderRadius: 8, fontSize: 13, color: "#1c2b23", lineHeight: 1.5 }}>
                         {currentOrder.buyer_notes}
                       </p>
                     </div>
                   )}
                   {currentOrder.seller_notes && (
                     <div>
-                      <h3 className="text-sm font-medium text-[var(--secondary-muted-edge)] mb-2">
-                        Your Notes
-                      </h3>
-                      <p className="text-sm text-[var(--secondary-black)] p-3 bg-[var(--primary-accent1)]/10 rounded-xl">
+                      <div style={labelStyle}>Your Notes</div>
+                      <p style={{ margin: 0, padding: "10px 12px", background: "rgba(45,74,62,.07)", borderRadius: 8, fontSize: 13, color: "#1c2b23", lineHeight: 1.5 }}>
                         {currentOrder.seller_notes}
                       </p>
                     </div>
@@ -777,94 +685,93 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
             )}
           </div>
 
-          {/* Right Column - Timeline & Quick Info */}
-          <div className="space-y-6">
-            {/* Quick Info */}
-            <div className="bg-white rounded-3xl border border-[var(--secondary-soft-highlight)]/20 p-6">
-              <h2 className="text-lg font-semibold text-[var(--secondary-black)] mb-4">
-                Order Information
-              </h2>
-              <div className="space-y-3 text-sm">
+          {/* ── RIGHT column ── */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+            {/* Order information */}
+            <div style={card}>
+              <h2 style={{ fontSize: 15, fontWeight: 700, color: "#1c2b23", margin: "0 0 16px" }}>Order Information</h2>
+              <div style={{ display: "flex", flexDirection: "column", gap: 14, fontSize: 13 }}>
                 <div>
-                  <span className="text-[var(--secondary-muted-edge)]">
-                    Order Date
-                  </span>
-                  <p className="font-medium text-[var(--secondary-black)] mt-1">
-                    {formatDate(currentOrder.created_at)}
-                  </p>
+                  <div style={labelStyle}>Order Date</div>
+                  <div style={{ fontWeight: 600, color: "#1c2b23" }}>{fmtDate(currentOrder.created_at)}</div>
                 </div>
                 {currentOrder.accepted_at && (
                   <div>
-                    <span className="text-[var(--secondary-muted-edge)]">
-                      Accepted
-                    </span>
-                    <p className="font-medium text-[var(--secondary-black)] mt-1">
-                      {formatDate(currentOrder.accepted_at)}
-                    </p>
+                    <div style={labelStyle}>Accepted</div>
+                    <div style={{ fontWeight: 600, color: "#1c2b23" }}>{fmtDate(currentOrder.accepted_at)}</div>
                   </div>
                 )}
                 {currentOrder.shipped_at && (
                   <div>
-                    <span className="text-[var(--secondary-muted-edge)]">
-                      Shipped
-                    </span>
-                    <p className="font-medium text-[var(--secondary-black)] mt-1">
-                      {formatDate(currentOrder.shipped_at)}
-                    </p>
+                    <div style={labelStyle}>Shipped</div>
+                    <div style={{ fontWeight: 600, color: "#1c2b23" }}>{fmtDate(currentOrder.shipped_at)}</div>
                   </div>
                 )}
                 {currentOrder.delivered_at && (
                   <div>
-                    <span className="text-[var(--secondary-muted-edge)]">
-                      Delivered
-                    </span>
-                    <p className="font-medium text-[var(--secondary-black)] mt-1">
-                      {formatDate(currentOrder.delivered_at)}
-                    </p>
+                    <div style={labelStyle}>Delivered</div>
+                    <div style={{ fontWeight: 600, color: "#1c2b23" }}>{fmtDate(currentOrder.delivered_at)}</div>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Timeline */}
-            <div className="bg-white rounded-3xl border border-[var(--secondary-soft-highlight)]/20 p-6">
-              <h2 className="text-lg font-semibold text-[var(--secondary-black)] mb-4">
-                Order Timeline
-              </h2>
+            {/* Order timeline */}
+            <div style={card}>
+              <h2 style={{ fontSize: 15, fontWeight: 700, color: "#1c2b23", margin: "0 0 16px" }}>Order Timeline</h2>
+
               {timelineStatus === "loading" && (
-                <div className="text-center py-4">
-                  <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-[var(--primary-accent2)]"></div>
+                <div style={{ textAlign: "center", padding: "16px 0" }}>
+                  <div style={{
+                    width: 22,
+                    height: 22,
+                    border: "2.5px solid #ebe7df",
+                    borderTopColor: "#d4783c",
+                    borderRadius: "50%",
+                    display: "inline-block",
+                    animation: "spin 0.8s linear infinite",
+                  }} />
                 </div>
               )}
+
               {timelineStatus === "succeeded" && (
-                <div className="space-y-4">
+                <div style={{ display: "flex", flexDirection: "column" }}>
                   {timeline.length === 0 ? (
-                    <p className="text-sm text-[var(--secondary-muted-edge)] text-center py-4">
+                    <div style={{ fontSize: 13, color: "#8a9e92", textAlign: "center", padding: "16px 0" }}>
                       No timeline events yet
-                    </p>
+                    </div>
                   ) : (
-                    timeline.map((event, index) => (
-                      <div key={event.id} className="flex gap-3">
-                        <div className="flex flex-col items-center">
-                          <div className="w-8 h-8 rounded-full bg-[var(--primary-accent1)]/20 flex items-center justify-center flex-shrink-0">
-                            <div className="w-2 h-2 rounded-full bg-[var(--primary-accent2)]"></div>
+                    timeline.map((event, idx) => (
+                      <div key={event.id} style={{ display: "flex", gap: 12 }}>
+                        {/* dot + line */}
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                          <div style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: "50%",
+                            background: "rgba(45,74,62,.10)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
+                          }}>
+                            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#d4783c" }} />
                           </div>
-                          {index < timeline.length - 1 && (
-                            <div className="w-0.5 flex-1 bg-[var(--secondary-soft-highlight)] mt-2"></div>
+                          {idx < timeline.length - 1 && (
+                            <div style={{ width: 1, flex: 1, background: "#ebe7df", margin: "4px 0" }} />
                           )}
                         </div>
-                        <div className="flex-1 pb-4">
-                          <h3 className="text-sm font-medium text-[var(--secondary-black)]">
-                            {event.title}
-                          </h3>
+
+                        {/* content */}
+                        <div style={{ flex: 1, paddingBottom: 16 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "#1c2b23" }}>{event.title}</div>
                           {event.description && (
-                            <p className="text-sm text-[var(--secondary-muted-edge)] mt-1">
-                              {event.description}
-                            </p>
+                            <div style={{ fontSize: 12, color: "#8a9e92", marginTop: 2 }}>{event.description}</div>
                           )}
-                          <p className="text-xs text-[var(--secondary-muted-edge)] mt-2">
-                            {formatDateTime(event.created_at)}
-                          </p>
+                          <div style={{ fontSize: 11, color: "#b0c0b6", marginTop: 4 }}>
+                            {fmtDateTime(event.created_at)}
+                          </div>
                         </div>
                       </div>
                     ))
@@ -876,82 +783,99 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
         </div>
       </main>
 
-      {/* Reject Order Modal */}
+      {/* Reject modal */}
       {showRejectModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6">
-            <h2 className="text-xl font-semibold text-[var(--secondary-black)] mb-4">
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 600,
+            padding: 16,
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowRejectModal(false); }}
+        >
+          <div style={{ background: "#fff", borderRadius: 14, maxWidth: 440, width: "100%", padding: 28, fontFamily: "'Urbanist', system-ui, sans-serif" }}>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: "#1c2b23", marginBottom: 20, marginTop: 0 }}>
               Reject Order
             </h2>
-            <div className="space-y-4">
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <div>
-                <label className="block text-sm font-medium text-[var(--secondary-black)] mb-2">
-                  Reason *
-                </label>
+                <label style={labelStyle}>Reason *</label>
                 <select
                   value={rejectForm.reason}
-                  onChange={(e) =>
-                    setRejectForm((prev) => ({
-                      ...prev,
-                      reason: e.target.value,
-                    }))
-                  }
-                  className="input w-full"
+                  onChange={(e) => setRejectForm((p) => ({ ...p, reason: e.target.value }))}
+                  style={inputStyle}
                   required
                 >
-                  <option value="">Select a reason...</option>
+                  <option value="">Select a reason…</option>
                   <option value="Out of stock">Out of stock</option>
-                  <option value="Cannot meet delivery date">
-                    Cannot meet delivery date
-                  </option>
+                  <option value="Cannot meet delivery date">Cannot meet delivery date</option>
                   <option value="Pricing error">Pricing error</option>
-                  <option value="Unable to fulfill quantity">
-                    Unable to fulfill quantity
-                  </option>
+                  <option value="Unable to fulfill quantity">Unable to fulfill quantity</option>
                   <option value="Other">Other</option>
                 </select>
               </div>
+
               <div>
-                <label className="block text-sm font-medium text-[var(--secondary-black)] mb-2">
-                  Additional Notes (Optional)
-                </label>
+                <label style={labelStyle}>Additional Notes (Optional)</label>
                 <textarea
                   value={rejectForm.seller_notes}
-                  onChange={(e) =>
-                    setRejectForm((prev) => ({
-                      ...prev,
-                      seller_notes: e.target.value,
-                    }))
-                  }
-                  className="input w-full"
+                  onChange={(e) => setRejectForm((p) => ({ ...p, seller_notes: e.target.value }))}
                   rows={3}
-                  placeholder="Provide more details..."
+                  placeholder="Provide more details…"
+                  style={{ ...inputStyle, resize: "vertical" as const }}
                 />
               </div>
             </div>
-            <div className="flex gap-3 mt-6">
+
+            <div style={{ display: "flex", gap: 10, marginTop: 22 }}>
               <button
                 onClick={() => setShowRejectModal(false)}
-                className="flex-1 px-4 py-2 border border-[var(--secondary-soft-highlight)] text-[var(--secondary-black)] rounded-full text-sm font-medium hover:bg-[var(--primary-background)] transition-all duration-200"
                 disabled={currentOrderStatus === "loading"}
+                style={{
+                  flex: 1,
+                  padding: "9px 16px",
+                  border: "1px solid #ebe7df",
+                  borderRadius: 999,
+                  background: "#fff",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "#1c2b23",
+                  cursor: currentOrderStatus === "loading" ? "not-allowed" : "pointer",
+                  fontFamily: "inherit",
+                }}
               >
                 Cancel
               </button>
               <button
                 onClick={handleRejectOrder}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-full text-sm font-medium hover:bg-red-700 transition-all duration-200"
-                disabled={
-                  currentOrderStatus === "loading" || !rejectForm.reason
-                }
+                disabled={currentOrderStatus === "loading" || !rejectForm.reason}
+                style={{
+                  flex: 1,
+                  padding: "9px 16px",
+                  border: "none",
+                  borderRadius: 999,
+                  background: currentOrderStatus === "loading" || !rejectForm.reason ? "#f0ece4" : "#9b2020",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: currentOrderStatus === "loading" || !rejectForm.reason ? "#b0c0b6" : "#fff",
+                  cursor: currentOrderStatus === "loading" || !rejectForm.reason ? "not-allowed" : "pointer",
+                  fontFamily: "inherit",
+                }}
               >
-                {currentOrderStatus === "loading"
-                  ? "Rejecting..."
-                  : "Reject Order"}
+                {currentOrderStatus === "loading" ? "Rejecting…" : "Reject Order"}
               </button>
             </div>
           </div>
         </div>
       )}
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

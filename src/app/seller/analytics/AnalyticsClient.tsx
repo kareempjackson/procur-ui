@@ -1,550 +1,438 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  ChartBarIcon,
-  CurrencyDollarIcon,
-  ShoppingBagIcon,
-  TruckIcon,
-  ArrowTrendingUpIcon,
-  ArrowTrendingDownIcon,
-} from "@heroicons/react/24/outline";
-import {
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
+  AreaChart, Area, BarChart, Bar,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import { useAppDispatch, useAppSelector } from "@/store";
 import {
-  fetchDashboardMetrics,
-  fetchSalesAnalytics,
-  AnalyticsPeriod,
-  selectDashboardMetrics,
-  selectSalesAnalytics,
-  selectAnalyticsStatus,
-  selectAnalyticsError,
+  fetchDashboardMetrics, fetchSalesAnalytics, AnalyticsPeriod,
+  selectDashboardMetrics, selectSalesAnalytics,
+  selectAnalyticsStatus, selectAnalyticsError,
 } from "@/store/slices/sellerAnalyticsSlice";
-import ProcurLoader from "@/components/ProcurLoader";
 
-export default function AnalyticsClient() {
-  const dispatch = useAppDispatch();
-  const dashboardMetrics = useAppSelector(selectDashboardMetrics);
-  const salesAnalytics = useAppSelector(selectSalesAnalytics);
-  const status = useAppSelector(selectAnalyticsStatus);
-  const error = useAppSelector(selectAnalyticsError);
+// ── Design tokens ──────────────────────────────────────────────────────────────
+const BG    = "#faf8f4";
+const CARD  = "#fff";
+const EDGE  = "#ebe7df";
+const TEAL  = "#2d4a3e";
+const ORANGE = "#d4783c";
+const DARK  = "#1c2b23";
+const MUTED = "#8a9e92";
+const F     = "'Urbanist', system-ui, sans-serif";
 
-  const [selectedPeriod, setSelectedPeriod] = useState<AnalyticsPeriod>(
-    AnalyticsPeriod.LAST_30_DAYS
+const card: React.CSSProperties = {
+  background: CARD, border: `1px solid ${EDGE}`,
+  borderRadius: 10, padding: 20, fontFamily: F,
+};
+
+const PERIODS = [
+  { key: AnalyticsPeriod.LAST_7_DAYS,  label: "7D"   },
+  { key: AnalyticsPeriod.LAST_30_DAYS, label: "30D"  },
+  { key: AnalyticsPeriod.LAST_90_DAYS, label: "90D"  },
+  { key: AnalyticsPeriod.THIS_YEAR,    label: "Year" },
+];
+
+const fmt = (n: number, cur = "USD") =>
+  new Intl.NumberFormat("en-US", {
+    style: "currency", currency: cur, maximumFractionDigits: 0,
+  }).format(n);
+
+const fmtPct = (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`;
+
+const fmtDate = (d: string) =>
+  new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+// ── Micro icons ────────────────────────────────────────────────────────────────
+const IcoRevenue = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" width={15} height={15}>
+    <line x1="12" y1="1" x2="12" y2="23" />
+    <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
+  </svg>
+);
+const IcoOrders = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" width={15} height={15}>
+    <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
+    <line x1="3" y1="6" x2="21" y2="6" />
+    <path d="M16 10a4 4 0 01-8 0" />
+  </svg>
+);
+const IcoPending = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" width={15} height={15}>
+    <rect x="1" y="3" width="15" height="13" rx="1" />
+    <path d="M16 8h4l3 3v5h-7V8z" />
+    <circle cx="5.5" cy="18.5" r="2.5" />
+    <circle cx="18.5" cy="18.5" r="2.5" />
+  </svg>
+);
+const IcoBar = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" width={15} height={15}>
+    <line x1="18" y1="20" x2="18" y2="10" />
+    <line x1="12" y1="20" x2="12" y2="4" />
+    <line x1="6" y1="20" x2="6" y2="14" />
+  </svg>
+);
+const IcoTrendUp = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width={11} height={11}>
+    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+    <polyline points="17 6 23 6 23 12" />
+  </svg>
+);
+const IcoTrendDown = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width={11} height={11}>
+    <polyline points="23 18 13.5 8.5 8.5 13.5 1 6" />
+    <polyline points="17 18 23 18 23 12" />
+  </svg>
+);
+
+function EmptyChart({ label }: { label: string }) {
+  return (
+    <div style={{
+      height: 260, display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center",
+      border: `1.5px dashed ${EDGE}`, borderRadius: 8,
+    }}>
+      <div style={{ fontSize: 13, color: MUTED, fontFamily: F }}>{label}</div>
+    </div>
   );
+}
 
-  // Period mapping for display
-  const periodOptions = [
-    { key: AnalyticsPeriod.LAST_7_DAYS, label: "7 Days" },
-    { key: AnalyticsPeriod.LAST_30_DAYS, label: "30 Days" },
-    { key: AnalyticsPeriod.LAST_90_DAYS, label: "90 Days" },
-    { key: AnalyticsPeriod.THIS_YEAR, label: "This Year" },
-  ];
+const tooltipStyle: React.CSSProperties = {
+  background: CARD, border: `1px solid ${EDGE}`,
+  borderRadius: 8, fontSize: 12, fontFamily: F,
+};
 
-  // Fetch analytics when component mounts or period changes
+// ── Component ─────────────────────────────────────────────────────────────────
+export default function AnalyticsClient() {
+  const dispatch         = useAppDispatch();
+  const dashboardMetrics = useAppSelector(selectDashboardMetrics);
+  const salesAnalytics   = useAppSelector(selectSalesAnalytics);
+  const status           = useAppSelector(selectAnalyticsStatus);
+  const error            = useAppSelector(selectAnalyticsError);
+
+  const [period, setPeriod] = useState<AnalyticsPeriod>(AnalyticsPeriod.LAST_30_DAYS);
+
   useEffect(() => {
-    dispatch(fetchDashboardMetrics({ period: selectedPeriod }));
-    dispatch(fetchSalesAnalytics({ period: selectedPeriod, group_by: "day" }));
-  }, [dispatch, selectedPeriod]);
+    dispatch(fetchDashboardMetrics({ period }));
+    dispatch(fetchSalesAnalytics({ period, group_by: "day" }));
+  }, [dispatch, period]);
 
-  const handlePeriodChange = (period: AnalyticsPeriod) => {
-    setSelectedPeriod(period);
+  const retry = () => {
+    dispatch(fetchDashboardMetrics({ period }));
+    dispatch(fetchSalesAnalytics({ period, group_by: "day" }));
   };
 
-  // Format currency
-  const formatCurrency = (amount: number, currency: string = "USD") => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currency,
-    }).format(amount);
-  };
+  const loading = status === "loading";
+  const failed  = status === "failed";
+  const cur     = dashboardMetrics?.currency || "USD";
 
-  // Format percentage
-  const formatPercentage = (value: number) => {
-    const sign = value >= 0 ? "+" : "";
-    return `${sign}${value.toFixed(1)}%`;
-  };
-
-  const ui = useMemo(() => {
-    const surface =
-      "bg-white border border-[var(--secondary-soft-highlight)]/28 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.03)]";
-    const surfacePadding = "p-4";
-    const chartSurfacePadding = "p-5";
-    const surfaceHover =
-      "hover:shadow-[0_6px_18px_rgba(0,0,0,0.04)] hover:border-[var(--secondary-soft-highlight)]/45 transition-shadow transition-colors";
-
-    const muted = "text-[var(--secondary-muted-edge)]";
-    const text = "text-[var(--secondary-black)]";
-    const subtle = "text-[var(--primary-base)]";
-
-    return {
-      surface,
-      surfacePadding,
-      chartSurfacePadding,
-      surfaceHover,
-      muted,
-      text,
-      subtle,
-    };
-  }, []);
-
-  // Prepare stats from dashboard metrics
-  const stats = dashboardMetrics
-    ? [
-        {
-          label: "Total Revenue",
-          value: formatCurrency(
-            dashboardMetrics.total_revenue,
-            dashboardMetrics.currency
-          ),
-          change: formatPercentage(dashboardMetrics.revenue_growth),
-          trend: dashboardMetrics.revenue_growth >= 0 ? "up" : "down",
-          icon: CurrencyDollarIcon,
-          iconColor: "text-[var(--primary-accent2)]",
-        },
-        {
-          label: "Total Orders",
-          value: dashboardMetrics.total_orders.toString(),
-          change: formatPercentage(dashboardMetrics.orders_growth),
-          trend: dashboardMetrics.orders_growth >= 0 ? "up" : "down",
-          icon: ShoppingBagIcon,
-          iconColor: "text-[var(--secondary-muted-edge)]",
-        },
-        {
-          label: "Pending Orders",
-          value: dashboardMetrics.pending_orders.toString(),
-          change: "",
-          trend: "neutral",
-          icon: TruckIcon,
-          iconColor: "text-[var(--primary-base)]",
-        },
-        {
-          label: "Avg Order Value",
-          value: formatCurrency(
-            dashboardMetrics.average_order_value,
-            dashboardMetrics.currency
-          ),
-          change: "",
-          trend: "neutral",
-          icon: ChartBarIcon,
-          iconColor: "text-[var(--secondary-muted-edge)]",
-        },
-      ]
-    : [];
-
-  // Additional stats for products
-  const productStats = dashboardMetrics
-    ? [
-        {
-          label: "Active Products",
-          value: dashboardMetrics.active_products,
-          accent: "bg-[var(--secondary-soft-highlight)]/70",
-        },
-        {
-          label: "Low Stock",
-          value: dashboardMetrics.low_stock_products,
-          accent: "bg-[var(--primary-accent1)]/40",
-        },
-        {
-          label: "Out of Stock",
-          value: dashboardMetrics.out_of_stock_products,
-          accent: "bg-[var(--primary-accent2)]/35",
-        },
-      ]
-    : [];
-
-  if (status === "loading") {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <ProcurLoader />
-      </div>
-    );
-  }
-
-  if (status === "failed") {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-red-600 mb-4">
-            <svg
-              className="w-16 h-16 mx-auto"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          </div>
-          <h2 className="text-xl font-semibold text-[var(--secondary-black)] mb-2">
-            Failed to Load Analytics
-          </h2>
-          <p className="text-[var(--secondary-muted-edge)] mb-4">{error}</p>
-          <button
-            onClick={() =>
-              dispatch(fetchDashboardMetrics({ period: selectedPeriod }))
-            }
-            className="px-6 py-3 bg-[var(--primary-accent2)] text-white rounded-full hover:bg-[var(--primary-accent3)] transition-colors"
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const kpis = dashboardMetrics ? [
+    {
+      label: "Revenue",        value: fmt(dashboardMetrics.total_revenue, cur),
+      change: fmtPct(dashboardMetrics.revenue_growth),
+      trend: dashboardMetrics.revenue_growth >= 0 ? "up" : "down",
+      icon: <IcoRevenue />, color: ORANGE,
+    },
+    {
+      label: "Total Orders",   value: String(dashboardMetrics.total_orders),
+      change: fmtPct(dashboardMetrics.orders_growth),
+      trend: dashboardMetrics.orders_growth >= 0 ? "up" : "down",
+      icon: <IcoOrders />, color: TEAL,
+    },
+    {
+      label: "Pending Orders", value: String(dashboardMetrics.pending_orders),
+      change: "", trend: "neutral",
+      icon: <IcoPending />, color: TEAL,
+    },
+    {
+      label: "Avg Order Value", value: fmt(dashboardMetrics.average_order_value, cur),
+      change: "", trend: "neutral",
+      icon: <IcoBar />, color: TEAL,
+    },
+  ] : [];
 
   return (
-    <div className="min-h-screen bg-white">
-      <main>
-        {/* Header */}
-        <section className="bg-white border-b border-[var(--secondary-soft-highlight)]/35">
-          <div className="max-w-[1400px] mx-auto px-6 py-4">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h1 className={`text-xl font-semibold ${ui.text} mb-0.5`}>
-                  Analytics
-                </h1>
-                <p className={`text-sm ${ui.muted}`}>
-                  Track your sales performance and business metrics
-                </p>
-              </div>
+    <div style={{ background: BG, minHeight: "100vh", fontFamily: F }}>
 
-              {/* Period Selector */}
-              <div className="inline-flex items-center rounded-full border border-[var(--secondary-soft-highlight)]/35 bg-white p-1">
-                {periodOptions.map((period) => (
-                  <button
-                    key={period.key}
-                    onClick={() => handlePeriodChange(period.key)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                      selectedPeriod === period.key
-                        ? "bg-[var(--secondary-black)] text-white"
-                        : `text-[var(--secondary-black)] hover:bg-[var(--primary-background)]/35`
-                    }`}
-                  >
-                    {period.label}
-                  </button>
-                ))}
-              </div>
+      {/* Header */}
+      <div style={{ background: CARD, borderBottom: `1px solid ${EDGE}` }}>
+        <div style={{
+          maxWidth: 1200, margin: "0 auto", padding: "16px 24px",
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+        }}>
+          <div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: DARK }}>Analytics</div>
+            <div style={{ fontSize: 12.5, color: MUTED, marginTop: 2 }}>
+              Track your sales performance and business metrics
             </div>
           </div>
-        </section>
 
-        {/* Stats Grid */}
-        <section className="max-w-[1400px] mx-auto px-6 py-5">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            {stats.map((stat) => (
-              <div
-                key={stat.label}
-                className={`${ui.surface} ${ui.surfacePadding} ${ui.surfaceHover}`}
+          {/* Period pill selector */}
+          <div style={{ display: "flex", gap: 2, background: "#f0ece4", borderRadius: 8, padding: 3 }}>
+            {PERIODS.map(p => (
+              <button
+                key={p.key}
+                onClick={() => setPeriod(p.key)}
+                style={{
+                  padding: "5px 13px", borderRadius: 6, border: "none",
+                  cursor: "pointer", fontSize: 12.5, fontWeight: 600, fontFamily: F,
+                  background: period === p.key ? CARD : "transparent",
+                  color: period === p.key ? DARK : MUTED,
+                  boxShadow: period === p.key ? "0 1px 4px rgba(0,0,0,.08)" : "none",
+                  transition: "all .15s",
+                }}
               >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="p-2 rounded-lg bg-white border border-[var(--secondary-soft-highlight)]/35">
-                    <stat.icon className={`h-4 w-4 ${stat.iconColor}`} />
-                  </div>
-                  {stat.change && (
-                    <div
-                      className={`flex items-center gap-1 text-xs font-medium ${
-                        stat.trend === "up"
-                          ? "text-[var(--secondary-muted-edge)]"
-                          : stat.trend === "down"
-                            ? "text-[var(--primary-accent2)]"
-                            : "text-[var(--primary-base)]"
-                      }`}
-                    >
-                      {stat.trend === "up" ? (
-                        <ArrowTrendingUpIcon className="h-4 w-4" />
-                      ) : stat.trend === "down" ? (
-                        <ArrowTrendingDownIcon className="h-4 w-4" />
-                      ) : null}
-                      {stat.change}
-                    </div>
-                  )}
-                </div>
-                <div className={`text-xl font-semibold ${ui.text} mb-1`}>
-                  {stat.value}
-                </div>
-                <div className={`text-sm ${ui.muted}`}>
-                  {stat.label}
-                </div>
-              </div>
+                {p.label}
+              </button>
             ))}
           </div>
+        </div>
+      </div>
 
-          {/* Product Stats & Top Selling Product */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            {/* Product Inventory Stats */}
-            <div className={`${ui.surface} ${ui.surfacePadding} ${ui.surfaceHover}`}>
-              <h3 className={`text-lg font-semibold ${ui.text} mb-4`}>
-                Product Inventory
-              </h3>
-              <div className="grid grid-cols-3 gap-4">
-                {productStats.map((stat) => (
-                  <div
-                    key={stat.label}
-                    className="p-3.5 rounded-xl bg-white border border-[var(--secondary-soft-highlight)]/30"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <div className={`text-lg font-semibold ${ui.text} mb-0.5`}>
-                          {stat.value}
-                        </div>
-                        <div className={`text-xs ${ui.muted}`}>{stat.label}</div>
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 24px 48px" }}>
+
+        {/* Error banner — non-blocking, shown with data if partially available */}
+        {failed && (
+          <div style={{
+            marginBottom: 20, padding: "12px 16px",
+            background: "rgba(212,120,60,.08)", border: `1px solid ${ORANGE}`,
+            borderRadius: 10, display: "flex", alignItems: "center",
+            justifyContent: "space-between", gap: 12,
+          }}>
+            <div style={{ fontSize: 13, color: DARK, fontFamily: F }}>
+              <strong>Couldn&apos;t load analytics data.</strong>{" "}
+              {error || "Check your connection and try again."}
+            </div>
+            <button
+              onClick={retry}
+              style={{
+                padding: "5px 14px", borderRadius: 6, border: "none",
+                cursor: "pointer", background: ORANGE, color: "#fff",
+                fontSize: 12.5, fontWeight: 600, fontFamily: F, flexShrink: 0,
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {/* Loading placeholder */}
+        {loading && (
+          <div style={{ textAlign: "center", padding: "60px 0", color: MUTED, fontSize: 14 }}>
+            Loading analytics…
+          </div>
+        )}
+
+        {!loading && (
+          <>
+            {/* KPI strip */}
+            <div style={{
+              display: "grid", gridTemplateColumns: "repeat(4,1fr)",
+              gap: 12, marginBottom: 14,
+            }}>
+              {kpis.map(k => (
+                <div key={k.label} style={card}>
+                  <div style={{
+                    display: "flex", alignItems: "center",
+                    justifyContent: "space-between", marginBottom: 12,
+                  }}>
+                    <div style={{
+                      width: 30, height: 30, borderRadius: 8,
+                      background: `${k.color}18`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      color: k.color,
+                    }}>
+                      {k.icon}
+                    </div>
+                    {k.change && (
+                      <div style={{
+                        display: "flex", alignItems: "center", gap: 3,
+                        fontSize: 11.5, fontWeight: 600,
+                        color: k.trend === "up" ? "#2d9e6c" : ORANGE,
+                      }}>
+                        {k.trend === "up" ? <IcoTrendUp /> : <IcoTrendDown />}
+                        {k.change}
                       </div>
-                      <div
-                        aria-hidden="true"
-                        className={`h-9 w-9 rounded-full border border-[var(--secondary-soft-highlight)]/28 ${stat.accent}`}
-                      />
+                    )}
+                  </div>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: DARK, marginBottom: 3 }}>
+                    {k.value}
+                  </div>
+                  <div style={{ fontSize: 12, color: MUTED }}>{k.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Inventory + Top Product */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
+
+              {/* Inventory */}
+              <div style={card}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: DARK, marginBottom: 14 }}>
+                  Product Inventory
+                </div>
+                {dashboardMetrics ? (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                    {[
+                      { label: "Active",       value: dashboardMetrics.active_products,       dot: TEAL    },
+                      { label: "Low Stock",    value: dashboardMetrics.low_stock_products,    dot: ORANGE  },
+                      { label: "Out of Stock", value: dashboardMetrics.out_of_stock_products, dot: "#c84b38" },
+                    ].map(s => (
+                      <div key={s.label} style={{
+                        padding: "12px 14px", border: `1px solid ${EDGE}`,
+                        borderRadius: 8,
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                          <div style={{
+                            width: 7, height: 7, borderRadius: "50%",
+                            background: s.dot, flexShrink: 0,
+                          }} />
+                          <div style={{ fontSize: 11, color: MUTED }}>{s.label}</div>
+                        </div>
+                        <div style={{ fontSize: 22, fontWeight: 700, color: DARK }}>{s.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ color: MUTED, fontSize: 13, paddingTop: 8 }}>No inventory data</div>
+                )}
+              </div>
+
+              {/* Top Selling Product */}
+              <div style={card}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: DARK, marginBottom: 14 }}>
+                  Top Selling Product
+                </div>
+                {dashboardMetrics?.top_selling_product ? (
+                  <div style={{
+                    padding: "14px 16px", background: BG,
+                    borderRadius: 8, border: `1px solid ${EDGE}`,
+                  }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: DARK, marginBottom: 12 }}>
+                      {dashboardMetrics.top_selling_product.name}
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 11, color: MUTED, marginBottom: 3 }}>Qty Sold</div>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: DARK }}>
+                          {dashboardMetrics.top_selling_product.quantity_sold}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 11, color: MUTED, marginBottom: 3 }}>Revenue</div>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: TEAL }}>
+                          {fmt(dashboardMetrics.top_selling_product.revenue, cur)}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                ))}
+                ) : (
+                  <div style={{
+                    color: MUTED, fontSize: 13, paddingTop: 30,
+                    textAlign: "center",
+                  }}>
+                    No sales data yet
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Top Selling Product */}
-            <div className={`${ui.surface} ${ui.surfacePadding} ${ui.surfaceHover}`}>
-              <h3 className={`text-lg font-semibold ${ui.text} mb-4`}>
-                Top Selling Product
-              </h3>
-              {dashboardMetrics?.top_selling_product ? (
-                <div className="p-4 bg-white border border-[var(--secondary-soft-highlight)]/30 rounded-xl">
-                  <div className={`font-semibold ${ui.text} mb-2`}>
-                    {dashboardMetrics.top_selling_product.name}
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <div className={`${ui.muted}`}>
-                        Quantity Sold
-                      </div>
-                      <div className={`font-medium ${ui.text}`}>
-                        {dashboardMetrics.top_selling_product.quantity_sold}
-                      </div>
-                    </div>
-                    <div>
-                      <div className={`${ui.muted}`}>
-                        Revenue
-                      </div>
-                      <div className={`font-medium ${ui.text}`}>
-                        {formatCurrency(
-                          dashboardMetrics.top_selling_product.revenue,
-                          dashboardMetrics.currency
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className={`text-center py-10 ${ui.muted}`}>
-                  No sales data available
-                </div>
-              )}
-            </div>
-          </div>
+            {/* Charts row */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
 
-          {/* Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Revenue Over Time Chart */}
-            <div className={`${ui.surface} ${ui.chartSurfacePadding} ${ui.surfaceHover}`}>
-              <h3 className={`text-lg font-semibold ${ui.text} mb-4`}>
-                Revenue Over Time
-              </h3>
-              {salesAnalytics?.sales_data &&
-              salesAnalytics.sales_data.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={salesAnalytics.sales_data}>
-                    <defs>
-                      <linearGradient
-                        id="colorRevenue"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="5%"
-                          stopColor="#407178"
-                          stopOpacity={0.3}
-                        />
-                        <stop
-                          offset="95%"
-                          stopColor="#407178"
-                          stopOpacity={0}
-                        />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis
-                      dataKey="date"
-                      tick={{ fontSize: 12 }}
-                      tickFormatter={(date) =>
-                        new Date(date).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                        })
-                      }
-                    />
-                    <YAxis
-                      tick={{ fontSize: 12 }}
-                      tickFormatter={(value) => `$${value.toLocaleString()}`}
-                    />
-                    <Tooltip
-                      formatter={(value: any) => `$${value.toLocaleString()}`}
-                      labelFormatter={(date) =>
-                        new Date(date).toLocaleDateString()
-                      }
-                      contentStyle={{
-                        backgroundColor: "white",
-                        border: "1px solid rgba(192, 209, 199, 0.55)",
-                        borderRadius: "12px",
-                      }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="revenue"
-                      stroke="#407178"
-                      strokeWidth={2}
-                      fillOpacity={1}
-                      fill="url(#colorRevenue)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-[300px] flex flex-col items-center justify-center rounded-xl bg-white border border-dashed border-[var(--secondary-soft-highlight)]/55">
-                  <p className={`text-sm font-medium ${ui.muted}`}>
-                    No revenue data yet
-                  </p>
-                  <p className={`text-xs mt-1 ${ui.subtle}`}>
-                    Once you start selling, trends will show here.
-                  </p>
+              {/* Revenue over time */}
+              <div style={card}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: DARK, marginBottom: 16 }}>
+                  Revenue Over Time
                 </div>
-              )}
+                {salesAnalytics?.sales_data?.length ? (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <AreaChart data={salesAnalytics.sales_data}>
+                      <defs>
+                        <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%"  stopColor={TEAL} stopOpacity={0.22} />
+                          <stop offset="95%" stopColor={TEAL} stopOpacity={0}    />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0ece4" />
+                      <XAxis dataKey="date" tick={{ fontSize: 11, fontFamily: F }} tickFormatter={fmtDate} />
+                      <YAxis tick={{ fontSize: 11, fontFamily: F }} tickFormatter={v => `$${Number(v).toLocaleString()}`} />
+                      <Tooltip
+                        formatter={(v: any) => [`$${Number(v).toLocaleString()}`, "Revenue"]}
+                        labelFormatter={fmtDate}
+                        contentStyle={tooltipStyle}
+                      />
+                      <Area type="monotone" dataKey="revenue" stroke={TEAL} strokeWidth={2} fill="url(#revGrad)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <EmptyChart label="No revenue data for this period" />
+                )}
+              </div>
+
+              {/* Orders over time */}
+              <div style={card}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: DARK, marginBottom: 16 }}>
+                  Orders Over Time
+                </div>
+                {salesAnalytics?.sales_data?.length ? (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <BarChart data={salesAnalytics.sales_data}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0ece4" />
+                      <XAxis dataKey="date" tick={{ fontSize: 11, fontFamily: F }} tickFormatter={fmtDate} />
+                      <YAxis tick={{ fontSize: 11, fontFamily: F }} />
+                      <Tooltip labelFormatter={fmtDate} contentStyle={tooltipStyle} />
+                      <Bar dataKey="orders_count" fill={TEAL} radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <EmptyChart label="No orders in this period" />
+                )}
+              </div>
             </div>
 
-            {/* Orders Over Time Chart */}
-            <div className={`${ui.surface} ${ui.chartSurfacePadding} ${ui.surfaceHover}`}>
-              <h3 className={`text-lg font-semibold ${ui.text} mb-4`}>
-                Orders Over Time
-              </h3>
-              {salesAnalytics?.sales_data &&
-              salesAnalytics.sales_data.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={salesAnalytics.sales_data}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis
-                      dataKey="date"
-                      tick={{ fontSize: 12 }}
-                      tickFormatter={(date) =>
-                        new Date(date).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                        })
-                      }
-                    />
-                    <YAxis tick={{ fontSize: 12 }} />
+            {/* Top Products by Revenue (full width) */}
+            <div style={card}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: DARK, marginBottom: 16 }}>
+                Top Products by Revenue
+              </div>
+              {salesAnalytics?.top_products?.length ? (
+                <ResponsiveContainer width="100%" height={320}>
+                  <BarChart
+                    data={salesAnalytics.top_products.slice(0, 10).map(p => ({
+                      name: p.product_name, revenue: p.revenue,
+                    }))}
+                    layout="vertical"
+                    margin={{ left: 110 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0ece4" />
+                    <XAxis type="number" tick={{ fontSize: 11, fontFamily: F }}
+                      tickFormatter={v => `$${Number(v).toLocaleString()}`} />
+                    <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fontFamily: F }} width={100} />
                     <Tooltip
-                      labelFormatter={(date) =>
-                        new Date(date).toLocaleDateString()
-                      }
-                      contentStyle={{
-                        backgroundColor: "white",
-                        border: "1px solid rgba(192, 209, 199, 0.55)",
-                        borderRadius: "12px",
-                      }}
+                      formatter={(v: any) => [`$${Number(v).toLocaleString()}`, "Revenue"]}
+                      contentStyle={tooltipStyle}
                     />
-                    <Bar
-                      dataKey="orders_count"
-                      fill="#407178"
-                      radius={[8, 8, 0, 0]}
-                    />
+                    <Bar dataKey="revenue" fill={ORANGE} radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-[300px] flex flex-col items-center justify-center rounded-xl bg-white border border-dashed border-[var(--secondary-soft-highlight)]/55">
-                  <p className={`text-sm font-medium ${ui.muted}`}>
-                    No orders in this period
-                  </p>
-                  <p className={`text-xs mt-1 ${ui.subtle}`}>
-                    Orders will appear here as they come in.
-                  </p>
-                </div>
+                <EmptyChart label="No product revenue data yet" />
               )}
             </div>
-          </div>
 
-          {/* Top Products Chart */}
-          <div className={`mt-6 ${ui.surface} ${ui.chartSurfacePadding} ${ui.surfaceHover}`}>
-            <h3 className={`text-lg font-semibold ${ui.text} mb-4`}>
-              Top Products by Revenue
-            </h3>
-            {salesAnalytics?.top_products &&
-            salesAnalytics.top_products.length > 0 ? (
-              <ResponsiveContainer width="100%" height={350}>
-                <BarChart
-                  data={salesAnalytics.top_products.slice(0, 10).map((p) => ({
-                    name: p.product_name,
-                    revenue: p.revenue,
-                  }))}
-                  layout="vertical"
-                  margin={{ left: 100 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis
-                    type="number"
-                    tick={{ fontSize: 12 }}
-                    tickFormatter={(value) => `$${value.toLocaleString()}`}
-                  />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    tick={{ fontSize: 12 }}
-                    width={90}
-                  />
-                  <Tooltip
-                    formatter={(value: any) => `$${value.toLocaleString()}`}
-                    contentStyle={{
-                      backgroundColor: "white",
-                      border: "1px solid rgba(192, 209, 199, 0.55)",
-                      borderRadius: "12px",
-                    }}
-                  />
-                  <Bar dataKey="revenue" fill="#407178" radius={[0, 8, 8, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-[350px] flex flex-col items-center justify-center rounded-xl bg-white border border-dashed border-[var(--secondary-soft-highlight)]/55">
-                <p className={`text-sm font-medium ${ui.muted}`}>
-                  No product revenue yet
-                </p>
-                <p className={`text-xs mt-1 ${ui.subtle}`}>
-                  Top products will surface once sales come in.
-                </p>
+            {/* Period footer */}
+            {dashboardMetrics && (
+              <div style={{ marginTop: 16, textAlign: "center", fontSize: 12, color: MUTED }}>
+                Data from{" "}
+                {new Date(dashboardMetrics.period_start).toLocaleDateString()} to{" "}
+                {new Date(dashboardMetrics.period_end).toLocaleDateString()}
               </div>
             )}
-          </div>
-
-          {/* Period Info */}
-          {dashboardMetrics && (
-            <div className={`mt-6 text-center text-sm ${ui.muted}`}>
-              Data from{" "}
-              {new Date(dashboardMetrics.period_start).toLocaleDateString()} to{" "}
-              {new Date(dashboardMetrics.period_end).toLocaleDateString()}
-            </div>
-          )}
-        </section>
-      </main>
+          </>
+        )}
+      </div>
     </div>
   );
 }

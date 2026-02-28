@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAppDispatch, useAppSelector } from "@/store";
 import ProcurLoader from "@/components/ProcurLoader";
@@ -10,7 +9,6 @@ import {
   fetchTransactionsSummary,
 } from "@/store/slices/sellerTransactionsSlice";
 
-// Enums for transaction types and statuses
 enum TransactionType {
   SALE = "sale",
   REFUND = "refund",
@@ -73,141 +71,65 @@ interface TransactionFilters {
   sort_order: "asc" | "desc";
 }
 
-function classNames(...classes: (string | false | null | undefined)[]) {
-  return classes.filter(Boolean).join(" ");
-}
+const TYPE_META: Record<string, { bg: string; color: string; label: string }> = {
+  sale:        { bg: "rgba(45,74,62,.10)",   color: "#2d4a3e",  label: "Sale" },
+  refund:      { bg: "rgba(212,120,60,.12)", color: "#c26838",  label: "Refund" },
+  payout:      { bg: "rgba(45,74,62,.08)",   color: "#1a4035",  label: "Payout" },
+  fee:         { bg: "rgba(212,120,60,.10)", color: "#c26838",  label: "Fee" },
+  adjustment:  { bg: "rgba(212,120,60,.10)", color: "#c26838",  label: "Adj" },
+  chargeback:  { bg: "rgba(212,60,60,.12)",  color: "#9b2020",  label: "CB" },
+};
+
+const STATUS_META: Record<string, { bg: string; color: string; icon: string }> = {
+  completed:  { bg: "rgba(45,74,62,.10)",   color: "#2d4a3e",  icon: "✓" },
+  pending:    { bg: "rgba(212,120,60,.12)", color: "#c26838",  icon: "⏳" },
+  processing: { bg: "rgba(45,74,62,.08)",   color: "#1a4035",  icon: "⚡" },
+  failed:     { bg: "rgba(212,60,60,.12)",  color: "#9b2020",  icon: "✗" },
+  cancelled:  { bg: "rgba(0,0,0,.06)",      color: "#6a7f73",  icon: "⊘" },
+};
+
+const fmt = (n: number, currency = "USD") => {
+  const isNeg = n < 0;
+  const f = new Intl.NumberFormat("en-US", { style: "currency", currency }).format(Math.abs(n));
+  return isNeg ? `-${f}` : f;
+};
+
+const fmtMethod = (m: string) => ({
+  credit_card: "Credit Card", debit_card: "Debit Card",
+  bank_transfer: "Bank", digital_wallet: "Wallet", cash: "Cash", check: "Check",
+}[m] ?? m);
+
+const card: React.CSSProperties = { background: "#fff", border: "1px solid #ebe7df", borderRadius: 10 };
+const inputStyle: React.CSSProperties = { border: "1px solid #ddd9d1", borderRadius: 8, padding: "6px 10px", fontSize: 13, outline: "none", background: "#fff", color: "#1c2b23", width: "100%", boxSizing: "border-box" as const };
+const ghostBtn: React.CSSProperties = { background: "none", border: "1px solid #e8e4dc", borderRadius: 8, padding: "6px 12px", fontSize: 13, fontWeight: 500, color: "#1c2b23", cursor: "pointer" };
+const pill = (bg: string, color: string): React.CSSProperties => ({ display: "inline-flex", alignItems: "center", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600, background: bg, color });
 
 export default function SellerTransactionsPage() {
-  const router = useRouter();
-
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [totalTransactions, setTotalTransactions] = useState(0);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(20);
-  const [selectedTransactions, setSelectedTransactions] = useState<string[]>(
-    []
-  );
-
-  // Filter states
-  const [filters, setFilters] = useState<TransactionFilters>({
-    search: "",
-    type: "",
-    status: "",
-    payment_method: "",
-    date_range: "",
-    amount_min: "",
-    amount_max: "",
-    sort_by: "created_at",
-    sort_order: "desc",
-  });
-
-  const [showFilters, setShowFilters] = useState(false);
-  const [showExportModal, setShowExportModal] = useState(false);
-
   const dispatch = useAppDispatch();
   const txState = useAppSelector((s) => s.sellerTransactions);
 
-  const displayError =
-    error &&
-    (error.includes("403") ||
-      error.toLowerCase().includes("forbidden") ||
-      error.toLowerCase().includes("unauthorized"))
-      ? "Transactions are not available for your account yet. Please complete your seller setup or contact support."
-      : error;
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [totalTransactions, setTotalTransactions] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(20);
+  const [selectedTransactions, setSelectedTransactions] = useState<string[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
 
-  const getTransactionTypeColor = (type: TransactionType) => {
-    switch (type) {
-      case TransactionType.SALE:
-        return "bg-[#C0D1C7]/20 text-[#407178]";
-      case TransactionType.REFUND:
-        return "bg-[#CB5927]/20 text-[#653011]";
-      case TransactionType.PAYOUT:
-        return "bg-[#A6B1E7]/20 text-[#8091D5]";
-      case TransactionType.FEE:
-        return "bg-[#E0A374]/20 text-[#CB5927]";
-      case TransactionType.ADJUSTMENT:
-        return "bg-[#E0A374]/20 text-[#CB5927]";
-      case TransactionType.CHARGEBACK:
-        return "bg-[#CB5927]/20 text-[#653011]";
-      default:
-        return "bg-[#6C715D]/20 text-[#6C715D]";
-    }
-  };
+  const [filters, setFilters] = useState<TransactionFilters>({
+    search: "", type: "", status: "", payment_method: "",
+    date_range: "", amount_min: "", amount_max: "",
+    sort_by: "created_at", sort_order: "desc",
+  });
 
-  const getStatusColor = (status: TransactionStatus) => {
-    switch (status) {
-      case TransactionStatus.COMPLETED:
-        return "bg-[#C0D1C7]/20 text-[#407178]";
-      case TransactionStatus.PENDING:
-        return "bg-[#E0A374]/20 text-[#CB5927]";
-      case TransactionStatus.PROCESSING:
-        return "bg-[#A6B1E7]/20 text-[#8091D5]";
-      case TransactionStatus.FAILED:
-        return "bg-[#CB5927]/20 text-[#653011]";
-      case TransactionStatus.CANCELLED:
-        return "bg-[#6C715D]/20 text-[#6C715D]";
-      default:
-        return "bg-[#6C715D]/20 text-[#6C715D]";
-    }
-  };
-
-  const formatAmount = (amount: number, currency: string = "USD") => {
-    const isNegative = amount < 0;
-    const absAmount = Math.abs(amount);
-    const formatted = new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currency,
-    }).format(absAmount);
-    return isNegative ? `-${formatted}` : formatted;
-  };
-
-  const formatPaymentMethod = (method: PaymentMethod) => {
-    switch (method) {
-      case PaymentMethod.CREDIT_CARD:
-        return "Credit Card";
-      case PaymentMethod.DEBIT_CARD:
-        return "Debit Card";
-      case PaymentMethod.BANK_TRANSFER:
-        return "Bank Transfer";
-      case PaymentMethod.DIGITAL_WALLET:
-        return "Digital Wallet";
-      case PaymentMethod.CASH:
-        return "Cash";
-      case PaymentMethod.CHECK:
-        return "Check";
-      default:
-        return method;
-    }
-  };
-
-  const handleSelectTransaction = (transactionId: string) => {
-    setSelectedTransactions((prev) =>
-      prev.includes(transactionId)
-        ? prev.filter((id) => id !== transactionId)
-        : [...prev, transactionId]
-    );
-  };
-
-  const handleSelectAll = () => {
-    if (selectedTransactions.length === transactions.length) {
-      setSelectedTransactions([]);
-    } else {
-      setSelectedTransactions(transactions.map((t) => t.id));
-    }
-  };
-
-  // Slice wiring
-  // We keep this file unchanged for brevity in this edit box. (Already integrated earlier in the session.)
+  const displayError = error && (
+    error.includes("403") || error.toLowerCase().includes("forbidden") || error.toLowerCase().includes("unauthorized")
+  ) ? "Transactions are not available for your account yet. Please complete your seller setup or contact support." : error;
 
   useEffect(() => {
-    const params: any = {
-      page: currentPage,
-      limit: itemsPerPage,
-      sort_by: filters.sort_by,
-      sort_order: filters.sort_order,
-    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const params: any = { page: currentPage, limit: itemsPerPage, sort_by: filters.sort_by, sort_order: filters.sort_order };
     if (filters.type) params.type = filters.type;
     if (filters.status) params.status = filters.status;
     if (filters.payment_method) params.payment_method = filters.payment_method;
@@ -218,20 +140,10 @@ export default function SellerTransactionsPage() {
       const now = new Date();
       let from: Date | null = null;
       switch (filters.date_range) {
-        case "today":
-          from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-          break;
-        case "7d":
-          from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          break;
-        case "30d":
-          from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-          break;
-        case "90d":
-          from = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-          break;
-        default:
-          from = null;
+        case "today": from = new Date(now.getFullYear(), now.getMonth(), now.getDate()); break;
+        case "7d":    from = new Date(now.getTime() - 7 * 86400000); break;
+        case "30d":   from = new Date(now.getTime() - 30 * 86400000); break;
+        case "90d":   from = new Date(now.getTime() - 90 * 86400000); break;
       }
       if (from) params.from_date = from.toISOString();
     }
@@ -259,631 +171,193 @@ export default function SellerTransactionsPage() {
     }
   }, [txState]);
 
+  const handleSelectTransaction = (id: string) =>
+    setSelectedTransactions((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+
+  const handleSelectAll = () =>
+    setSelectedTransactions(selectedTransactions.length === transactions.length ? [] : transactions.map((t) => t.id));
+
   const totalPages = Math.ceil(totalTransactions / itemsPerPage);
-  const paginatedTransactions = transactions; // server paginated
 
   return (
-    <div className="min-h-screen bg-white">
-      <main className="max-w-7xl mx-auto px-6 py-10">
-        {/* Breadcrumbs */}
-        <nav
-          className="mb-6 text-sm text-[var(--primary-base)]"
-          aria-label="Breadcrumb"
-        >
-          <ol className="flex items-center space-x-2">
-            <li>
-              <Link href="/" className="px-2 py-1 rounded-full hover:bg-white">
-                Home
-              </Link>
-            </li>
-            <li className="text-gray-400">/</li>
-            <li>
-              <Link
-                href="/seller"
-                className="px-2 py-1 rounded-full hover:bg-white"
-              >
-                Seller
-              </Link>
-            </li>
-            <li className="text-gray-400">/</li>
-            <li>
-              <span className="px-2 py-1 rounded-full bg-white text-[var(--secondary-black)]">
-                Transaction History
-              </span>
-            </li>
-          </ol>
-        </nav>
+    <div style={{ minHeight: "100vh", background: "#faf8f4", fontFamily: "'Urbanist', system-ui, sans-serif" }}>
+      <main style={{ maxWidth: 1300, margin: "0 auto", padding: "32px 20px" }}>
 
         {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28, flexWrap: "wrap", gap: 12 }}>
           <div>
-            <h1 className="text-2xl leading-tight text-[var(--secondary-black)] font-medium">
-              Transaction History
-            </h1>
-            <p className="text-sm text-[var(--secondary-muted-edge)]">
-              View and manage all your payment transactions
-            </p>
+            <h1 style={{ fontSize: 22, fontWeight: 700, color: "#1c2b23", margin: 0 }}>Transaction History</h1>
+            <p style={{ fontSize: 13, color: "#8a9e92", marginTop: 3 }}>View and manage all your payment transactions</p>
           </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="btn btn-ghost h-8 px-3 text-sm"
-            >
-              Filters
+          <div style={{ display: "flex", gap: 8 }}>
+            <button style={ghostBtn} onClick={() => setShowFilters((v) => !v)}>
+              {showFilters ? "Hide Filters" : "Filters"}
             </button>
-
-            <Link
-              href="/seller/analytics"
-              className="btn btn-ghost h-8 px-3 text-sm"
-            >
+            <a href="/seller/analytics" style={{ ...ghostBtn, textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
               Analytics
-            </Link>
+            </a>
           </div>
         </div>
 
-        {/* Summary Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {/* Total Sales */}
-          <div className="bg-gradient-to-br from-[#C0D1C7] to-[#407178] rounded-2xl p-6 text-white">
-            <div className="flex items-center justify-between mb-2">
-              <svg
-                className="h-8 w-8 opacity-80"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              <div className="text-xs bg-white/20 px-2 py-1 rounded-full">
-                Sales
-              </div>
+        {/* KPI Strip */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
+          {[
+            { label: "Sales", value: fmt(txState.summary?.total_sales ?? 0) },
+            { label: "Refunds", value: fmt(txState.summary?.total_refunds ?? 0) },
+            { label: "Fees", value: fmt(txState.summary?.total_fees ?? 0) },
+            { label: "Net Revenue", value: fmt(txState.summary?.net_earnings ?? 0) },
+          ].map(({ label, value }) => (
+            <div key={label} style={{ ...card, padding: "16px 18px" }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#8a9e92", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 }}>{label}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: "#1c2b23", lineHeight: 1 }}>{value}</div>
             </div>
-            <div className="text-3xl font-bold mb-1">
-              {formatAmount(txState.summary?.total_sales ?? 0)}
-            </div>
-            <div className="text-xs opacity-80">Total sales</div>
-          </div>
-
-          {/* Total Refunds */}
-          <div className="bg-gradient-to-br from-[#E0A374] to-[#CB5927] rounded-2xl p-6 text-white">
-            <div className="flex items-center justify-between mb-2">
-              <svg
-                className="h-8 w-8 opacity-80"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z"
-                />
-              </svg>
-              <div className="text-xs bg-white/20 px-2 py-1 rounded-full">
-                Refunds
-              </div>
-            </div>
-            <div className="text-3xl font-bold mb-1">
-              {formatAmount(txState.summary?.total_refunds ?? 0)}
-            </div>
-            <div className="text-xs opacity-80">Total refunds</div>
-          </div>
-
-          {/* Total Fees */}
-          <div className="bg-gradient-to-br from-[#CB5927] to-[#653011] rounded-2xl p-6 text-white">
-            <div className="flex items-center justify-between mb-2">
-              <svg
-                className="h-8 w-8 opacity-80"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-                />
-              </svg>
-              <div className="text-xs bg-white/20 px-2 py-1 rounded-full">
-                Fees
-              </div>
-            </div>
-            <div className="text-3xl font-bold mb-1">
-              {formatAmount(txState.summary?.total_fees ?? 0)}
-            </div>
-            <div className="text-xs opacity-80">Platform fees</div>
-          </div>
-
-          {/* Net Revenue */}
-          <div className="bg-gradient-to-br from-[#A6B1E7] to-[#8091D5] rounded-2xl p-6 text-white">
-            <div className="flex items-center justify-between mb-2">
-              <svg
-                className="h-8 w-8 opacity-80"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-                />
-              </svg>
-              <div className="text-xs bg-white/20 px-2 py-1 rounded-full">
-                Net
-              </div>
-            </div>
-            <div className="text-3xl font-bold mb-1">
-              {formatAmount(txState.summary?.net_earnings ?? 0)}
-            </div>
-            <div className="text-xs opacity-80">Net revenue</div>
-          </div>
+          ))}
         </div>
 
-        {/* Filters Panel */}
+        {/* Filters */}
         {showFilters && (
-          <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)] p-4 mb-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
-              <input
-                type="text"
-                value={filters.search}
-                onChange={(e) =>
-                  setFilters((p) => ({ ...p, search: e.target.value }))
-                }
-                placeholder="Search..."
-                className="input w-full text-sm h-8"
-              />
-              <select
-                value={filters.type}
-                onChange={(e) =>
-                  setFilters((p) => ({
-                    ...p,
-                    type: e.target.value as TransactionType | "",
-                  }))
-                }
-                className="input w-full text-sm h-8"
-              >
+          <div style={{ ...card, padding: "16px 18px", marginBottom: 20 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+              <input type="text" value={filters.search} onChange={(e) => setFilters((p) => ({ ...p, search: e.target.value }))} placeholder="Search…" style={inputStyle} />
+              <select value={filters.type} onChange={(e) => setFilters((p) => ({ ...p, type: e.target.value as TransactionType | "" }))} style={inputStyle}>
                 <option value="">All Types</option>
-                <option value={TransactionType.SALE}>Sale</option>
-                <option value={TransactionType.REFUND}>Refund</option>
-                <option value={TransactionType.PAYOUT}>Payout</option>
-                <option value={TransactionType.FEE}>Fee</option>
-                <option value={TransactionType.ADJUSTMENT}>Adjustment</option>
-                <option value={TransactionType.CHARGEBACK}>Chargeback</option>
+                {Object.values(TransactionType).map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
-              <select
-                value={filters.status}
-                onChange={(e) =>
-                  setFilters((p) => ({
-                    ...p,
-                    status: e.target.value as TransactionStatus | "",
-                  }))
-                }
-                className="input w-full text-sm h-8"
-              >
+              <select value={filters.status} onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value as TransactionStatus | "" }))} style={inputStyle}>
                 <option value="">All Status</option>
-                <option value={TransactionStatus.COMPLETED}>Completed</option>
-                <option value={TransactionStatus.PENDING}>Pending</option>
-                <option value={TransactionStatus.PROCESSING}>Processing</option>
-                <option value={TransactionStatus.FAILED}>Failed</option>
-                <option value={TransactionStatus.CANCELLED}>Cancelled</option>
+                {Object.values(TransactionStatus).map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
-              <select
-                value={filters.date_range}
-                onChange={(e) =>
-                  setFilters((p) => ({
-                    ...p,
-                    date_range: e.target.value as
-                      | "today"
-                      | "7d"
-                      | "30d"
-                      | "90d"
-                      | "custom"
-                      | "",
-                  }))
-                }
-                className="input w-full text-sm h-8"
-              >
+              <select value={filters.date_range} onChange={(e) => setFilters((p) => ({ ...p, date_range: e.target.value as TransactionFilters["date_range"] }))} style={inputStyle}>
                 <option value="">All Time</option>
                 <option value="today">Today</option>
                 <option value="7d">7 Days</option>
                 <option value="30d">30 Days</option>
                 <option value="90d">90 Days</option>
               </select>
-              <select
-                value={filters.payment_method}
-                onChange={(e) =>
-                  setFilters((p) => ({
-                    ...p,
-                    payment_method: e.target.value as PaymentMethod | "",
-                  }))
-                }
-                className="input w-full text-sm h-8"
-              >
+              <select value={filters.payment_method} onChange={(e) => setFilters((p) => ({ ...p, payment_method: e.target.value as PaymentMethod | "" }))} style={inputStyle}>
                 <option value="">All Methods</option>
-                <option value={PaymentMethod.CREDIT_CARD}>Card</option>
-                <option value={PaymentMethod.DEBIT_CARD}>Debit</option>
-                <option value={PaymentMethod.BANK_TRANSFER}>Bank</option>
-                <option value={PaymentMethod.DIGITAL_WALLET}>Wallet</option>
-                <option value={PaymentMethod.CASH}>Cash</option>
-                <option value={PaymentMethod.CHECK}>Check</option>
+                {Object.values(PaymentMethod).map((m) => <option key={m} value={m}>{fmtMethod(m)}</option>)}
               </select>
-              <input
-                type="number"
-                value={filters.amount_min}
-                onChange={(e) =>
-                  setFilters((p) => ({ ...p, amount_min: e.target.value }))
-                }
-                placeholder="Min $"
-                className="input w-full text-sm h-8"
-                min="0"
-                step="0.01"
-              />
-              <input
-                type="number"
-                value={filters.amount_max}
-                onChange={(e) =>
-                  setFilters((p) => ({ ...p, amount_max: e.target.value }))
-                }
-                placeholder="Max $"
-                className="input w-full text-sm h-8"
-                min="0"
-                step="0.01"
-              />
-              <select
-                value={`${filters.sort_by}-${filters.sort_order}`}
-                onChange={(e) => {
-                  const [sort_by, sort_order] = e.target.value.split("-");
-                  setFilters((p) => ({
-                    ...p,
-                    sort_by: sort_by,
-                    sort_order: sort_order as "asc" | "desc",
-                  }));
-                }}
-                className="input w-full text-sm h-8"
-              >
+              <input type="number" value={filters.amount_min} onChange={(e) => setFilters((p) => ({ ...p, amount_min: e.target.value }))} placeholder="Min $" style={inputStyle} min="0" />
+              <input type="number" value={filters.amount_max} onChange={(e) => setFilters((p) => ({ ...p, amount_max: e.target.value }))} placeholder="Max $" style={inputStyle} min="0" />
+              <select value={`${filters.sort_by}-${filters.sort_order}`} onChange={(e) => { const [sort_by, sort_order] = e.target.value.split("-"); setFilters((p) => ({ ...p, sort_by, sort_order: sort_order as "asc" | "desc" })); }} style={inputStyle}>
                 <option value="created_at-desc">Newest</option>
                 <option value="created_at-asc">Oldest</option>
                 <option value="amount-desc">$ High</option>
                 <option value="amount-asc">$ Low</option>
-                <option value="customer_name-asc">A-Z</option>
-                <option value="customer_name-desc">Z-A</option>
               </select>
             </div>
           </div>
         )}
 
-        {/* Transactions Count and Bulk Actions */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3 text-sm">
-            <span className="text-[var(--primary-base)]">
-              {totalTransactions} transactions
-            </span>
+        {/* Bulk toolbar + count */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 13, color: "#8a9e92" }}>
+            <span>{totalTransactions} transactions</span>
             {selectedTransactions.length > 0 && (
-              <>
-                <span className="text-[var(--primary-accent2)]">
-                  ({selectedTransactions.length} selected)
-                </span>
-                <button className="text-[var(--primary-base)] hover:text-[var(--primary-accent2)]">
-                  Export
-                </button>
-                <button className="text-red-600 hover:text-red-700">
-                  Delete
-                </button>
-              </>
+              <span style={{ color: "#d4783c", fontWeight: 600 }}>{selectedTransactions.length} selected</span>
             )}
           </div>
           {totalPages > 1 && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className="px-4 py-2 bg-white border border-[var(--secondary-soft-highlight)] text-[var(--secondary-black)] rounded-full text-sm font-medium hover:bg-[var(--primary-background)] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() =>
-                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                }
-                disabled={currentPage === totalPages}
-                className="px-4 py-2 bg-white border border-[var(--secondary-soft-highlight)] text-[var(--secondary-black)] rounded-full text-sm font-medium hover:bg-[var(--primary-background)] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next
-              </button>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))} disabled={currentPage === 1} style={{ ...ghostBtn, opacity: currentPage === 1 ? 0.4 : 1, fontSize: 12 }}>← Prev</button>
+              <span style={{ fontSize: 13, color: "#8a9e92", padding: "6px 4px" }}>{currentPage} / {totalPages}</span>
+              <button onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages} style={{ ...ghostBtn, opacity: currentPage === totalPages ? 0.4 : 1, fontSize: 12 }}>Next →</button>
             </div>
           )}
         </div>
 
-        {/* Error State */}
+        {/* Error */}
         {displayError && (
-          <div className="bg-[#CB5927]/10 border border-[#CB5927]/30 rounded-xl p-4 mb-6">
-            <p className="text-[#653011] font-medium">{displayError}</p>
+          <div style={{ background: "rgba(212,60,60,.08)", border: "1px solid rgba(212,60,60,.2)", borderRadius: 8, padding: "12px 16px", marginBottom: 16, fontSize: 13, color: "#9b2020" }}>
+            {displayError}
           </div>
         )}
 
-        {/* Transactions Table */}
-        {loading ? (
-          <ProcurLoader size="md" text="Loading transactions..." />
-        ) : paginatedTransactions.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/30 p-12 text-center">
-            <div className="w-16 h-16 mx-auto mb-4 bg-[var(--primary-background)] rounded-full flex items-center justify-center">
-              <svg
-                className="w-8 h-8 text-[var(--secondary-muted-edge)] opacity-50"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                />
-              </svg>
+        {/* Loading */}
+        {loading && <ProcurLoader size="md" text="Loading transactions…" />}
+
+        {/* Empty */}
+        {!loading && transactions.length === 0 && (
+          <div style={{ ...card, padding: "48px 24px", textAlign: "center" }}>
+            <div style={{ width: 52, height: 52, background: "#f4f1eb", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="#8a9e92" strokeWidth="1.5" width={24} height={24}><path d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
             </div>
-            <h3 className="text-xl font-semibold text-[var(--secondary-black)] mb-2">
-              No transactions found
-            </h3>
-            <p className="text-[var(--secondary-muted-edge)] mb-6">
-              {filters.search || filters.type || filters.status
-                ? "Try adjusting your filters or search terms"
-                : "Your transactions will appear here once you start selling"}
-            </p>
-            <Link
-              href="/seller"
-              className="inline-block px-6 py-3 bg-[var(--primary-accent2)] text-white rounded-full font-medium hover:bg-[var(--primary-accent3)] transition-all duration-200"
-            >
+            <div style={{ fontSize: 16, fontWeight: 600, color: "#1c2b23", marginBottom: 6 }}>No transactions found</div>
+            <div style={{ fontSize: 13, color: "#8a9e92", marginBottom: 20 }}>
+              {filters.search || filters.type || filters.status ? "Try adjusting your filters" : "Transactions appear once you start selling"}
+            </div>
+            <a href="/seller" style={{ display: "inline-flex", padding: "8px 20px", background: "#2d4a3e", color: "#fff", borderRadius: 999, textDecoration: "none", fontSize: 13, fontWeight: 600 }}>
               Go to Dashboard
-            </Link>
+            </a>
           </div>
-        ) : (
-          <div className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/30 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-[var(--primary-background)] border-b border-[var(--secondary-soft-highlight)]">
-                  <tr>
-                    <th className="text-left py-2 px-3 w-8">
-                      <input
-                        type="checkbox"
-                        checked={
-                          selectedTransactions.length ===
-                          paginatedTransactions.length
-                        }
-                        onChange={handleSelectAll}
-                        className="rounded border-gray-300"
-                      />
+        )}
+
+        {/* Table */}
+        {!loading && transactions.length > 0 && (
+          <div style={{ ...card, overflow: "hidden" }}>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+                <thead>
+                  <tr style={{ background: "#faf8f4", borderBottom: "1px solid #ebe7df" }}>
+                    <th style={{ padding: "10px 12px", width: 32 }}>
+                      <input type="checkbox" checked={selectedTransactions.length === transactions.length && transactions.length > 0} onChange={handleSelectAll} />
                     </th>
-                    <th className="text-left py-2 px-3 font-medium text-[var(--secondary-black)] min-w-[120px]">
-                      ID
-                    </th>
-                    <th className="text-left py-2 px-3 font-medium text-[var(--secondary-black)] w-16">
-                      Type
-                    </th>
-                    <th className="text-left py-2 px-3 font-medium text-[var(--secondary-black)] min-w-[140px]">
-                      Buyer
-                    </th>
-                    <th className="text-left py-2 px-3 font-medium text-[var(--secondary-black)] w-20">
-                      Amount
-                    </th>
-                    <th className="text-left py-2 px-3 font-medium text-[var(--secondary-black)] w-20">
-                      Net
-                    </th>
-                    <th className="text-left py-2 px-3 font-medium text-[var(--secondary-black)] w-16">
-                      Method
-                    </th>
-                    <th className="text-left py-2 px-3 font-medium text-[var(--secondary-black)] w-20">
-                      Status
-                    </th>
-                    <th className="text-left py-2 px-3 font-medium text-[var(--secondary-black)] w-20">
-                      Date
-                    </th>
-                    <th className="text-left py-2 px-3 font-medium text-[var(--secondary-black)] w-16">
-                      Actions
-                    </th>
+                    {["ID / Order", "Type", "Buyer", "Amount", "Net", "Method", "Status", "Date", ""].map((h) => (
+                      <th key={h} style={{ textAlign: "left", padding: "10px 12px", fontWeight: 600, color: "#6a7f73", whiteSpace: "nowrap" }}>{h}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedTransactions.map((transaction) => (
-                    <tr
-                      key={transaction.id}
-                      className="border-b border-[var(--secondary-soft-highlight)]/20 last:border-0 hover:bg-[var(--primary-background)]/50 transition-colors"
-                    >
-                      <td className="py-2 px-3">
-                        <input
-                          type="checkbox"
-                          checked={selectedTransactions.includes(
-                            transaction.id
-                          )}
-                          onChange={() =>
-                            handleSelectTransaction(transaction.id)
-                          }
-                          className="rounded border-gray-300"
-                        />
-                      </td>
-                      <td className="py-2 px-3">
-                        <Link
-                          href={`/seller/transactions/${transaction.id}`}
-                          className="font-medium text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)] text-xs"
-                        >
-                          {transaction.transaction_number ||
-                            transaction.id.slice(0, 12) + "..."}
-                        </Link>
-                        {transaction.order_id && (
-                          <Link
-                            href={`/seller/orders/${transaction.order_id}`}
-                            className="text-xs text-[var(--secondary-muted-edge)] hover:text-[var(--primary-accent2)] block mt-0.5"
-                          >
-                            Order: {transaction.order_id.slice(0, 8)}...
-                          </Link>
-                        )}
-                      </td>
-                      <td className="py-2 px-3">
-                        <span
-                          className={classNames(
-                            "px-1.5 py-0.5 text-xs rounded-full font-medium",
-                            getTransactionTypeColor(
-                              (transaction.type as TransactionType) ||
-                                TransactionType.SALE
-                            )
-                          )}
-                        >
-                          {transaction.type === TransactionType.SALE
-                            ? "Sale"
-                            : transaction.type === TransactionType.REFUND
-                              ? "Refund"
-                              : transaction.type === TransactionType.PAYOUT
-                                ? "Payout"
-                                : transaction.type === TransactionType.FEE
-                                  ? "Fee"
-                                  : transaction.type ===
-                                      TransactionType.ADJUSTMENT
-                                    ? "Adj"
-                                    : "CB"}
-                        </span>
-                      </td>
-                      <td className="py-2 px-3">
-                        <div className="font-medium text-[var(--secondary-black)] text-xs truncate max-w-[140px]">
-                          {transaction.buyer_org_id
-                            ? transaction.buyer_org_id.slice(0, 8) + "…"
-                            : "—"}
-                        </div>
-                      </td>
-                      <td className="py-2 px-3">
-                        <div className="font-semibold text-[var(--secondary-black)] text-xs">
-                          {formatAmount(
-                            transaction.amount,
-                            transaction.currency
-                          )}
-                        </div>
-                        {transaction.platform_fee && (
-                          <div className="text-xs text-[var(--primary-base)]">
-                            -
-                            {formatAmount(
-                              Math.abs(transaction.platform_fee),
-                              transaction.currency
-                            )}
+                  {transactions.map((tx) => {
+                    const tm = TYPE_META[tx.type as string] ?? { bg: "rgba(0,0,0,.06)", color: "#6a7f73", label: tx.type };
+                    const sm = STATUS_META[tx.status as string] ?? STATUS_META.pending;
+                    return (
+                      <tr key={tx.id} style={{ borderBottom: "1px solid #f8f6f2" }}>
+                        <td style={{ padding: "10px 12px" }}>
+                          <input type="checkbox" checked={selectedTransactions.includes(tx.id)} onChange={() => handleSelectTransaction(tx.id)} />
+                        </td>
+                        <td style={{ padding: "10px 12px" }}>
+                          <div style={{ fontWeight: 600, color: "#d4783c", fontSize: 12 }}>
+                            {tx.transaction_number || `${tx.id.slice(0, 12)}…`}
                           </div>
-                        )}
-                      </td>
-                      <td className="py-2 px-3">
-                        <div
-                          className={classNames(
-                            "font-semibold text-xs",
-                            (transaction.net_amount ?? 0) >= 0
-                              ? "text-green-600"
-                              : "text-red-600"
+                          {tx.order_id && (
+                            <Link href={`/seller/orders/${tx.order_id}`} style={{ fontSize: 11, color: "#8a9e92", textDecoration: "none" }}>
+                              Order: {tx.order_id.slice(0, 8)}…
+                            </Link>
                           )}
-                        >
-                          {formatAmount(
-                            transaction.net_amount ?? 0,
-                            transaction.currency
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-2 px-3 text-xs text-[var(--primary-base)]">
-                        {transaction.payment_method
-                          ? formatPaymentMethod(
-                              transaction.payment_method as PaymentMethod
-                            )
-                          : "—"}
-                      </td>
-                      <td className="py-2 px-3">
-                        <span
-                          className={classNames(
-                            "px-1.5 py-0.5 text-xs rounded-full font-medium",
-                            getStatusColor(
-                              (transaction.status as TransactionStatus) ||
-                                TransactionStatus.PENDING
-                            )
-                          )}
-                        >
-                          {transaction.status === TransactionStatus.COMPLETED
-                            ? "✓"
-                            : transaction.status === TransactionStatus.PENDING
-                              ? "⏳"
-                              : transaction.status ===
-                                  TransactionStatus.PROCESSING
-                                ? "⚡"
-                                : transaction.status ===
-                                    TransactionStatus.FAILED
-                                  ? "✗"
-                                  : "⊘"}
-                        </span>
-                      </td>
-                      <td className="py-2 px-3 text-xs text-[var(--primary-base)]">
-                        <div>
-                          {new Date(transaction.created_at).toLocaleDateString(
-                            "en-US",
-                            { month: "short", day: "numeric" }
-                          )}
-                        </div>
-                        <div className="text-xs opacity-60">
-                          {new Date(transaction.created_at).toLocaleTimeString(
-                            "en-US",
-                            { hour: "2-digit", minute: "2-digit" }
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-2 px-3">
-                        <div className="flex items-center gap-1">
-                          <button
-                            className="text-[var(--primary-base)] hover:text-[var(--primary-accent2)] p-1"
-                            title="View Details"
-                          >
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                              />
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                              />
-                            </svg>
+                        </td>
+                        <td style={{ padding: "10px 12px" }}>
+                          <span style={pill(tm.bg, tm.color)}>{tm.label}</span>
+                        </td>
+                        <td style={{ padding: "10px 12px", color: "#8a9e92", fontSize: 12 }}>
+                          {tx.buyer_org_id ? `${tx.buyer_org_id.slice(0, 8)}…` : "—"}
+                        </td>
+                        <td style={{ padding: "10px 12px" }}>
+                          <div style={{ fontWeight: 700, color: "#1c2b23" }}>{fmt(tx.amount, tx.currency)}</div>
+                          {tx.platform_fee && <div style={{ fontSize: 11, color: "#8a9e92" }}>-{fmt(Math.abs(tx.platform_fee), tx.currency)}</div>}
+                        </td>
+                        <td style={{ padding: "10px 12px", fontWeight: 700, color: (tx.net_amount ?? 0) >= 0 ? "#1a4035" : "#9b2020" }}>
+                          {fmt(tx.net_amount ?? 0, tx.currency)}
+                        </td>
+                        <td style={{ padding: "10px 12px", color: "#8a9e92", fontSize: 12 }}>
+                          {tx.payment_method ? fmtMethod(tx.payment_method as string) : "—"}
+                        </td>
+                        <td style={{ padding: "10px 12px" }}>
+                          <span style={pill(sm.bg, sm.color)}>{sm.icon}</span>
+                        </td>
+                        <td style={{ padding: "10px 12px", color: "#8a9e92", whiteSpace: "nowrap", fontSize: 12 }}>
+                          {new Date(tx.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                          <div style={{ opacity: 0.7 }}>{new Date(tx.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</div>
+                        </td>
+                        <td style={{ padding: "10px 12px" }}>
+                          <button style={{ background: "none", border: "none", cursor: "pointer", color: "#8a9e92", padding: 4 }} title="View">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width={16} height={16}><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                           </button>
-                          {transaction.type === TransactionType.SALE && (
-                            <button
-                              className="text-[var(--primary-base)] hover:text-[var(--primary-accent2)] p-1"
-                              title="Download Receipt"
-                            >
-                              <svg
-                                className="w-4 h-4"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                                />
-                              </svg>
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

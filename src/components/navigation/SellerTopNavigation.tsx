@@ -4,18 +4,6 @@ import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  BellIcon,
-  LanguageIcon,
-  Bars3Icon,
-  XMarkIcon,
-  ChartBarIcon,
-} from "@heroicons/react/24/outline";
-import {
-  BellIcon as BellSolidIcon,
-  ChartBarIcon as ChartBarSolidIcon,
-} from "@heroicons/react/24/solid";
-import { BookOpenIcon } from "@heroicons/react/24/outline";
 import { useAppDispatch, useAppSelector } from "@/store";
 import { selectAuthUser, signout } from "@/store/slices/authSlice";
 import {
@@ -24,628 +12,441 @@ import {
   selectNotifications,
 } from "@/store/slices/notificationsSlice";
 import { useNotificationsSocket } from "@/hooks/useNotificationsSocket";
-import { useI18n } from "@/lib/i18n/I18nProvider";
 import { fetchProfile } from "@/store/slices/profileSlice";
+
+const NAV_H = 56;
+
+// Icon-only nav items for verified sellers
+const ICON_NAV = [
+  {
+    href: "/seller/orders",
+    label: "Orders",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" width={18} height={18}>
+        <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+      </svg>
+    ),
+  },
+  {
+    href: "/seller/products",
+    label: "Inventory",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" width={18} height={18}>
+        <rect x="2" y="7" width="20" height="14" rx="2" />
+        <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" />
+      </svg>
+    ),
+  },
+  {
+    href: "/seller/messages",
+    label: "Messages",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" width={18} height={18}>
+        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+      </svg>
+    ),
+  },
+  {
+    href: "/seller/payouts",
+    label: "Payouts",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" width={18} height={18}>
+        <rect x="1" y="4" width="22" height="16" rx="2" />
+        <path d="M1 10h22" />
+      </svg>
+    ),
+  },
+];
 
 const SellerTopNavigation: React.FC = () => {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-  const [showCountryModal, setShowCountryModal] = useState(false);
-  const { t, locale, setLocale } = useI18n();
-  const [selectedLanguage, setSelectedLanguage] = useState("EN");
-  const [selectedCountry, setSelectedCountry] = useState({
-    code: "GD",
-    flag: "🇬🇩",
-    name: "Grenada",
-  });
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const router = useRouter();
-
-  const countries = [
-    { code: "GD", flag: "🇬🇩", name: "Grenada" },
-    { code: "VC", flag: "🇻🇨", name: "St. Vincent" },
-    { code: "TT", flag: "🇹🇹", name: "Trinidad & Tobago" },
-    { code: "BB", flag: "🇧🇧", name: "Barbados" },
-    { code: "LC", flag: "🇱🇨", name: "St. Lucia" },
-    { code: "PA", flag: "🇵🇦", name: "Panama" },
-    { code: "CO", flag: "🇨🇴", name: "Colombia" },
-  ];
-
-  const languages = ["EN", "ES", "FR"];
-
-  useEffect(() => {
-    const label = locale === "es" ? "ES" : locale === "fr" ? "FR" : "EN";
-    setSelectedLanguage(label);
-  }, [locale]);
-
-  const toLocale = (label: string) =>
-    label === "ES" ? "es" : label === "FR" ? "fr" : "en";
-
-  // Notifications state
   const dispatch = useAppDispatch();
+
+  // Notifications
   const { items, status } = useAppSelector(selectNotifications);
   useNotificationsSocket();
-
   useEffect(() => {
-    if (status === "idle") {
-      dispatch(fetchNotifications(undefined));
-    }
+    if (status === "idle") dispatch(fetchNotifications(undefined));
   }, [status, dispatch]);
 
-  // Authenticated user data
+  // Profile
   const authUser = useAppSelector(selectAuthUser);
   const profile = useAppSelector((s) => s.profile.profile);
+  const profileStatus = useAppSelector((s) => s.profile.status);
+  useEffect(() => {
+    if (!profile && profileStatus === "idle") dispatch(fetchProfile());
+  }, [dispatch, profile, profileStatus]);
+
   const displayName =
-    (profile?.fullname && profile.fullname.trim()) ||
-    (authUser?.fullname && authUser.fullname.trim()) ||
+    profile?.fullname?.trim() ||
+    authUser?.fullname?.trim() ||
     (authUser?.email ? authUser.email.split("@")[0] : "User");
   const businessName =
     profile?.organization?.businessName ||
     profile?.organization?.name ||
     authUser?.organizationName ||
     "Seller";
+  const isFarmVerified = Boolean(profile?.organization?.farmVerified);
   const avatarUrl =
     profile?.avatarUrl ||
     authUser?.profileImg ||
-    `https://ui-avatars.com/api/?name=${encodeURIComponent(
-      displayName
-    )}&background=407178&color=fff`;
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=2d4a3e&color=fff`;
 
-  // Business type and verification state from profile
-  const businessType = profile?.organization?.businessType;
-  const isFarmVerified = Boolean(profile?.organization?.farmVerified);
-
-  // Click outside to close dropdowns
+  // Click outside to close
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (navRef.current && !navRef.current.contains(event.target as Node)) {
+    const h = (e: MouseEvent) => {
+      if (navRef.current && !navRef.current.contains(e.target as Node))
         setActiveDropdown(null);
-      }
     };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
   }, []);
 
-  const handleDropdownToggle = (dropdownName: string) => {
-    setActiveDropdown(activeDropdown === dropdownName ? null : dropdownName);
-  };
-
-  const navBgClass = "bg-white";
-
-  type SafeNotification = {
-    id: string;
-    title: string;
-    body: string;
-    created_at: string;
-    read_at?: string | null;
-    data?: Record<string, unknown>;
-  };
-
-  const safeItems: SafeNotification[] = Array.isArray(items)
-    ? (items as SafeNotification[])
-    : Array.isArray((items as unknown as { data?: unknown })?.data)
-      ? ((items as unknown as { data: unknown[] }).data as SafeNotification[])
+  const safeItems = Array.isArray(items)
+    ? items
+    : Array.isArray((items as any)?.data)
+      ? (items as any).data
       : [];
-  const unreadCount = safeItems.filter(
-    (n: { read_at?: string | null }) => !n.read_at
-  ).length;
+  const unreadCount = safeItems.filter((n: any) => !n.read_at).length;
 
-  const profileStatus = useAppSelector((s) => s.profile.status);
-  useEffect(() => {
-    if (!profile && profileStatus === "idle") {
-      dispatch(fetchProfile());
-    }
-  }, [dispatch, profile, profileStatus]);
+  // ── Shared micro-styles ─────────────────────────────────────────────────────
+
+  const iconBtn: React.CSSProperties = {
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    position: "relative",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    color: "#6a7f73",
+    flexShrink: 0,
+  };
+
+  const badge: React.CSSProperties = {
+    position: "absolute",
+    top: 2,
+    right: 2,
+    background: "#d4783c",
+    color: "#fff",
+    fontSize: 9,
+    fontWeight: 700,
+    width: 14,
+    height: 14,
+    borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    pointerEvents: "none",
+  };
+
+  const dropdownStyle: React.CSSProperties = {
+    position: "absolute",
+    top: "calc(100% + 6px)",
+    right: 0,
+    minWidth: 220,
+    background: "#fff",
+    border: "1px solid #ebe7df",
+    borderRadius: 12,
+    boxShadow: "0 6px 20px rgba(0,0,0,.08)",
+    zIndex: 400,
+    overflow: "hidden",
+  };
+
+  const isActive = (href: string, exact = false) =>
+    exact ? pathname === href : pathname?.startsWith(href);
+
+  const textLinkStyle = (href: string, exact = false): React.CSSProperties => {
+    const active = isActive(href, exact);
+    return {
+      fontSize: 13.5,
+      fontWeight: 600,
+      color: active ? "#2d4a3e" : "#6a7f73",
+      textDecoration: "none",
+      padding: "4px 0",
+      borderBottom: active ? "2px solid #d4783c" : "2px solid transparent",
+      whiteSpace: "nowrap" as const,
+    };
+  };
+
+  const iconNavBtn = (href: string): React.CSSProperties => {
+    const active = isActive(href);
+    return {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      width: 34,
+      height: 34,
+      borderRadius: 8,
+      color: active ? "#2d4a3e" : "#8a9e92",
+      background: active ? "rgba(45,74,62,.08)" : "none",
+      textDecoration: "none",
+      flexShrink: 0,
+    };
+  };
 
   return (
-    <>
-      <nav className={`${navBgClass} sticky top-0 z-40`} ref={navRef}>
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex items-center h-20">
-            {/* Logo - Left Section */}
-            <div className="flex-[0.8] flex items-center">
-              <Link href="/seller" className="flex items-center relative group">
-                <Image
-                  src="/images/logos/procur-logo.svg"
-                  alt="Procur"
-                  width={120}
-                  height={32}
-                  className="h-8 w-auto"
-                />
-                <span
-                  className={`absolute -bottom-2 right-0 text-[10px] leading-none transition-colors duration-200 ${
-                    pathname === "/seller"
-                      ? "text-[var(--primary-accent2)] font-semibold"
-                      : "text-[color:var(--secondary-muted-edge)]"
-                  }`}
-                >
-                  seller
-                </span>
-              </Link>
-            </div>
+    <nav
+      ref={navRef}
+      style={{
+        background: "#fff",
+        position: "sticky",
+        top: 0,
+        zIndex: 200,
+        fontFamily: "'Urbanist', system-ui, sans-serif",
+      }}
+    >
+      <div
+        style={{
+          maxWidth: 1300,
+          margin: "0 auto",
+          padding: "0 20px",
+          height: NAV_H,
+          display: "grid",
+          gridTemplateColumns: "200px 1fr auto",
+          alignItems: "center",
+          gap: 12,
+        }}
+      >
+        {/* ── Left: logo + "seller" label ── */}
+        <Link
+          href="/seller"
+          style={{ textDecoration: "none", display: "flex", flexDirection: "column", gap: 2, width: "fit-content" }}
+        >
+          <Image
+            src="/images/logos/procur-logo.svg"
+            alt="Procur"
+            width={88}
+            height={22}
+            priority
+          />
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              color: "#d4783c",
+              lineHeight: 1,
+              letterSpacing: ".04em",
+              textTransform: "lowercase",
+            }}
+          >
+            seller
+          </span>
+        </Link>
 
-            {/* Main Navigation - Center Section */}
-            <div className="hidden lg:flex items-center justify-center space-x-8 flex-1">
-              {/* Requests Link */}
-              {/* <Link
-                href="/seller/purchase-requests"
-                className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
-                  pathname?.startsWith("/seller/purchase-requests")
-                    ? "text-[var(--primary-accent2)] border-[var(--primary-accent2)]"
-                    : "text-gray-800 hover:text-black border-transparent"
-                }`}
-              >
-                <span className="relative">Requests</span>
-              </Link> */}
+        {/* ── Center: text links + icon links ── */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 20,
+          }}
+        >
+          {/* Text links */}
+          <Link href="/" style={textLinkStyle("/", true)}>Browse</Link>
+          <Link href="/seller" style={textLinkStyle("/seller", true)}>Dashboard</Link>
 
-              {/* Core seller nav links (hidden until verified) */}
-              {isFarmVerified && (
-                <>
-                  {/* Orders Link */}
-                  <Link
-                    href="/seller/orders"
-                    className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
-                      pathname?.startsWith("/seller/orders")
-                        ? "text-[var(--primary-accent2)] border-[var(--primary-accent2)]"
-                        : "text-gray-800 hover:text-black border-transparent"
-                    }`}
-                  >
-                    <span className="relative">Orders</span>
-                  </Link>
+          {/* Icon-only links (verified only) */}
+          {isFarmVerified && (
+            <>
+              <div style={{ width: 1, height: 16, background: "#ebe7df" }} />
+              {ICON_NAV.map(({ href, label, icon }) => (
+                <Link key={href} href={href} title={label} style={iconNavBtn(href)}>
+                  {icon}
+                </Link>
+              ))}
+            </>
+          )}
+        </div>
 
-                  {/* Inventory Link */}
-                  <Link
-                    href="/seller/products"
-                    className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
-                      pathname?.startsWith("/seller/products")
-                        ? "text-[var(--primary-accent2)] border-[var(--primary-accent2)]"
-                        : "text-gray-800 hover:text-black border-transparent"
-                    }`}
-                  >
-                    <span className="relative">Inventory</span>
-                  </Link>
-
-                  {/* Messages Link */}
-                  <Link
-                    href="/seller/messages"
-                    className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
-                      pathname?.startsWith("/seller/messages")
-                        ? "text-[var(--primary-accent2)] border-[var(--primary-accent2)]"
-                        : "text-gray-800 hover:text-black border-transparent"
-                    }`}
-                  >
-                    <span className="relative">Messages</span>
-                  </Link>
-
-                  {/* Payouts Link */}
-                  <Link
-                    href="/seller/payouts"
-                    className={`font-medium text-[15px] transition-all duration-200 pb-1 border-b-2 ${
-                      pathname?.startsWith("/seller/payouts")
-                        ? "text-[var(--primary-accent2)] border-[var(--primary-accent2)]"
-                        : "text-gray-800 hover:text-black border-transparent"
-                    }`}
-                  >
-                    <span className="relative">Payouts</span>
-                  </Link>
-                </>
-              )}
-            </div>
-
-            {/* Mobile menu button */}
+        {/* ── Right: actions ── */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 2,
+          }}
+        >
+          {/* Notifications */}
+          <div style={{ position: "relative" }}>
             <button
-              className="lg:hidden ml-auto text-gray-800 hover:text-black transition-colors duration-200"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              style={iconBtn}
+              onClick={() => setActiveDropdown(activeDropdown === "notif" ? null : "notif")}
+              title="Notifications"
             >
-              {mobileMenuOpen ? (
-                <XMarkIcon className="h-6 w-6" />
-              ) : (
-                <Bars3Icon className="h-6 w-6" />
-              )}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" width={19} height={19}>
+                <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" />
+              </svg>
+              {unreadCount > 0 && <span style={badge}>{unreadCount}</span>}
             </button>
 
-            {/* Right Side Actions - Right Section */}
-            <div className="hidden lg:flex items-center justify-end space-x-5 flex-[1.4]">
-              {/* Analytics */}
-              {/* <Link
-                href="/seller/analytics"
-                className={`relative transition-colors duration-200 flex items-center ${
-                  pathname?.startsWith("/seller/analytics")
-                    ? "text-[var(--primary-accent2)]"
-                    : "text-gray-700 hover:text-gray-900"
-                }`}
-                title="Analytics"
-              >
-                {pathname?.startsWith("/seller/analytics") ? (
-                  <ChartBarSolidIcon className="h-6 w-6" />
-                ) : (
-                  <ChartBarIcon className="h-6 w-6 stroke-2" />
-                )}
-              </Link> */}
-
-              {/* Notifications */}
-              <div className="relative flex items-center">
-                <button
-                  className={`relative transition-colors duration-200 flex items-center ${
-                    pathname?.startsWith("/seller/notifications")
-                      ? "text-[var(--primary-accent2)]"
-                      : "text-gray-700 hover:text-gray-900"
-                  }`}
-                  onClick={() => handleDropdownToggle("notifications")}
-                >
-                  {pathname?.startsWith("/seller/notifications") ? (
-                    <BellSolidIcon className="h-6 w-6" />
-                  ) : (
-                    <BellIcon className="h-6 w-6 stroke-2" />
-                  )}
+            {activeDropdown === "notif" && (
+              <div style={{ ...dropdownStyle, minWidth: 300 }}>
+                <div style={{ padding: "11px 14px 9px", borderBottom: "1px solid #f0ece4", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#1c2b23" }}>Notifications</span>
                   {unreadCount > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                      {unreadCount}
-                    </span>
+                    <button
+                      onClick={() => {
+                        safeItems.filter((n: any) => !n.read_at).slice(0, 20)
+                          .forEach((n: any) => dispatch(markNotificationRead({ id: n.id })));
+                        setActiveDropdown(null);
+                      }}
+                      style={{ fontSize: 11, color: "#d4783c", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}
+                    >
+                      Mark all read
+                    </button>
                   )}
-                </button>
-                {activeDropdown === "notifications" && (
-                  <div className="absolute top-full right-0 w-80 bg-white border border-gray-200 rounded-xl z-50 mt-3">
-                    <div className="py-3">
-                      <div className="px-4 py-2 border-b border-gray-200">
-                        <div className="flex items-center justify-between">
-                          <h3 className="font-semibold text-gray-900">
-                            Notifications
-                          </h3>
-                          <button
-                            className="text-xs text-blue-600 hover:text-blue-700"
-                            onClick={() => {
-                              safeItems
-                                .filter((n) => !n.read_at)
-                                .slice(0, 20)
-                                .forEach((n) =>
-                                  dispatch(markNotificationRead({ id: n.id }))
-                                );
-                              setActiveDropdown(null);
-                            }}
-                          >
-                            Mark all read
-                          </button>
-                        </div>
-                      </div>
-                      <div className="max-h-96 overflow-y-auto">
-                        {safeItems.length === 0 && (
-                          <div className="px-4 py-3 text-sm text-gray-500">
-                            You have no notifications yet.
-                          </div>
-                        )}
-                        {safeItems.slice(0, 10).map((n) => (
-                          <button
-                            key={n.id}
-                            type="button"
-                            className={`w-full text-left block px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0 ${
-                              !n.read_at ? "bg-blue-50/30" : ""
-                            }`}
-                            onClick={() => {
-                              const ctaUrl: string | undefined =
-                                (n.data && (n.data.cta_url as string)) ||
-                                (n.data && (n.data.link as string));
-
-                              if (ctaUrl) {
-                                router.push(ctaUrl);
-                              } else {
-                                router.push("/seller/notifications");
-                              }
-
-                              if (!n.read_at) {
-                                dispatch(markNotificationRead({ id: n.id }));
-                              }
-                              setActiveDropdown(null);
-                            }}
-                          >
-                            <div className="flex items-start space-x-3">
-                              <div className="flex-1">
-                                <div className="flex items-center space-x-2">
-                                  <div className="font-medium text-gray-900 text-sm">
-                                    {n.title}
-                                  </div>
-                                  {!n.read_at && (
-                                    <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                                  )}
-                                </div>
-                                <div className="text-xs text-gray-600 mt-1">
-                                  {n.body}
-                                </div>
-                                <div className="text-xs text-gray-400 mt-1">
-                                  {new Date(n.created_at).toLocaleString()}
-                                </div>
-                              </div>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                      <div className="px-4 py-2 border-t border-gray-200">
-                        <Link
-                          href="/seller/notifications"
-                          className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                          onClick={() => setActiveDropdown(null)}
-                        >
-                          View all notifications →
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Farmer Diary Button (farmers only) */}
-              {/* {businessType === "farmers" && (
-                <Link
-                  href="/seller/diary"
-                  className={`px-5 py-2.5 rounded-full font-medium text-[15px] transition-colors flex items-center ${
-                    pathname?.startsWith("/seller/diary")
-                      ? "bg-[var(--primary-accent2)] text-white hover:bg-[var(--primary-accent3)]"
-                      : "bg-white text-[color:var(--secondary-black)] border border-[color:var(--secondary-soft-highlight)] hover:bg-[var(--primary-background)]"
-                  }`}
-                >
-                  <BookOpenIcon className="h-5 w-5 -ml-0.5 mr-2" />
-                  Diary
-                </Link>
-              )} */}
-
-              {/* Add Product Button */}
-              {isFarmVerified ? (
-                <Link
-                  href="/seller/add/product"
-                  className={`px-6 py-2.5 rounded-full font-medium text-[15px] transition-colors flex items-center ${
-                    pathname?.startsWith("/seller/add")
-                      ? "bg-[var(--primary-accent2)] text-white"
-                      : "bg-black text-white hover:bg-gray-800"
-                  }`}
-                >
-                  {t("seller.addProduct")}
-                </Link>
-              ) : (
-                <button
-                  type="button"
-                  disabled
-                  className="px-6 py-2.5 rounded-full font-medium text-[15px] bg-gray-300 text-gray-600 cursor-not-allowed flex items-center"
-                  title="Your seller account must be verified before you can add products."
-                >
-                  {t("seller.addProduct")}
-                </button>
-              )}
-
-              {/* User Profile Dropdown */}
-              <div className="relative">
-                <button
-                  className="flex items-center space-x-2 hover:opacity-80 transition-opacity duration-200"
-                  onClick={() => handleDropdownToggle("user")}
-                >
-                  <img
-                    src={avatarUrl}
-                    alt={displayName}
-                    className="h-11 w-11 rounded-full border-2 border-gray-200"
-                  />
-                </button>
-                {activeDropdown === "user" && (
-                  <div className="absolute top-full right-0 w-64 bg-white border border-gray-200 rounded-xl z-50 mt-3">
-                    <div className="py-3">
-                      <div className="px-4 py-3 border-b border-gray-200">
-                        <div className="font-medium text-gray-900">
-                          {displayName}
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          {businessName}
-                        </div>
-                      </div>
-                      <div className="py-2">
-                        <Link
-                          href="/seller/profile"
-                          className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
-                          onClick={() => setActiveDropdown(null)}
-                        >
-                          Profile Settings
-                        </Link>
-                        <Link
-                          href="/seller/business"
-                          className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
-                          onClick={() => setActiveDropdown(null)}
-                        >
-                          Business Settings
-                        </Link>
-                        {/* <Link
-                          href="/seller/help"
-                          className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
-                          onClick={() => setActiveDropdown(null)}
-                        >
-                          Help & Support
-                        </Link> */}
-                      </div>
-                      <div className="border-t border-gray-200 py-2">
-                        {/* Language Selector */}
-                        {/* <div className="px-4 py-2">
-                          <label className="text-xs text-gray-500 uppercase tracking-wide mb-1 block">
-                            {t("settings.language")}
-                          </label>
-                          <div className="flex flex-wrap gap-1.5">
-                            {languages.map((lang) => (
-                              <button
-                                key={lang}
-                                onClick={() => {
-                                  setSelectedLanguage(lang);
-                                  setLocale(toLocale(lang));
-                                }}
-                                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                                  selectedLanguage === lang
-                                    ? "bg-[var(--primary-accent2)] text-white"
-                                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                                }`}
-                              >
-                                {lang}
-                              </button>
-                            ))}
-                          </div>
-                        </div> */}
-
-                        {/* Country Selector */}
-                        <div className="px-4 py-2">
-                          <label className="text-xs text-gray-500 uppercase tracking-wide mb-1 block">
-                            {t("settings.country")}
-                          </label>
-                          <button
-                            onClick={() => {
-                              setShowCountryModal(true);
-                              setActiveDropdown(null);
-                            }}
-                            className="flex items-center space-x-2 w-full px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-all duration-200"
-                          >
-                            <span className="text-lg">
-                              {selectedCountry.flag}
-                            </span>
-                            <span className="text-sm text-gray-700 font-medium">
-                              {selectedCountry.name}
-                            </span>
-                          </button>
-                        </div>
-                      </div>
-                      <div className="border-t border-gray-200 py-2">
-                        <button
-                          className="block w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50/80 hover:text-red-700 transition-all duration-200"
-                          onClick={() => {
-                            dispatch(signout());
-                            setActiveDropdown(null);
-                            router.replace("/login");
-                          }}
-                        >
-                          {t("auth.signOut")}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile Navigation Menu */}
-        {mobileMenuOpen && (
-          <div className="lg:hidden bg-white border-t border-gray-100">
-            <div className="px-6 py-4 space-y-4">
-              {businessType === "farmers" && (
-                <Link
-                  href="/seller/diary"
-                  className="block w-full bg-white text-[color:var(--secondary-black)] border border-[color:var(--secondary-soft-highlight)] px-6 py-2.5 rounded-full font-medium text-center hover:bg-[var(--primary-background)] transition-colors duration-200"
-                >
-                  Diary
-                </Link>
-              )}
-              <Link
-                href="/seller/add/product"
-                className="block w-full bg-black text-white px-6 py-2.5 rounded-full font-medium text-center hover:bg-gray-800 transition-colors duration-200"
-              >
-                Add Product
-              </Link>
-              <Link
-                href="/seller/purchase-requests"
-                className="block text-gray-800 font-medium py-2"
-              >
-                Requests
-              </Link>
-              {isFarmVerified && (
-                <>
-                  <Link
-                    href="/seller/orders"
-                    className="block text-gray-800 font-medium py-2"
-                  >
-                    Orders
-                  </Link>
-                  <Link
-                    href="/seller/products"
-                    className="block text-gray-800 font-medium py-2"
-                  >
-                    Inventory
-                  </Link>
-                  <Link
-                    href="/seller/messages"
-                    className="block text-gray-800 font-medium py-2"
-                  >
-                    Messages
-                  </Link>
-                  <Link
-                    href="/seller/payouts"
-                    className="block text-gray-800 font-medium py-2"
-                  >
-                    Payouts
-                  </Link>
-                </>
-              )}
-              <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                <div className="flex items-center space-x-4">
-                  <Link
-                    href="/seller/analytics"
-                    className="relative text-gray-700"
-                    title="Analytics"
-                  >
-                    <ChartBarIcon className="h-6 w-6" />
-                  </Link>
-                  <Link
-                    href="/seller/notifications"
-                    className="relative text-gray-700"
-                  >
-                    <BellIcon className="h-6 w-6" />
-                    {unreadCount > 0 && (
-                      <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
-                        {unreadCount}
-                      </span>
-                    )}
-                  </Link>
                 </div>
-                <Link href="/seller/profile">
-                  <img
-                    src={avatarUrl}
-                    alt={displayName}
-                    className="h-10 w-10 rounded-full border-2 border-gray-200"
-                  />
+                <div style={{ maxHeight: 300, overflowY: "auto" }}>
+                  {safeItems.length === 0 ? (
+                    <div style={{ padding: "18px 14px", fontSize: 12, color: "#8a9e92", textAlign: "center" }}>
+                      No notifications yet.
+                    </div>
+                  ) : (
+                    safeItems.slice(0, 8).map((n: any) => (
+                      <button
+                        key={n.id}
+                        type="button"
+                        onClick={() => {
+                          const url = (n.data?.cta_url as string) || (n.data?.link as string);
+                          router.push(url || "/seller/notifications");
+                          if (!n.read_at) dispatch(markNotificationRead({ id: n.id }));
+                          setActiveDropdown(null);
+                        }}
+                        style={{
+                          display: "block",
+                          width: "100%",
+                          textAlign: "left",
+                          padding: "9px 14px",
+                          background: n.read_at ? "transparent" : "rgba(212,120,60,.04)",
+                          border: "none",
+                          borderBottom: "1px solid #f8f6f2",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <div style={{ fontSize: 12.5, fontWeight: 600, color: "#1c2b23", marginBottom: 2 }}>{n.title}</div>
+                        <div style={{ fontSize: 11.5, color: "#6a7f73" }}>{n.body}</div>
+                      </button>
+                    ))
+                  )}
+                </div>
+                <Link
+                  href="/seller/notifications"
+                  onClick={() => setActiveDropdown(null)}
+                  style={{ display: "block", padding: "9px 14px", fontSize: 12, fontWeight: 600, color: "#d4783c", textDecoration: "none", borderTop: "1px solid #f0ece4" }}
+                >
+                  View all →
                 </Link>
               </div>
-            </div>
+            )}
           </div>
-        )}
-      </nav>
 
-      {/* Country Selection Modal */}
-      {showCountryModal && (
-        <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96 max-h-96 overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Select Country</h3>
-              <button
-                className="text-gray-400 hover:text-gray-600"
-                onClick={() => setShowCountryModal(false)}
-              >
-                ✕
-              </button>
-            </div>
-            <div className="space-y-2">
-              {countries.map((country) => (
-                <button
-                  key={country.code}
-                  className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
-                  onClick={() => {
-                    setSelectedCountry(country);
-                    setShowCountryModal(false);
-                  }}
-                >
-                  <span className="text-xl">{country.flag}</span>
-                  <span className="font-medium">{country.name}</span>
-                </button>
-              ))}
-            </div>
+          {/* Add Product — icon-only button */}
+          {isFarmVerified ? (
+            <Link
+              href="/seller/add/product"
+              title="Add Product"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 30,
+                height: 30,
+                borderRadius: "50%",
+                background: "#d4783c",
+                color: "#fff",
+                textDecoration: "none",
+                flexShrink: 0,
+                marginLeft: 2,
+              }}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width={12} height={12}>
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </Link>
+          ) : (
+            <span
+              title="Complete verification to add products"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 30,
+                height: 30,
+                borderRadius: "50%",
+                background: "#f0ece4",
+                color: "#b0c0b6",
+                flexShrink: 0,
+                marginLeft: 2,
+                cursor: "not-allowed",
+              }}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width={12} height={12}>
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </span>
+          )}
+
+          {/* Divider */}
+          <div style={{ width: 1, height: 20, background: "#ebe7df", margin: "0 6px" }} />
+
+          {/* Avatar + dropdown */}
+          <div style={{ position: "relative" }}>
+            <button
+              style={{ ...iconBtn, width: "auto", height: "auto", padding: 0 }}
+              onClick={() => setActiveDropdown(activeDropdown === "user" ? null : "user")}
+            >
+              <img
+                src={avatarUrl}
+                alt={displayName}
+                style={{ width: 30, height: 30, borderRadius: "50%", border: "2px solid #ebe7df", objectFit: "cover" }}
+              />
+            </button>
+
+            {activeDropdown === "user" && (
+              <div style={dropdownStyle}>
+                <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #f0ece4" }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#1c2b23" }}>{displayName}</div>
+                  <div style={{ fontSize: 11.5, color: "#8a9e92", marginTop: 2 }}>{businessName}</div>
+                </div>
+                <div style={{ padding: "4px 0" }}>
+                  {[
+                    { href: "/seller", label: "Dashboard" },
+                    { href: "/seller/profile", label: "Profile Settings" },
+                    { href: "/seller/business", label: "Business Settings" },
+                    { href: "/seller/analytics", label: "Analytics" },
+                  ].map(({ href, label }) => (
+                    <Link
+                      key={href}
+                      href={href}
+                      onClick={() => setActiveDropdown(null)}
+                      style={{ display: "block", padding: "8px 14px", fontSize: 13, fontWeight: 500, color: "#1c2b23", textDecoration: "none" }}
+                    >
+                      {label}
+                    </Link>
+                  ))}
+                </div>
+                <div style={{ borderTop: "1px solid #f0ece4", padding: "4px 0" }}>
+                  <button
+                    onClick={() => { dispatch(signout()); setActiveDropdown(null); router.replace("/login"); }}
+                    style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 14px", fontSize: 13, fontWeight: 500, color: "#d4783c", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}
+                  >
+                    Sign out
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
-      )}
-    </>
+      </div>
+    </nav>
   );
 };
 

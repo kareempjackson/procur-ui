@@ -6,245 +6,238 @@ import Link from "next/link";
 import { getApiClient } from "@/lib/apiClient";
 import { useAppSelector } from "@/store";
 import type { SellerProduct } from "@/store/slices/sellerProductsSlice";
-import ProcurLoader from "@/components/ProcurLoader";
 
-interface ProductPreviewClientProps {
-  productId: string;
-}
+// ── Design tokens ──────────────────────────────────────────────────────────────
+const BG    = "#faf8f4";
+const CARD  = "#fff";
+const EDGE  = "#ebe7df";
+const TEAL  = "#2d4a3e";
+const ORANGE = "#d4783c";
+const DARK  = "#1c2b23";
+const MUTED = "#8a9e92";
+const F     = "'Urbanist', system-ui, sans-serif";
 
-function classNames(...classes: (string | false | null | undefined)[]) {
-  return classes.filter(Boolean).join(" ");
-}
+interface ProductPreviewClientProps { productId: string }
 
-export default function ProductPreviewClient({
-  productId,
-}: ProductPreviewClientProps) {
+export default function ProductPreviewClient({ productId }: ProductPreviewClientProps) {
   const router = useRouter();
-  const accessToken = useAppSelector((state) => state.auth.accessToken);
+  const accessToken = useAppSelector((s) => s.auth.accessToken);
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [product, setProduct] = useState<SellerProduct | null>(null);
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [isLoading,           setIsLoading]          = useState(true);
+  const [error,               setError]              = useState<string | null>(null);
+  const [product,             setProduct]            = useState<SellerProduct | null>(null);
+  const [selectedImageIndex,  setSelectedImageIndex] = useState(0);
 
   useEffect(() => {
-    const fetchProduct = async () => {
+    if (!productId || !accessToken) return;
+    (async () => {
       try {
-        const apiClient = getApiClient(() => accessToken);
-        const { data } = await apiClient.get(`/sellers/products/${productId}`);
+        const { data } = await getApiClient(() => accessToken).get(`/sellers/products/${productId}`);
         setProduct(data as SellerProduct);
       } catch (err: any) {
-        setError(err.message || "Failed to load product");
+        setError(err?.response?.data?.message || err?.message || "Failed to load product");
       } finally {
         setIsLoading(false);
       }
-    };
-
-    if (productId && accessToken) {
-      fetchProduct();
-    }
+    })();
   }, [productId, accessToken]);
 
+  // ── Loading ────────────────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[var(--primary-background)] flex items-center justify-center">
-        <ProcurLoader />
+      <div style={{ minHeight: "100vh", background: BG, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ fontSize: 14, color: MUTED, fontFamily: F }}>Loading preview…</div>
       </div>
     );
   }
 
+  // ── Error ──────────────────────────────────────────────────────────────────
   if (error || !product) {
     return (
-      <div className="min-h-screen bg-[var(--primary-background)]">
-        <main className="max-w-7xl mx-auto px-6 py-10">
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-6">
-            <h2 className="text-red-800 font-medium mb-2">
-              Error Loading Product
-            </h2>
-            <p className="text-red-600">{error || "Product not found"}</p>
-            <Link
-              href="/seller/products"
-              className="mt-4 inline-block px-4 py-2 bg-red-600 text-white rounded-full hover:bg-red-700"
-            >
-              Back to Products
-            </Link>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  const images = product.images || [];
-  const currentImage = images[selectedImageIndex]?.image_url;
-
-  return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
-      <main className="max-w-7xl mx-auto px-6 py-10">
-        {/* Breadcrumbs */}
-        <nav
-          className="mb-6 text-sm text-[var(--primary-base)]"
-          aria-label="Breadcrumb"
-        >
-          <ol className="flex items-center space-x-2">
-            <li>
-              <Link href="/" className="px-2 py-1 rounded-full hover:bg-white">
-                Home
-              </Link>
-            </li>
-            <li className="text-gray-400">/</li>
-            <li>
-              <Link
-                href="/seller"
-                className="px-2 py-1 rounded-full hover:bg-white"
-              >
-                Seller
-              </Link>
-            </li>
-            <li className="text-gray-400">/</li>
-            <li>
-              <Link
-                href="/seller/products"
-                className="px-2 py-1 rounded-full hover:bg-white"
-              >
-                Products
-              </Link>
-            </li>
-            <li className="text-gray-400">/</li>
-            <li>
-              <span className="px-2 py-1 rounded-full bg-white text-[var(--secondary-black)]">
-                Preview
-              </span>
-            </li>
-          </ol>
-        </nav>
-
-        {/* Header with Actions */}
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-[32px] leading-tight text-[var(--secondary-black)] font-medium">
-                Buyer Preview
-              </h1>
-              <span className="px-3 py-1 bg-blue-50 text-blue-700 text-sm rounded-lg border border-blue-200">
-                Buyer's View
-              </span>
+      <div style={{ minHeight: "100vh", background: BG, fontFamily: F }}>
+        <div style={{ maxWidth: 860, margin: "0 auto", padding: "40px 24px" }}>
+          <div style={{
+            padding: "20px 24px",
+            background: "rgba(212,120,60,.08)", border: `1px solid ${ORANGE}`,
+            borderRadius: 10,
+          }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: DARK, marginBottom: 6 }}>
+              Error loading product
             </div>
-            <p className="text-[var(--secondary-muted-edge)]">
-              This is how your product appears to potential buyers
-            </p>
-          </div>
-
-          <div className="flex gap-3">
-            <Link
-              href={`/seller/products/${productId}/edit`}
-              className="px-6 py-3 bg-white border border-[var(--primary-border)] text-[var(--secondary-black)] rounded-full hover:bg-gray-50 transition-colors font-medium"
-            >
-              Edit Product
-            </Link>
+            <div style={{ fontSize: 13, color: MUTED, marginBottom: 14 }}>
+              {error || "Product not found"}
+            </div>
             <Link
               href="/seller/products"
-              className="px-6 py-3 bg-[var(--primary-accent2)] text-white rounded-full hover:bg-[var(--primary-accent3)] transition-colors font-medium"
+              style={{
+                display: "inline-block", padding: "7px 18px", borderRadius: 9999,
+                background: ORANGE, color: "#fff", fontSize: 13, fontWeight: 600,
+                textDecoration: "none",
+              }}
             >
               Back to Products
             </Link>
           </div>
         </div>
+      </div>
+    );
+  }
 
-        {/* Product Detail Card */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Left Column - Images */}
-          <div className="space-y-4">
-            {/* Main Image */}
-            <div className="relative aspect-square rounded-2xl overflow-hidden bg-gray-50 border border-[var(--secondary-soft-highlight)]">
-              {currentImage ? (
+  const images     = product.images || [];
+  const img        = images[selectedImageIndex]?.image_url;
+  const hasDiscount = product.sale_price != null && product.sale_price < product.base_price;
+  const discountPct = hasDiscount
+    ? Math.round(((product.base_price - product.sale_price!) / product.base_price) * 100)
+    : 0;
+
+  const stockColor = product.stock_quantity === 0
+    ? "#d04040"
+    : product.stock_quantity <= 5
+    ? "#d97706"
+    : "#2a9e6c";
+
+  // Attribute rows (only non-null)
+  const attrs = [
+    { label: "SKU",      value: product.sku      },
+    { label: "Brand",    value: product.brand     },
+    { label: "Model",    value: product.model     },
+    { label: "Color",    value: product.color     },
+    { label: "Size",     value: product.size      },
+    { label: "Barcode",  value: product.barcode   },
+    { label: "Condition",value: product.condition },
+    { label: "Currency", value: product.currency || "XCD" },
+  ].filter(a => a.value);
+
+  return (
+    <div style={{ minHeight: "100vh", background: BG, fontFamily: F }}>
+
+      {/* Preview mode banner */}
+      <div style={{
+        background: TEAL, color: "#fff",
+        textAlign: "center", padding: "8px 16px",
+        fontSize: 12.5, fontWeight: 600, letterSpacing: ".02em",
+      }}>
+        Buyer Preview — this is exactly how buyers see your listing
+      </div>
+
+      <div style={{ maxWidth: 1060, margin: "0 auto", padding: "24px 24px 60px" }}>
+
+        {/* Top nav row */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+          <nav style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: MUTED }}>
+            <Link href="/seller" style={{ color: MUTED, textDecoration: "none" }}>Dashboard</Link>
+            <span>/</span>
+            <Link href="/seller/products" style={{ color: MUTED, textDecoration: "none" }}>Products</Link>
+            <span>/</span>
+            <span style={{ color: DARK }}>Preview</span>
+          </nav>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Link
+              href={`/seller/products/${productId}/edit`}
+              style={{
+                padding: "7px 18px", borderRadius: 9999,
+                border: `1px solid ${EDGE}`, background: CARD,
+                color: DARK, fontSize: 13, fontWeight: 600, textDecoration: "none",
+              }}
+            >
+              Edit Product
+            </Link>
+            <Link
+              href="/seller/products"
+              style={{
+                padding: "7px 18px", borderRadius: 9999,
+                background: ORANGE, color: "#fff",
+                fontSize: 13, fontWeight: 600, textDecoration: "none",
+              }}
+            >
+              ← Products
+            </Link>
+          </div>
+        </div>
+
+        {/* Main two-column layout */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 40, alignItems: "start" }}>
+
+          {/* Left: Image gallery */}
+          <div style={{ position: "sticky", top: 80 }}>
+            {/* Main image */}
+            <div style={{
+              aspectRatio: "1 / 1", borderRadius: 12,
+              background: "#f0ece4", border: `1px solid ${EDGE}`,
+              overflow: "hidden", position: "relative", marginBottom: 10,
+            }}>
+              {img ? (
                 <img
-                  src={currentImage}
-                  alt={product.name}
-                  className="w-full h-full object-cover"
+                  src={img} alt={product.name}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
                 />
               ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center">
-                  <svg
-                    className="w-16 h-16 text-gray-300 mb-2"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.5}
-                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                    />
+                <div style={{
+                  width: "100%", height: "100%",
+                  display: "flex", flexDirection: "column",
+                  alignItems: "center", justifyContent: "center", color: "#c8d8cf",
+                }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" width={48} height={48}>
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <polyline points="21 15 16 10 5 21" />
                   </svg>
-                  <p className="text-sm text-gray-400">No image available</p>
+                  <span style={{ marginTop: 8, fontSize: 12, color: MUTED }}>No image</span>
                 </div>
               )}
 
-              {/* Badges */}
-              <div className="absolute top-4 left-4 flex flex-col gap-2">
+              {/* Overlay badges */}
+              <div style={{ position: "absolute", top: 12, left: 12, display: "flex", flexDirection: "column", gap: 6 }}>
                 {product.is_featured && (
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-500 text-white text-sm rounded-lg font-medium shadow-lg">
-                    <svg
-                      className="w-4 h-4"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
-                    Featured
-                  </div>
+                  <span style={{
+                    display: "inline-flex", alignItems: "center", gap: 5,
+                    padding: "4px 10px", borderRadius: 9999,
+                    background: "#f59e0b", color: "#fff",
+                    fontSize: 11.5, fontWeight: 700,
+                  }}>
+                    ★ Featured
+                  </span>
                 )}
                 {product.is_organic && (
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500 text-white text-sm rounded-lg font-medium shadow-lg">
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2.5}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                    Organic
-                  </div>
+                  <span style={{
+                    display: "inline-flex", alignItems: "center", gap: 5,
+                    padding: "4px 10px", borderRadius: 9999,
+                    background: "#22c55e", color: "#fff",
+                    fontSize: 11.5, fontWeight: 700,
+                  }}>
+                    ✓ Organic
+                  </span>
                 )}
-                {product.sale_price &&
-                  product.sale_price < product.base_price && (
-                    <div className="px-3 py-1.5 bg-[var(--primary-accent2)] text-white text-sm rounded-lg font-bold shadow-lg">
-                      {Math.round(
-                        ((product.base_price - product.sale_price) /
-                          product.base_price) *
-                          100
-                      )}
-                      % OFF
-                    </div>
-                  )}
+                {hasDiscount && (
+                  <span style={{
+                    padding: "4px 10px", borderRadius: 9999,
+                    background: ORANGE, color: "#fff",
+                    fontSize: 11.5, fontWeight: 700,
+                  }}>
+                    {discountPct}% OFF
+                  </span>
+                )}
               </div>
             </div>
 
-            {/* Image Thumbnails */}
+            {/* Thumbnails */}
             {images.length > 1 && (
-              <div className="grid grid-cols-5 gap-3">
-                {images.map((image, index) => (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
+                {images.map((image, idx) => (
                   <button
                     key={image.id}
-                    onClick={() => setSelectedImageIndex(index)}
-                    className={classNames(
-                      "aspect-square rounded-lg overflow-hidden border-2 transition-all",
-                      selectedImageIndex === index
-                        ? "border-[var(--primary-accent2)] ring-2 ring-[var(--primary-accent2)]/20"
-                        : "border-[var(--secondary-soft-highlight)] hover:border-[var(--primary-accent2)]/50"
-                    )}
+                    onClick={() => setSelectedImageIndex(idx)}
+                    style={{
+                      aspectRatio: "1 / 1", borderRadius: 8, overflow: "hidden",
+                      border: `2px solid ${idx === selectedImageIndex ? ORANGE : EDGE}`,
+                      cursor: "pointer", padding: 0, background: "none",
+                      transition: "border-color .15s",
+                    }}
                   >
                     <img
                       src={image.image_url}
-                      alt={image.alt_text || `Product ${index + 1}`}
-                      className="w-full h-full object-cover"
+                      alt={image.alt_text || `Image ${idx + 1}`}
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
                     />
                   </button>
                 ))}
@@ -252,168 +245,128 @@ export default function ProductPreviewClient({
             )}
           </div>
 
-          {/* Right Column - Product Info */}
-          <div className="space-y-6">
-            {/* Product Name & Category */}
-            <div>
-              <div className="flex items-start justify-between mb-2">
-                <h2 className="text-3xl font-semibold text-[var(--secondary-black)]">
-                  {product.name}
-                </h2>
+          {/* Right: Product info */}
+          <div>
+            {/* Name + category */}
+            <div style={{ marginBottom: 18 }}>
+              <div style={{ fontSize: 11.5, color: MUTED, marginBottom: 6, textTransform: "uppercase", letterSpacing: ".06em", fontWeight: 600 }}>
+                {product.category}{product.subcategory ? ` · ${product.subcategory}` : ""}
               </div>
-              <p className="text-[var(--primary-base)] text-lg">
-                {product.category}
-                {product.subcategory && ` · ${product.subcategory}`}
-              </p>
+              <h1 style={{ fontSize: 26, fontWeight: 700, color: DARK, lineHeight: 1.25, margin: 0 }}>
+                {product.name}
+              </h1>
+              {product.short_description && (
+                <p style={{ fontSize: 14.5, color: MUTED, marginTop: 8, lineHeight: 1.6 }}>
+                  {product.short_description}
+                </p>
+              )}
             </div>
 
-            {/* Short Description */}
-            {product.short_description && (
-              <p className="text-[var(--secondary-black)] text-lg leading-relaxed">
-                {product.short_description}
-              </p>
-            )}
+            <div style={{ borderTop: `1px solid ${EDGE}`, marginBottom: 18 }} />
 
-            {/* Price */}
-            <div className="p-6 bg-gray-50 rounded-xl border border-[var(--secondary-soft-highlight)]">
-              <div className="flex items-baseline gap-3 mb-2">
-                {product.sale_price &&
-                product.sale_price < product.base_price ? (
+            {/* Price block */}
+            <div style={{
+              background: BG, border: `1px solid ${EDGE}`,
+              borderRadius: 10, padding: "16px 20px", marginBottom: 16,
+            }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 4 }}>
+                {hasDiscount ? (
                   <>
-                    <span className="text-4xl font-bold text-[var(--primary-accent2)]">
-                      ${product.sale_price.toFixed(2)}
+                    <span style={{ fontSize: 30, fontWeight: 800, color: ORANGE }}>
+                      ${product.sale_price!.toFixed(2)}
                     </span>
-                    <span className="text-2xl text-gray-400 line-through">
+                    <span style={{ fontSize: 18, color: "#c0bdb8", textDecoration: "line-through" }}>
                       ${product.base_price.toFixed(2)}
                     </span>
                   </>
                 ) : (
-                  <span className="text-4xl font-bold text-[var(--secondary-black)]">
+                  <span style={{ fontSize: 30, fontWeight: 800, color: DARK }}>
                     ${product.base_price.toFixed(2)}
                   </span>
                 )}
-                <span className="text-xl text-[var(--primary-base)]">
+                <span style={{ fontSize: 15, color: MUTED }}>
                   / {product.unit_of_measurement}
                 </span>
               </div>
-              <p className="text-sm text-[var(--secondary-muted-edge)]">
+              <div style={{ fontSize: 11.5, color: MUTED }}>
                 Currency: {product.currency || "XCD"}
-              </p>
+              </div>
             </div>
 
-            {/* Stock Status */}
-            <div className="flex items-center gap-3">
-              <div
-                className={classNames(
-                  "px-4 py-2 rounded-lg font-medium",
-                  product.stock_quantity > 10
-                    ? "bg-green-100 text-green-800"
-                    : product.stock_quantity > 0
-                    ? "bg-yellow-100 text-yellow-800"
-                    : "bg-red-100 text-red-800"
-                )}
-              >
+            {/* Stock + condition pills */}
+            <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+              <span style={{
+                padding: "5px 14px", borderRadius: 9999,
+                background: `${stockColor}14`, color: stockColor,
+                fontSize: 12.5, fontWeight: 700,
+              }}>
                 {product.stock_quantity > 0
                   ? `${product.stock_quantity} in stock`
                   : "Out of stock"}
-              </div>
-              <div className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium capitalize">
-                {product.condition}
-              </div>
+              </span>
+              {product.condition && (
+                <span style={{
+                  padding: "5px 14px", borderRadius: 9999,
+                  background: "rgba(45,74,62,.08)", color: TEAL,
+                  fontSize: 12.5, fontWeight: 600, textTransform: "capitalize",
+                }}>
+                  {product.condition}
+                </span>
+              )}
             </div>
 
-            {/* Product Details */}
+            {/* Description */}
             {product.description && (
-              <div className="bg-white rounded-xl border border-[var(--secondary-soft-highlight)] p-6">
-                <h3 className="text-lg font-semibold text-[var(--secondary-black)] mb-3">
-                  Product Description
-                </h3>
-                <p className="text-[var(--primary-base)] leading-relaxed whitespace-pre-wrap">
+              <div style={{
+                background: CARD, border: `1px solid ${EDGE}`,
+                borderRadius: 10, padding: "16px 20px", marginBottom: 14,
+              }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: DARK, marginBottom: 8, textTransform: "uppercase", letterSpacing: ".04em" }}>
+                  Description
+                </div>
+                <p style={{ fontSize: 14, color: MUTED, lineHeight: 1.7, whiteSpace: "pre-wrap", margin: 0 }}>
                   {product.description}
                 </p>
               </div>
             )}
 
-            {/* Additional Info */}
-            <div className="bg-white rounded-xl border border-[var(--secondary-soft-highlight)] p-6">
-              <h3 className="text-lg font-semibold text-[var(--secondary-black)] mb-4">
-                Product Details
-              </h3>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                {product.sku && (
-                  <div>
-                    <div className="text-[var(--secondary-muted-edge)] mb-1">
-                      SKU
+            {/* Product details grid */}
+            {attrs.length > 0 && (
+              <div style={{
+                background: CARD, border: `1px solid ${EDGE}`,
+                borderRadius: 10, padding: "16px 20px", marginBottom: 14,
+              }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: DARK, marginBottom: 12, textTransform: "uppercase", letterSpacing: ".04em" }}>
+                  Product Details
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  {attrs.map(a => (
+                    <div key={a.label}>
+                      <div style={{ fontSize: 11, color: MUTED, marginBottom: 2 }}>{a.label}</div>
+                      <div style={{ fontSize: 13.5, fontWeight: 600, color: DARK, textTransform: a.label === "Condition" ? "capitalize" : undefined }}>
+                        {a.value}
+                      </div>
                     </div>
-                    <div className="text-[var(--secondary-black)] font-medium">
-                      {product.sku}
-                    </div>
-                  </div>
-                )}
-                {product.brand && (
-                  <div>
-                    <div className="text-[var(--secondary-muted-edge)] mb-1">
-                      Brand
-                    </div>
-                    <div className="text-[var(--secondary-black)] font-medium">
-                      {product.brand}
-                    </div>
-                  </div>
-                )}
-                {product.model && (
-                  <div>
-                    <div className="text-[var(--secondary-muted-edge)] mb-1">
-                      Model
-                    </div>
-                    <div className="text-[var(--secondary-black)] font-medium">
-                      {product.model}
-                    </div>
-                  </div>
-                )}
-                {product.color && (
-                  <div>
-                    <div className="text-[var(--secondary-muted-edge)] mb-1">
-                      Color
-                    </div>
-                    <div className="text-[var(--secondary-black)] font-medium">
-                      {product.color}
-                    </div>
-                  </div>
-                )}
-                {product.size && (
-                  <div>
-                    <div className="text-[var(--secondary-muted-edge)] mb-1">
-                      Size
-                    </div>
-                    <div className="text-[var(--secondary-black)] font-medium">
-                      {product.size}
-                    </div>
-                  </div>
-                )}
-                {product.barcode && (
-                  <div>
-                    <div className="text-[var(--secondary-muted-edge)] mb-1">
-                      Barcode
-                    </div>
-                    <div className="text-[var(--secondary-black)] font-medium">
-                      {product.barcode}
-                    </div>
-                  </div>
-                )}
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Tags */}
             {product.tags && product.tags.length > 0 && (
-              <div>
-                <h3 className="text-sm font-medium text-[var(--secondary-black)] mb-3">
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: DARK, marginBottom: 8, textTransform: "uppercase", letterSpacing: ".04em" }}>
                   Tags
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {product.tags.map((tag, index) => (
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {product.tags.map((tag, i) => (
                     <span
-                      key={index}
-                      className="px-3 py-1.5 bg-[var(--primary-accent1)] text-[var(--secondary-black)] rounded-lg text-sm"
+                      key={i}
+                      style={{
+                        padding: "4px 12px", borderRadius: 9999,
+                        background: "rgba(45,74,62,.08)", color: TEAL,
+                        fontSize: 12.5, fontWeight: 600,
+                      }}
                     >
                       {tag}
                     </span>
@@ -422,39 +375,41 @@ export default function ProductPreviewClient({
               </div>
             )}
 
-            {/* CTA Buttons (as buyers would see) */}
-            <div className="pt-4 flex gap-3">
+            <div style={{ borderTop: `1px solid ${EDGE}`, marginBottom: 16 }} />
+
+            {/* Disabled CTA row */}
+            <div style={{ display: "flex", gap: 10, marginBottom: 8 }}>
               <button
                 disabled
-                className="flex-1 px-8 py-4 bg-[var(--primary-accent2)] text-white rounded-full font-medium text-lg opacity-50 cursor-not-allowed"
+                style={{
+                  flex: 1, padding: "13px 0", borderRadius: 9999,
+                  background: ORANGE, color: "#fff",
+                  fontSize: 15, fontWeight: 700, border: "none",
+                  opacity: 0.45, cursor: "not-allowed", fontFamily: F,
+                }}
               >
                 Add to Cart
               </button>
               <button
                 disabled
-                className="px-6 py-4 border-2 border-[var(--primary-border)] text-[var(--secondary-black)] rounded-full hover:bg-gray-50 transition-colors opacity-50 cursor-not-allowed"
+                style={{
+                  width: 48, height: 48, borderRadius: 9999,
+                  border: `1.5px solid ${EDGE}`, background: CARD,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  cursor: "not-allowed", opacity: 0.45, color: DARK,
+                }}
               >
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                  />
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width={20} height={20}>
+                  <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
                 </svg>
               </button>
             </div>
-            <p className="text-xs text-[var(--secondary-muted-edge)] text-center">
-              Preview mode - Buttons are disabled
-            </p>
+            <div style={{ fontSize: 11.5, color: MUTED, textAlign: "center" }}>
+              Preview mode — buttons are disabled for sellers
+            </div>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

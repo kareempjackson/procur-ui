@@ -76,6 +76,7 @@ interface BuyerCartState {
   status: "idle" | "loading" | "succeeded" | "failed";
   error: string | null;
   lastUpdated: string | null;
+  optimisticCount: number; // immediate increment before server confirms
 }
 
 const initialState: BuyerCartState = {
@@ -83,6 +84,7 @@ const initialState: BuyerCartState = {
   status: "idle",
   error: null,
   lastUpdated: null,
+  optimisticCount: 0,
 };
 
 // ==================== ASYNC THUNKS ====================
@@ -175,6 +177,7 @@ const buyerCartSlice = createSlice({
       .addCase(fetchCart.fulfilled, (state, action) => {
         state.status = "succeeded";
         state.cart = action.payload;
+        state.optimisticCount = 0; // real data in — clear optimistic increment
         state.lastUpdated = new Date().toISOString();
       })
       .addCase(fetchCart.rejected, (state, action) => {
@@ -183,17 +186,27 @@ const buyerCartSlice = createSlice({
       })
 
       // Add to Cart
-      .addCase(addToCartAsync.pending, (state) => {
+      .addCase(addToCartAsync.pending, (state, action) => {
         state.status = "loading";
         state.error = null;
+        // Optimistic: bump badge immediately for new products (not already in cart)
+        const productId = String(action.meta.arg.productId);
+        const alreadyInCart = state.cart?.seller_groups.some((g) =>
+          g.items.some((i) => String(i.product_id) === productId)
+        ) ?? false;
+        if (!alreadyInCart) {
+          state.optimisticCount += 1;
+        }
       })
       .addCase(addToCartAsync.fulfilled, (state) => {
         state.status = "succeeded";
-        // Cart will be refetched automatically
+        // Cart will be refetched automatically; optimisticCount cleared in fetchCart.fulfilled
       })
       .addCase(addToCartAsync.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload as string;
+        // Roll back the optimistic increment
+        if (state.optimisticCount > 0) state.optimisticCount -= 1;
       })
 
       // Update Cart Item

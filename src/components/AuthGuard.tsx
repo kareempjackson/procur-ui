@@ -26,7 +26,7 @@ function getDefaultHomeForAccountType(
 ): string {
   switch (accountType) {
     case "buyer":
-      return "/buyer";
+      return "/";
     case "seller":
       return "/seller";
     case "government":

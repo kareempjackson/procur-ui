@@ -12,101 +12,37 @@ import {
   requestPayout,
   cancelPayoutRequest,
 } from "@/store/slices/sellerPayoutsSlice";
-import {
-  BanknotesIcon,
-  ClockIcon,
-  CheckCircleIcon,
-  CalendarDaysIcon,
-  ArrowPathIcon,
-  CreditCardIcon,
-  XCircleIcon,
-} from "@heroicons/react/24/outline";
 
-function formatCurrency(amount: number, currency = "USD") {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-  }).format(amount);
-}
+const fmt = (n: number, currency = "USD") =>
+  new Intl.NumberFormat("en-US", { style: "currency", currency }).format(n);
 
-function formatDate(dateStr: string | null) {
-  if (!dateStr) return "—";
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
+const fmtDate = (d: string | null) =>
+  d ? new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "—";
 
-function getStatusBadge(status: string) {
-  switch (status) {
-    case "completed":
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-          <CheckCircleIcon className="h-3 w-3" />
-          Paid
-        </span>
-      );
-    case "approved":
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-          <CheckCircleIcon className="h-3 w-3" />
-          Approved
-        </span>
-      );
-    case "pending":
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
-          <ClockIcon className="h-3 w-3" />
-          Pending
-        </span>
-      );
-    case "rejected":
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-          <XCircleIcon className="h-3 w-3" />
-          Rejected
-        </span>
-      );
-    case "cancelled":
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
-          Cancelled
-        </span>
-      );
-    case "failed":
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-          Failed
-        </span>
-      );
-    default:
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-          {status}
-        </span>
-      );
-  }
-}
+const PAYOUT_STATUS: Record<string, { bg: string; color: string; label: string }> = {
+  completed:  { bg: "rgba(45,74,62,.12)",   color: "#1a4035", label: "Paid" },
+  approved:   { bg: "rgba(45,74,62,.10)",   color: "#2d4a3e", label: "Approved" },
+  pending:    { bg: "rgba(212,120,60,.12)", color: "#c26838", label: "Pending" },
+  rejected:   { bg: "rgba(212,60,60,.12)",  color: "#9b2020", label: "Rejected" },
+  cancelled:  { bg: "rgba(0,0,0,.06)",      color: "#6a7f73", label: "Cancelled" },
+  failed:     { bg: "rgba(212,60,60,.12)",  color: "#9b2020", label: "Failed" },
+};
+
+const card: React.CSSProperties = { background: "#fff", border: "1px solid #ebe7df", borderRadius: 10 };
+const pill = (bg: string, color: string): React.CSSProperties => ({ display: "inline-flex", alignItems: "center", padding: "3px 10px", borderRadius: 999, fontSize: 12, fontWeight: 600, background: bg, color });
+const ghostBtn: React.CSSProperties = { background: "none", border: "1px solid #e8e4dc", borderRadius: 8, padding: "7px 16px", fontSize: 13, fontWeight: 500, color: "#1c2b23", cursor: "pointer" };
 
 export default function SellerPayoutsPage() {
   const dispatch = useAppDispatch();
   const {
-    balance,
-    balanceStatus,
-    settings,
-    settingsStatus,
-    payoutRequests,
-    payoutRequestsTotal,
-    payoutRequestsStatus,
-    requestPayoutStatus,
-    creditTransactions,
-    creditTransactionsTotal,
-    error,
+    balance, balanceStatus, settings, settingsStatus,
+    payoutRequests, payoutRequestsTotal, payoutRequestsStatus,
+    requestPayoutStatus, creditTransactions, creditTransactionsTotal, error,
   } = useAppSelector((s) => s.sellerPayouts);
+
   const [currentPage, setCurrentPage] = useState(1);
-  const [showRequestModal, setShowRequestModal] = useState(false);
-  const [requestNote, setRequestNote] = useState("");
+  const [showModal, setShowModal] = useState(false);
+  const [note, setNote] = useState("");
 
   useEffect(() => {
     dispatch(fetchSellerBalance());
@@ -120,353 +56,148 @@ export default function SellerPayoutsPage() {
 
   const totalPages = Math.ceil(payoutRequestsTotal / 20);
   const isLoading = balanceStatus === "loading" || payoutRequestsStatus === "loading";
+  const minAmt = settings?.minimum_payout_amount || 100;
+  const available = balance?.available_amount || 0;
+  const eligible = available >= minAmt;
+  const progress = Math.min(100, (available / minAmt) * 100);
 
-  const handleRequestPayout = async () => {
+  const handleRequest = async () => {
     try {
-      await dispatch(requestPayout({ note: requestNote || undefined })).unwrap();
-      setShowRequestModal(false);
-      setRequestNote("");
-      // Refresh balance
+      await dispatch(requestPayout({ note: note || undefined })).unwrap();
+      setShowModal(false);
+      setNote("");
       dispatch(fetchSellerBalance());
-    } catch {
-      // Error is handled in the slice
+    } catch { /* handled in slice */ }
+  };
+
+  const handleCancel = async (id: string) => {
+    if (window.confirm("Cancel this payout request?")) {
+      await dispatch(cancelPayoutRequest(id));
     }
   };
 
-  const handleCancelRequest = async (requestId: string) => {
-    if (window.confirm("Are you sure you want to cancel this payout request?")) {
-      await dispatch(cancelPayoutRequest(requestId));
-    }
-  };
-
-  const minPayoutAmount = settings?.minimum_payout_amount || 100;
-  const availableAmount = balance?.available_amount || 0;
-  const progressToMinimum = Math.min(100, (availableAmount / minPayoutAmount) * 100);
-  const amountToReachMin = Math.max(0, minPayoutAmount - availableAmount);
-  const isEligibleForPayout = availableAmount >= minPayoutAmount;
+  const creditBg = balance?.has_credit_balance
+    ? balance.credit_type === "owes_procur" ? "rgba(212,60,60,.07)" : "rgba(45,74,62,.07)"
+    : "#fff";
 
   return (
-    <div className="min-h-screen bg-white">
-      <main className="max-w-5xl mx-auto px-6 py-10">
-        {/* Breadcrumbs */}
-        <nav
-          className="mb-6 text-sm text-[var(--primary-base)]"
-          aria-label="Breadcrumb"
-        >
-          <ol className="flex items-center space-x-2">
-            <li>
-              <Link href="/" className="px-2 py-1 rounded-full hover:bg-white">
-                Home
-              </Link>
-            </li>
-            <li className="text-gray-400">/</li>
-            <li>
-              <Link
-                href="/seller"
-                className="px-2 py-1 rounded-full hover:bg-white"
-              >
-                Seller
-              </Link>
-            </li>
-            <li className="text-gray-400">/</li>
-            <li>
-              <span className="px-2 py-1 rounded-full bg-white text-[var(--secondary-black)]">
-                Payouts
-              </span>
-            </li>
-          </ol>
-        </nav>
+    <div style={{ minHeight: "100vh", background: "#faf8f4", fontFamily: "'Urbanist', system-ui, sans-serif" }}>
+      <main style={{ maxWidth: 960, margin: "0 auto", padding: "32px 20px" }}>
 
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-semibold text-[var(--secondary-black)]">
-            Payouts
-          </h1>
-          <p className="text-sm text-[var(--secondary-muted-edge)] mt-1">
-            Track your earnings and payout history
-          </p>
+        <div style={{ marginBottom: 28 }}>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: "#1c2b23", margin: 0 }}>Payouts</h1>
+          <p style={{ fontSize: 13, color: "#8a9e92", marginTop: 3 }}>Track your earnings and payout history</p>
         </div>
 
-        {/* Balance & Schedule Cards - Primary Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        {/* Top 2-col */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
           {/* Available Balance */}
-          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#407178] to-[#2d5158] p-6 text-white min-h-[180px]">
-            <div className="absolute top-4 right-4 opacity-20">
-              <BanknotesIcon className="h-16 w-16" />
+          <div style={{ ...card, padding: "22px 24px", background: "#2d4a3e", border: "none", borderRadius: 12 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,.7)", marginBottom: 8 }}>Available Balance</div>
+            <div style={{ fontSize: 32, fontWeight: 800, color: "#fff", marginBottom: 12 }}>
+              {balanceStatus === "loading" ? "..." : fmt(available, balance?.currency)}
             </div>
-            <div className="relative z-10">
-              <p className="text-sm font-medium opacity-80">Available Balance</p>
-              <p className="text-3xl font-bold mt-2">
-                {balanceStatus === "loading" ? (
-                  <span className="animate-pulse">...</span>
-                ) : (
-                  formatCurrency(
-                    balance?.available_amount || 0,
-                    balance?.currency
-                  )
-                )}
-              </p>
-              {!isEligibleForPayout && balanceStatus !== "loading" && (
-                <div className="mt-3">
-                  <div className="flex items-center justify-between text-xs opacity-80 mb-1">
-                    <span>Progress to min. payout</span>
-                    <span>{formatCurrency(minPayoutAmount, balance?.currency)}</span>
-                  </div>
-                  <div className="h-2 bg-white/20 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-white rounded-full transition-all duration-500"
-                      style={{ width: `${Math.max(progressToMinimum, 3)}%` }}
-                    />
-                  </div>
-                  <p className="text-xs mt-2 opacity-70">
-                    {formatCurrency(amountToReachMin, balance?.currency)} more to reach minimum
-                  </p>
+            {!eligible && balanceStatus !== "loading" && (
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "rgba(255,255,255,.65)", marginBottom: 4 }}>
+                  <span>Progress to min. payout</span>
+                  <span>{fmt(minAmt, balance?.currency)}</span>
                 </div>
-              )}
-              {isEligibleForPayout && balanceStatus !== "loading" && (
-                <p className="text-sm mt-3 bg-white/20 rounded-full px-3 py-1 inline-block">
-                  ✓ Eligible for payout
-                </p>
-              )}
-            </div>
+                <div style={{ height: 6, background: "rgba(255,255,255,.2)", borderRadius: 999, overflow: "hidden" }}>
+                  <div style={{ width: `${Math.max(progress, 3)}%`, height: "100%", background: "#fff", borderRadius: 999 }} />
+                </div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,.6)", marginTop: 6 }}>
+                  {fmt(Math.max(0, minAmt - available), balance?.currency)} more to reach minimum
+                </div>
+              </div>
+            )}
+            {eligible && balanceStatus !== "loading" && (
+              <span style={{ ...pill("rgba(255,255,255,.2)", "#fff"), fontSize: 11 }}>✓ Eligible for payout</span>
+            )}
           </div>
 
-          {/* Payout Request */}
-          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 p-6 text-white min-h-[180px]">
-            <div className="absolute top-4 right-4 opacity-20">
-              <CalendarDaysIcon className="h-16 w-16" />
+          {/* Request Payout */}
+          <div style={{ ...card, padding: "22px 24px" }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#8a9e92", marginBottom: 8 }}>Request Payout</div>
+            {eligible ? (
+              <>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#1c2b23", marginBottom: 16 }}>Ready to withdraw</div>
+                <button
+                  onClick={() => setShowModal(true)}
+                  style={{ padding: "9px 20px", background: "#d4783c", color: "#fff", border: "none", borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+                >
+                  Request Payout
+                </button>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#1c2b23", marginBottom: 8 }}>Not Eligible</div>
+                <div style={{ fontSize: 12, color: "#8a9e92" }}>Reach {fmt(minAmt, balance?.currency)} to request</div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Stats Row */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 24 }}>
+          <div style={{ ...card, padding: "16px 18px" }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "#8a9e92", marginBottom: 6 }}>Processing</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: "#1c2b23" }}>
+              {balanceStatus === "loading" ? "..." : fmt(balance?.pending_amount || 0, balance?.currency)}
             </div>
-            <div className="relative z-10">
-              <p className="text-sm font-medium opacity-80">Request Payout</p>
-              {isEligibleForPayout ? (
-                <>
-                  <p className="text-xl font-bold mt-2">Ready to withdraw</p>
-                  <button
-                    onClick={() => setShowRequestModal(true)}
-                    className="mt-4 px-4 py-2 bg-white text-blue-700 font-semibold rounded-lg hover:bg-blue-50 transition-colors"
-                  >
-                    Request Payout
-                  </button>
-                </>
-              ) : (
-                <>
-                  <p className="text-xl font-bold mt-2">Not Eligible</p>
-                  <p className="text-xs mt-3 opacity-70">
-                    Reach {formatCurrency(minPayoutAmount, balance?.currency)} to request
-                  </p>
-                </>
-              )}
+            <div style={{ fontSize: 11, color: "#8a9e92", marginTop: 4 }}>From orders being cleared</div>
+          </div>
+          <div style={{ ...card, padding: "16px 18px" }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "#8a9e92", marginBottom: 6 }}>Next Payout</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: "#1c2b23" }}>
+              {settingsStatus === "loading" ? "..." : fmtDate(settings?.next_payout_date || null)}
+            </div>
+            <div style={{ fontSize: 11, color: "#8a9e92", marginTop: 4 }}>{settings?.payout_frequency_label || "Every 2 weeks"}</div>
+          </div>
+          <div style={{ ...card, padding: "16px 18px", background: creditBg, borderColor: balance?.has_credit_balance ? (balance.credit_type === "owes_procur" ? "rgba(212,60,60,.3)" : "rgba(45,74,62,.3)") : "#ebe7df" }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "#8a9e92", marginBottom: 6 }}>
+              {balance?.has_credit_balance ? (balance.credit_type === "owes_procur" ? "Credit Owed" : "Credit Due") : "Account Credits"}
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: balance?.has_credit_balance ? (balance.credit_type === "owes_procur" ? "#9b2020" : "#1a4035") : "#1c2b23" }}>
+              {balanceStatus === "loading" ? "..." : fmt(Math.abs(balance?.credit_amount || 0), balance?.currency)}
+            </div>
+            <div style={{ fontSize: 11, color: "#8a9e92", marginTop: 4 }}>
+              {balance?.has_credit_balance ? (balance.credit_type === "owes_procur" ? "Deducted from payouts" : "Added to payouts") : "No credits on account"}
             </div>
           </div>
         </div>
 
-        {/* Secondary Stats Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
-          {/* Processing */}
-          <div className="rounded-2xl border border-[var(--secondary-soft-highlight)] bg-white p-5">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 rounded-xl bg-amber-50">
-                <ArrowPathIcon className="h-5 w-5 text-amber-600" />
-              </div>
-              <p className="text-sm font-medium text-[var(--secondary-muted-edge)]">
-                Processing
-              </p>
-            </div>
-            <p className="text-2xl font-bold text-[var(--secondary-black)]">
-              {balanceStatus === "loading" ? (
-                <span className="animate-pulse">...</span>
-              ) : (
-                formatCurrency(
-                  balance?.pending_amount || 0,
-                  balance?.currency
-                )
-              )}
-            </p>
-            <p className="text-xs text-[var(--secondary-muted-edge)] mt-1">
-              From orders being cleared
-            </p>
-          </div>
-
-          {/* Next Payout */}
-          <div className="rounded-2xl border border-[var(--secondary-soft-highlight)] bg-white p-5">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 rounded-xl bg-blue-50">
-                <CalendarDaysIcon className="h-5 w-5 text-blue-600" />
-              </div>
-              <p className="text-sm font-medium text-[var(--secondary-muted-edge)]">
-                Next Payout
-              </p>
-            </div>
-            <p className="text-2xl font-bold text-[var(--secondary-black)]">
-              {settingsStatus === "loading" ? (
-                <span className="animate-pulse">...</span>
-              ) : settings?.next_payout_date ? (
-                formatDate(settings.next_payout_date)
-              ) : (
-                "—"
-              )}
-            </p>
-            <p className="text-xs text-[var(--secondary-muted-edge)] mt-1">
-              {settings?.payout_frequency_label || "Every 2 weeks"}
-            </p>
-          </div>
-
-          {/* Account Credits */}
-          <div
-            className={`rounded-2xl p-5 ${
-              balance?.has_credit_balance
-                ? balance.credit_type === "owes_procur"
-                  ? "border-2 border-red-200 bg-red-50"
-                  : "border-2 border-emerald-200 bg-emerald-50"
-                : "border border-[var(--secondary-soft-highlight)] bg-white"
-            }`}
-          >
-            <div className="flex items-center gap-3 mb-3">
-              <div
-                className={`p-2 rounded-xl ${
-                  balance?.has_credit_balance
-                    ? balance.credit_type === "owes_procur"
-                      ? "bg-red-100"
-                      : "bg-emerald-100"
-                    : "bg-gray-100"
-                }`}
-              >
-                <CreditCardIcon
-                  className={`h-5 w-5 ${
-                    balance?.has_credit_balance
-                      ? balance.credit_type === "owes_procur"
-                        ? "text-red-600"
-                        : "text-emerald-600"
-                      : "text-gray-500"
-                  }`}
-                />
-              </div>
-              <p
-                className={`text-sm font-medium ${
-                  balance?.has_credit_balance
-                    ? balance.credit_type === "owes_procur"
-                      ? "text-red-700"
-                      : "text-emerald-700"
-                    : "text-[var(--secondary-muted-edge)]"
-                }`}
-              >
-                {balance?.has_credit_balance
-                  ? balance.credit_type === "owes_procur"
-                    ? "Credit Owed"
-                    : "Credit Due"
-                  : "Account Credits"}
-              </p>
-            </div>
-            <p
-              className={`text-2xl font-bold ${
-                balance?.has_credit_balance
-                  ? balance.credit_type === "owes_procur"
-                    ? "text-red-700"
-                    : "text-emerald-700"
-                  : "text-[var(--secondary-black)]"
-              }`}
-            >
-              {balanceStatus === "loading" ? (
-                <span className="animate-pulse">...</span>
-              ) : (
-                formatCurrency(
-                  Math.abs(balance?.credit_amount || 0),
-                  balance?.currency
-                )
-              )}
-            </p>
-            <p
-              className={`text-xs mt-1 ${
-                balance?.has_credit_balance
-                  ? balance.credit_type === "owes_procur"
-                    ? "text-red-600"
-                    : "text-emerald-600"
-                  : "text-[var(--secondary-muted-edge)]"
-              }`}
-            >
-              {balance?.has_credit_balance
-                ? balance.credit_type === "owes_procur"
-                  ? "Deducted from payouts"
-                  : "Added to payouts"
-                : "No credits on account"}
-            </p>
-          </div>
-        </div>
-
-        {/* Credit Transaction History - Only show if there are transactions */}
+        {/* Credit History */}
         {creditTransactions.length > 0 && (
-          <div className="rounded-2xl overflow-hidden mb-8 border border-[var(--secondary-soft-highlight)] bg-white">
-            <div className="px-6 py-4 border-b border-[var(--secondary-soft-highlight)] bg-gray-50">
-              <div className="flex items-center gap-2">
-                <CreditCardIcon className="h-5 w-5 text-gray-600" />
-                <h2 className="text-lg font-semibold text-[var(--secondary-black)]">
-                  Credit History
-                </h2>
-                <span className="ml-2 px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-700">
-                  {creditTransactionsTotal} transaction
-                  {creditTransactionsTotal !== 1 ? "s" : ""}
-                </span>
-              </div>
-              <p className="text-sm text-[var(--secondary-muted-edge)] mt-1">
-                Record of credits and debits on your account
-              </p>
+          <div style={{ ...card, marginBottom: 20, overflow: "hidden" }}>
+            <div style={{ padding: "14px 18px", borderBottom: "1px solid #f0ece4" }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "#1c2b23" }}>Credit History</span>
+              <span style={{ fontSize: 12, color: "#8a9e92", marginLeft: 8 }}>{creditTransactionsTotal} transaction{creditTransactionsTotal !== 1 ? "s" : ""}</span>
             </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50/50 border-b border-[var(--secondary-soft-highlight)]">
-                  <tr>
-                    <th className="text-left py-3 px-6 font-medium text-[var(--secondary-black)]">
-                      Date
-                    </th>
-                    <th className="text-left py-3 px-6 font-medium text-[var(--secondary-black)]">
-                      Type
-                    </th>
-                    <th className="text-left py-3 px-6 font-medium text-[var(--secondary-black)]">
-                      Amount
-                    </th>
-                    <th className="text-left py-3 px-6 font-medium text-[var(--secondary-black)]">
-                      Reason
-                    </th>
-                    <th className="text-left py-3 px-6 font-medium text-[var(--secondary-black)]">
-                      Note
-                    </th>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: "#faf8f4", borderBottom: "1px solid #ebe7df" }}>
+                    {["Date", "Type", "Amount", "Reason", "Note"].map((h) => (
+                      <th key={h} style={{ textAlign: "left", padding: "10px 14px", fontWeight: 600, color: "#6a7f73" }}>{h}</th>
+                    ))}
                   </tr>
                 </thead>
-                <tbody className="bg-white">
-                  {creditTransactions.map((tx) => (
-                    <tr
-                      key={tx.id}
-                      className="border-b border-gray-100 hover:bg-gray-50"
-                    >
-                      <td className="py-3 px-6 text-[var(--secondary-muted-edge)]">
-                        {formatDate(tx.created_at)}
-                      </td>
-                      <td className="py-3 px-6">
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                            tx.type === "credit"
-                              ? "bg-red-100 text-red-700"
-                              : "bg-emerald-100 text-emerald-700"
-                          }`}
-                        >
+                <tbody>
+                  {creditTransactions.map((tx: any) => (
+                    <tr key={tx.id} style={{ borderBottom: "1px solid #f8f6f2" }}>
+                      <td style={{ padding: "10px 14px", color: "#8a9e92" }}>{fmtDate(tx.created_at)}</td>
+                      <td style={{ padding: "10px 14px" }}>
+                        <span style={pill(tx.type === "credit" ? "rgba(212,60,60,.10)" : "rgba(45,74,62,.10)", tx.type === "credit" ? "#9b2020" : "#1a4035")}>
                           {tx.type === "credit" ? "Credit" : "Debit"}
                         </span>
                       </td>
-                      <td
-                        className={`py-3 px-6 font-semibold ${
-                          tx.amount > 0 ? "text-red-600" : "text-emerald-600"
-                        }`}
-                      >
-                        {tx.amount > 0 ? "+" : ""}
-                        {formatCurrency(tx.amount, balance?.currency)}
+                      <td style={{ padding: "10px 14px", fontWeight: 700, color: tx.amount > 0 ? "#9b2020" : "#1a4035" }}>
+                        {tx.amount > 0 ? "+" : ""}{fmt(tx.amount, balance?.currency)}
                       </td>
-                      <td className="py-3 px-6 text-[var(--secondary-muted-edge)] capitalize">
-                        {tx.reason.replace(/_/g, " ")}
-                      </td>
-                      <td className="py-3 px-6 text-[var(--secondary-muted-edge)] max-w-[200px] truncate">
-                        {tx.note || "—"}
-                      </td>
+                      <td style={{ padding: "10px 14px", color: "#8a9e92", textTransform: "capitalize" }}>{tx.reason.replace(/_/g, " ")}</td>
+                      <td style={{ padding: "10px 14px", color: "#8a9e92", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tx.note || "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -475,211 +206,127 @@ export default function SellerPayoutsPage() {
           </div>
         )}
 
-        {/* Payout Policy Notice */}
-        <div className="rounded-xl bg-[var(--primary-background)] border border-[var(--secondary-soft-highlight)] p-4 mb-8">
-          <h3 className="text-sm font-semibold text-[var(--secondary-black)] mb-2">
-            Payout Policy
-          </h3>
-          <ul className="text-xs text-[var(--secondary-muted-edge)] space-y-1">
-            <li>
-              • Minimum payout amount:{" "}
-              <strong className="text-[var(--secondary-black)]">
-                {formatCurrency(settings?.minimum_payout_amount || 100)}
-              </strong>
-            </li>
-            <li>
-              • Payouts are processed{" "}
-              <strong className="text-[var(--secondary-black)]">
-                every 2 weeks
-              </strong>{" "}
-              (bi-weekly)
-            </li>
-            <li>
-              • Funds from delivered orders are added to your available balance
-              after payment clears
-            </li>
-            <li>
-              • Payouts are sent to your registered payout method (cash or
-              cheque)
-            </li>
-            <li>
-              • Any credit balance on your account will be adjusted in your payouts
-            </li>
+        {/* Policy */}
+        <div style={{ ...card, padding: "16px 18px", marginBottom: 20, background: "#faf8f4" }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#1c2b23", marginBottom: 8 }}>Payout Policy</div>
+          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+            {[
+              `Minimum payout: ${fmt(settings?.minimum_payout_amount || 100)}`,
+              "Payouts processed every 2 weeks (bi-weekly)",
+              "Funds from delivered orders clear before payout",
+              "Paid to your registered payout method (cash or cheque)",
+              "Credit balance is adjusted from your payouts",
+            ].map((item) => (
+              <li key={item} style={{ fontSize: 12, color: "#6a7f73", display: "flex", alignItems: "flex-start", gap: 6 }}>
+                <span style={{ color: "#2d4a3e", fontWeight: 700, flexShrink: 0 }}>•</span> {item}
+              </li>
+            ))}
           </ul>
         </div>
 
         {/* Payout Requests */}
-        <div className="rounded-2xl border border-[var(--secondary-soft-highlight)] bg-white overflow-hidden">
-          <div className="px-6 py-4 border-b border-[var(--secondary-soft-highlight)]">
-            <h2 className="text-lg font-semibold text-[var(--secondary-black)]">
-              Payout Requests
-            </h2>
+        <div style={{ ...card, overflow: "hidden" }}>
+          <div style={{ padding: "14px 18px", borderBottom: "1px solid #f0ece4" }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: "#1c2b23" }}>Payout Requests</span>
           </div>
 
           {isLoading && payoutRequests.length === 0 ? (
-            <div className="p-8">
-              <ProcurLoader size="md" text="Loading requests..." />
-            </div>
+            <div style={{ padding: 32 }}><ProcurLoader size="md" text="Loading requests…" /></div>
           ) : payoutRequests.length === 0 ? (
-            <div className="p-12 text-center">
-              <div className="w-16 h-16 mx-auto mb-4 bg-[var(--primary-background)] rounded-full flex items-center justify-center">
-                <BanknotesIcon className="h-8 w-8 text-[var(--secondary-muted-edge)]" />
-              </div>
-              <h3 className="text-lg font-medium text-[var(--secondary-black)] mb-2">
-                No payout requests yet
-              </h3>
-              <p className="text-sm text-[var(--secondary-muted-edge)]">
-                Once you reach the minimum balance, you can request a payout.
-              </p>
+            <div style={{ padding: "48px 24px", textAlign: "center" }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "#1c2b23", marginBottom: 6 }}>No payout requests yet</div>
+              <div style={{ fontSize: 13, color: "#8a9e92" }}>Once eligible, you can request a payout above.</div>
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-[var(--primary-background)] border-b border-[var(--secondary-soft-highlight)]">
-                    <tr>
-                      <th className="text-left py-3 px-6 font-medium text-[var(--secondary-black)]">
-                        Reference
-                      </th>
-                      <th className="text-left py-3 px-6 font-medium text-[var(--secondary-black)]">
-                        Amount
-                      </th>
-                      <th className="text-left py-3 px-6 font-medium text-[var(--secondary-black)]">
-                        Status
-                      </th>
-                      <th className="text-left py-3 px-6 font-medium text-[var(--secondary-black)]">
-                        Requested
-                      </th>
-                      <th className="text-left py-3 px-6 font-medium text-[var(--secondary-black)]">
-                        Actions
-                      </th>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ background: "#faf8f4", borderBottom: "1px solid #ebe7df" }}>
+                      {["Reference", "Amount", "Status", "Requested", "Actions"].map((h) => (
+                        <th key={h} style={{ textAlign: "left", padding: "10px 16px", fontWeight: 600, color: "#6a7f73" }}>{h}</th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {payoutRequests.map((req) => (
-                      <tr
-                        key={req.id}
-                        className="border-b border-[var(--secondary-soft-highlight)]/50 hover:bg-[var(--primary-background)]/50"
-                      >
-                        <td className="py-4 px-6">
-                          <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">
+                    {payoutRequests.map((req: any) => {
+                      const sm = PAYOUT_STATUS[req.status] ?? PAYOUT_STATUS.pending;
+                      return (
+                        <tr key={req.id} style={{ borderBottom: "1px solid #f8f6f2" }}>
+                          <td style={{ padding: "12px 16px", fontFamily: "monospace", fontSize: 12, color: "#6a7f73" }}>
                             {req.id.slice(0, 8)}
-                          </span>
-                        </td>
-                        <td className="py-4 px-6 font-semibold text-[var(--secondary-black)]">
-                          {formatCurrency(req.amount, req.currency)}
-                        </td>
-                        <td className="py-4 px-6">
-                          {getStatusBadge(req.status)}
-                          {req.rejection_reason && (
-                            <p className="text-xs text-red-600 mt-1">
-                              {req.rejection_reason}
-                            </p>
-                          )}
-                        </td>
-                        <td className="py-4 px-6 text-[var(--secondary-muted-edge)]">
-                          {formatDate(req.requested_at)}
-                        </td>
-                        <td className="py-4 px-6">
-                          {req.status === "pending" && (
-                            <button
-                              onClick={() => handleCancelRequest(req.id)}
-                              className="text-xs text-red-600 hover:text-red-700"
-                            >
-                              Cancel
-                            </button>
-                          )}
-                          {req.status === "completed" && (
-                            <span className="text-xs text-green-600">
-                              Paid {formatDate(req.completed_at)}
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td style={{ padding: "12px 16px", fontWeight: 700, color: "#1c2b23" }}>
+                            {fmt(req.amount, req.currency)}
+                          </td>
+                          <td style={{ padding: "12px 16px" }}>
+                            <span style={pill(sm.bg, sm.color)}>{sm.label}</span>
+                            {req.rejection_reason && <div style={{ fontSize: 11, color: "#9b2020", marginTop: 4 }}>{req.rejection_reason}</div>}
+                          </td>
+                          <td style={{ padding: "12px 16px", color: "#8a9e92" }}>{fmtDate(req.requested_at)}</td>
+                          <td style={{ padding: "12px 16px" }}>
+                            {req.status === "pending" && (
+                              <button onClick={() => handleCancel(req.id)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "#9b2020", fontWeight: 600 }}>Cancel</button>
+                            )}
+                            {req.status === "completed" && (
+                              <span style={{ fontSize: 12, color: "#2d4a3e", fontWeight: 600 }}>Paid {fmtDate(req.completed_at)}</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
-
-              {/* Pagination */}
               {totalPages > 1 && (
-                <div className="px-6 py-4 border-t border-[var(--secondary-soft-highlight)] flex items-center justify-between">
-                  <p className="text-xs text-[var(--secondary-muted-edge)]">
-                    Showing {(currentPage - 1) * 20 + 1}-
-                    {Math.min(currentPage * 20, payoutRequestsTotal)} of {payoutRequestsTotal}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                      disabled={currentPage === 1}
-                      className="px-4 py-2 text-xs font-medium rounded-full border border-[var(--secondary-soft-highlight)] disabled:opacity-50 hover:bg-gray-50 transition-colors"
-                    >
-                      Previous
-                    </button>
-                    <button
-                      onClick={() =>
-                        setCurrentPage((p) => Math.min(totalPages, p + 1))
-                      }
-                      disabled={currentPage === totalPages}
-                      className="px-4 py-2 text-xs font-medium rounded-full border border-[var(--secondary-soft-highlight)] disabled:opacity-50 hover:bg-gray-50 transition-colors"
-                    >
-                      Next
-                    </button>
+                <div style={{ padding: "12px 16px", borderTop: "1px solid #f0ece4", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 12, color: "#8a9e92" }}>
+                    {(currentPage - 1) * 20 + 1}–{Math.min(currentPage * 20, payoutRequestsTotal)} of {payoutRequestsTotal}
+                  </span>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} style={{ ...ghostBtn, opacity: currentPage === 1 ? 0.4 : 1, fontSize: 12 }}>Prev</button>
+                    <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} style={{ ...ghostBtn, opacity: currentPage === totalPages ? 0.4 : 1, fontSize: 12 }}>Next</button>
                   </div>
                 </div>
               )}
             </>
           )}
         </div>
+      </main>
 
-        {/* Request Payout Modal */}
-        {showRequestModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-xl">
-              <h3 className="text-xl font-semibold text-[var(--secondary-black)] mb-4">
-                Request Payout
-              </h3>
-              <p className="text-sm text-[var(--secondary-muted-edge)] mb-4">
-                You are requesting a payout of your full available balance:
-              </p>
-              <p className="text-2xl font-bold text-[var(--primary-base)] mb-4">
-                {formatCurrency(balance?.available_amount || 0, balance?.currency)}
-              </p>
-              {error && (
-                <p className="text-sm text-red-600 mb-4">{error}</p>
-              )}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-[var(--secondary-black)] mb-2">
-                  Note (optional)
-                </label>
-                <textarea
-                  value={requestNote}
-                  onChange={(e) => setRequestNote(e.target.value)}
-                  placeholder="Add any notes for the admin..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                  rows={3}
-                />
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowRequestModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleRequestPayout}
-                  disabled={requestPayoutStatus === "loading"}
-                  className="flex-1 px-4 py-2 bg-[var(--primary-base)] text-white rounded-lg text-sm font-medium hover:bg-[var(--primary-dark)] disabled:opacity-50"
-                >
-                  {requestPayoutStatus === "loading" ? "Submitting..." : "Request Payout"}
-                </button>
-              </div>
+      {/* Modal */}
+      {showModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 500 }}>
+          <div style={{ background: "#fff", borderRadius: 16, padding: 28, maxWidth: 420, width: "100%", margin: "0 16px" }}>
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: "#1c2b23", marginBottom: 8 }}>Request Payout</h3>
+            <p style={{ fontSize: 13, color: "#8a9e92", marginBottom: 12 }}>Requesting your full available balance:</p>
+            <div style={{ fontSize: 26, fontWeight: 800, color: "#2d4a3e", marginBottom: 16 }}>
+              {fmt(available, balance?.currency)}
+            </div>
+            {error && <div style={{ fontSize: 12, color: "#9b2020", marginBottom: 12 }}>{error}</div>}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: "#1c2b23", display: "block", marginBottom: 6 }}>Note (optional)</label>
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Add notes for the admin…"
+                rows={3}
+                style={{ width: "100%", border: "1px solid #ddd9d1", borderRadius: 8, padding: "8px 12px", fontSize: 13, outline: "none", resize: "vertical", boxSizing: "border-box" }}
+              />
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setShowModal(false)} style={{ ...ghostBtn, flex: 1, textAlign: "center" as const }}>Cancel</button>
+              <button
+                onClick={handleRequest}
+                disabled={requestPayoutStatus === "loading"}
+                style={{ flex: 1, padding: "9px 0", background: "#2d4a3e", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: requestPayoutStatus === "loading" ? 0.6 : 1 }}
+              >
+                {requestPayoutStatus === "loading" ? "Submitting…" : "Request Payout"}
+              </button>
             </div>
           </div>
-        )}
-      </main>
+        </div>
+      )}
     </div>
   );
 }
-
