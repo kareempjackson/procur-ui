@@ -1,16 +1,27 @@
 "use client";
 
-import TopNavigation from "@/components/navigation/TopNavigation";
-import Footer from "@/components/footer/Footer";
-import type { Metadata } from "next";
 import { useState } from "react";
+import PublicPageShell from "@/components/layout/PublicPageShell";
 
-// Note: This would typically be handled server-side with proper metadata export
-// For now, we'll handle it client-side
-const metadata = {
-  title: "Contact Procur",
-  description:
-    "Get in touch with Procur. Whether you&apos;re a buyer, supplier, or partner, we&apos;re here to help you navigate the global produce marketplace.",
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "10px 14px",
+  border: "1px solid #d4d0c8",
+  borderRadius: 8,
+  fontSize: 14,
+  fontFamily: "inherit",
+  color: "#1c2b23",
+  background: "#fff",
+  outline: "none",
+  boxSizing: "border-box",
+};
+
+const labelStyle: React.CSSProperties = {
+  display: "block",
+  fontSize: 13,
+  fontWeight: 600,
+  color: "#1c2b23",
+  marginBottom: 6,
 };
 
 export default function ContactPage() {
@@ -24,14 +35,10 @@ export default function ContactPage() {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState<
-    "idle" | "success" | "error"
-  >("idle");
+  const [submitStatus, setSubmitStatus] = useState<"idle" | "success" | "error">("idle");
 
   const handleInputChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -41,7 +48,6 @@ export default function ContactPage() {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Simulate form submission
     try {
       await new Promise((resolve) => setTimeout(resolve, 1000));
       setSubmitStatus("success");
@@ -61,186 +67,203 @@ export default function ContactPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
-      <TopNavigation />
+    <PublicPageShell>
+      <div style={{ maxWidth: 680, margin: "0 auto", padding: "80px 24px 80px", background: "#faf8f4" }}>
+        {/* Eyebrow */}
+        <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#2d4a3e", marginBottom: 12 }}>
+          Contact
+        </p>
 
-      <main className="max-w-3xl mx-auto px-6 py-16">
-        {/* Contact Form */}
-        <section id="contact-form">
-          <div className="mb-8 text-center">
-            <h1 className="text-3xl md:text-4xl font-bold text-[var(--secondary-black)]">
-              Contact Procur
-            </h1>
-            <p className="mt-3 text-gray-600">
-              Fill out the form below and our team will get back to you.
-            </p>
-          </div>
+        {/* Heading */}
+        <h1 style={{ fontSize: 38, fontWeight: 700, color: "#1c2b23", margin: "0 0 12px" }}>
+          Get in touch
+        </h1>
 
-          <div className="card">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <label
-                    htmlFor="name"
-                    className="block text-sm font-medium text-gray-700 mb-2"
-                  >
-                    Full Name *
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    required
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    className="input w-full"
-                    placeholder="Your full name"
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="email"
-                    className="block text-sm font-medium text-gray-700 mb-2"
-                  >
-                    Email Address *
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    required
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    className="input w-full"
-                    placeholder="your@email.com"
-                  />
-                </div>
-              </div>
+        {/* Subtext */}
+        <p style={{ fontSize: 15, color: "#4a5e52", lineHeight: 1.6, margin: "0 0 40px" }}>
+          Fill out the form below and our team will get back to you within one business day.
+        </p>
 
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <label
-                    htmlFor="company"
-                    className="block text-sm font-medium text-gray-700 mb-2"
-                  >
-                    Company
-                  </label>
-                  <input
-                    type="text"
-                    id="company"
-                    name="company"
-                    value={formData.company}
-                    onChange={handleInputChange}
-                    className="input w-full"
-                    placeholder="Your company name"
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="role"
-                    className="block text-sm font-medium text-gray-700 mb-2"
-                  >
-                    I'm a...
-                  </label>
-                  <select
-                    id="role"
-                    name="role"
-                    value={formData.role}
-                    onChange={handleInputChange}
-                    className="input w-full"
-                  >
-                    <option value="">Select your role</option>
-                    <option value="buyer">Buyer</option>
-                    <option value="supplier">Supplier/Grower</option>
-                    <option value="logistics">Logistics Partner</option>
-                    <option value="government">Government Agency</option>
-                    <option value="investor">Investor</option>
-                    <option value="media">Media/Press</option>
-                    <option value="job-seeker">Job Seeker</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
-              </div>
-
+        {/* Form card */}
+        <div
+          style={{
+            background: "#f5f1ea",
+            border: "1px solid #e8e4dc",
+            borderRadius: 16,
+            padding: 40,
+          }}
+        >
+          <form onSubmit={handleSubmit}>
+            {/* Row 1: Name + Email */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
               <div>
-                <label
-                  htmlFor="subject"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
-                  Subject *
+                <label htmlFor="name" style={labelStyle}>
+                  Full Name *
                 </label>
                 <input
                   type="text"
-                  id="subject"
-                  name="subject"
+                  id="name"
+                  name="name"
                   required
-                  value={formData.subject}
+                  value={formData.name}
                   onChange={handleInputChange}
-                  className="input w-full"
-                  placeholder="What's this about?"
+                  placeholder="Your full name"
+                  style={inputStyle}
                 />
               </div>
-
               <div>
-                <label
-                  htmlFor="message"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
-                  Message *
+                <label htmlFor="email" style={labelStyle}>
+                  Email Address *
                 </label>
-                <textarea
-                  id="message"
-                  name="message"
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
                   required
-                  value={formData.message}
+                  value={formData.email}
                   onChange={handleInputChange}
-                  rows={5}
-                  className="input w-full resize-none"
-                  style={{
-                    borderRadius: "18px",
-                    height: "auto",
-                    padding: "1rem",
-                  }}
-                  placeholder="Tell us more about your inquiry..."
+                  placeholder="your@email.com"
+                  style={inputStyle}
                 />
               </div>
+            </div>
 
-              {submitStatus === "success" && (
-                <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-                  <p className="text-green-800 text-sm">
-                    ✅ Message sent successfully! We'll get back to you within
-                    24 hours.
-                  </p>
-                </div>
-              )}
+            {/* Row 2: Company + Role */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+              <div>
+                <label htmlFor="company" style={labelStyle}>
+                  Company
+                </label>
+                <input
+                  type="text"
+                  id="company"
+                  name="company"
+                  value={formData.company}
+                  onChange={handleInputChange}
+                  placeholder="Your company name"
+                  style={inputStyle}
+                />
+              </div>
+              <div>
+                <label htmlFor="role" style={labelStyle}>
+                  I&apos;m a...
+                </label>
+                <select
+                  id="role"
+                  name="role"
+                  value={formData.role}
+                  onChange={handleInputChange}
+                  style={inputStyle}
+                >
+                  <option value="">Select your role</option>
+                  <option value="buyer">Buyer</option>
+                  <option value="supplier">Supplier/Grower</option>
+                  <option value="logistics">Logistics Partner</option>
+                  <option value="government">Government Agency</option>
+                  <option value="investor">Investor</option>
+                  <option value="media">Media/Press</option>
+                  <option value="job-seeker">Job Seeker</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+            </div>
 
-              {submitStatus === "error" && (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                  <p className="text-red-800 text-sm">
-                    ❌ Something went wrong. Please try again or email us
-                    directly.
-                  </p>
-                </div>
-              )}
+            {/* Subject */}
+            <div style={{ marginBottom: 20 }}>
+              <label htmlFor="subject" style={labelStyle}>
+                Subject *
+              </label>
+              <input
+                type="text"
+                id="subject"
+                name="subject"
+                required
+                value={formData.subject}
+                onChange={handleInputChange}
+                placeholder="What is this about?"
+                style={inputStyle}
+              />
+            </div>
 
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="btn btn-primary w-full py-3 disabled:opacity-50 disabled:cursor-not-allowed"
+            {/* Message */}
+            <div style={{ marginBottom: 24 }}>
+              <label htmlFor="message" style={labelStyle}>
+                Message *
+              </label>
+              <textarea
+                id="message"
+                name="message"
+                required
+                value={formData.message}
+                onChange={handleInputChange}
+                rows={5}
+                placeholder="Tell us more about your inquiry..."
+                style={{ ...inputStyle, resize: "none" }}
+              />
+            </div>
+
+            {/* Success banner */}
+            {submitStatus === "success" && (
+              <div
+                style={{
+                  background: "#ecfdf5",
+                  border: "1px solid #6ee7b7",
+                  borderRadius: 10,
+                  padding: "12px 16px",
+                  color: "#065f46",
+                  fontSize: 14,
+                  marginBottom: 20,
+                }}
               >
-                {isSubmitting ? "Sending..." : "Send Message"}
-              </button>
+                Message sent. We will get back to you within 24 hours.
+              </div>
+            )}
 
-              <p className="text-xs text-gray-500 text-center">
-                By submitting this form, you agree to our privacy policy and
-                terms of service.
-              </p>
-            </form>
-          </div>
-        </section>
-      </main>
+            {/* Error banner */}
+            {submitStatus === "error" && (
+              <div
+                style={{
+                  background: "#fef2f2",
+                  border: "1px solid #fca5a5",
+                  borderRadius: 10,
+                  padding: "12px 16px",
+                  color: "#991b1b",
+                  fontSize: 14,
+                  marginBottom: 20,
+                }}
+              >
+                Something went wrong. Please try again or email us directly.
+              </div>
+            )}
 
-      <Footer />
-    </div>
+            {/* Submit button */}
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              style={{
+                width: "100%",
+                padding: "13px",
+                background: isSubmitting ? "#b8986a" : "#d4783c",
+                color: "#fff",
+                border: "none",
+                borderRadius: 999,
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: isSubmitting ? "not-allowed" : "pointer",
+                fontFamily: "inherit",
+                transition: "background 0.2s",
+              }}
+            >
+              {isSubmitting ? "Sending..." : "Send Message"}
+            </button>
+
+            {/* Privacy note */}
+            <p style={{ fontSize: 12, color: "#8a9e93", textAlign: "center", marginTop: 16, marginBottom: 0 }}>
+              By submitting this form, you agree to our privacy policy and terms of service.
+            </p>
+          </form>
+        </div>
+      </div>
+    </PublicPageShell>
   );
 }

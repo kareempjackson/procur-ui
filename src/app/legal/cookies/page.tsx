@@ -1,34 +1,23 @@
 "use client";
 
-import TopNavigation from "@/components/navigation/TopNavigation";
-import Footer from "@/components/footer/Footer";
-import type { Metadata } from "next";
-import Image from "next/image";
 import { useState } from "react";
-
-// Note: This would typically be handled server-side with proper metadata export
-const metadata = {
-  title: "Cookie Policy - Procur",
-  description:
-    "Procur's Cookie Policy. Learn how we use cookies and similar technologies to improve your experience on our platform.",
-};
+import PublicPageShell from "@/components/layout/PublicPageShell";
 
 export default function CookiePolicyPage() {
   const lastUpdated = "January 15, 2025";
   const [cookiePreferences, setCookiePreferences] = useState({
-    necessary: true, // Always required
+    necessary: true,
     analytics: true,
     marketing: false,
     functional: true,
   });
 
   const handlePreferenceChange = (category: string, value: boolean) => {
-    if (category === "necessary") return; // Cannot disable necessary cookies
+    if (category === "necessary") return;
     setCookiePreferences((prev) => ({ ...prev, [category]: value }));
   };
 
   const savePreferences = () => {
-    // In a real implementation, this would save to localStorage and update cookie consent
     console.log("Saving cookie preferences:", cookiePreferences);
   };
 
@@ -179,316 +168,672 @@ export default function CookiePolicyPage() {
     },
   ];
 
-  return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
-      <TopNavigation />
+  const typeColorMap: Record<string, string> = {
+    Analytics: "#2d4a3e",
+    Necessary: "#5a6b63",
+    Functional: "#d4783c",
+    Marketing: "#8b5e3c",
+  };
 
-      {/* Hero Section */}
-      <section className="max-w-7xl mx-auto px-6 pt-12">
-        <div className="text-center">
-          <h1 className="text-5xl md:text-6xl font-bold text-[var(--secondary-black)] text-balance">
+  return (
+    <PublicPageShell>
+      {/* Page wrapper */}
+      <div
+        style={{
+          maxWidth: 760,
+          margin: "0 auto",
+          padding: "80px 24px 80px",
+        }}
+      >
+        {/* Page header */}
+        <div style={{ marginBottom: 48 }}>
+          <h1
+            style={{
+              fontSize: 38,
+              fontWeight: 800,
+              color: "#1c2b23",
+              lineHeight: 1.2,
+              margin: "0 0 10px",
+            }}
+          >
             Cookie Policy
           </h1>
-          <p className="mt-6 text-lg md:text-xl text-gray-600 max-w-3xl mx-auto text-pretty">
-            Learn how we use cookies and similar technologies to improve your
-            experience on our platform. Manage your preferences and understand
-            your choices.
-          </p>
-          <div className="mt-6 text-sm text-gray-500">
+          <p
+            style={{
+              fontSize: 12,
+              color: "#8a9b93",
+              margin: "0 0 20px",
+            }}
+          >
             Last updated: {lastUpdated}
-          </div>
-          <div className="mt-10">
-            <div className="relative mx-auto rounded-3xl overflow-hidden shadow-xl border border-black/5 w-full max-w-6xl h-96 md:h-[520px]">
-              <Image
-                src="/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg"
-                alt="Cookie policy and privacy settings"
-                fill
-                priority
-                className="object-cover"
-              />
-            </div>
-          </div>
+          </p>
+          <p
+            style={{
+              fontSize: 15,
+              color: "#5a6b63",
+              lineHeight: 1.7,
+              margin: 0,
+            }}
+          >
+            This Cookie Policy explains how Procur uses cookies and similar
+            technologies when you visit our website or use our platform. We
+            believe in transparency about our data practices and want you to
+            understand how these technologies work. By continuing to use our
+            platform, you consent to our use of cookies in accordance with this
+            policy. You can manage your cookie preferences at any time using
+            the controls below.
+          </p>
         </div>
-      </section>
-
-      <main className="max-w-4xl mx-auto px-6 py-20">
-        {/* Introduction */}
-        <section className="mb-16">
-          <div className="card">
-            <p className="text-lg text-gray-700 leading-8 first-letter:text-5xl first-letter:font-bold first-letter:float-left first-letter:mr-3 first-letter:leading-[0.9]">
-              This Cookie Policy explains how Procur uses cookies and similar
-              technologies when you visit our website or use our platform. We
-              believe in transparency about our data practices and want you to
-              understand how these technologies work.
-            </p>
-            <p className="mt-6 text-gray-700 leading-8">
-              By continuing to use our platform, you consent to our use of
-              cookies in accordance with this policy. You can manage your cookie
-              preferences at any time using the controls provided below.
-            </p>
-          </div>
-        </section>
 
         {/* Cookie Preference Center */}
-        <section className="mb-16">
-          <div className="card bg-gradient-to-br from-[var(--primary-background)] to-white border border-[var(--primary-accent2)]/20">
-            <h2 className="text-2xl font-bold text-[var(--secondary-black)] mb-6">
-              Cookie Preference Center
-            </h2>
-            <p className="text-gray-700 mb-8">
-              Manage your cookie preferences below. Note that disabling certain
-              cookies may affect platform functionality.
-            </p>
+        <div
+          style={{
+            background: "#f5f1ea",
+            border: "1px solid #e8e4dc",
+            borderRadius: 12,
+            padding: 36,
+            marginBottom: 56,
+          }}
+        >
+          <h2
+            style={{
+              fontSize: 22,
+              fontWeight: 800,
+              color: "#1c2b23",
+              margin: "0 0 8px",
+            }}
+          >
+            Your cookie preferences
+          </h2>
+          <p
+            style={{
+              fontSize: 14,
+              color: "#5a6b63",
+              margin: "0 0 32px",
+              lineHeight: 1.6,
+            }}
+          >
+            Manage your cookie preferences below. Disabling certain cookies may
+            affect platform functionality.
+          </p>
 
-            <div className="space-y-6">
-              {cookieTypes.map((type, index) => (
-                <div
-                  key={index}
-                  className="border border-gray-200 rounded-xl p-6"
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-[var(--secondary-black)]">
-                      {type.category}
-                    </h3>
-                    <div className="flex items-center">
+          <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+            {cookieTypes.map((type, index) => {
+              const prefKey = type.category
+                .toLowerCase()
+                .split(" ")[0] as keyof typeof cookiePreferences;
+              const isChecked = cookiePreferences[prefKey];
+
+              return (
+                <div key={index}>
+                  {/* Row */}
+                  <div style={{ paddingTop: index === 0 ? 0 : 24, paddingBottom: 24 }}>
+                    {/* Header row */}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        marginBottom: 8,
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 15,
+                          fontWeight: 700,
+                          color: "#1c2b23",
+                        }}
+                      >
+                        {type.category}
+                      </span>
                       {type.required ? (
-                        <span className="text-sm text-gray-500 mr-3">
-                          Always Active
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            color: "#2d4a3e",
+                            background: "rgba(45,74,62,0.1)",
+                            padding: "3px 10px",
+                            borderRadius: 999,
+                            letterSpacing: "0.04em",
+                          }}
+                        >
+                          Always active
                         </span>
                       ) : (
-                        <label className="relative inline-flex items-center cursor-pointer">
+                        <label
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            cursor: "pointer",
+                          }}
+                        >
                           <input
                             type="checkbox"
-                            className="sr-only"
-                            checked={
-                              cookiePreferences[
-                                type.category
-                                  .toLowerCase()
-                                  .split(
-                                    " "
-                                  )[0] as keyof typeof cookiePreferences
-                              ]
-                            }
+                            checked={isChecked}
                             onChange={(e) =>
-                              handlePreferenceChange(
-                                type.category.toLowerCase().split(" ")[0],
-                                e.target.checked
-                              )
+                              handlePreferenceChange(prefKey, e.target.checked)
                             }
+                            style={{
+                              width: 16,
+                              height: 16,
+                              accentColor: "#d4783c",
+                              cursor: "pointer",
+                            }}
                           />
-                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary-accent2)]"></div>
+                          <span
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 600,
+                              color: isChecked ? "#d4783c" : "#8a9b93",
+                            }}
+                          >
+                            {isChecked ? "Enabled" : "Disabled"}
+                          </span>
                         </label>
                       )}
                     </div>
+
+                    {/* Description */}
+                    <p
+                      style={{
+                        fontSize: 14,
+                        color: "#5a6b63",
+                        lineHeight: 1.6,
+                        margin: "0 0 12px",
+                      }}
+                    >
+                      {type.description}
+                    </p>
+
+                    {/* Examples */}
+                    <ul
+                      style={{
+                        listStyle: "none",
+                        padding: 0,
+                        margin: "0 0 10px",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 4,
+                      }}
+                    >
+                      {type.examples.map((example, exIndex) => (
+                        <li
+                          key={exIndex}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            fontSize: 13,
+                            color: "#5a6b63",
+                          }}
+                        >
+                          <span
+                            style={{
+                              width: 4,
+                              height: 4,
+                              borderRadius: "50%",
+                              background: "#2d4a3e",
+                              flexShrink: 0,
+                              display: "inline-block",
+                            }}
+                          />
+                          {example}
+                        </li>
+                      ))}
+                    </ul>
+
+                    {/* Retention */}
+                    <p
+                      style={{
+                        fontSize: 13,
+                        color: "#8a9b93",
+                        margin: 0,
+                      }}
+                    >
+                      Retention: {type.retention}
+                    </p>
                   </div>
-                  <p className="text-gray-600 text-sm mb-4">
-                    {type.description}
-                  </p>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div>
-                      <h4 className="font-medium text-gray-800 mb-2">
-                        Examples:
-                      </h4>
-                      <ul className="text-sm text-gray-600 space-y-1">
-                        {type.examples.map((example, exampleIndex) => (
-                          <li
-                            key={exampleIndex}
-                            className="flex items-center gap-2"
-                          >
-                            <span className="h-1 w-1 rounded-full bg-[var(--primary-accent2)]" />
-                            {example}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-gray-800 mb-2">
-                        Retention:
-                      </h4>
-                      <p className="text-sm text-gray-600">{type.retention}</p>
-                    </div>
-                  </div>
+
+                  {/* Divider between items (not after last) */}
+                  {index < cookieTypes.length - 1 && (
+                    <div
+                      style={{
+                        borderTop: "1px solid #e8e4dc",
+                      }}
+                    />
+                  )}
                 </div>
-              ))}
-            </div>
-
-            <div className="mt-8 flex gap-4">
-              <button
-                onClick={savePreferences}
-                className="btn btn-primary px-6 py-2"
-              >
-                Save Preferences
-              </button>
-              <button
-                onClick={() =>
-                  setCookiePreferences({
-                    necessary: true,
-                    analytics: false,
-                    marketing: false,
-                    functional: false,
-                  })
-                }
-                className="btn btn-ghost px-6 py-2"
-              >
-                Reject All Optional
-              </button>
-            </div>
+              );
+            })}
           </div>
-        </section>
 
-        {/* Policy Sections */}
+          {/* Action buttons */}
+          <div
+            style={{
+              display: "flex",
+              gap: 12,
+              flexWrap: "wrap",
+              marginTop: 32,
+            }}
+          >
+            <button
+              onClick={savePreferences}
+              style={{
+                padding: "11px 28px",
+                borderRadius: 999,
+                fontSize: 14,
+                fontWeight: 700,
+                background: "#d4783c",
+                color: "#ffffff",
+                border: "none",
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              Save preferences
+            </button>
+            <button
+              onClick={() =>
+                setCookiePreferences({
+                  necessary: true,
+                  analytics: false,
+                  marketing: false,
+                  functional: false,
+                })
+              }
+              style={{
+                padding: "11px 28px",
+                borderRadius: 999,
+                fontSize: 14,
+                fontWeight: 600,
+                background: "transparent",
+                color: "#1c2b23",
+                border: "1px solid #e8e4dc",
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              Reject all optional
+            </button>
+          </div>
+        </div>
+
+        {/* Policy sections */}
         {sections.map((section, sectionIndex) => (
-          <section key={sectionIndex} className="mb-12">
-            <h2 className="text-2xl font-bold text-[var(--secondary-black)] mb-6">
+          <div key={sectionIndex} style={{ marginBottom: 48 }}>
+            <h2
+              style={{
+                fontSize: 22,
+                fontWeight: 800,
+                color: "#1c2b23",
+                margin: "0 0 12px",
+                paddingBottom: 12,
+                borderBottom: "1px solid #e8e4dc",
+              }}
+            >
               {section.title}
             </h2>
-            <div className="space-y-6">
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 20,
+                marginTop: 20,
+              }}
+            >
               {section.content.map((item, itemIndex) => (
-                <div key={itemIndex} className="card">
-                  <h3 className="text-lg font-semibold text-[var(--secondary-black)] mb-3">
+                <div key={itemIndex}>
+                  <h3
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 700,
+                      color: "#1c2b23",
+                      margin: "0 0 6px",
+                    }}
+                  >
                     {item.subtitle}
                   </h3>
-                  <p className="text-gray-700 leading-relaxed">{item.text}</p>
+                  <p
+                    style={{
+                      fontSize: 14,
+                      color: "#5a6b63",
+                      lineHeight: 1.7,
+                      margin: 0,
+                    }}
+                  >
+                    {item.text}
+                  </p>
                 </div>
               ))}
             </div>
-          </section>
+          </div>
         ))}
 
-        {/* Third-Party Services */}
-        <section className="mb-16">
-          <h2 className="text-2xl font-bold text-[var(--secondary-black)] mb-6">
-            Third-Party Services
+        {/* Third-party services */}
+        <div style={{ marginBottom: 56 }}>
+          <h2
+            style={{
+              fontSize: 22,
+              fontWeight: 800,
+              color: "#1c2b23",
+              margin: "0 0 12px",
+              paddingBottom: 12,
+              borderBottom: "1px solid #e8e4dc",
+            }}
+          >
+            Third-party services
           </h2>
-          <p className="text-gray-700 mb-8">
+          <p
+            style={{
+              fontSize: 14,
+              color: "#5a6b63",
+              margin: "16px 0 24px",
+              lineHeight: 1.6,
+            }}
+          >
             We work with trusted third-party services that may set their own
             cookies. Here's information about the main services we use:
           </p>
 
-          <div className="space-y-4">
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
+            }}
+          >
             {thirdPartyServices.map((service, index) => (
-              <div key={index} className="card">
-                <div className="grid md:grid-cols-4 gap-4">
-                  <div>
-                    <h3 className="font-semibold text-[var(--secondary-black)] mb-1">
-                      {service.name}
-                    </h3>
-                    <span className="text-xs text-[var(--primary-accent2)] font-medium">
-                      {service.type}
+              <div
+                key={index}
+                style={{
+                  background: "#f5f1ea",
+                  border: "1px solid #e8e4dc",
+                  borderRadius: 12,
+                  padding: "20px 24px",
+                }}
+              >
+                {/* Service name + type badge */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    marginBottom: 10,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 15,
+                      fontWeight: 700,
+                      color: "#1c2b23",
+                    }}
+                  >
+                    {service.name}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: typeColorMap[service.type] ?? "#5a6b63",
+                      background: `${typeColorMap[service.type] ?? "#5a6b63"}18`,
+                      padding: "2px 8px",
+                      borderRadius: 999,
+                    }}
+                  >
+                    {service.type}
+                  </span>
+                </div>
+
+                {/* Details */}
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 6,
+                  }}
+                >
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <span
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: "#1c2b23",
+                        minWidth: 80,
+                      }}
+                    >
+                      Purpose
+                    </span>
+                    <span style={{ fontSize: 13, color: "#5a6b63" }}>
+                      {service.purpose}
                     </span>
                   </div>
-                  <div>
-                    <h4 className="font-medium text-gray-800 mb-1">Purpose</h4>
-                    <p className="text-sm text-gray-600">{service.purpose}</p>
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-gray-800 mb-1">
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <span
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: "#1c2b23",
+                        minWidth: 80,
+                      }}
+                    >
                       Retention
-                    </h4>
-                    <p className="text-sm text-gray-600">{service.retention}</p>
+                    </span>
+                    <span style={{ fontSize: 13, color: "#5a6b63" }}>
+                      {service.retention}
+                    </span>
                   </div>
-                  <div>
-                    <h4 className="font-medium text-gray-800 mb-1">Opt-Out</h4>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <span
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: "#1c2b23",
+                        minWidth: 80,
+                      }}
+                    >
+                      Opt-out
+                    </span>
                     {service.optOut.startsWith("http") ? (
                       <a
                         href={service.optOut}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-sm text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)] transition-colors"
+                        style={{
+                          fontSize: 13,
+                          color: "#d4783c",
+                          textDecoration: "none",
+                        }}
                       >
                         Opt-out link
                       </a>
                     ) : (
-                      <p className="text-sm text-gray-600">{service.optOut}</p>
+                      <span style={{ fontSize: 13, color: "#5a6b63" }}>
+                        {service.optOut}
+                      </span>
                     )}
                   </div>
                 </div>
               </div>
             ))}
           </div>
-        </section>
+        </div>
 
-        {/* Contact Information */}
-        <section className="mt-16">
-          <div className="card bg-gradient-to-br from-[var(--primary-background)] to-white border border-[var(--primary-accent2)]/20">
-            <h2 className="text-2xl font-bold text-[var(--secondary-black)] mb-4">
-              Questions About Cookies
-            </h2>
-            <p className="text-gray-700 leading-relaxed mb-6">
-              If you have questions about our use of cookies or need help
-              managing your preferences, please contact us:
-            </p>
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <h3 className="font-semibold text-[var(--secondary-black)] mb-2">
-                  Email
-                </h3>
-                <a
-                  href="mailto:privacy@procur.com"
-                  className="text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)] transition-colors"
-                >
-                  privacy@procur.com
-                </a>
-              </div>
-              <div>
-                <h3 className="font-semibold text-[var(--secondary-black)] mb-2">
-                  Support Center
-                </h3>
-                <a
-                  href="/help/support"
-                  className="text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)] transition-colors"
-                >
-                  Visit our help center
-                </a>
-              </div>
+        {/* Contact card */}
+        <div
+          style={{
+            background: "#f5f1ea",
+            border: "1px solid #e8e4dc",
+            borderRadius: 12,
+            padding: 28,
+            marginBottom: 48,
+            marginTop: 48,
+          }}
+        >
+          <h2
+            style={{
+              fontSize: 20,
+              fontWeight: 800,
+              color: "#1c2b23",
+              margin: "0 0 10px",
+            }}
+          >
+            Questions about cookies?
+          </h2>
+          <p
+            style={{
+              fontSize: 14,
+              color: "#5a6b63",
+              lineHeight: 1.6,
+              margin: "0 0 20px",
+            }}
+          >
+            If you have questions about our use of cookies or need help managing
+            your preferences, please reach out.
+          </p>
+          <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+            <div>
+              <p
+                style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: "#8a9b93",
+                  margin: "0 0 4px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                }}
+              >
+                Email
+              </p>
+              <a
+                href="mailto:privacy@procur.com"
+                style={{
+                  fontSize: 14,
+                  color: "#d4783c",
+                  textDecoration: "none",
+                  fontWeight: 600,
+                }}
+              >
+                privacy@procur.com
+              </a>
+            </div>
+            <div>
+              <p
+                style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: "#8a9b93",
+                  margin: "0 0 4px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                }}
+              >
+                Help Center
+              </p>
+              <a
+                href="/help/support"
+                style={{
+                  fontSize: 14,
+                  color: "#d4783c",
+                  textDecoration: "none",
+                  fontWeight: 600,
+                }}
+              >
+                Visit our help center
+              </a>
             </div>
           </div>
-        </section>
+        </div>
 
-        {/* Related Policies */}
-        <section className="mt-16">
-          <h2 className="text-2xl font-bold text-[var(--secondary-black)] mb-6">
-            Related Policies
+        {/* Related policies */}
+        <div>
+          <h2
+            style={{
+              fontSize: 18,
+              fontWeight: 800,
+              color: "#1c2b23",
+              margin: "0 0 16px",
+            }}
+          >
+            Related policies
           </h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div
+            style={{
+              display: "flex",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
             <a
               href="/legal/privacy"
-              className="card hover:shadow-lg transition-all duration-200 group"
+              style={{
+                flex: "1 1 220px",
+                background: "#f5f1ea",
+                border: "1px solid #e8e4dc",
+                borderRadius: 12,
+                padding: "20px 22px",
+                textDecoration: "none",
+                display: "block",
+              }}
             >
-              <h3 className="font-semibold text-[var(--secondary-black)] group-hover:text-[var(--primary-accent2)] transition-colors mb-2">
+              <p
+                style={{
+                  fontSize: 15,
+                  fontWeight: 700,
+                  color: "#1c2b23",
+                  margin: "0 0 6px",
+                }}
+              >
                 Privacy Policy
-              </h3>
-              <p className="text-gray-600 text-sm">
+              </p>
+              <p
+                style={{
+                  fontSize: 13,
+                  color: "#5a6b63",
+                  margin: 0,
+                  lineHeight: 1.5,
+                }}
+              >
                 How we collect and protect your data
               </p>
             </a>
             <a
               href="/legal/terms"
-              className="card hover:shadow-lg transition-all duration-200 group"
+              style={{
+                flex: "1 1 220px",
+                background: "#f5f1ea",
+                border: "1px solid #e8e4dc",
+                borderRadius: 12,
+                padding: "20px 22px",
+                textDecoration: "none",
+                display: "block",
+              }}
             >
-              <h3 className="font-semibold text-[var(--secondary-black)] group-hover:text-[var(--primary-accent2)] transition-colors mb-2">
+              <p
+                style={{
+                  fontSize: 15,
+                  fontWeight: 700,
+                  color: "#1c2b23",
+                  margin: "0 0 6px",
+                }}
+              >
                 Terms of Service
-              </h3>
-              <p className="text-gray-600 text-sm">
+              </p>
+              <p
+                style={{
+                  fontSize: 13,
+                  color: "#5a6b63",
+                  margin: 0,
+                  lineHeight: 1.5,
+                }}
+              >
                 Platform usage terms and conditions
               </p>
             </a>
-            <a
-              href="/legal/usage"
-              className="card hover:shadow-lg transition-all duration-200 group"
-            >
-              <h3 className="font-semibold text-[var(--secondary-black)] group-hover:text-[var(--primary-accent2)] transition-colors mb-2">
-                Usage Policy
-              </h3>
-              <p className="text-gray-600 text-sm">
-                Acceptable use and conduct guidelines
-              </p>
-            </a>
           </div>
-        </section>
-      </main>
-
-      <Footer />
-    </div>
+        </div>
+      </div>
+    </PublicPageShell>
   );
 }

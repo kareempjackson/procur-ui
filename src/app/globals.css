@@ -418,6 +418,98 @@ html {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* ─── v6 Landing Page Layout ──────────────────────────────────────────────── */
+.v6-cw {
+  max-width: 1300px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.v6-cat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+  margin-top: -80px;
+  position: relative;
+  z-index: 3;
+}
+
+.v6-cb-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+}
+
+.v6-prod-scroll {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 4px;
+}
+.v6-prod-scroll::-webkit-scrollbar { display: none; }
+.v6-prod-scroll > * { scroll-snap-align: start; }
+
+.v6-seller-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.v6-story-scroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 4px;
+}
+.v6-story-scroll::-webkit-scrollbar { display: none; }
+.v6-story-scroll > * { scroll-snap-align: start; }
+
+.v6-pgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.v6-t-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.v6-ft-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 18px;
+  margin-bottom: 36px;
+}
+
+.v6-sn-scroll { scrollbar-width: none; }
+.v6-sn-scroll::-webkit-scrollbar { display: none; }
+
+@media (max-width: 1024px) {
+  .v6-cat-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+  .v6-seller-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 900px) {
+  .v6-ft-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 640px) {
+  .v6-cat-grid { grid-template-columns: 1fr; margin-top: -48px; }
+  .v6-seller-grid { grid-template-columns: 1fr; }
+  .v6-pgrid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .v6-t-row { grid-template-columns: 1fr; }
+  .v6-ft-grid { grid-template-columns: 1fr 1fr; }
+  .v6-cw { padding: 0 12px; }
+}
 /* ==================== Leaflet Map Styles ==================== */
 
 /* Custom popup styling */
@@ -524,6 +616,17 @@ html {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* ── Skeleton loading shimmer ────────────────────────────────────────────── */
+.skel {
+  background: linear-gradient(90deg, #e8e3d9 25%, #ddd8cc 50%, #e8e3d9 75%);
+  background-size: 200% 100%;
+  animation: skel-shimmer 1.6s ease-in-out infinite;
+}
+@keyframes skel-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 @keyframes marker-pulse {

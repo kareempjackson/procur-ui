@@ -7,11 +7,9 @@ import {
   assertSanityEnv,
 } from "./config";
 
-assertSanityEnv();
-
 export const sanityClient = createClient({
-  projectId: projectId!,
-  dataset: dataset!,
+  projectId: projectId || "placeholder",
+  dataset: dataset || "production",
   apiVersion,
   useCdn,
   perspective: "published",

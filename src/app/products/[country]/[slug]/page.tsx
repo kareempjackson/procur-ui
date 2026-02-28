@@ -138,7 +138,7 @@ export default async function PublicProductPage({ params }: ProductPageProps) {
         <div className="mb-6">
           <p className="text-xs md:text-sm text-[var(--secondary-muted-edge)]">
             <Link
-              href="/marketplace"
+              href="/browse"
               className="hover:text-[var(--primary-accent2)]"
             >
               Marketplace
@@ -158,7 +158,7 @@ export default async function PublicProductPage({ params }: ProductPageProps) {
               items on the marketplace.
             </p>
             <Link
-              href="/marketplace"
+              href="/browse"
               className="inline-flex items-center px-6 py-3 rounded-full bg-[var(--primary-accent2)] text-white font-semibold hover:bg-[var(--primary-accent3)] transition-colors"
             >
               Back to Marketplace

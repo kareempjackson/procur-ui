@@ -27,7 +27,7 @@ const Footer: React.FC = () => {
 
   const renderSection = (
     sectionTitle: string,
-    links: { title: string; href: string }[]
+    links: { title: string; href: string }[],
   ) => (
     <div key={sectionTitle} className="space-y-6">
       <h3 className="text-white font-medium text-base">{sectionTitle}</h3>
@@ -126,7 +126,7 @@ const Footer: React.FC = () => {
           <div className="lg:col-span-9 flex w-full justify-start text-left">
             <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12 w-full lg:w-[80%]">
               {["Use Cases", "Company", "Help", "Terms & Policies"].map((key) =>
-                renderSection(key, footerSections[key])
+                renderSection(key, footerSections[key]),
               )}
             </div>
           </div>
@@ -136,7 +136,7 @@ const Footer: React.FC = () => {
         <div className="mt-16">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center">
             <div className="text-gray-400 text-sm">
-              2025 Procur Grenada Ltd. All Rights Reserved.
+              2026 Procur Grenada Ltd. All Rights Reserved.
             </div>
           </div>
         </div>

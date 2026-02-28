@@ -1,12 +1,11 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import TopNavigation from "@/components/navigation/TopNavigation";
-import Footer from "@/components/footer/Footer";
 import Link from "next/link";
 import Image from "next/image";
 import { sanityClient } from "@/lib/sanity/client";
 import { postsQuery, type SanityPostListItem } from "@/lib/sanity/queries";
 import { urlForImage } from "@/lib/sanity/image";
+import PublicPageShell from "@/components/layout/PublicPageShell";
 
 const FALLBACK_CATEGORIES = ["All", "Product", "Policy", "Research"];
 
@@ -33,7 +32,10 @@ export default function BlogIndexPage() {
     async function run() {
       try {
         const data = await sanityClient.fetch<SanityPostListItem[]>(postsQuery);
-        if (!cancelled) setPosts(data);
+        if (!cancelled) setPosts(data ?? []);
+      } catch {
+        // Sanity unreachable or misconfigured — show empty state
+        if (!cancelled) setPosts([]);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -58,38 +60,69 @@ export default function BlogIndexPage() {
   const featured = posts[0];
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
-      <TopNavigation />
+    <PublicPageShell>
+      <div style={{ background: "#faf8f4", color: "#1c2b23", minHeight: "100vh" }}>
 
-      {/* Hero */}
-      <header className="border-b border-gray-200/60 bg-white/70 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-6 py-14">
-          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-8">
-            <div>
-              <p className="text-sm uppercase tracking-widest text-gray-500 font-medium">
-                Blog
-              </p>
-              <h1 className="mt-3 text-4xl md:text-5xl font-bold text-[var(--secondary-black)]">
-                Insights from the Procur team
-              </h1>
-              <p className="mt-4 max-w-2xl text-gray-600 text-lg">
-                Stories on procurement, supply chains, logistics,
-                sustainability, and the future of fresh.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
+        {/* Hero */}
+        <header
+          style={{
+            background: "#2d4a3e",
+            paddingTop: 80,
+            paddingBottom: 88,
+            paddingLeft: 24,
+            paddingRight: 24,
+          }}
+        >
+          <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+            <h1
+              style={{
+                fontSize: 42,
+                fontWeight: 700,
+                color: "#fff",
+                margin: 0,
+                fontFamily: "inherit",
+              }}
+            >
+              Newsroom
+            </h1>
+            <p
+              style={{
+                marginTop: 12,
+                fontSize: 17,
+                color: "rgba(255,255,255,.75)",
+                fontFamily: "inherit",
+              }}
+            >
+              Stories, updates, and insights from the Procur team.
+            </p>
+
+            {/* Category filter chips */}
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 8,
+                marginTop: 24,
+              }}
+            >
               {categories.map((label) => {
                 const isActive = activeCategory === label;
                 return (
                   <button
                     key={label}
                     onClick={() => setActiveCategory(label)}
-                    className={`${
-                      isActive
-                        ? "bg-black text-white"
-                        : "bg-white text-gray-700 hover:bg-gray-50"
-                    } px-4 py-2 rounded-full border border-gray-200 text-sm transition-colors`}
                     aria-pressed={isActive}
+                    style={{
+                      padding: "7px 16px",
+                      borderRadius: 999,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                      background: isActive ? "#d4783c" : "rgba(255,255,255,.12)",
+                      color: isActive ? "#fff" : "rgba(245,241,234,.8)",
+                      border: isActive ? "none" : "1px solid rgba(255,255,255,.15)",
+                    }}
                   >
                     {label}
                   </button>
@@ -97,123 +130,335 @@ export default function BlogIndexPage() {
               })}
             </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Featured */}
-      {featured ? (
-        <section className="max-w-7xl mx-auto px-6 mt-10">
-          <Link
-            href={`/blog/${featured.slug}`}
-            className="group grid md:grid-cols-12 gap-8 items-stretch bg-white rounded-2xl overflow-hidden border border-gray-200"
-          >
-            <div className="md:col-span-7 relative h-72 md:h-auto">
-              {featured.mainImage ? (
-                <Image
-                  src={urlForImage(featured.mainImage)
-                    .width(1600)
-                    .height(900)
-                    .fit("crop")
-                    .url()}
-                  alt={featured.imageAlt || featured.title}
-                  fill
-                  className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-                  sizes="(max-width: 768px) 100vw, 50vw"
-                  priority
+        {/* Content overlapping hero */}
+        <div
+          style={{
+            maxWidth: 1100,
+            margin: "0 auto",
+            padding: "0 24px",
+            marginTop: -40,
+          }}
+        >
+
+          {/* Loading skeleton */}
+          {loading && (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, 1fr)",
+                gap: 24,
+              }}
+            >
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  style={{
+                    background: "#ece9e3",
+                    height: 220,
+                    borderRadius: 12,
+                  }}
                 />
+              ))}
+            </div>
+          )}
+
+          {/* Featured post */}
+          {!loading && featured && (
+            <Link
+              href={`/blog/${featured.slug}`}
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                background: "#f5f1ea",
+                border: "1px solid #e8e4dc",
+                borderRadius: 12,
+                overflow: "hidden",
+                textDecoration: "none",
+                color: "inherit",
+              }}
+            >
+              {/* Image side */}
+              <div
+                style={{
+                  position: "relative",
+                  width: "45%",
+                  flexShrink: 0,
+                  height: 280,
+                }}
+              >
+                {featured.mainImage ? (
+                  <Image
+                    src={urlForImage(featured.mainImage)
+                      .width(1200)
+                      .height(800)
+                      .fit("crop")
+                      .url()}
+                    alt={featured.imageAlt || featured.title}
+                    fill
+                    style={{ objectFit: "cover" }}
+                    sizes="(max-width: 768px) 100vw, 45vw"
+                    priority
+                  />
+                ) : (
+                  <div style={{ width: "100%", height: "100%", background: "#ece9e3" }} />
+                )}
+              </div>
+
+              {/* Content side */}
+              <div
+                style={{
+                  flex: 1,
+                  padding: "32px 36px",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  gap: 0,
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                    color: "#2d4a3e",
+                  }}
+                >
+                  {featured.category || "Article"}
+                </span>
+                <h2
+                  style={{
+                    marginTop: 8,
+                    marginBottom: 0,
+                    fontSize: 24,
+                    fontWeight: 700,
+                    color: "#1c2b23",
+                    fontFamily: "inherit",
+                    lineHeight: 1.3,
+                  }}
+                >
+                  {featured.title}
+                </h2>
+                {featured.excerpt && (
+                  <p
+                    style={{
+                      marginTop: 10,
+                      fontSize: 14,
+                      color: "rgba(28,43,35,.65)",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {featured.excerpt}
+                  </p>
+                )}
+                <p
+                  style={{
+                    marginTop: 8,
+                    fontSize: 12,
+                    color: "rgba(28,43,35,.45)",
+                  }}
+                >
+                  {formatDate(featured.publishedAt)}
+                </p>
+                <span
+                  style={{
+                    marginTop: 16,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "#d4783c",
+                    textDecoration: "none",
+                  }}
+                >
+                  Read more
+                </span>
+              </div>
+            </Link>
+          )}
+
+          {/* Posts grid */}
+          {!loading && (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, 1fr)",
+                gap: 24,
+                marginTop: 40,
+              }}
+            >
+              {filteredPosts.length === 0 ? (
+                <div
+                  style={{
+                    gridColumn: "1 / -1",
+                    background: "#f5f1ea",
+                    border: "1px solid #e8e4dc",
+                    borderRadius: 12,
+                    padding: "48px 32px",
+                    textAlign: "center",
+                  }}
+                >
+                  <p style={{ fontWeight: 600, color: "#1c2b23", margin: 0 }}>
+                    No posts yet
+                  </p>
+                  <p
+                    style={{
+                      marginTop: 6,
+                      fontSize: 14,
+                      color: "rgba(28,43,35,.55)",
+                    }}
+                  >
+                    Check back soon for new articles from the team.
+                  </p>
+                </div>
               ) : (
-                <div className="w-full h-full bg-gray-100" />
+                filteredPosts.map((post) => (
+                  <Link
+                    key={post._id}
+                    href={`/blog/${post.slug}`}
+                    style={{
+                      display: "block",
+                      background: "#f5f1ea",
+                      border: "1px solid #e8e4dc",
+                      borderRadius: 12,
+                      overflow: "hidden",
+                      textDecoration: "none",
+                      color: "inherit",
+                    }}
+                  >
+                    {/* Post image */}
+                    <div style={{ position: "relative", height: 176 }}>
+                      {post.mainImage ? (
+                        <Image
+                          src={urlForImage(post.mainImage)
+                            .width(800)
+                            .height(500)
+                            .fit("crop")
+                            .url()}
+                          alt={post.imageAlt || post.title}
+                          fill
+                          style={{ objectFit: "cover" }}
+                          sizes="(max-width: 768px) 100vw, 33vw"
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            background: "#ece9e3",
+                          }}
+                        />
+                      )}
+                    </div>
+
+                    {/* Post content */}
+                    <div style={{ padding: 16 }}>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.08em",
+                          color: "#2d4a3e",
+                        }}
+                      >
+                        {post.category || "Article"}
+                      </span>
+                      <h3
+                        style={{
+                          marginTop: 6,
+                          marginBottom: 0,
+                          fontSize: 16,
+                          fontWeight: 700,
+                          color: "#1c2b23",
+                          fontFamily: "inherit",
+                          lineHeight: 1.35,
+                        }}
+                      >
+                        {post.title}
+                      </h3>
+                      {post.excerpt && (
+                        <p
+                          style={{
+                            marginTop: 8,
+                            fontSize: 13,
+                            color: "rgba(28,43,35,.6)",
+                            lineHeight: 1.55,
+                            overflow: "hidden",
+                            maxHeight: "calc(1.55em * 3)",
+                          }}
+                        >
+                          {post.excerpt}
+                        </p>
+                      )}
+                      <p
+                        style={{
+                          marginTop: 10,
+                          fontSize: 11,
+                          color: "rgba(28,43,35,.4)",
+                        }}
+                      >
+                        {formatDate(post.publishedAt)}
+                      </p>
+                      <span
+                        style={{
+                          display: "inline-block",
+                          marginTop: 10,
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: "#d4783c",
+                        }}
+                      >
+                        Read more &rarr;
+                      </span>
+                    </div>
+                  </Link>
+                ))
               )}
             </div>
-            <div className="md:col-span-5 p-8 md:p-10 flex flex-col justify-center">
-              <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                {featured.category || "Article"}
-              </div>
-              <h2 className="mt-2 text-2xl md:text-3xl font-semibold text-[var(--secondary-black)] group-hover:underline">
-                {featured.title}
-              </h2>
-              {featured.excerpt ? (
-                <p className="mt-3 text-gray-600 text-base">
-                  {featured.excerpt}
-                </p>
-              ) : null}
-              <div className="mt-4 text-sm text-gray-500">
-                {formatDate(featured.publishedAt)}
-              </div>
-            </div>
-          </Link>
-        </section>
-      ) : null}
-
-      {/* Grid */}
-      <main className="max-w-7xl mx-auto px-6 mt-14 mb-24">
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredPosts.length === 0 ? (
-            <div className="col-span-full">
-              <div className="bg-white border border-dashed border-gray-300 rounded-2xl p-10 text-center">
-                <p className="text-gray-900 font-medium">No posts yet</p>
-                <p className="mt-1 text-gray-500 text-sm">
-                  Check back soon for new articles from the team.
-                </p>
-              </div>
-            </div>
-          ) : (
-            filteredPosts.map((post) => (
-              <Link
-                key={post._id}
-                href={`/blog/${post.slug}`}
-                className="group bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-md transition-shadow"
-              >
-                <div className="relative h-44">
-                  {post.mainImage ? (
-                    <Image
-                      src={urlForImage(post.mainImage)
-                        .width(800)
-                        .height(500)
-                        .fit("crop")
-                        .url()}
-                      alt={post.imageAlt || post.title}
-                      fill
-                      sizes="(max-width: 768px) 100vw, 33vw"
-                      className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gray-100" />
-                  )}
-                  <span className="absolute left-3 top-3 text-[11px] font-semibold uppercase tracking-wider bg-white/90 text-gray-800 px-2.5 py-1 rounded-full border border-white">
-                    {post.category || "Article"}
-                  </span>
-                </div>
-                <div className="p-5">
-                  <h3 className="text-lg font-semibold text-[var(--secondary-black)] group-hover:underline">
-                    {post.title}
-                  </h3>
-                  {post.excerpt ? (
-                    <p className="mt-2 text-gray-600 text-sm line-clamp-3">
-                      {post.excerpt}
-                    </p>
-                  ) : null}
-                  <div className="mt-4 text-sm text-gray-500">
-                    {formatDate(post.publishedAt)}
-                  </div>
-                </div>
-              </Link>
-            ))
           )}
-        </div>
 
-        {/* Pagination placeholder */}
-        <div className="mt-16 flex items-center justify-center gap-2">
-          <button className="px-4 py-2 rounded-full border border-gray-200 bg-white text-sm text-gray-700 hover:bg-gray-50">
-            Previous
-          </button>
-          <button className="px-4 py-2 rounded-full border border-gray-200 bg-white text-sm text-gray-700 hover:bg-gray-50">
-            Next
-          </button>
+          {/* Pagination */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              gap: 8,
+              marginTop: 48,
+              marginBottom: 80,
+            }}
+          >
+            <button
+              style={{
+                background: "#f5f1ea",
+                border: "1px solid #e8e4dc",
+                borderRadius: 999,
+                padding: "8px 20px",
+                fontSize: 13,
+                color: "#1c2b23",
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              Previous
+            </button>
+            <button
+              style={{
+                background: "#f5f1ea",
+                border: "1px solid #e8e4dc",
+                borderRadius: 999,
+                padding: "8px 20px",
+                fontSize: 13,
+                color: "#1c2b23",
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              Next
+            </button>
+          </div>
         </div>
-      </main>
-
-      <Footer />
-    </div>
+      </div>
+    </PublicPageShell>
   );
 }

@@ -1,5 +1,5 @@
-import TopNavigation from "@/components/navigation/TopNavigation";
-import Footer from "@/components/footer/Footer";
+import PublicPageShell from "@/components/layout/PublicPageShell";
+import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -8,101 +8,285 @@ export const metadata: Metadata = {
     "Learn what Procur does and how we support farmers, buyers, and logistics partners.",
 };
 
+const WHAT_WE_DO = [
+  {
+    title: "For farmers",
+    body: "Publish offers, confirm orders, and get clearer visibility into demand and logistics.",
+  },
+  {
+    title: "For buyers",
+    body: "See reliable options, agree on terms, and track orders from confirmation to delivery.",
+  },
+  {
+    title: "For logistics",
+    body: "Coordinate routes, pickups, and drops with the information you need in one place.",
+  },
+  {
+    title: "For the system",
+    body: "Support safer, more transparent trade that reduces waste and builds long-term relationships.",
+  },
+];
+
+const HOW_WE_WORK = [
+  {
+    title: "We start with the basics",
+    body: "Clear standards, dependable delivery, and simple tools for getting work done.",
+  },
+  {
+    title: "We focus on trust",
+    body: "Every seller is reviewed. Every listing reflects real availability.",
+  },
+  {
+    title: "We stay close to the ground",
+    body: "Our team is based in Grenada and understands local agriculture.",
+  },
+];
+
 export default function AboutPage() {
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
-      <TopNavigation />
+    <PublicPageShell>
+      {/* Hero */}
+      <section
+        style={{
+          maxWidth: 900,
+          margin: "0 auto",
+          padding: "80px 24px 48px",
+          textAlign: "center",
+        }}
+      >
+        <p
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            color: "#2d4a3e",
+            letterSpacing: ".1em",
+            textTransform: "uppercase",
+            margin: "0 0 18px",
+          }}
+        >
+          ABOUT
+        </p>
+        <h1
+          style={{
+            fontSize: 38,
+            fontWeight: 800,
+            color: "#1c2b23",
+            lineHeight: 1.2,
+            margin: "0 0 20px",
+            maxWidth: 700,
+            marginInline: "auto",
+          }}
+        >
+          Connecting farmers, buyers, and logistics across the Caribbean
+        </h1>
+        <p
+          style={{
+            fontSize: 17,
+            color: "#5a6b62",
+            lineHeight: 1.65,
+            maxWidth: 580,
+            margin: "0 auto",
+          }}
+        >
+          Procur is a produce marketplace built for the realities of Caribbean
+          agriculture. Direct connections, clear pricing, and reliable
+          coordination.
+        </p>
+      </section>
 
-      {/* Simple hero */}
-      <section className="max-w-4xl mx-auto px-6 pt-12">
-        <div className="text-center">
-          <h1 className="text-4xl md:text-5xl font-bold text-[var(--secondary-black)] text-balance">
-            About Procur
-          </h1>
-          <p className="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
-            Procur connects farmers, buyers, and logistics partners so fresh
-            produce can move more reliably, transparently, and safely.
-          </p>
+      {/* What Procur does */}
+      <section
+        style={{
+          maxWidth: 900,
+          margin: "0 auto",
+          padding: "0 24px 64px",
+        }}
+      >
+        <h2
+          style={{
+            fontSize: 22,
+            fontWeight: 700,
+            color: "#1c2b23",
+            margin: "0 0 28px",
+          }}
+        >
+          What Procur does
+        </h2>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(2, 1fr)",
+            gap: 16,
+          }}
+        >
+          {WHAT_WE_DO.map((item) => (
+            <div
+              key={item.title}
+              style={{
+                background: "#f5f1ea",
+                border: "1px solid #e8e4dc",
+                borderRadius: 12,
+                padding: "28px 24px",
+              }}
+            >
+              <h3
+                style={{
+                  fontSize: 15,
+                  fontWeight: 700,
+                  color: "#1c2b23",
+                  margin: "0 0 10px",
+                }}
+              >
+                {item.title}
+              </h3>
+              <p
+                style={{
+                  fontSize: 14,
+                  color: "#5a6b62",
+                  lineHeight: 1.65,
+                  margin: 0,
+                }}
+              >
+                {item.body}
+              </p>
+            </div>
+          ))}
         </div>
       </section>
 
-      <main className="max-w-4xl mx-auto px-6 py-16">
-        {/* Short narrative */}
-        <section className="mb-16">
-          <div className="card">
-            <p className="text-gray-700 leading-7">
-              We focus on the basics that matter most in produce: clear
-              standards, dependable delivery, and simple tools for getting work
-              done. Our platform helps farmers reach the right buyers, gives
-              buyers confidence in quality and timing, and makes coordination
-              easier for everyone involved.
-            </p>
-          </div>
-        </section>
-
-        {/* What we do */}
-        <section className="mb-16">
-          <h2 className="text-2xl font-bold text-[var(--secondary-black)] mb-4">
-            What Procur does
-          </h2>
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="card">
-              <h3 className="text-lg font-semibold mb-2">For farmers</h3>
-              <p className="text-gray-700 text-sm leading-relaxed">
-                Publish offers, confirm orders, and get clearer visibility into
-                demand and logistics.
-              </p>
-            </div>
-            <div className="card">
-              <h3 className="text-lg font-semibold mb-2">For buyers</h3>
-              <p className="text-gray-700 text-sm leading-relaxed">
-                See reliable options, agree on terms, and track orders from
-                confirmation to delivery.
-              </p>
-            </div>
-            <div className="card">
-              <h3 className="text-lg font-semibold mb-2">For logistics</h3>
-              <p className="text-gray-700 text-sm leading-relaxed">
-                Coordinate routes, pickups, and drops with the information you
-                need in one place.
-              </p>
-            </div>
-            <div className="card">
-              <h3 className="text-lg font-semibold mb-2">For the system</h3>
-              <p className="text-gray-700 text-sm leading-relaxed">
-                Support safer, more transparent trade that reduces waste and
-                builds long-term relationships.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* Simple CTA */}
-        <section className="mb-8">
-          <div className="card text-center">
-            <h2 className="text-xl font-semibold text-[var(--secondary-black)] mb-3">
-              Work with Procur
-            </h2>
-            <p className="text-gray-700 mb-5">
-              If you&apos;d like to use Procur or explore a partnership, you can
-              create an account or reach out to our team.
-            </p>
-            <div className="flex justify-center gap-3">
-              <a href="/signup" className="btn btn-primary px-6 py-2 text-sm">
-                Get started
-              </a>
-              <a
-                href="mailto:support@procurapp.co"
-                className="btn btn-ghost px-6 py-2 text-sm"
+      {/* How we work */}
+      <section
+        style={{
+          maxWidth: 900,
+          margin: "0 auto",
+          padding: "0 24px 64px",
+        }}
+      >
+        <h2
+          style={{
+            fontSize: 22,
+            fontWeight: 700,
+            color: "#1c2b23",
+            margin: "0 0 28px",
+          }}
+        >
+          How we work
+        </h2>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: 16,
+          }}
+        >
+          {HOW_WE_WORK.map((item) => (
+            <div
+              key={item.title}
+              style={{
+                background: "#f5f1ea",
+                border: "1px solid #e8e4dc",
+                borderRadius: 12,
+                padding: "28px 24px",
+              }}
+            >
+              <h3
+                style={{
+                  fontSize: 15,
+                  fontWeight: 700,
+                  color: "#1c2b23",
+                  margin: "0 0 10px",
+                }}
               >
-                Contact us
-              </a>
+                {item.title}
+              </h3>
+              <p
+                style={{
+                  fontSize: 14,
+                  color: "#5a6b62",
+                  lineHeight: 1.65,
+                  margin: 0,
+                }}
+              >
+                {item.body}
+              </p>
             </div>
-          </div>
-        </section>
-      </main>
+          ))}
+        </div>
+      </section>
 
-      <Footer />
-    </div>
+      {/* CTA */}
+      <section
+        style={{
+          maxWidth: 900,
+          margin: "0 auto",
+          padding: "0 24px 80px",
+        }}
+      >
+        <div
+          style={{
+            background: "#1c2b23",
+            borderRadius: 16,
+            padding: "56px 40px",
+            textAlign: "center",
+          }}
+        >
+          <h2
+            style={{
+              fontSize: 28,
+              fontWeight: 800,
+              color: "#f5f1ea",
+              margin: "0 0 14px",
+              lineHeight: 1.25,
+            }}
+          >
+            Work with Procur
+          </h2>
+          <p
+            style={{
+              fontSize: 15,
+              color: "rgba(245,241,234,.6)",
+              margin: "0 0 32px",
+              maxWidth: 440,
+              marginInline: "auto",
+              lineHeight: 1.65,
+            }}
+          >
+            Create an account to start buying or selling, or reach out to talk
+            about how Procur can work for your business.
+          </p>
+          <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+            <Link
+              href="/signup"
+              style={{
+                padding: "12px 28px",
+                background: "#d4783c",
+                color: "#fff",
+                fontSize: 14,
+                fontWeight: 700,
+                borderRadius: 999,
+                textDecoration: "none",
+              }}
+            >
+              Get started
+            </Link>
+            <Link
+              href="/company/contact"
+              style={{
+                padding: "12px 28px",
+                background: "transparent",
+                color: "#f5f1ea",
+                fontSize: 14,
+                fontWeight: 600,
+                borderRadius: 999,
+                border: "1px solid rgba(245,241,234,.22)",
+                textDecoration: "none",
+              }}
+            >
+              Contact us
+            </Link>
+          </div>
+        </div>
+      </section>
+    </PublicPageShell>
   );
 }

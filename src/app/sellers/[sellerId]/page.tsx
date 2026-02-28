@@ -1,18 +1,9 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import TopNavigation from "@/components/navigation/TopNavigation";
-import Footer from "@/components/footer/Footer";
-import {
-  MapPinIcon,
-  CheckBadgeIcon,
-  StarIcon,
-} from "@heroicons/react/24/outline";
 
 interface SellerPageProps {
-  params: Promise<{
-    sellerId: string;
-  }>;
+  params: Promise<{ sellerId: string }>;
 }
 
 type PublicSeller = {
@@ -20,10 +11,6 @@ type PublicSeller = {
   name: string;
   description?: string;
   business_type?: string;
-  /**
-   * Optional header/cover image for the public profile.
-   * When wired up, this should be controlled from the seller portal.
-   */
   header_image_url?: string;
   logo_url?: string;
   location?: string;
@@ -45,11 +32,7 @@ type PublicProduct = {
   tags?: string[];
   average_rating?: number;
   stock_quantity: number;
-  seller: {
-    id: string;
-    name: string;
-    location?: string;
-  };
+  seller: { id: string; name: string; location?: string };
 };
 
 function toTitle(str: string): string {
@@ -60,18 +43,24 @@ function toTitle(str: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function createCountrySlug(location?: string): string {
+  if (!location) return "caribbean";
+  return location.toLowerCase().replace(/\s+/g, "-");
+}
+
+function createProductSlug(name: string, id: string): string {
+  return `${name.toLowerCase().replace(/\s+/g, "-")}-${id}`;
+}
+
 export const metadata: Metadata = {
-  title: "Seller Profile · Procur Marketplace",
+  title: "Supplier Profile · Procur Marketplace",
   description:
-    "Explore verified farms and suppliers on Procur's marketplace. View public seller profiles and their available products.",
+    "View a verified supplier's profile and available products on Procur.",
 };
 
-async function fetchPublicSeller(
-  sellerId: string
-): Promise<PublicSeller | null> {
+async function fetchPublicSeller(sellerId: string): Promise<PublicSeller | null> {
   const baseUrl =
     process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000/api/v1";
-
   try {
     const res = await fetch(`${baseUrl}/marketplace/sellers/${sellerId}`, {
       next: { revalidate: 60 },
@@ -86,15 +75,10 @@ async function fetchPublicSeller(
 async function fetchSellerProducts(sellerId: string): Promise<PublicProduct[]> {
   const baseUrl =
     process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000/api/v1";
-
   try {
     const res = await fetch(
-      `${baseUrl}/marketplace/products?seller_id=${encodeURIComponent(
-        sellerId
-      )}&in_stock=true&limit=24&sort_by=created_at&sort_order=desc`,
-      {
-        next: { revalidate: 60 },
-      }
+      `${baseUrl}/marketplace/products?seller_id=${encodeURIComponent(sellerId)}&in_stock=true&limit=24&sort_by=created_at&sort_order=desc`,
+      { next: { revalidate: 60 } }
     );
     if (!res.ok) return [];
     const data = await res.json();
@@ -102,15 +86,6 @@ async function fetchSellerProducts(sellerId: string): Promise<PublicProduct[]> {
   } catch {
     return [];
   }
-}
-
-function createCountrySlug(location?: string): string {
-  if (!location) return "caribbean";
-  return location.toLowerCase().replace(/\s+/g, "-");
-}
-
-function createProductSlug(name: string, id: string): string {
-  return `${name.toLowerCase().replace(/\s+/g, "-")}-${id}`;
 }
 
 export default async function PublicSellerProfile({ params }: SellerPageProps) {
@@ -124,351 +99,502 @@ export default async function PublicSellerProfile({ params }: SellerPageProps) {
   const demoReviews =
     seller && seller.review_count > 0
       ? [
-          {
-            id: "1",
-            buyerInitials: "SM",
-            buyerName: "Verified buyer",
-            rating: seller.average_rating ?? 4.8,
-            createdAt: "Recently",
-            comment:
-              "Consistently reliable quality and very responsive on delivery timelines.",
-          },
-          {
-            id: "2",
-            buyerInitials: "JR",
-            buyerName: "Program partner",
-            rating: (seller.average_rating ?? 4.8) - 0.2,
-            createdAt: "This season",
-            comment:
-              "Great communication and clear grading on produce. Easy to work with for repeat orders.",
-          },
-          {
-            id: "3",
-            buyerInitials: "AL",
-            buyerName: "Hospitality buyer",
-            rating: (seller.average_rating ?? 4.8) - 0.3,
-            createdAt: "Earlier this year",
-            comment:
-              "Fresh product and thoughtful packing. Would recommend to other buyers on Procur.",
-          },
+          { id: "1", initials: "SM", name: "Verified buyer", rating: seller.average_rating ?? 4.8, date: "Recently", comment: "Consistently reliable quality and very responsive on delivery timelines." },
+          { id: "2", initials: "JR", name: "Program partner", rating: (seller.average_rating ?? 4.8) - 0.2, date: "This season", comment: "Great communication and clear grading on produce. Easy to work with for repeat orders." },
+          { id: "3", initials: "AL", name: "Hospitality buyer", rating: (seller.average_rating ?? 4.8) - 0.3, date: "Earlier this year", comment: "Fresh product and thoughtful packing. Would recommend to other buyers on Procur." },
         ]
       : [];
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
-      <TopNavigation />
-      <main className="max-w-6xl mx-auto px-4 md:px-6 py-8 md:py-12 space-y-10">
-        {/* Breadcrumb */}
-        <div className="mb-6">
-          <p className="text-xs md:text-sm text-[var(--secondary-muted-edge)]">
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#fafaf9",
+        fontFamily: "'Urbanist', system-ui, sans-serif",
+        WebkitFontSmoothing: "antialiased",
+        color: "#1c2b23",
+      }}
+    >
+      {/* ── Header ── */}
+      <header
+        style={{ position: "sticky", top: 0, zIndex: 100, background: "#2d4a3e" }}
+      >
+        <div
+          style={{ height: 58, display: "flex", alignItems: "center", padding: "0 20px", maxWidth: 1300, margin: "0 auto" }}
+        >
+          <Link
+            href="/"
+            style={{ textDecoration: "none", flexShrink: 0, display: "flex", alignItems: "center" }}
+          >
+            <Image
+              src="/images/logos/procur-logo.svg"
+              alt="Procur"
+              width={88}
+              height={23}
+              style={{ filter: "brightness(0) invert(1)" }}
+              priority
+            />
+          </Link>
+          <div style={{ flex: 1 }} />
+          <nav style={{ display: "flex", alignItems: "center", gap: 2 }}>
             <Link
-              href="/marketplace"
-              className="hover:text-[var(--primary-accent2)]"
+              href="/browse"
+              style={{ padding: "6px 14px", fontSize: 13, fontWeight: 600, color: "rgba(245,241,234,.7)", textDecoration: "none" }}
             >
-              Marketplace
-            </Link>{" "}
-            / <span className="capitalize">{readableLocation}</span>
-          </p>
-        </div>
-
-        {!seller && (
-          <div className="max-w-2xl">
-            <h1 className="text-2xl md:text-3xl font-semibold text-[var(--secondary-black)] mb-3">
-              Seller not found
-            </h1>
-            <p className="text-[var(--secondary-muted-edge)] mb-6">
-              We couldn&apos;t load this seller&apos;s profile. They may no
-              longer be active on the marketplace. You can still explore other
-              farms and suppliers.
-            </p>
-            <Link
-              href="/marketplace"
-              className="inline-flex items-center px-6 py-3 rounded-full bg-[var(--primary-accent2)] text-white font-semibold hover:bg-[var(--primary-accent3)] transition-colors"
-            >
-              Back to Marketplace
+              Browse
             </Link>
-          </div>
-        )}
+            <Link
+              href="/sellers"
+              style={{ padding: "6px 14px", fontSize: 13, fontWeight: 600, color: "rgba(245,241,234,.7)", textDecoration: "none" }}
+            >
+              Farms
+            </Link>
+          </nav>
+          <div
+            style={{ width: 1, height: 18, background: "rgba(245,241,234,.15)", margin: "0 10px" }}
+          />
+          <Link
+            href="/login"
+            style={{ padding: "6px 12px", fontSize: 12, fontWeight: 600, color: "rgba(245,241,234,.7)", textDecoration: "none" }}
+          >
+            Sign in
+          </Link>
+          <Link
+            href="/signup"
+            style={{ marginLeft: 6, padding: "7px 16px", background: "#d4783c", color: "#fff", fontSize: 12, fontWeight: 700, borderRadius: 999, textDecoration: "none" }}
+          >
+            Get started
+          </Link>
+        </div>
+      </header>
 
-        {seller && (
-          <>
-            {/* Seller hero with cover image + logo */}
-            <section className="mb-4 md:mb-6">
-              <div className="relative rounded-3xl border border-[var(--secondary-soft-highlight)]/40 overflow-hidden bg-[var(--primary-background)]">
-                {/* Header / cover image */}
-                <div className="relative h-40 md:h-52 lg:h-60 overflow-hidden">
-                  {seller.header_image_url ? (
-                    <>
-                      <Image
-                        src={seller.header_image_url}
-                        alt={`${displayName} header`}
-                        fill
-                        priority
-                        className="object-cover"
-                        sizes="(min-width: 1024px) 960px, 100vw"
-                      />
-                      {/* Soft dark scrim over image only */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/18 via-black/10 to-transparent" />
-                    </>
-                  ) : (
-                    // Fallback branded gradient background
-                    <div className="absolute inset-0 bg-gradient-to-r from-[var(--primary-accent2)] via-[var(--primary-accent3)] to-emerald-500" />
-                  )}
+      {/* ── Not found ── */}
+      {!seller && (
+        <main
+          style={{ maxWidth: 1300, margin: "0 auto", padding: "60px 20px" }}
+        >
+          <p
+            style={{ fontSize: 12, color: "#8a9e92", marginBottom: 20 }}
+          >
+            <Link
+              href="/sellers"
+              style={{ color: "#2d4a3e", fontWeight: 700, textDecoration: "none" }}
+            >
+              ← All suppliers
+            </Link>
+          </p>
+          <h1
+            style={{ fontSize: 28, fontWeight: 700, color: "#1c2b23", marginBottom: 12, letterSpacing: "-.4px" }}
+          >
+            Supplier not found
+          </h1>
+          <p style={{ fontSize: 15, color: "#6a7f73", marginBottom: 28, lineHeight: 1.6, maxWidth: 480 }}>
+            We couldn&apos;t load this supplier&apos;s profile. They may no
+            longer be active on the marketplace.
+          </p>
+          <Link
+            href="/sellers"
+            style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "12px 24px", background: "#2d4a3e", color: "#f5f1ea", fontSize: 13, fontWeight: 700, borderRadius: 999, textDecoration: "none" }}
+          >
+            Browse all suppliers
+          </Link>
+        </main>
+      )}
+
+      {seller && (
+        <>
+          {/* ── Seller hero ── */}
+          <section style={{ position: "relative" }}>
+            {/* Cover */}
+            <div style={{ height: 240, position: "relative", overflow: "hidden" }}>
+              {seller.header_image_url ? (
+                <>
+                  <Image
+                    src={seller.header_image_url}
+                    alt={`${displayName} cover`}
+                    fill
+                    priority
+                    className="object-cover"
+                    sizes="100vw"
+                  />
+                  <div
+                    style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(10,16,12,.2) 0%, rgba(10,16,12,.55) 100%)" }}
+                  />
+                </>
+              ) : (
+                <div
+                  style={{ position: "absolute", inset: 0, background: "linear-gradient(140deg, #2d4a3e 0%, #3e6b58 60%, #c26838 100%)" }}
+                >
+                  <div
+                    style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(ellipse at 75% 50%, rgba(255,255,255,.06) 0%, transparent 65%)" }}
+                  />
                 </div>
+              )}
+            </div>
 
-                {/* Foreground content (kept below header image for clarity) */}
-                <div className="relative z-10 px-5 md:px-7 pb-6 md:pb-7 pt-4 md:pt-6">
-                  <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mt-2 md:mt-4">
-                    {/* Logo / company avatar */}
-                    <div className="flex items-start gap-4">
-                      <div className="flex-shrink-0">
-                        <div className="w-20 h-20 md:w-24 md:h-24 rounded-2xl overflow-hidden bg-white border border-[var(--secondary-soft-highlight)]/60 flex items-center justify-center">
-                          {seller.logo_url ? (
-                            <Image
-                              src={seller.logo_url}
-                              alt={displayName}
-                              width={96}
-                              height={96}
-                              className="object-cover w-full h-full"
-                            />
-                          ) : (
-                            <span className="text-2xl font-semibold text-[var(--primary-accent2)]">
-                              {displayName.charAt(0)}
-                            </span>
-                          )}
+            {/* Seller identity card */}
+            <div style={{ maxWidth: 1300, margin: "0 auto", padding: "0 20px" }}>
+              <div
+                style={{ background: "#fff", borderRadius: 20, border: "1px solid #e8e4dc", padding: "24px 28px", marginTop: -48, position: "relative", zIndex: 1 }}
+              >
+                <div
+                  style={{ display: "flex", flexWrap: "wrap", gap: 20, alignItems: "flex-start" }}
+                >
+                  {/* Avatar */}
+                  <div style={{ marginTop: -56, flexShrink: 0, position: "relative", zIndex: 2 }}>
+                    <div
+                      style={{ width: 80, height: 80, borderRadius: 16, border: "3px solid #fff", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 16px rgba(0,0,0,.14)" }}
+                    >
+                      {seller.logo_url ? (
+                        <Image
+                          src={seller.logo_url}
+                          alt={displayName}
+                          width={80}
+                          height={80}
+                          style={{ objectFit: "cover", width: "100%", height: "100%" }}
+                        />
+                      ) : (
+                        <div style={{ width: "100%", height: "100%", background: "linear-gradient(155deg, #1e3528 0%, #2d5a42 100%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <span style={{ fontSize: 30, fontWeight: 800, color: "#fff", letterSpacing: "-.5px" }}>
+                            {displayName.charAt(0)}
+                          </span>
                         </div>
-                      </div>
+                      )}
+                    </div>
+                  </div>
 
-                      {/* Main info */}
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <h1 className="text-xl md:text-2xl lg:text-3xl font-semibold text-[var(--secondary-black)] tracking-tight">
-                            {displayName}
-                          </h1>
-                          {seller.is_verified && (
-                            <CheckBadgeIcon className="h-5 w-5 text-[var(--primary-accent2)]" />
-                          )}
-                        </div>
-                        <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--secondary-muted-edge)] mb-3">
-                          {seller.business_type || "Marketplace supplier"}
-                        </p>
-                        <div className="flex flex-wrap items-center gap-2.5 text-xs text-[var(--secondary-muted-edge)] mb-3">
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[var(--secondary-soft-highlight)]/70 text-[var(--secondary-black)]">
-                            <MapPinIcon className="h-3.5 w-3.5" />
-                            {readableLocation}
+                  {/* Info */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}
+                    >
+                      <h1
+                        style={{ fontSize: 26, fontWeight: 800, color: "#1c2b23", letterSpacing: "-.5px", margin: 0 }}
+                      >
+                        {displayName}
+                      </h1>
+                      {seller.is_verified && (
+                        <span
+                          style={{ fontSize: 11, fontWeight: 700, color: "#2d4a3e", background: "#eef4f1", border: "1px solid #c8ddd4", padding: "3px 10px", borderRadius: 999, letterSpacing: ".04em", flexShrink: 0 }}
+                        >
+                          ✓ Verified
+                        </span>
+                      )}
+                    </div>
+
+                    {seller.business_type && (
+                      <p
+                        style={{ fontSize: 11, fontWeight: 700, color: "#8a9e92", textTransform: "uppercase", letterSpacing: ".08em", margin: "0 0 10px" }}
+                      >
+                        {seller.business_type}
+                      </p>
+                    )}
+
+                    {/* Pill stats */}
+                    <div
+                      style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}
+                    >
+                      <span
+                        style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: "#6a7f73", background: "#f5f1ea", padding: "5px 12px", borderRadius: 999 }}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width={11} height={11}>
+                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+                          <circle cx="12" cy="10" r="3" />
+                        </svg>
+                        {readableLocation}
+                      </span>
+                      {products.length > 0 && (
+                        <span
+                          style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, color: "#6a7f73", background: "#f5f1ea", padding: "5px 12px", borderRadius: 999 }}
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width={11} height={11}>
+                            <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
+                          </svg>
+                          {products.length} products
+                        </span>
+                      )}
+                      {typeof seller.average_rating === "number" && (
+                        <span
+                          style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, color: "#6a7f73", background: "#f5f1ea", padding: "5px 12px", borderRadius: 999 }}
+                        >
+                          <svg viewBox="0 0 24 24" fill="#f59e0b" width={11} height={11}>
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                          </svg>
+                          <span style={{ fontWeight: 700, color: "#1c2b23" }}>
+                            {seller.average_rating.toFixed(1)}
                           </span>
-                          {typeof seller.average_rating === "number" && (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[var(--secondary-soft-highlight)]/70">
-                              <StarIcon className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
-                              <span className="font-medium text-[var(--secondary-black)]">
-                                {seller.average_rating.toFixed(1)}
-                              </span>
-                              <span className="text-[var(--secondary-muted-edge)]">
-                                ({seller.review_count || 0} reviews)
-                              </span>
-                            </span>
-                          )}
-                          <span className="inline-flex items-center px-3 py-1 rounded-full bg-white border border-[var(--secondary-soft-highlight)]/60 text-[var(--secondary-black)]">
-                            {products.length} listed products
+                          <span>({seller.review_count} reviews)</span>
+                        </span>
+                      )}
+                      {typeof seller.years_in_business === "number" &&
+                        seller.years_in_business > 0 && (
+                          <span
+                            style={{ fontSize: 12, color: "#6a7f73", background: "#f5f1ea", padding: "5px 12px", borderRadius: 999 }}
+                          >
+                            {seller.years_in_business}+ yrs on market
                           </span>
-                          {typeof seller.years_in_business === "number" &&
-                            seller.years_in_business > 0 && (
-                              <span className="inline-flex items-center px-3 py-1 rounded-full bg-white border border-[var(--secondary-soft-highlight)]/60 text-[var(--secondary-black)]">
-                                {seller.years_in_business}+ years on market
-                              </span>
-                            )}
-                        </div>
-                        {seller.specialties &&
-                          seller.specialties.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5 mb-3">
-                              {seller.specialties.slice(0, 4).map((s) => (
-                                <span
-                                  key={s}
-                                  className="px-2.5 py-1 bg-white/80 text-[var(--secondary-black)] text-[10px] rounded-full border border-[var(--secondary-soft-highlight)]/60"
-                                >
-                                  {s}
-                                </span>
-                              ))}
-                              {seller.specialties.length > 4 && (
-                                <span className="text-[10px] text-[var(--secondary-muted-edge)]">
-                                  +{seller.specialties.length - 4} more
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        {seller.description && (
-                          <p className="text-xs md:text-sm text-[var(--secondary-muted-edge)] max-w-xl line-clamp-3">
-                            {seller.description}
-                          </p>
+                        )}
+                    </div>
+
+                    {/* Specialties */}
+                    {seller.specialties && seller.specialties.length > 0 && (
+                      <div
+                        style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}
+                      >
+                        {seller.specialties.slice(0, 5).map((s) => (
+                          <span
+                            key={s}
+                            style={{ fontSize: 11, color: "#2d4a3e", background: "#eef4f1", border: "1px solid #c8ddd4", padding: "3px 10px", borderRadius: 999 }}
+                          >
+                            {s}
+                          </span>
+                        ))}
+                        {seller.specialties.length > 5 && (
+                          <span
+                            style={{ fontSize: 11, color: "#8a9e92", padding: "3px 0" }}
+                          >
+                            +{seller.specialties.length - 5} more
+                          </span>
                         )}
                       </div>
-                    </div>
+                    )}
 
-                    {/* Slim CTAs */}
-                    <div className="flex flex-row md:flex-col gap-2 md:items-end">
-                      <Link
-                        href="/signup?type=buyer"
-                        className="inline-flex items-center justify-center px-4 py-2 rounded-full bg-[var(--primary-accent2)] text-white text-[11px] font-medium hover:bg-[var(--primary-accent3)] transition-colors"
+                    {seller.description && (
+                      <p
+                        style={{ fontSize: 14, color: "#6a7f73", lineHeight: 1.65, margin: 0, maxWidth: 600 }}
                       >
-                        Create buyer account
-                      </Link>
-                      <Link
-                        href="/login"
-                        className="inline-flex items-center justify-center px-4 py-2 rounded-full border border-[var(--secondary-soft-highlight)] bg-white/80 text-[11px] font-medium text-[var(--secondary-black)] hover:bg-[var(--primary-background)]/80 transition-colors"
-                      >
-                        Login to message
-                      </Link>
-                    </div>
+                        {seller.description}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* CTAs */}
+                  <div
+                    style={{ display: "flex", flexDirection: "column", gap: 8, flexShrink: 0 }}
+                  >
+                    <Link
+                      href="/signup?accountType=buyer"
+                      style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "10px 20px", background: "#2d4a3e", color: "#f5f1ea", fontSize: 13, fontWeight: 700, borderRadius: 999, textDecoration: "none", whiteSpace: "nowrap" }}
+                    >
+                      Create buyer account
+                    </Link>
+                    <Link
+                      href="/login"
+                      style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "10px 20px", background: "#fff", color: "#1c2b23", fontSize: 13, fontWeight: 600, borderRadius: 999, textDecoration: "none", border: "1px solid #e8e4dc", whiteSpace: "nowrap" }}
+                    >
+                      Login to message
+                    </Link>
                   </div>
                 </div>
               </div>
-            </section>
+            </div>
+          </section>
 
-            {/* Products section */}
-            <section>
-              <div className="flex items-center justify-between mb-5">
-                <div>
-                  <h2 className="text-lg md:text-xl font-semibold text-[var(--secondary-black)] tracking-tight">
-                    Available Products
-                  </h2>
-                  <p className="text-xs md:text-sm text-[var(--secondary-muted-edge)]">
-                    Products currently listed by this seller on the marketplace.
-                  </p>
-                </div>
-                <span className="text-xs text-[var(--secondary-muted-edge)]">
-                  {products.length} items
-                </span>
+          {/* ── Products ── */}
+          <main
+            style={{ maxWidth: 1300, margin: "0 auto", padding: "40px 20px 80px" }}
+          >
+            {/* Breadcrumb */}
+            <p style={{ fontSize: 12, color: "#8a9e92", marginBottom: 32 }}>
+              <Link
+                href="/sellers"
+                style={{ color: "#2d4a3e", fontWeight: 700, textDecoration: "none" }}
+              >
+                ← All suppliers
+              </Link>
+            </p>
+
+            <div
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 24 }}
+            >
+              <div>
+                <h2
+                  style={{ fontSize: 20, fontWeight: 700, color: "#1c2b23", margin: "0 0 4px", letterSpacing: "-.3px" }}
+                >
+                  Available products
+                </h2>
+                <p style={{ fontSize: 13, color: "#8a9e92", margin: 0 }}>
+                  Currently listed by {displayName}
+                </p>
               </div>
+              <span style={{ fontSize: 12, color: "#8a9e92" }}>
+                {products.length} item{products.length !== 1 ? "s" : ""}
+              </span>
+            </div>
 
-              {products.length === 0 && (
-                <div className="text-sm text-[var(--secondary-muted-edge)] py-8 rounded-2xl border border-dashed border-[var(--secondary-soft-highlight)]/60 px-4">
-                  This seller doesn&apos;t have any public listings yet. Create
-                  a Procur account to browse other verified farms and suppliers.
-                </div>
-              )}
+            {products.length === 0 && (
+              <div
+                style={{ padding: "40px 28px", borderRadius: 16, border: "1px dashed #d8d2c8", textAlign: "center" }}
+              >
+                <p style={{ fontSize: 14, color: "#8a9e92", margin: "0 0 14px" }}>
+                  This supplier doesn&apos;t have any public listings yet.
+                </p>
+                <Link
+                  href="/browse"
+                  style={{ fontSize: 13, fontWeight: 700, color: "#2d4a3e", textDecoration: "none" }}
+                >
+                  Browse all produce →
+                </Link>
+              </div>
+            )}
 
-              {products.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {products.map((p) => {
-                    const countrySlug = createCountrySlug(p.seller.location);
-                    const productSlug = createProductSlug(p.name, p.id);
-                    const href = `/products/${countrySlug}/${productSlug}`;
+            {products.length > 0 && (
+              <div
+                style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 18 }}
+              >
+                {products.map((p) => {
+                  const countrySlug = createCountrySlug(p.seller.location);
+                  const productSlug = createProductSlug(p.name, p.id);
+                  const href = `/products/${countrySlug}/${productSlug}`;
+                  const image =
+                    p.image_url ||
+                    "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg";
 
-                    const image =
-                      p.image_url ||
-                      "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg";
-
-                    return (
-                      <Link
-                        key={p.id}
-                        href={href}
-                        className="group bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/50 overflow-hidden hover:border-[var(--primary-accent2)]/80 transition-colors"
+                  return (
+                    <Link
+                      key={p.id}
+                      href={href}
+                      style={{ textDecoration: "none", display: "flex", flexDirection: "column", borderRadius: 18, border: "1px solid #e8e4dc", background: "#fff", overflow: "hidden" }}
+                    >
+                      <div
+                        style={{ height: 180, position: "relative", overflow: "hidden", flexShrink: 0 }}
                       >
-                        <div className="relative h-44 overflow-hidden">
-                          <Image
-                            src={image}
-                            alt={p.name}
-                            fill
-                            className="object-cover transition-transform duration-500 group-hover:scale-105"
-                          />
+                        <Image
+                          src={image}
+                          alt={p.name}
+                          fill
+                          className="object-cover"
+                          sizes="300px"
+                        />
+                        {p.stock_quantity === 0 && (
+                          <div
+                            style={{ position: "absolute", top: 10, left: 10, background: "rgba(0,0,0,.7)", color: "#fff", fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 999 }}
+                          >
+                            Out of stock
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ padding: "14px 16px 16px" }}>
+                        <h3
+                          style={{ fontSize: 14, fontWeight: 700, color: "#1c2b23", margin: "0 0 6px", letterSpacing: "-.1px", lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" } as React.CSSProperties}
+                        >
+                          {p.name}
+                        </h3>
+                        <div
+                          style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}
+                        >
+                          <span style={{ fontSize: 16, fontWeight: 800, color: "#1c2b23" }}>
+                            ${p.current_price.toFixed(2)}
+                            <span
+                              style={{ fontSize: 11, fontWeight: 400, color: "#8a9e92" }}
+                            >
+                              {" "}
+                              /{p.unit_of_measurement}
+                            </span>
+                          </span>
+                          <span
+                            style={{ fontSize: 11, color: "#8a9e92", background: "#f5f1ea", padding: "2px 8px", borderRadius: 999 }}
+                          >
+                            {p.category}
+                          </span>
                         </div>
-                        <div className="p-4">
-                          <h3 className="font-medium text-[var(--secondary-black)] mb-1 line-clamp-2">
-                            {p.name}
-                          </h3>
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-semibold text-[var(--secondary-black)]">
-                              ${p.current_price.toFixed(2)}
-                              <span className="text-xs font-normal text-[var(--secondary-muted-edge)]">
-                                {" "}
-                                /{p.unit_of_measurement}
+                        {p.tags && p.tags.length > 0 && (
+                          <div
+                            style={{ display: "flex", flexWrap: "wrap", gap: 5 }}
+                          >
+                            {p.tags.slice(0, 3).map((t) => (
+                              <span
+                                key={t}
+                                style={{ fontSize: 10, color: "#6a7f73", background: "#f5f1ea", padding: "2px 8px", borderRadius: 999 }}
+                              >
+                                {t}
                               </span>
-                            </span>
-                            <span className="text-xs text-[var(--secondary-muted-edge)]">
-                              {p.category}
-                            </span>
+                            ))}
                           </div>
-                          {p.tags && p.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5 mb-2">
-                              {p.tags.slice(0, 3).map((t) => (
-                                <span
-                                  key={t}
-                                  className="px-2 py-0.5 rounded-full bg-[var(--primary-background)] text-[var(--secondary-black)] text-[10px]"
-                                >
-                                  {t}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                          <div className="flex items-center justify-between text-[11px] text-[var(--secondary-muted-edge)]">
-                            <span className="inline-flex items-center gap-1">
-                              <MapPinIcon className="h-3 w-3" />
-                              {p.seller.location || readableLocation}
-                            </span>
-                            <span>
-                              Stock: {p.stock_quantity} {p.unit_of_measurement}
-                            </span>
-                          </div>
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
+                        )}
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
 
-              {/* Reviews section */}
-              <section className="mt-12">
-                <div className="flex items-center justify-between mb-5">
+            {/* ── Reviews ── */}
+            {(demoReviews.length > 0 || seller.review_count === 0) && (
+              <section style={{ marginTop: 56 }}>
+                <div
+                  style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 24 }}
+                >
                   <div>
-                    <h2 className="text-lg md:text-xl font-semibold text-[var(--secondary-black)] tracking-tight">
+                    <h2
+                      style={{ fontSize: 20, fontWeight: 700, color: "#1c2b23", margin: "0 0 4px", letterSpacing: "-.3px" }}
+                    >
                       Reviews
                     </h2>
-                    <p className="text-xs md:text-sm text-[var(--secondary-muted-edge)]">
+                    <p style={{ fontSize: 13, color: "#8a9e92", margin: 0 }}>
                       {typeof seller.average_rating === "number"
-                        ? `${seller.average_rating.toFixed(1)} average from ${
-                            seller.review_count || 0
-                          } reviews`
+                        ? `${seller.average_rating.toFixed(1)} avg · ${seller.review_count || 0} reviews`
                         : `${seller.review_count || 0} reviews from Procur buyers`}
                     </p>
                   </div>
                 </div>
 
                 {demoReviews.length === 0 && (
-                  <div className="text-sm text-[var(--secondary-muted-edge)] py-6 rounded-2xl border border-dashed border-[var(--secondary-soft-highlight)]/60 px-4">
-                    Once this seller starts fulfilling orders on Procur,
-                    verified buyers will be able to leave reviews here.
+                  <div
+                    style={{ padding: "32px 28px", borderRadius: 16, border: "1px dashed #d8d2c8", textAlign: "center" }}
+                  >
+                    <p style={{ fontSize: 14, color: "#8a9e92", margin: 0 }}>
+                      Verified buyers will be able to leave reviews here once
+                      orders are fulfilled.
+                    </p>
                   </div>
                 )}
 
                 {demoReviews.length > 0 && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div
+                    style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}
+                  >
                     {demoReviews.map((review) => (
                       <div
                         key={review.id}
-                        className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/60 p-4 flex flex-col gap-3 shadow-[0_14px_30px_rgba(15,23,42,0.06)]"
+                        style={{ background: "#fff", borderRadius: 16, border: "1px solid #e8e4dc", padding: "18px 20px" }}
                       >
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-[var(--primary-background)] flex items-center justify-center text-[11px] font-semibold text-[var(--secondary-black)]">
-                              {review.buyerInitials}
+                        <div
+                          style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}
+                        >
+                          <div
+                            style={{ display: "flex", alignItems: "center", gap: 10 }}
+                          >
+                            <div
+                              style={{ width: 36, height: 36, borderRadius: "50%", background: "#f5f1ea", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "#2d4a3e", flexShrink: 0 }}
+                            >
+                              {review.initials}
                             </div>
                             <div>
-                              <p className="text-xs font-semibold text-[var(--secondary-black)]">
-                                {review.buyerName}
+                              <p
+                                style={{ fontSize: 13, fontWeight: 700, color: "#1c2b23", margin: "0 0 1px" }}
+                              >
+                                {review.name}
                               </p>
-                              <p className="text-[10px] text-[var(--secondary-muted-edge)]">
-                                {review.createdAt}
+                              <p
+                                style={{ fontSize: 11, color: "#8a9e92", margin: 0 }}
+                              >
+                                {review.date}
                               </p>
                             </div>
                           </div>
-                          <div className="inline-flex items-center gap-1 rounded-full bg-[var(--primary-background)] px-2 py-1">
-                            <StarIcon className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                            <span className="text-[11px] font-medium text-[var(--secondary-black)]">
-                              {review.rating.toFixed(1)}
-                            </span>
-                          </div>
+                          <span
+                            style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 12, fontWeight: 700, color: "#1c2b23", background: "#f5f1ea", padding: "4px 10px", borderRadius: 999 }}
+                          >
+                            <svg viewBox="0 0 24 24" fill="#f59e0b" width={11} height={11}>
+                              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                            </svg>
+                            {review.rating.toFixed(1)}
+                          </span>
                         </div>
-                        <p className="text-xs text-[var(--secondary-muted-edge)] leading-relaxed">
+                        <p
+                          style={{ fontSize: 13, color: "#6a7f73", lineHeight: 1.6, margin: 0 }}
+                        >
                           {review.comment}
                         </p>
                       </div>
@@ -476,11 +602,143 @@ export default async function PublicSellerProfile({ params }: SellerPageProps) {
                   </div>
                 )}
               </section>
-            </section>
-          </>
-        )}
-      </main>
-      <Footer />
+            )}
+
+            {/* ── Join CTA ── */}
+            <div
+              style={{ marginTop: 56, padding: "40px 36px", background: "#2d4a3e", borderRadius: 24, display: "flex", flexWrap: "wrap", gap: 24, alignItems: "center", justifyContent: "space-between" }}
+            >
+              <div>
+                <h3
+                  style={{ fontSize: 22, fontWeight: 700, color: "#f5f1ea", margin: "0 0 6px", letterSpacing: "-.3px" }}
+                >
+                  Interested in ordering from {displayName}?
+                </h3>
+                <p
+                  style={{ fontSize: 14, color: "rgba(245,241,234,.65)", margin: 0, maxWidth: 400, lineHeight: 1.6 }}
+                >
+                  Create a free buyer account to send messages, request quotes,
+                  and place orders directly.
+                </p>
+              </div>
+              <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>
+                <Link
+                  href="/signup?accountType=buyer"
+                  style={{ padding: "11px 22px", background: "#f5f1ea", color: "#1c2b23", fontSize: 13, fontWeight: 700, borderRadius: 999, textDecoration: "none" }}
+                >
+                  Create account
+                </Link>
+                <Link
+                  href="/login"
+                  style={{ padding: "11px 22px", background: "transparent", color: "#f5f1ea", fontSize: 13, fontWeight: 600, borderRadius: 999, textDecoration: "none", border: "1px solid rgba(245,241,234,.2)" }}
+                >
+                  Sign in
+                </Link>
+              </div>
+            </div>
+          </main>
+        </>
+      )}
+
+      {/* ── Footer ── */}
+      <footer style={{ background: "#0a0a0a", color: "#f5f1ea" }}>
+        <div style={{ maxWidth: 1300, margin: "0 auto", padding: "0 20px" }}>
+          <div style={{ padding: "72px 0 56px" }}>
+            <h2
+              style={{ fontSize: 36, fontWeight: 700, lineHeight: 1.15, maxWidth: 500, letterSpacing: "-.5px", color: "#f5f1ea", margin: "0 0 14px" }}
+            >
+              Building stronger food systems across the Caribbean.
+            </h2>
+            <p
+              style={{ fontSize: 14, color: "rgba(245,241,234,.6)", maxWidth: 420, lineHeight: 1.65, margin: "0 0 26px" }}
+            >
+              Procur connects buyers directly with verified farmers: transparent
+              pricing, reliable supply, and produce that&apos;s never more than
+              a day from harvest.
+            </p>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <Link
+                href="/signup?accountType=buyer"
+                style={{ padding: "12px 28px", background: "#f5f1ea", color: "#1c2b23", fontSize: 13, fontWeight: 700, borderRadius: 999, textDecoration: "none" }}
+              >
+                Start buying
+              </Link>
+              <Link
+                href="/signup?accountType=seller"
+                style={{ padding: "12px 28px", background: "transparent", color: "#f5f1ea", fontSize: 13, fontWeight: 600, borderRadius: 999, border: "1px solid rgba(245,241,234,.2)", textDecoration: "none" }}
+              >
+                Become a supplier
+              </Link>
+            </div>
+          </div>
+          <div style={{ height: 1, background: "rgba(245,241,234,.08)" }} />
+          <div style={{ display: "flex", gap: 48, padding: "44px 0 36px", flexWrap: "wrap" }}>
+            <div style={{ minWidth: 200 }}>
+              <Image
+                src="/images/logos/procur-logo.svg"
+                alt="Procur"
+                width={80}
+                height={21}
+                style={{ filter: "brightness(0) invert(1)", opacity: 0.75 }}
+              />
+              <p
+                style={{ fontSize: 12, color: "rgba(245,241,234,.5)", lineHeight: 1.65, marginTop: 14, marginBottom: 0, maxWidth: 220 }}
+              >
+                Grenada&apos;s agricultural marketplace, purpose-built to
+                shorten supply chains and strengthen local food economies.
+              </p>
+            </div>
+            <div
+              style={{ flex: 1, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20 }}
+            >
+              {[
+                { title: "Platform", links: [{ label: "Browse Produce", href: "/browse" }, { label: "For Suppliers", href: "/signup?accountType=seller" }, { label: "For Buyers", href: "/signup?accountType=buyer" }, { label: "Log in", href: "/login" }] },
+                { title: "Solutions", links: [{ label: "Restaurants", href: "/solutions/restaurants" }, { label: "Hotels", href: "/solutions/hotels" }, { label: "Grocery", href: "/solutions/grocery" }, { label: "Government", href: "/solutions/government" }] },
+                { title: "Company", links: [{ label: "About Procur", href: "/about" }, { label: "Contact", href: "/contact" }, { label: "Careers", href: "/careers" }] },
+                { title: "Resources", links: [{ label: "Help Center", href: "/help" }, { label: "FAQ", href: "/faq" }, { label: "Blog", href: "/blog" }] },
+              ].map(col => (
+                <div key={col.title}>
+                  <h5
+                    style={{ fontSize: 10, fontWeight: 700, color: "rgba(245,241,234,.45)", marginBottom: 14, letterSpacing: ".08em", textTransform: "uppercase" }}
+                  >
+                    {col.title}
+                  </h5>
+                  <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                    {col.links.map(link => (
+                      <li key={link.label} style={{ marginBottom: 8 }}>
+                        <Link
+                          href={link.href}
+                          style={{ fontSize: 12.5, color: "rgba(245,241,234,.5)", textDecoration: "none" }}
+                        >
+                          {link.label}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div
+            style={{ paddingTop: 16, paddingBottom: 26, borderTop: "1px solid rgba(245,241,234,.08)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}
+          >
+            <p style={{ fontSize: 11, color: "rgba(245,241,234,.3)", margin: 0 }}>
+              &copy; 2025 Procur Grenada Ltd. All rights reserved.
+            </p>
+            <div style={{ display: "flex", gap: 16 }}>
+              {[{ label: "Privacy", href: "/privacy" }, { label: "Terms", href: "/terms" }, { label: "Cookies", href: "/cookies" }].map(l => (
+                <Link
+                  key={l.label}
+                  href={l.href}
+                  style={{ fontSize: 11, color: "rgba(245,241,234,.3)", textDecoration: "none" }}
+                >
+                  {l.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

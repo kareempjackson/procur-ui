@@ -220,7 +220,7 @@ const TopNavigation: React.FC = () => {
               <div className="absolute inset-0 bg-white/10" />
               <div className="absolute inset-0 p-4 flex items-end">
                 <Link
-                  href="/marketplace"
+                  href="/browse"
                   className="bg-black/80 text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-black"
                   onClick={() => setActiveDropdown(null)}
                 >
@@ -430,7 +430,7 @@ const TopNavigation: React.FC = () => {
                 <>
                   {/* Primary public navigation */}
                   <Link
-                    href="/marketplace"
+                    href="/browse"
                     className="text-[15px] font-medium text-gray-800 hover:text-black transition-colors duration-200"
                   >
                     Marketplace
@@ -448,7 +448,7 @@ const TopNavigation: React.FC = () => {
                     const q = compactQuery.trim();
                     if (q)
                       router.push(
-                        `/marketplace?search=${encodeURIComponent(q)}`
+                        `/browse?q=${encodeURIComponent(q)}`
                       );
                   }}
                 >
@@ -520,7 +520,7 @@ const TopNavigation: React.FC = () => {
               {/* Primary mobile links */}
               <div className="space-y-1">
                 <Link
-                  href="/marketplace"
+                  href="/browse"
                   className="block text-gray-900 hover:text-black font-medium px-2 py-1 rounded"
                   onClick={() => setMobileMenuOpen(false)}
                 >

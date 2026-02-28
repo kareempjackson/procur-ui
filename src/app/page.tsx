@@ -3,27 +3,17 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import TopNavigation from "@/components/navigation/TopNavigation";
-import BuyerTopNavigation from "@/components/navigation/BuyerTopNavigation";
-import SellerTopNavigation from "@/components/navigation/SellerTopNavigation";
-import Footer from "@/components/footer/Footer";
+import { useRouter } from "next/navigation";
 import { useAppSelector } from "@/store";
 import { selectAuthUser } from "@/store/slices/authSlice";
-import { ArrowRightIcon } from "@heroicons/react/24/outline";
-import {
-  CheckBadgeIcon,
-  MapPinIcon,
-  StarIcon,
-} from "@heroicons/react/24/outline";
-import { StarIcon as StarIconSolid } from "@heroicons/react/24/solid";
 import { getApiClient } from "@/lib/apiClient";
-import ProcurLoader from "@/components/ProcurLoader";
-import SupplierAvatar from "@/components/buyer/SupplierAvatar";
 
-type HomeMarketplaceSeller = {
+// ─── Types ────────────────────────────────────────────────────────────────────
+type LandingSeller = {
   id: string;
   name: string;
   logo_url?: string | null;
+  header_image_url?: string | null;
   location?: string | null;
   average_rating?: number | null;
   review_count?: number | null;
@@ -31,903 +21,736 @@ type HomeMarketplaceSeller = {
   is_verified?: boolean | null;
 };
 
-type HomeMarketplaceProduct = {
+type LandingProduct = {
   id: string;
   name: string;
   category: string;
   current_price: number;
-  average_rating?: number | null;
+  unit: string;
   image_url?: string | null;
-  tags?: string[];
-  seller: HomeMarketplaceSeller;
+  seller: LandingSeller;
 };
 
-function createCountrySlug(country?: string | null): string {
-  if (!country) return "caribbean";
-  return country.toLowerCase().replace(/\s+/g, "-");
+// ─── Fallback data ────────────────────────────────────────────────────────────
+const FALLBACK_PRODUCTS: LandingProduct[] = [
+  { id: "1", name: "Plantain", category: "Vegetables", current_price: 2.50, unit: "lb", image_url: "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400&h=400&fit=crop", seller: { id: "s1", name: "Samaritan Farm", location: "St. Andrew", is_verified: true, completed_orders: 45 } },
+  { id: "2", name: "Plantain", category: "Vegetables", current_price: 2.50, unit: "lb", image_url: "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400&h=400&fit=crop", seller: { id: "s2", name: "AgrowFo", location: "St. Mark", is_verified: true, completed_orders: 67 } },
+  { id: "3", name: "Plantain", category: "Vegetables", current_price: 2.00, unit: "lb", image_url: "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400&h=400&fit=crop", seller: { id: "s3", name: "R&K Farms", location: "St. George", is_verified: true, completed_orders: 32 } },
+  { id: "4", name: "Banana (ripe)", category: "Fruits", current_price: 1.50, unit: "lb", image_url: "https://images.unsplash.com/photo-1603833665858-e61d17a86224?w=400&h=400&fit=crop", seller: { id: "s2", name: "AgrowFo", location: "St. Mark", is_verified: true, completed_orders: 67 } },
+  { id: "5", name: "Bok Choi", category: "Vegetables", current_price: 2.50, unit: "lb", image_url: "https://images.unsplash.com/photo-1587132137056-bfbf0166836e?w=400&h=400&fit=crop", seller: { id: "s1", name: "Samaritan Farm", location: "St. Andrew", is_verified: true, completed_orders: 45 } },
+  { id: "6", name: "Tania", category: "Root Crops", current_price: 6.00, unit: "lb", image_url: "https://images.unsplash.com/photo-1590779033100-9f60a05a013d?w=400&h=400&fit=crop", seller: { id: "s2", name: "AgrowFo", location: "St. Mark", is_verified: true, completed_orders: 67 } },
+  { id: "7", name: "Pumpkin", category: "Vegetables", current_price: 2.75, unit: "lb", image_url: "https://images.unsplash.com/photo-1509622905150-fa66d3906e09?w=400&h=400&fit=crop", seller: { id: "s2", name: "AgrowFo", location: "St. Mark", is_verified: true, completed_orders: 67 } },
+  { id: "8", name: "Gospo Sweet", category: "Fruits", current_price: 0.50, unit: "lb", image_url: "https://images.unsplash.com/photo-1587162146766-e06b1189b907?w=400&h=400&fit=crop", seller: { id: "s4", name: "Agro-Tech", location: "St. Patrick", is_verified: true, completed_orders: 20 } },
+];
+
+const FALLBACK_SELLERS: LandingSeller[] = [
+  { id: "s1", name: "Samaritan Farm", location: "St. Andrew, Grenada", is_verified: true, average_rating: 4.9, review_count: 24, completed_orders: 45 },
+  { id: "s3", name: "R&K Farms", location: "St. George, Grenada", is_verified: true, average_rating: 4.8, review_count: 18, completed_orders: 32 },
+  { id: "s5", name: "Sequoia Eco Garden", location: "St. Patrick, Grenada", is_verified: true, average_rating: 5.0, review_count: 11, completed_orders: 15 },
+  { id: "s2", name: "AgrowFo", location: "St. Mark, Grenada", is_verified: true, average_rating: 4.9, review_count: 31, completed_orders: 67 },
+];
+
+// ─── Static content ───────────────────────────────────────────────────────────
+const HERO_SLIDES = [
+  { img: "/images/hero/hanna-long-JbGA85iuTiY-unsplash.jpg", imgPosition: "center center", h2: "Fresh from the field.\nDirect to you.", p: "Shop verified Grenadian produce: plantain, bok choi, dasheen and more, sourced straight from the farm.", cta: "Shop now", href: "/browse" },
+  { img: "/images/hero/shelley-pauls-G7WdvR8rDPg-unsplash.jpg", imgPosition: "center center", h2: "Know exactly where\nyour food comes from.", p: "Every supplier on Procur is reviewed and verified. No middlemen, no surprises. Just transparent, local supply.", cta: "Browse produce", href: "/browse" },
+  { img: "/images/hero/land-o-lakes-inc-BlXa_riHlp4-unsplash.jpg", imgPosition: "center 10%", h2: "Grow your reach.\nGrow your revenue.", p: "List your produce and connect with buyers, restaurants and hotels across Grenada, all in one place.", cta: "Get started", href: "/signup?accountType=seller" },
+];
+
+const SELLER_COVERS = [
+  "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=600&h=200&fit=crop",
+  "https://images.unsplash.com/photo-1500651230702-0e2d8a49d4ad?w=600&h=200&fit=crop",
+  "https://images.unsplash.com/photo-1530836369250-ef72a3f5cda8?w=600&h=200&fit=crop",
+  "https://images.unsplash.com/photo-1464226184884-fa280b87c399?w=600&h=200&fit=crop",
+];
+
+const TESTIMONIALS = [
+  { quote: "An excellent venture that's far more convenient for farmers. I'm very pleased.", name: "Jude Durham", farm: "Samaritan Farm", location: "St. Andrew, Grenada", role: "Supplier" },
+  { quote: "Everything arrived on time. The customer service was very responsive and professional.", name: "Brown Girl Cafe", location: "St. George, Grenada", role: "Buyer" },
+  { quote: "Procur makes weekly produce sourcing seamless. The quality and consistency are exactly what a restaurant needs.", name: "Island Grill Kitchen", location: "Grand Anse, Grenada", role: "Buyer, Restaurant" },
+  { quote: "Connecting directly with local farmers has transformed our sourcing. Fresher produce, fairer prices, every time.", name: "Karibea Hotels", location: "St. George, Grenada", role: "Buyer, Hotel" },
+];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const SEL_COLORS = ["#2d4a3e", "#d4783c", "#5a7650", "#1c2b23", "#407178"];
+
+function selColor(name: string): string {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i));
+  return SEL_COLORS[Math.abs(h) % SEL_COLORS.length];
 }
 
-function createProductSlug(name: string, id: string): string {
-  return `${name.toLowerCase().replace(/\s+/g, "-")}-${id}`;
+function toProductHref(p: LandingProduct): string {
+  const name = p.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  return `/products/${name}-${p.id}`;
 }
 
-function hashStringToSeed(input: string): number {
-  // Simple, deterministic hash -> uint32
-  let h = 2166136261;
-  for (let i = 0; i < input.length; i++) {
-    h ^= input.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
+function productImage(p: LandingProduct): string {
+  if (p.image_url) return p.image_url;
+  const cat = p.category.toLowerCase();
+  if (cat.includes("fruit")) return "https://images.unsplash.com/photo-1603833665858-e61d17a86224?w=400&h=400&fit=crop";
+  return "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400&h=400&fit=crop";
 }
 
-function mulberry32(seed: number) {
-  let a = seed >>> 0;
-  return function rand() {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+// ─── Product image with graceful fallback ─────────────────────────────────────
+const PRODUCT_FALLBACK = "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=400&fit=crop";
+function ProductImg({ src, alt, lazy }: { src: string; alt: string; sizes?: string; lazy?: boolean }) {
+  const [imgSrc, setImgSrc] = React.useState(src);
+  React.useEffect(() => { setImgSrc(src); }, [src]);
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={imgSrc}
+      alt={alt}
+      loading={lazy ? "lazy" : "eager"}
+      onError={() => setImgSrc(PRODUCT_FALLBACK)}
+      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+    />
+  );
 }
 
+// ─── Section header ───────────────────────────────────────────────────────────
+function SecH({ title, linkText, linkHref }: { title: string; linkText?: string; linkHref?: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", margin: "28px 0 12px" }}>
+      <h2 style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-.2px", color: "#1c2b23" }}>{title}</h2>
+      {linkText && linkHref && (
+        <Link href={linkHref} style={{ fontSize: 12, fontWeight: 600, color: "#2d4a3e", textDecoration: "none" }}>
+          {linkText}
+        </Link>
+      )}
+    </div>
+  );
+}
+
+// ─── Main page ────────────────────────────────────────────────────────────────
 export default function Home() {
   const user = useAppSelector(selectAuthUser);
+  const router = useRouter();
 
-  const hero = {
-    headline: "Buy fresh produce from trusted Grenada suppliers.",
-    subcopy:
-      "Browse live listings, discover reliable farms, and source with confidence.",
-    supportingText:
-      "Explore featured sellers and products, then sign up to order, message suppliers, and manage repeat purchasing.",
-    image: "/images/backgrounds/jacopo-maiarelli--gOUx23DNks-unsplash (1).jpg",
-  };
+  // Data state — empty until both requests settle; skeleton shown in the interim
+  const [products, setProducts] = useState<LandingProduct[]>([]);
+  const [sellers, setSellers] = useState<LandingSeller[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [marketplaceProducts, setMarketplaceProducts] = useState<
-    HomeMarketplaceProduct[]
-  >([]);
-  const [marketplaceLoading, setMarketplaceLoading] = useState<boolean>(true);
-  const [marketplaceProductTotal, setMarketplaceProductTotal] =
-    useState<number>(0);
-  const [marketplaceSellerTotal, setMarketplaceSellerTotal] =
-    useState<number>(0);
-  const [marketplaceVerifiedSellerTotal, setMarketplaceVerifiedSellerTotal] =
-    useState<number>(0);
+  // UI state
+  const [heroIdx, setHeroIdx] = useState(0);
+  const [prevHeroIdx, setPrevHeroIdx] = useState<number | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [searchInput, setSearchInput] = useState("");
 
-  // How-it-works stepper (animated journey)
-  const howItWorksRef = useRef<HTMLElement | null>(null);
-  const [howItWorksInView, setHowItWorksInView] = useState(false);
-  const [activeHowStep, setActiveHowStep] = useState(0);
-  const prefersReducedMotion = useMemo(() => {
-    if (typeof window === "undefined") return false;
-    return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-  }, []);
-
-  const howSteps = useMemo(
-    () => [
-      {
-        title: "Discover",
-        description:
-          "Browse the marketplace, compare products, and find sellers that match your quality, pricing, and reliability needs.",
-      },
-      {
-        title: "Connect",
-        description:
-          "Message suppliers, confirm availability, and align on volumes, delivery windows, and expectations.",
-      },
-      {
-        title: "Buy & repeat",
-        description:
-          "Place orders, track fulfillment, and build reliable supply relationships over time.",
-      },
-    ],
-    []
-  );
-
-  // Seed randomness daily so featured results feel fresh but not jittery.
-  const featuredSeed = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    const who = user?.accountType ? `:${user.accountType}` : "";
-    return hashStringToSeed(`home-featured:${today}${who}`);
-  }, [user?.accountType]);
-
-  const featured = useMemo(() => {
-    const rand = mulberry32(featuredSeed);
-
-    const scoredProducts = marketplaceProducts.map((p) => {
-      const volume = Number(p.seller.completed_orders ?? 0);
-      const score = volume * 1000 + rand();
-      return { p, score };
-    });
-
-    const featuredProducts = scoredProducts
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 8)
-      .map((x) => x.p);
-
-    const sellersMap = new Map<string, HomeMarketplaceSeller>();
-    for (const p of marketplaceProducts) {
-      if (p.seller?.id) sellersMap.set(p.seller.id, p.seller);
-    }
-
-    const scoredSellers = Array.from(sellersMap.values()).map((s) => {
-      const volume = Number(s.completed_orders ?? 0);
-      const score = volume * 1000 + rand();
-      return { s, score };
-    });
-
-    const featuredSellers = scoredSellers
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 8)
-      .map((x) => x.s);
-
-    return { featuredProducts, featuredSellers };
-  }, [featuredSeed, marketplaceProducts]);
-
+  // ── Data loading — sessionStorage SWR + API refresh ──────────────────────────
+  //    1. If sessionStorage has fresh data (< 2 min), render immediately (no skeleton).
+  //    2. Always fire an API refresh in the background; update state + cache when done.
+  //    This makes revisits within the same browser session feel near-instant.
   useEffect(() => {
     let cancelled = false;
     const api = getApiClient(() => null);
+    const CACHE_KEY = "procur:home:v2";
+    const CACHE_TTL = 2 * 60 * 1000; // 2 minutes
 
-    const load = async () => {
-      setMarketplaceLoading(true);
-      try {
-        const [productsRes, sellersRes, verifiedSellersRes] = await Promise.all([
-          api.get("/marketplace/products", {
-            params: {
-              in_stock: true,
-              limit: 100,
-              sort_by: "created_at",
-              sort_order: "desc",
-              location: "Grenada",
-            },
-          }),
-          api.get("/marketplace/sellers", {
-            params: {
-              limit: 1,
-              page: 1,
-              location: "Grenada",
-            },
-          }),
-          api.get("/marketplace/sellers", {
-            params: {
-              limit: 1,
-              page: 1,
-              location: "Grenada",
-              is_verified: true,
-            },
-          }),
-        ]);
+    function parseProducts(raw: Record<string, unknown>[]): LandingProduct[] {
+      return raw.map((p): LandingProduct => ({
+        id: String(p.id), name: String(p.name), category: String(p.category ?? "Other"),
+        current_price: typeof p.current_price === "number" ? p.current_price : 0,
+        unit: String(p.unit ?? "lb"),
+        image_url: (p.image_url as string | null) ?? ((p.images as string[])?.[0] ?? null),
+        seller: {
+          id: String((p.seller as Record<string, unknown>)?.id ?? ""),
+          name: String((p.seller as Record<string, unknown>)?.name ?? "Seller"),
+          logo_url: ((p.seller as Record<string, unknown>)?.logo_url as string | null) ?? null,
+          location: ((p.seller as Record<string, unknown>)?.location as string | null) ?? null,
+          average_rating: ((p.seller as Record<string, unknown>)?.average_rating as number | null) ?? null,
+          review_count: ((p.seller as Record<string, unknown>)?.review_count as number | null) ?? null,
+          completed_orders: ((p.seller as Record<string, unknown>)?.completed_orders as number | null) ?? null,
+          is_verified: ((p.seller as Record<string, unknown>)?.is_verified as boolean | null) ?? null,
+        },
+      }));
+    }
 
-        const productsData = productsRes?.data;
-        const sellersData = sellersRes?.data;
-        const verifiedSellersData = verifiedSellersRes?.data;
+    function parseSellers(raw: Record<string, unknown>[]): LandingSeller[] {
+      return raw.map((s): LandingSeller => ({
+        id: String(s.id), name: String(s.name),
+        logo_url: (s.logo_url as string | null) ?? null,
+        header_image_url: (s.header_image_url as string | null) ?? null,
+        location: (s.location as string | null) ?? null,
+        average_rating: (s.average_rating as number | null) ?? null,
+        review_count: (s.review_count as number | null) ?? null,
+        completed_orders: (s.completed_orders as number | null) ?? null,
+        is_verified: (s.is_verified as boolean | null) ?? null,
+      }));
+    }
 
-        if (!cancelled) {
-          setMarketplaceProductTotal(
-            typeof productsData?.total === "number" ? productsData.total : 0
-          );
-          setMarketplaceSellerTotal(
-            typeof sellersData?.total === "number" ? sellersData.total : 0
-          );
-          setMarketplaceVerifiedSellerTotal(
-            typeof verifiedSellersData?.total === "number"
-              ? verifiedSellersData.total
-              : 0
-          );
+    // Step 1: Try to hydrate from sessionStorage immediately
+    let hasFreshCache = false;
+    try {
+      const raw = sessionStorage.getItem(CACHE_KEY);
+      if (raw) {
+        const { products: cp, sellers: cs, ts } = JSON.parse(raw);
+        if (Date.now() - ts < CACHE_TTL && Array.isArray(cp) && Array.isArray(cs)) {
+          setProducts(cp);
+          setSellers(cs);
+          setLoading(false);
+          hasFreshCache = true;
         }
-
-        const productsFromApi = (productsData?.products ?? []) as any[];
-        if (!cancelled && Array.isArray(productsFromApi)) {
-          const mapped: HomeMarketplaceProduct[] = productsFromApi.map((p) => ({
-            id: String(p.id),
-            name: p.name,
-            category: p.category,
-            current_price:
-              typeof p.current_price === "number" ? p.current_price : 0,
-            average_rating:
-              typeof p.average_rating === "number" ? p.average_rating : null,
-            image_url: p.image_url ?? null,
-            tags: Array.isArray(p.tags) ? p.tags : [],
-            seller: {
-              id: String(p.seller?.id ?? ""),
-              name: p.seller?.name ?? "Seller",
-              logo_url: p.seller?.logo_url ?? null,
-              location: p.seller?.location ?? null,
-              average_rating:
-                typeof p.seller?.average_rating === "number"
-                  ? p.seller.average_rating
-                  : null,
-              review_count:
-                typeof p.seller?.review_count === "number"
-                  ? p.seller.review_count
-                  : null,
-              completed_orders:
-                typeof p.seller?.completed_orders === "number"
-                  ? p.seller.completed_orders
-                  : null,
-              is_verified:
-                typeof p.seller?.is_verified === "boolean"
-                  ? p.seller.is_verified
-                  : null,
-            },
-          }));
-          setMarketplaceProducts(mapped);
-        }
-      } catch (e) {
-        // Home should still render if marketplace API is down.
-        if (!cancelled) {
-          setMarketplaceProducts([]);
-          setMarketplaceProductTotal(0);
-          setMarketplaceSellerTotal(0);
-          setMarketplaceVerifiedSellerTotal(0);
-        }
-      } finally {
-        if (!cancelled) setMarketplaceLoading(false);
       }
-    };
+    } catch { /* sessionStorage unavailable (SSR/private mode) — fall through */ }
 
-    load();
-    return () => {
-      cancelled = true;
-    };
+    // Step 2: Always refresh from API (background if cache hit, blocking if not)
+    Promise.allSettled([
+      api.get("/marketplace/products", { params: { in_stock: true, limit: 30 } }),
+      api.get("/marketplace/sellers", { params: { limit: 40 } }),
+    ]).then(([pResult, sResult]) => {
+      if (cancelled) return;
+
+      let newProducts: LandingProduct[] = [];
+      let newSellers: LandingSeller[] = [];
+
+      if (pResult.status === "fulfilled") {
+        const pData = pResult.value?.data?.products;
+        newProducts = Array.isArray(pData) && pData.length > 0
+          ? parseProducts(pData)
+          : FALLBACK_PRODUCTS;
+      } else {
+        newProducts = FALLBACK_PRODUCTS;
+      }
+
+      if (sResult.status === "fulfilled") {
+        const sData = sResult.value?.data?.sellers;
+        newSellers = Array.isArray(sData) && sData.length > 0
+          ? parseSellers(sData)
+          : FALLBACK_SELLERS;
+      } else {
+        newSellers = FALLBACK_SELLERS;
+      }
+
+      // Only update state (and trigger re-render) when there was no fresh cache.
+      // If we already rendered from cache, skip the state update to prevent flicker —
+      // just silently refresh sessionStorage so the next visit gets updated data.
+      if (!hasFreshCache) {
+        setProducts(newProducts);
+        setSellers(newSellers);
+        setLoading(false);
+      }
+
+      // Always refresh sessionStorage so the next visit gets the latest data
+      try {
+        sessionStorage.setItem(CACHE_KEY, JSON.stringify({ products: newProducts, sellers: newSellers, ts: Date.now() }));
+      } catch { /* quota exceeded or unavailable — non-fatal */ }
+    });
+
+    return () => { cancelled = true; };
   }, []);
 
+  // ── Hero auto-rotation ────────────────────────────────────────────────────────
+  const heroTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const bestSellersRef = useRef<HTMLDivElement>(null);
+  const testimonialsRef = useRef<HTMLDivElement>(null);
+  function scrollSect(ref: React.RefObject<HTMLDivElement | null>, dir: number) {
+    ref.current?.scrollBy({ left: dir * 320, behavior: "smooth" });
+  }
+  function startHeroTimer() {
+    if (heroTimerRef.current) clearInterval(heroTimerRef.current);
+    heroTimerRef.current = setInterval(() => setHeroIdx(i => (i + 1) % 3), 5000);
+  }
   useEffect(() => {
-    const el = howItWorksRef.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (entry) setHowItWorksInView(entry.isIntersecting);
-      },
-      { threshold: 0.35 }
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
+    startHeroTimer();
+    return () => { if (heroTimerRef.current) clearInterval(heroTimerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  function goHero(i: number) { setPrevHeroIdx(heroIdx); setHeroIdx(i); startHeroTimer(); }
 
-  useEffect(() => {
-    if (!howItWorksInView) return;
-    if (prefersReducedMotion) return;
-    const timer = window.setInterval(() => {
-      setActiveHowStep((prev) => (prev + 1) % howSteps.length);
-    }, 4200);
-    return () => window.clearInterval(timer);
-  }, [howItWorksInView, howSteps.length, prefersReducedMotion]);
+  // ── Search ────────────────────────────────────────────────────────────────────
+  function handleSearch() {
+    const q = searchInput.trim();
+    router.push(q ? `/browse?q=${encodeURIComponent(q)}` : "/browse");
+  }
 
-  const marketplaceCategoryCount = useMemo(() => {
-    return new Set(marketplaceProducts.map((p) => p.category).filter(Boolean))
-      .size;
-  }, [marketplaceProducts]);
+  // ── Computed ──────────────────────────────────────────────────────────────────
+  const bestSellers = useMemo(() =>
+    [...products].sort((a, b) => (b.seller.completed_orders ?? 0) - (a.seller.completed_orders ?? 0)).slice(0, 8),
+    [products]
+  );
 
-  const heroCtas = useMemo(() => {
-    if (user?.accountType === "buyer") {
-      return {
-        primary: { label: "Buy Fresh Produce", href: "/buyer" },
-        secondary: { label: "Explore Public Marketplace", href: "/marketplace" },
-      };
-    }
-    if (user?.accountType === "seller") {
-      return {
-        primary: { label: "Manage My Store", href: "/seller" },
-        secondary: { label: "View Marketplace", href: "/marketplace" },
-      };
-    }
-    return {
-      primary: {
-        label: "Buy Fresh Produce",
-        href: "/marketplace",
-      },
-      secondary: {
-        label: "Become a Supplier",
-        href: "/signup?accountType=seller&step=business",
-      },
-    };
-  }, [user?.accountType]);
+  const categoryBlocks = useMemo(() => {
+    const grouped: Record<string, Map<string, LandingProduct>> = {};
+    products.forEach(p => {
+      if (!grouped[p.category]) grouped[p.category] = new Map();
+      if (!grouped[p.category].has(p.name) && grouped[p.category].size < 4) {
+        grouped[p.category].set(p.name, p);
+      }
+    });
+    return Object.entries(grouped).slice(0, 4).map(([cat, prodMap]) => ({
+      title: cat,
+      browseHref: `/browse?category=${encodeURIComponent(cat.toLowerCase())}`,
+      link: `Browse ${cat.toLowerCase()} →`,
+      items: Array.from(prodMap.values()).map(p => ({ img: productImage(p), label: p.name })),
+    }));
+  }, [products]);
 
+  const cats = useMemo(() => [...new Set(products.map(p => p.category))].slice(0, 6), [products]);
+
+  const popularSellers = useMemo(() => {
+    const base = sellers.length > 0 ? sellers : FALLBACK_SELLERS;
+    return [...base]
+      .sort((a, b) => {
+        const ordersA = a.completed_orders ?? 0;
+        const ordersB = b.completed_orders ?? 0;
+        if (ordersB !== ordersA) return ordersB - ordersA;
+        const ratingA = (a.average_rating ?? 0) * (a.review_count ?? 0);
+        const ratingB = (b.average_rating ?? 0) * (b.review_count ?? 0);
+        return ratingB - ratingA;
+      })
+      .slice(0, 4);
+  }, [sellers]);
+  const userName = (user as { firstName?: string; email?: string } | null)?.firstName
+    || (user as { firstName?: string; email?: string } | null)?.email?.split("@")[0]
+    || null;
+
+  // ─── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
-      {/* Top Notice Bar */}
-      <div className="bg-[var(--secondary-muted-edge)] text-white text-center py-2 text-sm">
-        Procur Marketplace is live in Grenada — discover fresh produce and
-        trusted suppliers.
+    <div style={{ fontFamily: "'Urbanist', system-ui, sans-serif", background: "#faf8f4", color: "#1c2b23", WebkitFontSmoothing: "antialiased" }}>
+
+      {/* ── Menu overlay ── */}
+      <div
+        onClick={() => setMenuOpen(false)}
+        style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,.3)", zIndex: 200, opacity: menuOpen ? 1 : 0, pointerEvents: menuOpen ? "auto" : "none", transition: "opacity .3s" }}
+      />
+
+      {/* ── Menu drawer ── */}
+      <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: 300, background: "#fff", zIndex: 201, transform: menuOpen ? "translateX(0)" : "translateX(100%)", transition: "transform .35s cubic-bezier(.4,0,.2,1)", display: "flex", flexDirection: "column", borderRadius: "16px 0 0 16px" }}>
+        <div style={{ padding: "16px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Image src="/images/logos/procur-logo.svg" alt="Procur" width={72} height={19} />
+          <button onClick={() => setMenuOpen(false)} style={{ width: 30, height: 30, borderRadius: "50%", background: "#f5f1ea", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6a7f73" }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" width={13} height={13}><path d="M18 6L6 18M6 6l12 12" /></svg>
+          </button>
+        </div>
+        {userName && (
+          <div style={{ padding: "0 18px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#2d4a3e", color: "#f5f1ea", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, flexShrink: 0 }}>
+              {userName.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700 }}>{userName}</div>
+              <div style={{ fontSize: 10.5, color: "#8a9e92" }}>View profile</div>
+            </div>
+          </div>
+        )}
+        <div style={{ flex: 1, padding: "4px 8px", overflowY: "auto" }}>
+          {[
+            { label: "Browse Produce", href: "/browse" },
+            { label: "Sellers", href: "/sellers" },
+          ].map(l => (
+            <Link key={l.label} href={l.href} onClick={() => setMenuOpen(false)} style={{ display: "flex", alignItems: "center", padding: "9px 12px", borderRadius: 10, fontSize: 13, fontWeight: 600, color: "#1c2b23", textDecoration: "none" }}>
+              {l.label}
+            </Link>
+          ))}
+          <div style={{ height: 1, background: "#ebe7df", margin: "6px 12px" }} />
+          {[
+            { label: "Become a Supplier", href: "/signup?accountType=seller" },
+          ].map(l => (
+            <Link key={l.label} href={l.href} onClick={() => setMenuOpen(false)} style={{ display: "flex", alignItems: "center", padding: "9px 12px", borderRadius: 10, fontSize: 13, fontWeight: 600, color: "#1c2b23", textDecoration: "none" }}>
+              {l.label}
+            </Link>
+          ))}
+        </div>
+        <div style={{ padding: "12px 18px", borderTop: "1px solid #ebe7df" }}>
+          {user
+            ? <Link href="/auth/signout" style={{ display: "block", padding: 9, background: "#2d4a3e", color: "#f5f1ea", fontSize: 12, fontWeight: 700, textAlign: "center", borderRadius: 10, textDecoration: "none" }}>Log out</Link>
+            : <Link href="/login" style={{ display: "block", padding: 9, background: "#2d4a3e", color: "#f5f1ea", fontSize: 12, fontWeight: 700, textAlign: "center", borderRadius: 10, textDecoration: "none" }}>Sign in</Link>
+          }
+        </div>
       </div>
 
-      {/* Keep existing navigation */}
-      {user?.accountType === "buyer" ? (
-        <BuyerTopNavigation />
-      ) : user?.accountType === "seller" ? (
-        <SellerTopNavigation />
-      ) : (
-        <TopNavigation />
-      )}
+      {/* ── Filter drawer (left) ── */}
+      <div
+        onClick={() => setFilterOpen(false)}
+        style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,.3)", zIndex: 200, opacity: filterOpen ? 1 : 0, pointerEvents: filterOpen ? "auto" : "none", transition: "opacity .3s" }}
+      />
+      <div style={{ position: "fixed", top: 0, left: 0, bottom: 0, width: 280, background: "#fff", zIndex: 201, transform: filterOpen ? "translateX(0)" : "translateX(-100%)", transition: "transform .35s cubic-bezier(.4,0,.2,1)", display: "flex", flexDirection: "column", borderRadius: "0 16px 16px 0" }}>
+        <div style={{ padding: "16px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #ebe7df" }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: "#1c2b23" }}>Filter by Category</span>
+          <button onClick={() => setFilterOpen(false)} style={{ width: 30, height: 30, borderRadius: "50%", background: "#f5f1ea", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6a7f73" }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" width={13} height={13}><path d="M18 6L6 18M6 6l12 12" /></svg>
+          </button>
+        </div>
+        <div style={{ flex: 1, padding: "8px", overflowY: "auto" }}>
+          <a href="/browse" onClick={() => setFilterOpen(false)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 10, fontSize: 13, fontWeight: 700, color: "#1c2b23", textDecoration: "none", background: "#f5f1ea" }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width={15} height={15}><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
+            All Categories
+          </a>
+          <div style={{ height: 1, background: "#ebe7df", margin: "6px 4px" }} />
+          {cats.map(cat => (
+            <a key={cat} href={`/browse?category=${encodeURIComponent(cat.toLowerCase())}`} onClick={() => setFilterOpen(false)} style={{ display: "flex", alignItems: "center", padding: "10px 12px", borderRadius: 10, fontSize: 13, fontWeight: 500, color: "#2d4a3e", textDecoration: "none" }}>
+              {cat}
+            </a>
+          ))}
+        </div>
+      </div>
 
-      <main>
-        {/* Hero: large image + calm early access story */}
-        <section
-          className="py-4 sm:py-6 px-4 sm:px-6 relative"
-          aria-label="Hero"
-        >
-          <div className="relative min-h-[420px] sm:min-h-[480px] md:h-[70vh] rounded-2xl">
-            {/* Background image + gradient, safely clipped to rounded container */}
-            <div className="absolute inset-0 overflow-hidden rounded-2xl">
-              <Image
-                src={hero.image}
-                alt="Regional producers and buyers working together"
-                fill
-                className="object-cover"
-                priority
-              />
-              <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/70 to-black/10" />
+      {/* ── Sticky header ── */}
+      <header style={{ position: "sticky", top: 0, zIndex: 100, background: "#2d4a3e" }}>
+        {/* Main header row */}
+        <div style={{ height: 58, display: "flex", alignItems: "center", padding: "0 60px" }}>
+          {/* Logo */}
+          <Link href="/" style={{ flexShrink: 0, marginRight: 20, textDecoration: "none", display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 3 }}>
+            <Image src="/images/logos/procur-logo.svg" alt="Procur" width={88} height={23} style={{ filter: "brightness(0) invert(1)" }} priority />
+            <span style={{ fontSize: 9.5, fontWeight: 600, color: "rgba(245,241,234,.72)", lineHeight: 1, letterSpacing: ".03em" }}>🇬🇩 Grenada</span>
+          </Link>
+          {/* Search bar — navigates to /browse?q=... */}
+          <div style={{ flex: 1, display: "flex", justifyContent: "center", margin: "0 16px" }}>
+          <div style={{ display: "flex", alignItems: "center", background: "rgba(255,255,255,.12)", borderRadius: 999, height: 38, border: "1px solid rgba(255,255,255,.14)", padding: "0 4px 0 16px", width: "100%", maxWidth: 560 }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="rgba(245,241,234,.45)" strokeWidth="2" width={15} height={15} style={{ flexShrink: 0 }}><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.35-4.35" /></svg>
+            <input
+              type="text"
+              placeholder="Search produce, sellers..."
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") handleSearch(); }}
+              style={{ flex: 1, border: "none", outline: "none", fontFamily: "inherit", fontSize: 13, color: "#f5f1ea", fontWeight: 400, background: "transparent", padding: "0 10px", caretColor: "#f5f1ea" }}
+            />
+            {searchInput && (
+              <button onClick={() => setSearchInput("")} style={{ width: 22, height: 22, borderRadius: "50%", background: "rgba(255,255,255,.15)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(245,241,234,.7)", flexShrink: 0, marginRight: 4 }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" width={10} height={10}><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
+            )}
+            <button onClick={handleSearch} style={{ height: 28, width: 28, background: "#d4783c", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: "none", cursor: "pointer", borderRadius: "50%", marginRight: 2 }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" width={13} height={13}><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.35-4.35" /></svg>
+            </button>
+          </div>
+          </div>
+          {/* Nav right */}
+          <div style={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0 }}>
+            <button
+              onClick={() => setMenuOpen(true)}
+              style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", padding: "6px 10px", borderRadius: 4, cursor: "pointer", border: "1px solid transparent", background: "none" }}
+            >
+              <span style={{ fontSize: 9.5, color: "rgba(245,241,234,.45)", lineHeight: 1 }}>
+                {userName ? `Hello, ${userName}` : "Sign in"}
+              </span>
+              <span style={{ fontSize: 12.5, fontWeight: 700, color: "#f5f1ea", lineHeight: 1.3, display: "flex", alignItems: "center", gap: 3 }}>
+                Account
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" width={10} height={10} style={{ opacity: .5 }}><path d="M6 9l6 6 6-6" /></svg>
+              </span>
+            </button>
+            <Link href={user ? "/cart" : "/login?redirect=/cart"} style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 10px", borderRadius: 4, cursor: "pointer", position: "relative", border: "1px solid transparent", textDecoration: "none" }}>
+              <div style={{ position: "relative" }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#f5f1ea" strokeWidth="1.5" width={26} height={26}><circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" /><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6" /></svg>
+                <span style={{ position: "absolute", top: -4, right: -6, background: "#d4783c", color: "#fff", fontSize: 10, fontWeight: 700, width: 18, height: 18, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>0</span>
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "#f5f1ea" }}>Cart</span>
+            </Link>
+          </div>
+        </div>
+        {/* Sub-nav — categories link to /browse?category=... */}
+        <div style={{ background: "#243530", height: 34 }}>
+          <div className="v6-sn-scroll" style={{ display: "flex", alignItems: "center", height: "100%", padding: "0 60px", overflowX: "auto" }}>
+            <button
+              onClick={() => setFilterOpen(true)}
+              style={{ display: "flex", alignItems: "center", gap: 6, paddingRight: 14, height: "100%", fontSize: 12, fontWeight: 700, color: "#f5f1ea", cursor: "pointer", flexShrink: 0, marginRight: 4, background: "none", border: "none" }}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width={16} height={16}><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
+              All
+            </button>
+            {cats.map(cat => (
+              <Link key={cat} href={`/browse?category=${encodeURIComponent(cat.toLowerCase())}`} style={{ padding: "0 12px", height: "100%", display: "flex", alignItems: "center", fontSize: 11.5, fontWeight: 500, color: "rgba(245,241,234,.55)", textDecoration: "none", whiteSpace: "nowrap", flexShrink: 0 }}>
+                {cat}
+              </Link>
+            ))}
+            <Link href="/signup?accountType=seller" style={{ padding: "0 12px", height: "100%", display: "flex", alignItems: "center", fontSize: 11.5, fontWeight: 600, color: "#d4783c", textDecoration: "none", whiteSpace: "nowrap", flexShrink: 0 }}>
+              Become a Supplier
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      {/* ── Hero carousel ── */}
+      <div style={{ position: "relative", height: 580, overflow: "hidden" }}>
+        {HERO_SLIDES.map((slide, i) => {
+          const isActive = heroIdx === i;
+          const isPrev = prevHeroIdx === i;
+          return (
+            <div key={i} style={{
+              position: "absolute", inset: 0,
+              opacity: isActive ? 1 : 0,
+              zIndex: isActive ? 2 : isPrev ? 1 : 0,
+              transition: "opacity .95s cubic-bezier(.4,0,.2,1)",
+              display: "flex", alignItems: "center",
+            }}>
+              <Image src={slide.img} alt={slide.h2} fill className="object-cover" style={{ objectPosition: slide.imgPosition }} sizes="100vw" priority={i === 0} />
+              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(108deg, rgba(10,16,12,.92) 0%, rgba(10,16,12,.56) 38%, rgba(10,16,12,.08) 70%, transparent 100%)" }} />
+              <div style={{
+                position: "relative", zIndex: 1,
+                padding: "0 80px", maxWidth: 1300, margin: "0 auto", width: "100%",
+                opacity: isActive ? 1 : 0,
+                transform: isActive ? "translateY(0)" : "translateY(20px)",
+                transition: isActive
+                  ? "opacity .7s ease .38s, transform .7s cubic-bezier(.22,1,.36,1) .38s"
+                  : "opacity .2s ease, transform .2s ease",
+              }}>
+                <p style={{ fontSize: 11, fontWeight: 700, color: "rgba(245,241,234,.45)", letterSpacing: ".12em", textTransform: "uppercase", margin: "0 0 16px" }}>Procur · Grenada</p>
+                <h2 style={{ fontSize: 54, fontWeight: 800, color: "#f5f1ea", lineHeight: 1.08, letterSpacing: "-1.5px", maxWidth: 520, whiteSpace: "pre-line", margin: "0 0 14px" }}>{slide.h2}</h2>
+                <p style={{ fontSize: 15, color: "rgba(245,241,234,.75)", maxWidth: 400, lineHeight: 1.65, fontWeight: 400, margin: 0 }}>{slide.p}</p>
+                <Link href={slide.href} style={{ display: "inline-flex", alignItems: "center", gap: 7, marginTop: 30, padding: "13px 28px", background: "#d4783c", color: "#fff", fontSize: 13, fontWeight: 700, borderRadius: 999, textDecoration: "none" }}>
+                  {slide.cta}
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" width={13} height={13}><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                </Link>
+              </div>
             </div>
+          );
+        })}
 
-            {/* Foreground content (not clipped on small screens) */}
-            <div className="relative z-10 flex h-full items-center">
-              <div className="max-w-[1280px] mx-auto px-6 sm:px-12 w-full py-10 sm:py-14">
-                <div className="text-white max-w-3xl space-y-3 sm:space-y-4">
-                  <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight tracking-tight text-balance">
-                    {hero.headline}
-                  </h1>
-                  <p className="mt-3 sm:mt-4 text-base sm:text-lg md:text-xl text-white/95 text-pretty font-medium">
-                    {hero.subcopy}
-                  </p>
-                  <p className="mt-4 text-sm sm:text-base md:text-lg text-white/90 max-w-2xl">
-                    {hero.supportingText}
-                  </p>
-                  <div className="mt-6 flex flex-col sm:flex-row gap-3">
-                    <Link
-                      href={heroCtas.primary.href}
-                      className="inline-flex items-center justify-center rounded-full bg-[var(--primary-accent2)] text-white px-6 py-3 text-sm sm:text-base font-medium hover:bg-[var(--primary-accent3)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent2)] focus:ring-offset-2 focus:ring-offset-[var(--primary-background)] transition"
-                    >
-                      {heroCtas.primary.label}
-                      <ArrowRightIcon className="ml-2 h-5 w-5" />
-                    </Link>
-                    <Link
-                      href={heroCtas.secondary.href}
-                      className="inline-flex items-center justify-center rounded-full bg-white/5 text-white px-6 py-3 text-sm sm:text-base font-medium border border-white/20 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/60 focus:ring-offset-2 focus:ring-offset-[var(--primary-background)] transition"
-                    >
-                      {heroCtas.secondary.label}
-                    </Link>
+        {/* Prev / Next */}
+        <button onClick={() => goHero((heroIdx - 1 + 3) % 3)} style={{ position: "absolute", top: "50%", left: 20, transform: "translateY(-50%)", zIndex: 3, width: 40, height: 40, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(245,241,234,.12)", color: "rgba(245,241,234,.85)", cursor: "pointer", border: "1px solid rgba(245,241,234,.18)", transition: "background .2s" }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width={15} height={15}><path d="M15 18l-6-6 6-6" /></svg>
+        </button>
+        <button onClick={() => goHero((heroIdx + 1) % 3)} style={{ position: "absolute", top: "50%", right: 20, transform: "translateY(-50%)", zIndex: 3, width: 40, height: 40, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(245,241,234,.12)", color: "rgba(245,241,234,.85)", cursor: "pointer", border: "1px solid rgba(245,241,234,.18)", transition: "background .2s" }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width={15} height={15}><path d="M9 18l6-6-6-6" /></svg>
+        </button>
+
+        {/* Dots — bottom left */}
+        <div style={{ position: "absolute", bottom: 26, left: 80, zIndex: 3, display: "flex", gap: 5, alignItems: "center" }}>
+          {[0, 1, 2].map(i => (
+            <button key={i} onClick={() => goHero(i)} style={{ width: heroIdx === i ? 26 : 6, height: 6, borderRadius: 999, background: heroIdx === i ? "#f5f1ea" : "rgba(245,241,234,.28)", cursor: "pointer", border: "none", padding: 0, transition: "all .45s cubic-bezier(.4,0,.2,1)" }} />
+          ))}
+        </div>
+      </div>
+
+      {/* ── Main content wrapper ── */}
+      <div className="v6-cw">
+
+        {/* ── Category blocks (overlaps hero) ── */}
+        <div className="v6-cat-grid">
+          {loading
+            ? [...Array(4)].map((_, i) => (
+                <div key={i} className="skel" style={{ borderRadius: 10, height: 192 }} />
+              ))
+            : categoryBlocks.map(block => (
+              <div key={block.title} style={{ background: "#f5f1ea", borderRadius: 10, padding: "12px 14px 14px", border: "1px solid #e8e4dc" }}>
+                <h3 style={{ fontSize: 11, fontWeight: 700, marginBottom: 8, color: "#3e5549", letterSpacing: ".06em", textTransform: "uppercase" }}>{block.title}</h3>
+                <div className="v6-cb-grid">
+                  {block.items.map(item => (
+                    <div key={item.label}>
+                      <div style={{ width: "100%", aspectRatio: "1/1", borderRadius: 7, overflow: "hidden", position: "relative", background: "#ebe7df" }}>
+                        <ProductImg src={item.img} alt={item.label} sizes="80px" />
+                      </div>
+                      <span style={{ display: "block", fontSize: 9.5, fontWeight: 600, color: "#5a7060", marginTop: 3, letterSpacing: ".01em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+                <Link href={block.browseHref} style={{ display: "inline-block", marginTop: 8, fontSize: 10.5, fontWeight: 700, color: "#2d4a3e", textDecoration: "none", letterSpacing: ".02em" }}>
+                  {block.link}
+                </Link>
+              </div>
+            ))}
+        </div>
+
+        {/* ── Best sellers scroll ── */}
+        <SecH title="Best sellers in Grenada" linkText="View all" linkHref="/browse" />
+        <div style={{ position: "relative" }}>
+          <div ref={bestSellersRef} className="v6-prod-scroll">
+            {loading
+              ? [...Array(8)].map((_, i) => (
+                  <div key={i} className="skel" style={{ flex: "0 0 180px", borderRadius: 12, height: 240, flexShrink: 0 }} />
+                ))
+              : bestSellers.map(p => (
+              <Link key={p.id + p.seller.id} href={toProductHref(p)} style={{ flex: "0 0 180px", background: "#f5f1ea", borderRadius: 12, overflow: "hidden", cursor: "pointer", textDecoration: "none", color: "inherit", flexShrink: 0 }}>
+                <div style={{ width: "100%", aspectRatio: "1/1", overflow: "hidden", position: "relative" }}>
+                  <ProductImg src={productImage(p)} alt={p.name} sizes="180px" />
+                </div>
+                <div style={{ padding: "10px 12px 12px" }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#1c2b23", marginBottom: 1 }}>{p.name}</div>
+                  <div style={{ fontSize: 10.5, color: "#8a9e92", marginBottom: 4 }}>{p.seller.name}</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "#2d4a3e" }}>
+                    ${p.current_price.toFixed(2)}{" "}
+                    <span style={{ fontWeight: 400, fontSize: 10, color: "#8a9e92" }}>/{p.unit}</span>
                   </div>
                 </div>
-              </div>
-            </div>
+              </Link>
+            ))}
           </div>
-        </section>
+          <button onClick={() => scrollSect(bestSellersRef, -1)} style={{ position: "absolute", left: -16, top: "50%", transform: "translateY(-50%)", zIndex: 2, width: 34, height: 34, borderRadius: "50%", background: "#fff", border: "1px solid #ebe7df", boxShadow: "0 2px 8px rgba(28,43,35,.1)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#3e5549" }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" width={14} height={14}><path d="M15 18l-6-6 6-6" /></svg>
+          </button>
+          <button onClick={() => scrollSect(bestSellersRef, 1)} style={{ position: "absolute", right: -16, top: "50%", transform: "translateY(-50%)", zIndex: 2, width: 34, height: 34, borderRadius: "50%", background: "#fff", border: "1px solid #ebe7df", boxShadow: "0 2px 8px rgba(28,43,35,.1)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#3e5549" }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" width={14} height={14}><path d="M9 18l6-6-6-6" /></svg>
+          </button>
+        </div>
 
-        {/* Trust strip: calm, values-based */}
-        <section className="bg-[var(--secondary-soft-highlight)]/15 py-6">
-          <div className="max-w-[1280px] mx-auto px-6">
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 text-sm sm:text-base text-[var(--secondary-muted-edge)] justify-start sm:justify-center">
-              <span className="inline-flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-[var(--secondary-muted-edge)]" />
-                Live listings • Grenada
-              </span>
-              <span className="inline-flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-[var(--secondary-muted-edge)]" />
-                Region-first approach
-              </span>
-              <span className="inline-flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-[var(--secondary-muted-edge)]" />
-                Verified suppliers & transparent sourcing
-              </span>
-            </div>
-          </div>
-        </section>
-
-        {/* Featured sellers + featured products */}
-        <section className="py-14 sm:py-16 bg-white border-t border-[var(--secondary-soft-highlight)]/40">
-          <div className="max-w-[1280px] mx-auto px-6">
-            <div className="flex items-end justify-between gap-4 mb-6">
-              <div>
-                <h2 className="text-2xl sm:text-3xl font-semibold text-[var(--secondary-black)] tracking-tight">
-                  Featured sellers in Grenada
-                </h2>
+        {/* ── Meet the farmers ── */}
+        <SecH title="Meet the farmers" linkText="All sellers" linkHref="/sellers" />
+        <div className="v6-seller-grid">
+          {loading
+            ? [...Array(4)].map((_, i) => (
+                <div key={i} className="skel" style={{ borderRadius: 12, height: 200 }} />
+              ))
+            : popularSellers.map((s: LandingSeller, idx: number) => (
+            <Link key={s.id} href={`/sellers/${s.id}`} style={{ background: "#f5f1ea", borderRadius: 12, overflow: "hidden", cursor: "pointer", textDecoration: "none", color: "inherit", display: "block" }}>
+              {/* Cover — use seller's own header image, fall back to static covers */}
+              <div style={{ width: "100%", height: 100, position: "relative" }}>
+                <Image
+                  src={s.header_image_url || SELLER_COVERS[idx % SELLER_COVERS.length]}
+                  alt={s.name}
+                  fill
+                  className="object-cover"
+                  sizes="300px"
+                />
               </div>
-              <Link
-                href="/marketplace"
-                className="text-sm font-medium text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)]"
-              >
-                Explore marketplace →
+              <div style={{ padding: "0 16px 16px", position: "relative" }}>
+                {/* Avatar — logo if available, else coloured initial */}
+                <div style={{ width: 48, height: 48, borderRadius: 12, marginTop: -24, border: "3px solid #f5f1ea", position: "relative", zIndex: 1, background: selColor(s.name), flexShrink: 0, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {s.logo_url ? (
+                    <Image src={s.logo_url} alt={s.name} width={48} height={48} style={{ objectFit: "cover", width: "100%", height: "100%" }} />
+                  ) : (
+                    <span style={{ fontSize: 18, fontWeight: 700, color: "#f5f1ea" }}>{s.name.charAt(0)}</span>
+                  )}
+                </div>
+                <div style={{ fontSize: 15, fontWeight: 700, marginTop: 8, color: "#1c2b23" }}>{s.name}</div>
+                <div style={{ fontSize: 11, color: "#8a9e92", marginBottom: 10 }}>{s.location || "Grenada"}</div>
+                <div style={{ fontSize: 11.5, color: "#6a7f73", lineHeight: 1.4, marginBottom: 10 }}>
+                  {s.completed_orders != null ? `${s.completed_orders} orders completed` : "Verified supplier on Procur"}
+                </div>
+                <div style={{ display: "flex", gap: 14 }}>
+                  {s.average_rating != null && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <svg viewBox="0 0 24 24" fill="#d4783c" width={12} height={12}><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" /></svg>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: "#3e5549" }}>{s.average_rating.toFixed(1)}</span>
+                    </div>
+                  )}
+                  {s.review_count != null && (
+                    <span style={{ fontSize: 11, color: "#8a9e92" }}>{s.review_count} reviews</span>
+                  )}
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+
+        {/* ── Testimonials ── */}
+        <SecH title="What buyers & sellers say" />
+        <div style={{ position: "relative" }}>
+          <div ref={testimonialsRef} style={{ display: "flex", gap: 12, overflowX: "auto", scrollSnapType: "x mandatory", scrollbarWidth: "none", paddingBottom: 4 }}>
+            {TESTIMONIALS.map((t, i) => (
+              <div key={i} style={{ flex: "0 0 300px", background: "#f5f1ea", borderRadius: 14, padding: "22px 22px 20px", display: "flex", flexDirection: "column", scrollSnapAlign: "start" }}>
+                <div style={{ fontSize: 36, lineHeight: .9, color: "#2d4a3e", opacity: .2, fontFamily: "Georgia, 'Times New Roman', serif", marginBottom: 8, userSelect: "none" }}>&ldquo;</div>
+                <p style={{ fontSize: 13.5, fontWeight: 500, lineHeight: 1.6, color: "#1c2b23", flex: 1, margin: 0 }}>
+                  {t.quote}
+                </p>
+                <div style={{ marginTop: 18, display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 10 }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#1c2b23" }}>{t.name}</div>
+                    <div style={{ fontSize: 11, color: "#8a9e92", marginTop: 2 }}>
+                      {"farm" in t ? (t as typeof t & { farm: string }).farm : t.location}
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: "#2d4a3e", background: "rgba(45,74,62,.1)", borderRadius: 999, padding: "4px 10px", whiteSpace: "nowrap", flexShrink: 0 }}>{t.role}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <button onClick={() => scrollSect(testimonialsRef, -1)} style={{ position: "absolute", left: -16, top: "50%", transform: "translateY(-50%)", zIndex: 2, width: 34, height: 34, borderRadius: "50%", background: "#fff", border: "1px solid #ebe7df", boxShadow: "0 2px 8px rgba(28,43,35,.1)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#3e5549" }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" width={14} height={14}><path d="M15 18l-6-6 6-6" /></svg>
+          </button>
+          <button onClick={() => scrollSect(testimonialsRef, 1)} style={{ position: "absolute", right: -16, top: "50%", transform: "translateY(-50%)", zIndex: 2, width: 34, height: 34, borderRadius: "50%", background: "#fff", border: "1px solid #ebe7df", boxShadow: "0 2px 8px rgba(28,43,35,.1)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#3e5549" }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" width={14} height={14}><path d="M9 18l6-6-6-6" /></svg>
+          </button>
+        </div>
+
+        {/* ── Pre-footer CTA ── */}
+        <div style={{ margin: "56px 0 8px", background: "#2d4a3e", borderRadius: 18, padding: "60px 52px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 24 }}>
+          <div>
+            <h2 style={{ fontSize: 22, fontWeight: 700, color: "#f5f1ea", marginBottom: 6, letterSpacing: "-.2px" }}>Ready to buy fresh produce?</h2>
+            <p style={{ fontSize: 13, color: "rgba(245,241,234,.55)", lineHeight: 1.55, margin: 0 }}>Source directly from verified Grenadian farms at fair, transparent prices.</p>
+          </div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <Link href="/browse" style={{ padding: "11px 26px", background: "#f5f1ea", color: "#1c2b23", fontSize: 13, fontWeight: 700, borderRadius: 999, textDecoration: "none" }}>
+              Browse Produce
+            </Link>
+            <Link href="/signup?accountType=seller" style={{ padding: "11px 26px", background: "transparent", border: "1px solid rgba(245,241,234,.25)", color: "#f5f1ea", fontSize: 13, fontWeight: 600, borderRadius: 999, textDecoration: "none" }}>
+              Become a Supplier
+            </Link>
+          </div>
+        </div>
+
+      </div>{/* end v6-cw */}
+
+      {/* ── Footer ── */}
+      <footer style={{ background: "#0a0a0a", color: "#f5f1ea" }}>
+        <div style={{ maxWidth: 1300, margin: "0 auto", padding: "0 20px" }}>
+
+          <div style={{ padding: "80px 0 64px" }}>
+            <h2 style={{ fontSize: 40, fontWeight: 700, lineHeight: 1.15, maxWidth: 520, marginBottom: 16, letterSpacing: "-.5px", color: "#f5f1ea" }}>
+              Building stronger food systems across the Caribbean and beyond.
+            </h2>
+            <p style={{ fontSize: 14, color: "rgba(245,241,234,.65)", maxWidth: 440, lineHeight: 1.65, marginBottom: 28, margin: "0 0 28px 0" }}>
+              Procur connects buyers directly with verified farmers: transparent pricing, reliable supply, and produce that&apos;s never more than a day from harvest.
+            </p>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <Link href="/signup?accountType=buyer" style={{ padding: "12px 28px", background: "#f5f1ea", color: "#1c2b23", fontSize: 13, fontWeight: 700, borderRadius: 999, textDecoration: "none" }}>
+                Start buying
+              </Link>
+              <Link href="/signup?accountType=seller" style={{ padding: "12px 28px", background: "transparent", color: "#f5f1ea", fontSize: 13, fontWeight: 600, borderRadius: 999, border: "1px solid rgba(245,241,234,.2)", textDecoration: "none" }}>
+                Become a supplier
               </Link>
             </div>
+          </div>
 
-            {marketplaceLoading && (
-              <div className="py-8">
-                <ProcurLoader size="sm" text="Loading featured sellers..." />
-              </div>
-            )}
+          <div style={{ height: 1, background: "rgba(245,241,234,.08)" }} />
 
-            {!marketplaceLoading && featured.featuredSellers.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                {featured.featuredSellers.slice(0, 8).map((s) => (
-                  <Link
-                    key={s.id}
-                    href={`/sellers/${s.id}`}
-                    className="group rounded-2xl border border-black/5 bg-white p-5 shadow-[0_12px_32px_rgba(15,23,42,0.06)] hover:shadow-[0_18px_44px_rgba(15,23,42,0.10)] hover:border-[var(--primary-accent2)]/40 transition-all"
-                  >
-                    <div className="flex items-start gap-3">
-                      <SupplierAvatar
-                        name={s.name}
-                        imageUrl={s.logo_url}
-                        size="md"
-                        className="ring-1 ring-black/10"
-                      />
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-[var(--secondary-black)] leading-tight line-clamp-2 group-hover:text-[var(--primary-accent2)] transition-colors">
-                            {s.name}
-                          </h3>
-                          {s.is_verified && (
-                            <CheckBadgeIcon className="h-5 w-5 text-[var(--primary-accent2)] flex-shrink-0" />
-                          )}
-                        </div>
-                        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--secondary-muted-edge)]">
-                          <span className="inline-flex items-center gap-1">
-                            <MapPinIcon className="h-4 w-4" />
-                            {s.location || "Grenada"}
-                          </span>
-                          {typeof s.average_rating === "number" &&
-                            s.average_rating > 0 && (
-                              <span className="inline-flex items-center gap-1">
-                                <StarIconSolid className="h-4 w-4 text-yellow-400" />
-                                <span className="font-medium text-[var(--secondary-black)]">
-                                  {s.average_rating.toFixed(1)}
-                                </span>
-                                {typeof s.review_count === "number" &&
-                                  s.review_count > 0 && (
-                                    <span className="text-[var(--secondary-muted-edge)]">
-                                      ({s.review_count})
-                                    </span>
-                                  )}
-                              </span>
-                            )}
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
+          <div style={{ display: "flex", gap: 60, padding: "48px 0 40px" }}>
+            <div style={{ flexShrink: 0, width: 240 }}>
+              <Image src="/images/logos/procur-logo.svg" alt="Procur" width={80} height={21} style={{ filter: "brightness(0) invert(1)", opacity: 0.75 }} />
+              <p style={{ fontSize: 12, color: "rgba(245,241,234,.55)", lineHeight: 1.65, marginTop: 16, marginBottom: 0 }}>
+                Procur is Grenada&apos;s agricultural marketplace, purpose-built to shorten supply chains and strengthen local food economies.
+              </p>
+              <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
+                {[
+                  <svg key="x" viewBox="0 0 24 24" fill="currentColor" width={14} height={14}><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.65l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>,
+                  <svg key="ig" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width={14} height={14}><rect x="2" y="2" width="20" height="20" rx="5" /><circle cx="12" cy="12" r="4.5" /><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" /></svg>,
+                  <svg key="li" viewBox="0 0 24 24" fill="currentColor" width={14} height={14}><path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z" /><circle cx="4" cy="4" r="2" /></svg>,
+                  <svg key="fb" viewBox="0 0 24 24" fill="currentColor" width={14} height={14}><path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z" /></svg>,
+                ].map((icon, i) => (
+                  <a key={i} href="#" style={{ width: 34, height: 34, borderRadius: 8, border: "1px solid rgba(245,241,234,.2)", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(245,241,234,.55)", textDecoration: "none" }}>
+                    {icon}
+                  </a>
                 ))}
               </div>
-            )}
-
-            {!marketplaceLoading && featured.featuredSellers.length === 0 && (
-              <div className="text-sm text-[var(--secondary-muted-edge)] py-8 rounded-2xl border border-dashed border-[var(--secondary-soft-highlight)]/60 px-4">
-                No featured sellers yet — check back soon.
-              </div>
-            )}
-
-            <div className="mt-14 sm:mt-16 flex items-end justify-between gap-4 mb-6">
-              <div>
-                <h2 className="text-2xl sm:text-3xl font-semibold text-[var(--secondary-black)] tracking-tight">
-                  Featured products
-            </h2>
-                <p className="mt-2 text-[var(--secondary-muted-edge)] text-sm sm:text-base">
-                  Popular items from active sellers in Grenada.
-                </p>
-              </div>
-              <Link
-                href="/marketplace"
-                className="text-sm font-medium text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)]"
-              >
-                Shop all →
-              </Link>
             </div>
 
-            {marketplaceLoading && (
-              <div className="py-8">
-                <ProcurLoader size="sm" text="Loading featured products..." />
-              </div>
-            )}
-
-            {!marketplaceLoading && featured.featuredProducts.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {featured.featuredProducts.slice(0, 8).map((p) => {
-                  const countrySlug = createCountrySlug(p.seller.location);
-                  const productSlug = createProductSlug(p.name, p.id);
-                  const productHref = `/products/${countrySlug}/${productSlug}`;
-                  const image =
-                    p.image_url ||
-                    "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg";
-
-                  return (
-                    <Link
-                      key={p.id}
-                      href={productHref}
-                      className="bg-white rounded-2xl border border-[var(--secondary-soft-highlight)]/60 overflow-hidden hover:shadow-lg transition-all duration-300 group"
-                    >
-                      <div className="relative h-44">
-                        <Image
-                          src={image}
-                          alt={p.name}
-                          fill
-                          className="object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                      </div>
-                      <div className="p-4">
-                        <h3 className="font-semibold text-[var(--secondary-black)] mb-1 group-hover:text-[var(--primary-accent2)] transition-colors line-clamp-2">
-                          {p.name}
-                        </h3>
-
-                        <div className="flex items-center gap-2 mb-2">
-                          <SupplierAvatar
-                            name={p.seller.name}
-                            imageUrl={p.seller.logo_url}
-                            size="xs"
-                            className="ring-1 ring-black/5"
-                          />
-                          <span className="text-xs text-[var(--secondary-muted-edge)] line-clamp-1">
-                            {p.seller.name}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center justify-between gap-3 mb-2">
-                          <span className="text-lg font-bold text-[var(--secondary-black)]">
-                            ${p.current_price.toFixed(2)}
-                          </span>
-                          <span className="inline-flex items-center gap-1 text-xs text-[var(--secondary-muted-edge)]">
-                            <MapPinIcon className="h-4 w-4" />
-                            {p.seller.location || "Grenada"}
-                </span>
-                        </div>
-
-                        <div className="flex items-center gap-1 text-sm">
-                          <StarIconSolid className="h-4 w-4 text-yellow-400" />
-                          <span className="font-medium text-[var(--secondary-black)]">
-                            {(p.average_rating ?? 0).toFixed(1)}
-                </span>
-                          <span className="text-xs text-[var(--secondary-muted-edge)]">
-                            • {p.category}
-                </span>
-                        </div>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-
-            {!marketplaceLoading && featured.featuredProducts.length === 0 && (
-              <div className="text-sm text-[var(--secondary-muted-edge)] py-8 rounded-2xl border border-dashed border-[var(--secondary-soft-highlight)]/60 px-4">
-                No featured products yet — check back soon.
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* Live stats */}
-        <section className="py-14 sm:py-16 bg-white border-t border-[var(--secondary-soft-highlight)]/40">
-          <div className="max-w-[1280px] mx-auto px-6">
-            <div className="flex items-end justify-between gap-4 mb-6">
-              <div>
-                <h2 className="text-2xl sm:text-3xl font-semibold text-[var(--secondary-black)] tracking-tight">
-                  Live marketplace stats (Grenada)
-            </h2>
-                <p className="mt-2 text-[var(--secondary-muted-edge)] text-sm sm:text-base">
-                  A quick snapshot of what&apos;s available right now.
-                </p>
-              </div>
-              <Link
-                href="/marketplace"
-                className="text-sm font-medium text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)]"
-              >
-                Browse listings →
-              </Link>
-            </div>
-
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div style={{ flex: 1, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20 }}>
               {[
-                {
-                  label: "Active products",
-                  value:
-                    marketplaceProductTotal > 0
-                      ? marketplaceProductTotal.toLocaleString()
-                      : marketplaceProducts.length.toLocaleString(),
-                },
-                {
-                  label: "Active sellers",
-                  value: marketplaceSellerTotal.toLocaleString(),
-                },
-                {
-                  label: "Verified sellers",
-                  value: marketplaceVerifiedSellerTotal.toLocaleString(),
-                },
-                {
-                  label: "Categories",
-                  value: marketplaceCategoryCount.toLocaleString(),
-                },
-              ].map((s) => (
-                <div
-                  key={s.label}
-                  className="rounded-2xl border border-black/5 bg-white p-5 shadow-[0_12px_32px_rgba(15,23,42,0.06)]"
-                >
-                  <div className="text-2xl sm:text-3xl font-semibold text-[var(--secondary-black)] tracking-tight">
-                    {marketplaceLoading ? "—" : s.value}
-                  </div>
-                  <div className="mt-1 text-xs sm:text-sm text-[var(--secondary-muted-edge)]">
-                    {s.label}
-                  </div>
+                { title: "Platform", links: [{ label: "Browse Produce", href: "/browse" }, { label: "For Suppliers", href: "/signup?accountType=seller" }, { label: "For Buyers", href: "/signup?accountType=buyer" }, { label: "Log in", href: "/login" }] },
+                { title: "Solutions", links: [{ label: "Restaurants", href: "/solutions/restaurants" }, { label: "Hotels", href: "/solutions/hotels" }, { label: "Grocery", href: "/solutions/grocery" }, { label: "Government", href: "/solutions/government" }, { label: "Agriculture", href: "/solutions/agriculture" }] },
+                { title: "Company", links: [{ label: "About Procur", href: "/company/about" }, { label: "Newsroom", href: "/newsroom" }, { label: "Contact", href: "/company/contact" }] },
+                { title: "Resources", links: [{ label: "Help Center", href: "/help" }, { label: "FAQ", href: "/help/faq" }, { label: "Blog", href: "/newsroom" }, { label: "Supplier Guide", href: "/supplier-guide" }, { label: "Buyer Guide", href: "/buyer-guide" }] },
+              ].map(col => (
+                <div key={col.title}>
+                  <h5 style={{ fontSize: 10, fontWeight: 700, color: "rgba(245,241,234,.5)", marginBottom: 14, letterSpacing: ".08em", textTransform: "uppercase" }}>{col.title}</h5>
+                  <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                    {col.links.map(link => (
+                      <li key={link.label} style={{ marginBottom: 8 }}>
+                        <Link href={link.href} style={{ fontSize: 12.5, color: "rgba(245,241,234,.55)", textDecoration: "none" }}>{link.label}</Link>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               ))}
             </div>
           </div>
-        </section>
 
-        {/* Testimonials */}
-        <section className="py-14 sm:py-16 bg-[var(--primary-background)] border-t border-[var(--secondary-soft-highlight)]/40">
-          <div className="max-w-[1280px] mx-auto px-6">
-            <div className="flex items-end justify-between gap-4 mb-6">
-              <div>
-                <h2 className="text-2xl sm:text-3xl font-semibold text-[var(--secondary-black)] tracking-tight">
-                  What farmers say about Procur
-                </h2>
-                <p className="mt-2 text-[var(--secondary-muted-edge)] text-sm sm:text-base">
-                  Feedback from suppliers using Procur to showcase inventory and
-                  win repeat buyers.
-                </p>
-              </div>
-              <Link
-                href="/signup?accountType=seller&step=business"
-                className="text-sm font-medium text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)]"
-              >
-                Become a supplier →
-              </Link>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[
-                {
-                  quote:
-                    "Greeting unto all , I'm very pleased to be working with this procurement platform excellent venture , accessing , collecting and delivering far more convient for farmers , excelent service . Keep on procuring .. .",
-                  name: "Jude Durham",
-                  org: "Samaritan Farm",
-                },
-              ].map((t, idx) => (
-                <div
-                  key={idx}
-                  className="rounded-2xl border border-black/5 bg-white p-6 shadow-[0_12px_32px_rgba(15,23,42,0.06)]"
-                >
-                  <div className="text-sm sm:text-base text-[var(--secondary-black)]/90 leading-relaxed">
-                    “{t.quote}”
-                  </div>
-                  <div className="mt-5 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[var(--primary-accent2)]/10 flex items-center justify-center text-sm font-semibold text-[var(--primary-accent2)]">
-                      {String(t.name || "F").trim().charAt(0).toUpperCase()}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-sm font-semibold text-[var(--secondary-black)]">
-                        {t.name}
-                      </div>
-                      <div className="text-xs text-[var(--secondary-muted-edge)]">
-                        {t.org}
-              </div>
-              </div>
-              </div>
-              </div>
+          <div style={{ paddingTop: 18, paddingBottom: 28, borderTop: "1px solid rgba(245,241,234,.1)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <p style={{ fontSize: 11, color: "rgba(245,241,234,.35)", margin: 0 }}>&copy; 2026 Procur Grenada Ltd. All rights reserved.</p>
+            <div style={{ display: "flex", gap: 16 }}>
+              {[{ label: "Privacy", href: "/legal/privacy" }, { label: "Terms", href: "/legal/terms" }, { label: "Cookies", href: "/legal/cookies" }, { label: "Accessibility", href: "/accessibility" }].map(l => (
+                <Link key={l.label} href={l.href} style={{ fontSize: 11, color: "rgba(245,241,234,.35)", textDecoration: "none" }}>{l.label}</Link>
               ))}
             </div>
           </div>
-        </section>
 
-        {/* How it works */}
-        <section
-          id="how-it-works"
-          className="py-16 sm:py-20 bg-white border-t border-[var(--secondary-soft-highlight)]/40"
-          ref={(node) => {
-            howItWorksRef.current = node;
-          }}
-        >
-          <div className="max-w-[960px] mx-auto px-6">
-            <h2 className="text-3xl md:text-4xl font-light text-[var(--secondary-black)] tracking-tight">
-              How Procur works
-            </h2>
-            <p className="mt-4 text-[var(--secondary-muted-edge)] text-base sm:text-lg leading-relaxed">
-              A clear, intentional workflow to help buyers and suppliers trade
-              reliably — from discovery to repeat orders.
-            </p>
+        </div>
+      </footer>
 
-            {/* One-line stepper + animated journey */}
-            <div className="mt-10">
-              <div className="relative">
-                {/* Track */}
-                <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[2px] bg-black/5 rounded-full" />
-                {/* Progress */}
-                <div
-                  className="absolute left-0 top-1/2 -translate-y-1/2 h-[2px] bg-[var(--primary-accent2)] rounded-full transition-all duration-700 ease-out"
-                  style={{
-                    width:
-                      howSteps.length <= 1
-                        ? "0%"
-                        : `${(activeHowStep / (howSteps.length - 1)) * 100}%`,
-                  }}
-                />
-
-                <div className="relative grid grid-cols-3 gap-2">
-                  {howSteps.map((step, idx) => {
-                    const isActive = idx === activeHowStep;
-                    const isDone = idx < activeHowStep;
-                    return (
-                      <button
-                        key={step.title}
-                        type="button"
-                        onClick={() => setActiveHowStep(idx)}
-                        className="group flex flex-col items-center text-left"
-                        aria-current={isActive ? "step" : undefined}
-                      >
-                        <div
-                          className={[
-                            "relative flex items-center justify-center rounded-full",
-                            "w-10 h-10 sm:w-11 sm:h-11",
-                            "border",
-                            isActive || isDone
-                              ? "border-[var(--primary-accent2)] bg-[var(--primary-accent2)] text-white"
-                              : "border-black/10 bg-white text-[var(--secondary-muted-edge)]",
-                            "shadow-[0_10px_24px_rgba(15,23,42,0.10)]",
-                            "transition-all duration-300",
-                            "group-hover:scale-[1.03]",
-                          ].join(" ")}
-                        >
-                          <span className="text-sm font-semibold">
-                            {idx + 1}
-                          </span>
-                          {isActive && !prefersReducedMotion && (
-                            <span className="absolute inset-0 rounded-full ring-8 ring-[var(--primary-accent2)]/10 animate-pulse" />
-                          )}
-                        </div>
-
-                        <div className="mt-3 text-sm sm:text-base font-semibold text-[var(--secondary-black)]">
-                          {step.title}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Step detail (animated) */}
-              <div className="mt-7 rounded-2xl border border-black/5 bg-white p-6 shadow-[0_14px_36px_rgba(15,23,42,0.07)]">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <div className="text-xs uppercase tracking-[0.18em] text-[var(--secondary-muted-edge)]">
-                      Step {activeHowStep + 1} of {howSteps.length}
-                    </div>
-                    <div
-                      className={[
-                        "mt-2 text-lg sm:text-xl font-semibold text-[var(--secondary-black)]",
-                        "transition-all duration-500",
-                      ].join(" ")}
-                      key={`title-${activeHowStep}`}
-                    >
-                      {howSteps[activeHowStep]?.title}
-                </div>
-                    <div
-                      className="mt-2 text-sm sm:text-base text-[var(--secondary-muted-edge)] leading-relaxed transition-all duration-500"
-                      key={`desc-${activeHowStep}`}
-                    >
-                      {howSteps[activeHowStep]?.description}
-                    </div>
-                  </div>
-
-                  {/* subtle "journey" chevron */}
-                  <div className="hidden sm:flex items-center gap-2 text-[var(--secondary-muted-edge)]">
-                    <span className="inline-block w-10 h-[2px] bg-black/5 rounded-full" />
-                    <span className="text-xs">Journey</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Buyer testimonials */}
-        <section className="py-14 sm:py-16 bg-[var(--primary-background)] border-t border-[var(--secondary-soft-highlight)]/40">
-          <div className="max-w-[1280px] mx-auto px-6">
-            <div className="flex items-end justify-between gap-4 mb-6">
-                <div>
-                <h2 className="text-2xl sm:text-3xl font-semibold text-[var(--secondary-black)] tracking-tight">
-                  What buyers say about Procur
-                </h2>
-                <p className="mt-2 text-[var(--secondary-muted-edge)] text-sm sm:text-base">
-                  Trusted discovery, fast supplier connection, and reliable repeat
-                  orders.
-                  </p>
-                </div>
-              <Link
-                href="/signup?accountType=buyer&step=business"
-                className="text-sm font-medium text-[var(--primary-accent2)] hover:text-[var(--primary-accent3)]"
-              >
-                Create a buyer account →
-              </Link>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[
-                {
-                  quote:
-                    "We received several products and were very pleased with the overall experience. Everything arrived in a timely manner, and the customer service was responsive and professional throughout the process. Communication was clear, and the service met our expectations. We would definitely recommend and look forward to ordering again.",
-                  name: "Brown Girl Cafe",
-                  org: "Buyer",
-                },
-              ].map((t, idx) => (
-                <div
-                  key={idx}
-                  className="rounded-2xl border border-black/5 bg-white p-6 shadow-[0_12px_32px_rgba(15,23,42,0.06)]"
-                >
-                  <div className="text-sm sm:text-base text-[var(--secondary-black)]/90 leading-relaxed">
-                    “{t.quote}”
-                  </div>
-                  <div className="mt-5 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[var(--primary-accent2)]/10 flex items-center justify-center text-sm font-semibold text-[var(--primary-accent2)]">
-                      {String(t.name || "B").trim().charAt(0).toUpperCase()}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-sm font-semibold text-[var(--secondary-black)]">
-                        {t.name}
-                      </div>
-                      <div className="text-xs text-[var(--secondary-muted-edge)]">
-                        {t.org}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-                </div>
-          </div>
-        </section>
-
-        {/* End-cap CTA */}
-        <section className="py-14 sm:py-16 border-t border-[var(--secondary-soft-highlight)]/40 bg-white">
-          <div className="max-w-[1280px] mx-auto px-6">
-            <div className="relative overflow-hidden rounded-3xl border border-black/5 bg-gradient-to-r from-[var(--primary-accent2)] to-[var(--primary-accent3)] text-white px-7 sm:px-10 py-10 sm:py-12 shadow-[0_18px_44px_rgba(15,23,42,0.10)]">
-              <div className="max-w-3xl">
-                <h2 className="text-2xl sm:text-3xl md:text-4xl font-semibold tracking-tight">
-                  Ready to buy fresh produce in Grenada?
-              </h2>
-                <p className="mt-3 text-sm sm:text-base text-white/90 leading-relaxed">
-                  Explore live listings, connect directly with suppliers, and
-                  place repeat orders with confidence.
-                </p>
-              </div>
-
-              <div className="mt-7 flex flex-col sm:flex-row gap-3 sm:items-center">
-                <Link
-                  href={
-                    user?.accountType === "buyer"
-                      ? "/buyer"
-                      : user?.accountType === "seller"
-                        ? "/marketplace"
-                        : "/marketplace"
-                  }
-                  className="inline-flex items-center justify-center rounded-full bg-white text-[var(--primary-accent2)] px-6 py-3 text-sm sm:text-base font-semibold hover:bg-white/95 transition"
-                >
-                  {user?.accountType === "buyer"
-                    ? "Go to my dashboard"
-                    : "Buy Fresh Produce"}
-                  <ArrowRightIcon className="ml-2 h-5 w-5" />
-                </Link>
-
-                <Link
-                  href={
-                    user?.accountType === "seller"
-                      ? "/seller"
-                      : "/signup?accountType=seller&step=business"
-                  }
-                  className="inline-flex items-center justify-center rounded-full border border-white/70 bg-white/10 text-white px-6 py-3 text-sm sm:text-base font-semibold hover:bg-white/15 transition"
-                >
-                  {user?.accountType === "seller"
-                    ? "Manage my store"
-                    : "Become a Supplier"}
-                </Link>
-              </div>
-
-              <div className="pointer-events-none absolute -right-16 -bottom-20 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
-            </div>
-          </div>
-        </section>
-      </main>
-
-      {/* Keep existing footer */}
-      <Footer />
     </div>
   );
 }

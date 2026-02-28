@@ -2,14 +2,165 @@
 
 import React, { useState, useEffect, Suspense } from "react";
 import Image from "next/image";
-import TopNavigation from "@/components/navigation/TopNavigation";
-import Footer from "@/components/footer/Footer";
-import { ShoppingCartIcon, TagIcon } from "@heroicons/react/24/outline";
+import Link from "next/link";
 import { useAppDispatch } from "@/store";
 import { signup as signupThunk } from "@/store/slices/authSlice";
 import { useRouter } from "next/navigation";
 import ProcurLoader from "@/components/ProcurLoader";
 import ReCAPTCHA from "react-google-recaptcha";
+
+const INPUT: React.CSSProperties = {
+  width: "100%",
+  padding: "13px 16px",
+  border: "1px solid #d8d2c8",
+  borderRadius: 10,
+  fontSize: 14,
+  color: "#1c2b23",
+  background: "#fff",
+  outline: "none",
+  fontFamily: "inherit",
+  boxSizing: "border-box",
+};
+
+const SELECT: React.CSSProperties = {
+  ...INPUT,
+  appearance: "none",
+  WebkitAppearance: "none",
+  cursor: "pointer",
+};
+
+function btn(disabled?: boolean): React.CSSProperties {
+  return {
+    width: "100%",
+    padding: "14px",
+    background: disabled ? "#8a9e92" : "#2d4a3e",
+    color: "#f5f1ea",
+    fontSize: 14,
+    fontWeight: 700,
+    borderRadius: 999,
+    border: "none",
+    cursor: disabled ? "not-allowed" : "pointer",
+    fontFamily: "inherit",
+    transition: "background .2s",
+  };
+}
+
+type AuthError = { title: string; hint: string };
+
+function toSignupError(raw: unknown): AuthError {
+  const s = typeof raw === "string" ? raw.toLowerCase() : "";
+  if (
+    s.includes("network") ||
+    s.includes("fetch") ||
+    s.includes("econnrefused")
+  )
+    return {
+      title: "Connection problem",
+      hint: "Check your internet and try again.",
+    };
+  if (
+    s.includes("exists") ||
+    s.includes("duplicate") ||
+    s.includes("already") ||
+    s.includes("registered")
+  )
+    return {
+      title: "Email already in use",
+      hint: "An account with this email already exists. Try signing in instead.",
+    };
+  if (s.includes("password"))
+    return {
+      title: "Password doesn't meet requirements",
+      hint: "Use at least 8 characters with a mix of letters and numbers.",
+    };
+  if (s.includes("captcha") || s.includes("bot") || s.includes("recaptcha"))
+    return {
+      title: "Bot verification failed",
+      hint: "Complete the CAPTCHA challenge and try again.",
+    };
+  if (s.includes("email") && (s.includes("invalid") || s.includes("format")))
+    return {
+      title: "Invalid email address",
+      hint: "Check your email address and try again.",
+    };
+  if (s.includes("rate") || s.includes("too many") || s.includes("429"))
+    return {
+      title: "Too many attempts",
+      hint: "Wait a few minutes before trying again.",
+    };
+  return {
+    title: "Couldn't create your account",
+    hint: "Check your details and try again. Contact support if the issue persists.",
+  };
+}
+
+const ACCOUNT_TYPES = [
+  {
+    value: "buyer",
+    label: "Buyer",
+    description: "Discover suppliers and request quotes",
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        width={22}
+        height={22}
+      >
+        <circle cx="9" cy="21" r="1" />
+        <circle cx="20" cy="21" r="1" />
+        <path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6" />
+      </svg>
+    ),
+  },
+  {
+    value: "seller",
+    label: "Seller",
+    description: "List products and manage orders",
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        width={22}
+        height={22}
+      >
+        <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" />
+        <line x1="7" y1="7" x2="7.01" y2="7" />
+      </svg>
+    ),
+  },
+];
+
+const BUSINESS_TYPES: Record<string, { value: string; label: string }[]> = {
+  buyer: [
+    { value: "general", label: "General" },
+    { value: "hotels", label: "Hotels" },
+    { value: "restaurants", label: "Restaurants" },
+    { value: "supermarkets", label: "Supermarkets" },
+    { value: "exporters", label: "Exporters" },
+  ],
+  seller: [
+    { value: "general", label: "General" },
+    { value: "farmers", label: "Farmers" },
+    { value: "manufacturers", label: "Manufacturers" },
+    { value: "fishermen", label: "Fishermen" },
+  ],
+};
+
+const COUNTRIES = [
+  "Grenada",
+  "St. Vincent",
+  "Trinidad & Tobago",
+  "Barbados",
+  "St. Lucia",
+  "Panama",
+  "Colombia",
+];
 
 const SignUpPage: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -25,53 +176,43 @@ const SignUpPage: React.FC = () => {
   });
   const [step, setStep] = useState<1 | 2>(1);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<AuthError | null>(null);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const dispatch = useAppDispatch();
   const router = useRouter();
 
-  // Prefill from query params (used by home page CTAs)
   useEffect(() => {
     if (typeof window === "undefined") return;
-
     const params = new URLSearchParams(window.location.search);
     const accountTypeParam = params.get("accountType");
     const stepParam = params.get("step");
-
     if (accountTypeParam === "seller" || accountTypeParam === "buyer") {
-      setFormData((prev) => ({
-        ...prev,
-        accountType: accountTypeParam,
-      }));
+      setFormData((prev) => ({ ...prev, accountType: accountTypeParam }));
     }
-
-    if (stepParam === "business") {
-      setStep(2);
-    }
+    if (stepParam === "business") setStep(2);
   }, []);
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleAccountTypeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      accountType: value,
+      accountType: e.target.value,
       businessType: "",
     }));
   };
 
   const goToNextStep = () => {
     if (!formData.accountType) {
-      setError("Please select an account type to continue.");
+      setError({
+        title: "Account type required",
+        hint: "Select whether you're a buyer or supplier to continue.",
+      });
       return;
     }
     setError(null);
@@ -82,30 +223,36 @@ const SignUpPage: React.FC = () => {
     e.preventDefault();
     setError(null);
     if (!captchaToken) {
-      setError("Please complete the bot verification.");
+      setError({
+        title: "Bot verification needed",
+        hint: "Complete the CAPTCHA challenge before creating your account.",
+      });
       return;
     }
-
     setIsLoading(true);
     try {
-      // Require business type for buyer/seller
       if (
         (formData.accountType === "buyer" ||
           formData.accountType === "seller") &&
         !formData.businessType
       ) {
         setIsLoading(false);
-        setError("Please select your business type.");
+        setError({
+          title: "Business type required",
+          hint: "Select your business type from the dropdown to continue.",
+        });
         return;
       }
-      // Require business name for buyer/seller
       if (
         (formData.accountType === "buyer" ||
           formData.accountType === "seller") &&
         !formData.businessName
       ) {
         setIsLoading(false);
-        setError("Please enter your business name.");
+        setError({
+          title: "Business name required",
+          hint: "Enter your business or organisation name to continue.",
+        });
         return;
       }
       await dispatch(
@@ -128,312 +275,502 @@ const SignUpPage: React.FC = () => {
           country: formData.country || undefined,
           website: formData.website || undefined,
           captchaToken,
-        })
+        }),
       ).unwrap();
       router.push("/check-email");
     } catch (err) {
-      const message =
-        typeof err === "string" ? err : "Failed to create your account";
-      setError(message);
+      setError(toSignupError(err));
     } finally {
       setIsLoading(false);
     }
   };
 
-  const countries = [
-    "Grenada",
-    "St. Vincent",
-    "Trinidad & Tobago",
-    "Barbados",
-    "St. Lucia",
-    "Panama",
-    "Colombia",
-  ];
-
-  const accountTypeOptions = [
-    {
-      value: "buyer",
-      label: "Buyer",
-      description: "Discover suppliers and request quotes",
-      icon: ShoppingCartIcon,
-    },
-    {
-      value: "seller",
-      label: "Seller",
-      description: "List products and manage orders",
-      icon: TagIcon,
-    },
-  ];
-
-  const businessTypeOptions: Record<
-    string,
-    { value: string; label: string }[]
-  > = {
-    buyer: [
-      { value: "general", label: "General" },
-      { value: "hotels", label: "Hotels" },
-      { value: "restaurants", label: "Restaurants" },
-      { value: "supermarkets", label: "Supermarkets" },
-      { value: "exporters", label: "Exporters" },
-    ],
-    seller: [
-      { value: "general", label: "General" },
-      { value: "farmers", label: "Farmers" },
-      { value: "manufacturers", label: "Manufacturers" },
-      { value: "fishermen", label: "Fishermen" },
-    ],
-  };
-
   return (
     <Suspense fallback={<ProcurLoader />}>
-      <div className="min-h-screen flex flex-col bg-[var(--primary-background)]">
-        <TopNavigation />
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          background: "#fafaf9",
+          fontFamily: "'Urbanist', system-ui, sans-serif",
+          WebkitFontSmoothing: "antialiased",
+          color: "#1c2b23",
+        }}
+      >
+        {/* ── Header ── */}
+        <header
+          style={{
+            background: "#fafaf9",
+            height: 56,
+            display: "flex",
+            alignItems: "center",
+            padding: "0 28px",
+            flexShrink: 0,
+          }}
+        >
+          <Link
+            href="/"
+            style={{
+              textDecoration: "none",
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
+            <Image
+              src="/images/logos/procur-logo.svg"
+              alt="Procur"
+              width={88}
+              height={23}
+              priority
+            />
+          </Link>
+          <div style={{ flex: 1 }} />
+          <span style={{ fontSize: 12, color: "#8a9e92", marginRight: 14 }}>
+            Already have an account?
+          </span>
+          <Link
+            href="/login"
+            style={{
+              padding: "7px 18px",
+              background: "#fff",
+              color: "#2d4a3e",
+              fontSize: 12,
+              fontWeight: 700,
+              borderRadius: 999,
+              textDecoration: "none",
+              border: "1px solid #d8d2c8",
+            }}
+          >
+            Sign in
+          </Link>
+        </header>
 
-        <div className="flex-1 flex">
-          {/* Left Half - Sign Up Form */}
-          <div className="w-full lg:w-1/2 flex items-center justify-center px-6 py-16">
-            <div className="w-full max-w-md space-y-8 my-8">
-              {/* Header */}
-              <div className="text-center">
-                <h1 className="text-4xl font-bold text-gray-900 mb-4">
+        {/* ── Body (full screen height) ── */}
+        <div
+          style={{
+            height: "calc(100vh - 56px)",
+            display: "flex",
+            overflow: "hidden",
+          }}
+        >
+          {/* Left — form */}
+          <div
+            style={{
+              flex: 1,
+              minWidth: 0,
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "center",
+              padding: "32px 32px",
+              overflowY: "auto",
+            }}
+          >
+            <div style={{ width: "100%", maxWidth: 420 }}>
+              {/* Headline */}
+              <div style={{ marginBottom: 20 }}>
+                <h1
+                  style={{
+                    fontSize: 26,
+                    fontWeight: 700,
+                    color: "#1c2b23",
+                    letterSpacing: "-.3px",
+                    margin: "0 0 4px",
+                  }}
+                >
                   Join Procur
                 </h1>
-                <p className="text-lg text-gray-600">
-                  Create your account to start connecting with global produce
-                  markets
+                <p style={{ fontSize: 13, color: "#6a7f73", margin: 0 }}>
+                  Create your account to start connecting with verified farms
                 </p>
               </div>
 
-              {/* Sign Up Form */}
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {error && (
-                  <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
-                    {error}
-                  </div>
-                )}
-                {/* Stepper / Header */}
-                <div className="flex items-center justify-center gap-5 text-sm text-gray-600">
-                  <div
-                    className={`flex items-center gap-2 ${step === 1 ? "font-semibold text-gray-900" : ""}`}
+              {/* Step indicator */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  marginBottom: 20,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                  <span
+                    style={{
+                      width: 26,
+                      height: 26,
+                      borderRadius: "50%",
+                      background: "#2d4a3e",
+                      color: "#f5f1ea",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      flexShrink: 0,
+                    }}
                   >
-                    <span
-                      className={`h-7 w-7 flex items-center justify-center rounded-full border transition-colors ${step >= 1 ? "bg-black text-white border-black" : "bg-white border-gray-300"}`}
-                    >
-                      1
-                    </span>
-                    <span>Account Type</span>
-                  </div>
-                  <span className="opacity-40">—</span>
-                  <div
-                    className={`flex items-center gap-2 ${step === 2 ? "font-semibold text-gray-900" : ""}`}
+                    {step > 1 ? "✓" : "1"}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 13,
+                      fontWeight: step === 1 ? 700 : 400,
+                      color: step === 1 ? "#1c2b23" : "#8a9e92",
+                    }}
                   >
-                    <span
-                      className={`h-7 w-7 flex items-center justify-center rounded-full border transition-colors ${step >= 2 ? "bg-black text-white border-black" : "bg-white border-gray-300"}`}
+                    Account Type
+                  </span>
+                </div>
+                <div
+                  style={{
+                    flex: 1,
+                    height: 1,
+                    background: step === 2 ? "#2d4a3e" : "#d8d2c8",
+                    maxWidth: 36,
+                  }}
+                />
+                <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                  <span
+                    style={{
+                      width: 26,
+                      height: 26,
+                      borderRadius: "50%",
+                      background: step >= 2 ? "#2d4a3e" : "#ebe7df",
+                      color: step >= 2 ? "#f5f1ea" : "#8a9e92",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      flexShrink: 0,
+                    }}
+                  >
+                    2
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 13,
+                      fontWeight: step === 2 ? 700 : 400,
+                      color: step === 2 ? "#1c2b23" : "#8a9e92",
+                    }}
+                  >
+                    Business & Details
+                  </span>
+                </div>
+              </div>
+
+              {/* Error */}
+              {error && (
+                <div
+                  style={{
+                    background: "#fff9f5",
+                    border: "1px solid #fbd0b0",
+                    borderRadius: 12,
+                    padding: "12px 16px",
+                    marginBottom: 18,
+                    display: "flex",
+                    gap: 10,
+                    alignItems: "flex-start",
+                  }}
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#c2540a"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    width={17}
+                    height={17}
+                    style={{ flexShrink: 0, marginTop: 1 }}
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <circle
+                      cx="12"
+                      cy="16"
+                      r=".6"
+                      fill="#c2540a"
+                      stroke="none"
+                    />
+                  </svg>
+                  <div>
+                    <p
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: "#7c2d12",
+                        margin: "0 0 2px",
+                      }}
                     >
-                      2
-                    </span>
-                    <span>Business & Details</span>
+                      {error.title}
+                    </p>
+                    <p
+                      style={{
+                        fontSize: 12,
+                        color: "#9a3412",
+                        margin: 0,
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      {error.hint}
+                    </p>
                   </div>
                 </div>
+              )}
 
-                {/* Step 1: Account Type */}
+              <form onSubmit={handleSubmit}>
+                {/* ── Step 1: Account type ── */}
                 {step === 1 && (
-                  <div>
-                    <label
-                      htmlFor="accountType"
-                      className="block text-sm font-medium text-gray-700 mb-3"
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 16,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: 12,
+                      }}
                     >
-                      Account Type
-                    </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                      {accountTypeOptions.map((option) => {
-                        const selected = formData.accountType === option.value;
-                        const Icon = option.icon;
+                      {ACCOUNT_TYPES.map((opt) => {
+                        const selected = formData.accountType === opt.value;
                         return (
                           <label
-                            key={option.value}
-                            className={`group relative cursor-pointer rounded-2xl border p-6 transition-all duration-200 ${
-                              selected
-                                ? "bg-white border-transparent ring-2 ring-black shadow-md"
-                                : "bg-white/80 border-gray-200 hover:border-gray-300 hover:shadow-sm"
-                            }`}
+                            key={opt.value}
+                            style={{
+                              position: "relative",
+                              cursor: "pointer",
+                              borderRadius: 14,
+                              border: selected
+                                ? "2px solid #2d4a3e"
+                                : "1px solid #d8d2c8",
+                              padding: selected ? "17px 15px" : "18px 16px",
+                              background: selected ? "#f0f4f2" : "#fff",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 10,
+                              transition: "all .15s",
+                            }}
                           >
                             <input
                               type="radio"
                               name="accountType"
-                              value={option.value}
+                              value={opt.value}
                               checked={selected}
                               onChange={handleAccountTypeChange}
-                              className="sr-only"
+                              style={{ display: "none" }}
                             />
-                            <div className="flex items-start gap-4">
-                              <span
-                                className={`inline-flex h-12 w-12 items-center justify-center rounded-xl transition-colors ${selected ? "bg-black text-white" : "bg-gray-100 text-gray-900"}`}
-                                aria-hidden="true"
+                            <div
+                              style={{
+                                width: 44,
+                                height: 44,
+                                borderRadius: 10,
+                                background: selected ? "#d4783c" : "#f5f1ea",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                color: selected ? "#fff" : "#6a7f73",
+                                transition: "all .15s",
+                              }}
+                            >
+                              {opt.icon}
+                            </div>
+                            <div>
+                              <div
+                                style={{
+                                  fontSize: 15,
+                                  fontWeight: 700,
+                                  color: selected ? "#2d4a3e" : "#1c2b23",
+                                  marginBottom: 3,
+                                }}
                               >
-                                <Icon className="h-6 w-6" aria-hidden="true" />
-                              </span>
-                              <div className="flex-1">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-base font-semibold text-gray-900">
-                                    {option.label}
-                                  </span>
-                                </div>
-                                <span className="mt-1 block text-sm text-gray-600">
-                                  {option.description}
-                                </span>
+                                {opt.label}
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: 12,
+                                  color: "#6a7f73",
+                                  lineHeight: 1.4,
+                                }}
+                              >
+                                {opt.description}
                               </div>
                             </div>
                             {selected && (
-                              <span className="absolute top-3 right-3 h-5 w-5 rounded-full bg-black text-white text-[10px] leading-5 text-center">
-                                ✓
-                              </span>
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  top: 10,
+                                  right: 10,
+                                  width: 20,
+                                  height: 20,
+                                  borderRadius: "50%",
+                                  background: "#2d4a3e",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                }}
+                              >
+                                <svg
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="#f5f1ea"
+                                  strokeWidth="3"
+                                  strokeLinecap="round"
+                                  width={10}
+                                  height={10}
+                                >
+                                  <path d="M20 6L9 17l-5-5" />
+                                </svg>
+                              </div>
                             )}
                           </label>
                         );
                       })}
                     </div>
-
                     <button
                       type="button"
                       onClick={goToNextStep}
                       disabled={!formData.accountType || isLoading}
-                      className={`btn btn-secondary !rounded-full w-full mt-4 ${!formData.accountType || isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                      style={btn(!formData.accountType || isLoading)}
                     >
                       Continue
                     </button>
                   </div>
                 )}
 
-                {/* Step 2: Business type + rest of form */}
+                {/* ── Step 2: Details ── */}
                 {step === 2 && (
-                  <>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 14,
+                    }}
+                  >
                     {(formData.accountType === "buyer" ||
                       formData.accountType === "seller") && (
-                      <div>
-                        <label
-                          htmlFor="businessType"
-                          className="block text-sm font-medium text-gray-700 mb-2"
-                        >
-                          Business Type
-                        </label>
+                      <div style={{ position: "relative" }}>
                         <select
                           id="businessType"
                           name="businessType"
                           required
                           value={formData.businessType}
                           onChange={handleInputChange}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-full text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all duration-200 bg-white"
+                          style={SELECT}
                         >
-                          <option value="">Select your business type</option>
-                          {businessTypeOptions[formData.accountType]?.map(
-                            (bt) => (
-                              <option key={bt.value} value={bt.value}>
-                                {bt.label}
-                              </option>
-                            )
-                          )}
+                          <option value="">Select business type</option>
+                          {BUSINESS_TYPES[formData.accountType]?.map((bt) => (
+                            <option key={bt.value} value={bt.value}>
+                              {bt.label}
+                            </option>
+                          ))}
                         </select>
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="#8a9e92"
+                          strokeWidth="2"
+                          width={14}
+                          height={14}
+                          style={{
+                            position: "absolute",
+                            right: 14,
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            pointerEvents: "none",
+                          }}
+                        >
+                          <path d="M6 9l6 6 6-6" />
+                        </svg>
                       </div>
                     )}
-
                     {(formData.accountType === "buyer" ||
                       formData.accountType === "seller") && (
-                      <div>
-                        <label htmlFor="businessName" className="sr-only">
-                          Business Name
-                        </label>
-                        <input
-                          id="businessName"
-                          name="businessName"
-                          type="text"
-                          required
-                          value={formData.businessName}
-                          onChange={handleInputChange}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-full placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all duration-200"
-                          placeholder="Enter your business name"
-                        />
-                      </div>
-                    )}
-
-                    {/* Full Name */}
-                    <div>
-                      <label htmlFor="fullname" className="sr-only">
-                        Full Name
-                      </label>
                       <input
-                        id="fullname"
-                        name="fullname"
+                        id="businessName"
+                        name="businessName"
                         type="text"
                         required
-                        value={formData.fullname}
+                        value={formData.businessName}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-full placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all duration-200"
-                        placeholder="Enter your full name"
+                        placeholder="Business name"
+                        style={INPUT}
                       />
-                    </div>
-
-                    {/* Email */}
-                    <div>
-                      <label htmlFor="email" className="sr-only">
-                        Email address
-                      </label>
-                      <input
-                        id="email"
-                        name="email"
-                        type="email"
-                        autoComplete="email"
-                        required
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-full placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all duration-200"
-                        placeholder="Enter your email"
-                      />
-                    </div>
-
-                    {/* Password */}
-                    <div>
-                      <label htmlFor="password" className="sr-only">
-                        Password
-                      </label>
-                      <input
-                        id="password"
-                        name="password"
-                        type="password"
-                        autoComplete="new-password"
-                        required
-                        value={formData.password}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-full placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all duration-200"
-                        placeholder="Create a password"
-                      />
-                    </div>
-
-                    {/* Country */}
-                    <div>
-                      <label htmlFor="country" className="sr-only">
-                        Country
-                      </label>
+                    )}
+                    <input
+                      id="fullname"
+                      name="fullname"
+                      type="text"
+                      required
+                      value={formData.fullname}
+                      onChange={handleInputChange}
+                      placeholder="Full name"
+                      style={INPUT}
+                    />
+                    <input
+                      id="email"
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      required
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      placeholder="Email address"
+                      style={INPUT}
+                    />
+                    <input
+                      id="password"
+                      name="password"
+                      type="password"
+                      autoComplete="new-password"
+                      required
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      placeholder="Create a password"
+                      style={INPUT}
+                    />
+                    <div style={{ position: "relative" }}>
                       <select
                         id="country"
                         name="country"
                         required
                         value={formData.country}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-full text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all duration-200 bg-white"
+                        style={SELECT}
                       >
-                        <option value="">Select your country</option>
-                        {countries.map((country) => (
-                          <option key={country} value={country}>
-                            {country}
+                        <option value="">Select country</option>
+                        {COUNTRIES.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
                           </option>
                         ))}
                       </select>
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="#8a9e92"
+                        strokeWidth="2"
+                        width={14}
+                        height={14}
+                        style={{
+                          position: "absolute",
+                          right: 14,
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          pointerEvents: "none",
+                        }}
+                      >
+                        <path d="M6 9l6 6 6-6" />
+                      </svg>
                     </div>
-
-                    {/* Honeypot field - hidden from real users */}
-                    <div className="sr-only" aria-hidden="true">
-                      <label htmlFor="website">Business website</label>
+                    {/* Honeypot */}
+                    <div style={{ display: "none" }} aria-hidden="true">
                       <input
                         id="website"
                         name="website"
@@ -443,9 +780,7 @@ const SignUpPage: React.FC = () => {
                         onChange={handleInputChange}
                       />
                     </div>
-
-                    {/* CAPTCHA */}
-                    <div className="flex justify-center">
+                    <div style={{ display: "flex", justifyContent: "center" }}>
                       <ReCAPTCHA
                         sitekey={
                           process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY as string
@@ -453,57 +788,98 @@ const SignUpPage: React.FC = () => {
                         onChange={(token) => setCaptchaToken(token || null)}
                       />
                     </div>
-
                     <button
                       type="submit"
                       disabled={isLoading || !captchaToken}
-                      className="btn btn-secondary !rounded-full w-full flex justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={btn(isLoading || !captchaToken)}
                     >
-                      {isLoading ? "Creating account..." : "Create Account"}
+                      {isLoading ? "Creating account…" : "Create Account"}
                     </button>
-                  </>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStep(1);
+                        setError(null);
+                      }}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                        fontSize: 13,
+                        color: "#407178",
+                        textDecoration: "underline",
+                        padding: "4px 0",
+                      }}
+                    >
+                      ← Back to account type
+                    </button>
+                  </div>
                 )}
               </form>
 
-              {/* Privacy Policy Link */}
-              <div className="text-center">
-                <p className="text-sm text-gray-600">
+              {/* Bottom links */}
+              <div
+                style={{
+                  marginTop: 16,
+                  fontSize: 12,
+                  color: "#8a9e92",
+                  textAlign: "center",
+                  lineHeight: 1.9,
+                }}
+              >
+                <p style={{ margin: "0 0 2px" }}>
                   By creating an account, you agree to Procur&apos;s{" "}
                   <a
                     href="/legal/terms"
-                    className="font-medium text-black hover:text-gray-700 underline transition-colors duration-200"
+                    style={{
+                      color: "#407178",
+                      fontWeight: 600,
+                      textDecoration: "none",
+                    }}
                   >
-                    Terms of Service
+                    Terms
                   </a>{" "}
                   and{" "}
                   <a
                     href="/legal/privacy"
-                    className="font-medium text-black hover:text-gray-700 underline transition-colors duration-200"
+                    style={{
+                      color: "#407178",
+                      fontWeight: 600,
+                      textDecoration: "none",
+                    }}
                   >
                     Privacy Policy
                   </a>
                 </p>
-              </div>
-
-              {/* Sign In Link */}
-              <div className="text-center">
-                <p className="text-sm text-gray-600">
+                <p style={{ margin: 0 }}>
                   Already have an account?{" "}
-                  <a
+                  <Link
                     href="/login"
-                    className="font-medium text-black hover:text-gray-700 transition-colors duration-200"
+                    style={{
+                      color: "#2d4a3e",
+                      fontWeight: 700,
+                      textDecoration: "none",
+                    }}
                   >
                     Sign in
-                  </a>
+                  </Link>
                 </p>
               </div>
             </div>
+            {/* end maxWidth wrapper */}
           </div>
 
-          {/* Right Half - Image */}
+          {/* Right — image panel */}
           <div
-            className="hidden lg:flex lg:w-1/2 items-center justify-center relative mr-8 mt-4 mb-12 rounded-2xl overflow-hidden"
-            style={{ minHeight: "90vh" }}
+            className="hidden lg:block"
+            style={{
+              flex: 1,
+              position: "relative",
+              margin: "8px 8px 8px 0",
+              borderRadius: 20,
+              overflow: "hidden",
+            }}
           >
             <Image
               src="/images/backgrounds/polina-kuzovkova-0OkidWKbO2Q-unsplash.jpg"
@@ -512,23 +888,343 @@ const SignUpPage: React.FC = () => {
               className="object-cover"
               priority
             />
-
-            {/* Optional overlay with text */}
-            <div className="absolute inset-0 bg-black/20 flex items-end p-12">
-              <div className="text-white">
-                <h2 className="text-3xl font-bold mb-4">
-                  Start Your Journey in Global Produce
-                </h2>
-                <p className="text-xl text-white/90 max-w-md">
-                  Join our community of buyers, sellers, and government agencies
-                  transforming the produce industry
-                </p>
-              </div>
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                background:
+                  "linear-gradient(to top, rgba(0,0,0,.6) 0%, rgba(0,0,0,.1) 55%, transparent 100%)",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "flex-end",
+                padding: 44,
+              }}
+            >
+              <p
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: "rgba(245,241,234,.6)",
+                  letterSpacing: ".1em",
+                  textTransform: "uppercase",
+                  margin: "0 0 10px",
+                }}
+              >
+                Procur · Grenada
+              </p>
+              <h2
+                style={{
+                  fontSize: 30,
+                  fontWeight: 700,
+                  color: "#f5f1ea",
+                  lineHeight: 1.2,
+                  margin: "0 0 10px",
+                  maxWidth: 380,
+                  letterSpacing: "-.3px",
+                }}
+              >
+                Join Grenada&apos;s agricultural marketplace.
+              </h2>
+              <p
+                style={{
+                  fontSize: 14,
+                  color: "rgba(245,241,234,.75)",
+                  margin: 0,
+                  maxWidth: 340,
+                  lineHeight: 1.6,
+                }}
+              >
+                Source directly from verified farms at transparent, fair prices.
+              </p>
             </div>
           </div>
         </div>
 
-        <Footer />
+        {/* ── Footer ── */}
+        <footer style={{ background: "#0a0a0a", color: "#f5f1ea" }}>
+          <div style={{ maxWidth: 1300, margin: "0 auto", padding: "0 20px" }}>
+            <div style={{ padding: "80px 0 64px" }}>
+              <h2
+                style={{
+                  fontSize: 40,
+                  fontWeight: 700,
+                  lineHeight: 1.15,
+                  maxWidth: 520,
+                  letterSpacing: "-.5px",
+                  color: "#f5f1ea",
+                  margin: "0 0 16px",
+                }}
+              >
+                Building stronger food systems across the Caribbean and beyond.
+              </h2>
+              <p
+                style={{
+                  fontSize: 14,
+                  color: "rgba(245,241,234,.65)",
+                  maxWidth: 440,
+                  lineHeight: 1.65,
+                  margin: "0 0 28px",
+                }}
+              >
+                Procur connects buyers directly with verified farmers:
+                transparent pricing, reliable supply, and produce that&apos;s
+                never more than a day from harvest.
+              </p>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                <Link
+                  href="/signup?accountType=buyer"
+                  style={{
+                    padding: "12px 28px",
+                    background: "#f5f1ea",
+                    color: "#1c2b23",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    borderRadius: 999,
+                    textDecoration: "none",
+                  }}
+                >
+                  Start buying
+                </Link>
+                <Link
+                  href="/signup?accountType=seller"
+                  style={{
+                    padding: "12px 28px",
+                    background: "transparent",
+                    color: "#f5f1ea",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    borderRadius: 999,
+                    border: "1px solid rgba(245,241,234,.2)",
+                    textDecoration: "none",
+                  }}
+                >
+                  Become a supplier
+                </Link>
+              </div>
+            </div>
+            <div style={{ height: 1, background: "rgba(245,241,234,.08)" }} />
+            <div style={{ display: "flex", gap: 60, padding: "48px 0 40px" }}>
+              <div style={{ flexShrink: 0, width: 240 }}>
+                <Image
+                  src="/images/logos/procur-logo.svg"
+                  alt="Procur"
+                  width={80}
+                  height={21}
+                  style={{ filter: "brightness(0) invert(1)", opacity: 0.75 }}
+                />
+                <p
+                  style={{
+                    fontSize: 12,
+                    color: "rgba(245,241,234,.55)",
+                    lineHeight: 1.65,
+                    marginTop: 16,
+                    marginBottom: 0,
+                  }}
+                >
+                  Procur is Grenada&apos;s agricultural marketplace,
+                  purpose-built to shorten supply chains and strengthen local
+                  food economies.
+                </p>
+                <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
+                  {[
+                    <svg
+                      key="x"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      width={14}
+                      height={14}
+                    >
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.65l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                    </svg>,
+                    <svg
+                      key="ig"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      width={14}
+                      height={14}
+                    >
+                      <rect x="2" y="2" width="20" height="20" rx="5" />
+                      <circle cx="12" cy="12" r="4.5" />
+                      <circle
+                        cx="17.5"
+                        cy="6.5"
+                        r="1"
+                        fill="currentColor"
+                        stroke="none"
+                      />
+                    </svg>,
+                    <svg
+                      key="li"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      width={14}
+                      height={14}
+                    >
+                      <path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z" />
+                      <circle cx="4" cy="4" r="2" />
+                    </svg>,
+                    <svg
+                      key="fb"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      width={14}
+                      height={14}
+                    >
+                      <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z" />
+                    </svg>,
+                  ].map((icon, i) => (
+                    <a
+                      key={i}
+                      href="#"
+                      style={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: 8,
+                        border: "1px solid rgba(245,241,234,.2)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "rgba(245,241,234,.55)",
+                        textDecoration: "none",
+                      }}
+                    >
+                      {icon}
+                    </a>
+                  ))}
+                </div>
+              </div>
+              <div
+                style={{
+                  flex: 1,
+                  display: "grid",
+                  gridTemplateColumns: "repeat(4, 1fr)",
+                  gap: 20,
+                }}
+              >
+                {[
+                  {
+                    title: "Platform",
+                    links: [
+                      { label: "Browse Produce", href: "/browse" },
+                      {
+                        label: "For Suppliers",
+                        href: "/signup?accountType=seller",
+                      },
+                      {
+                        label: "For Buyers",
+                        href: "/signup?accountType=buyer",
+                      },
+                      { label: "Pricing", href: "/pricing" },
+                      { label: "Log in", href: "/login" },
+                    ],
+                  },
+                  {
+                    title: "Solutions",
+                    links: [
+                      { label: "Restaurants", href: "/solutions/restaurants" },
+                      { label: "Hotels", href: "/solutions/hotels" },
+                      { label: "Grocery", href: "/solutions/grocery" },
+                      { label: "Government", href: "/solutions/government" },
+                      { label: "Agriculture", href: "/solutions/agriculture" },
+                    ],
+                  },
+                  {
+                    title: "Company",
+                    links: [
+                      { label: "About Procur", href: "/about" },
+                      { label: "Newsroom", href: "/news" },
+                      { label: "Contact", href: "/contact" },
+                      { label: "Careers", href: "/careers" },
+                    ],
+                  },
+                  {
+                    title: "Resources",
+                    links: [
+                      { label: "Help Center", href: "/help" },
+                      { label: "FAQ", href: "/faq" },
+                      { label: "Blog", href: "/blog" },
+                      { label: "Supplier Guide", href: "/supplier-guide" },
+                      { label: "Buyer Guide", href: "/buyer-guide" },
+                    ],
+                  },
+                ].map((col) => (
+                  <div key={col.title}>
+                    <h5
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 700,
+                        color: "rgba(245,241,234,.5)",
+                        marginBottom: 14,
+                        letterSpacing: ".08em",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      {col.title}
+                    </h5>
+                    <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                      {col.links.map((link) => (
+                        <li key={link.label} style={{ marginBottom: 8 }}>
+                          <Link
+                            href={link.href}
+                            style={{
+                              fontSize: 12.5,
+                              color: "rgba(245,241,234,.55)",
+                              textDecoration: "none",
+                            }}
+                          >
+                            {link.label}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div
+              style={{
+                paddingTop: 18,
+                paddingBottom: 28,
+                borderTop: "1px solid rgba(245,241,234,.1)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <p
+                style={{
+                  fontSize: 11,
+                  color: "rgba(245,241,234,.35)",
+                  margin: 0,
+                }}
+              >
+                &copy; 2026 Procur Grenada Ltd. All rights reserved.
+              </p>
+              <div style={{ display: "flex", gap: 16 }}>
+                {[
+                  { label: "Privacy", href: "/privacy" },
+                  { label: "Terms", href: "/terms" },
+                  { label: "Cookies", href: "/cookies" },
+                  { label: "Accessibility", href: "/accessibility" },
+                ].map((l) => (
+                  <Link
+                    key={l.label}
+                    href={l.href}
+                    style={{
+                      fontSize: 11,
+                      color: "rgba(245,241,234,.35)",
+                      textDecoration: "none",
+                    }}
+                  >
+                    {l.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        </footer>
       </div>
     </Suspense>
   );

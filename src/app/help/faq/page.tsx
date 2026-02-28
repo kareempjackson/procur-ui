@@ -1,16 +1,7 @@
 "use client";
 
-import TopNavigation from "@/components/navigation/TopNavigation";
-import Footer from "@/components/footer/Footer";
-import type { Metadata } from "next";
 import { useState } from "react";
-
-// Note: This would typically be handled server-side with proper metadata export
-const metadata = {
-  title: "FAQ - Procur",
-  description:
-    "Frequently asked questions about Procur. Find quick answers to common questions about our produce procurement platform.",
-};
+import PublicPageShell from "@/components/layout/PublicPageShell";
 
 export default function FAQPage() {
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -60,7 +51,7 @@ export default function FAQPage() {
       category: "getting-started",
       question: "Can I use Procur if I'm located outside the United States?",
       answer:
-        "Currently, Procur operates primarily within the United States and Canada, with plans to expand internationally. We can work with international buyers who want to source from North American suppliers, and we&apos;re developing partnerships to serve other regions. Contact our team to discuss your specific location and requirements.",
+        "Currently, Procur operates primarily within the United States and Canada, with plans to expand internationally. We can work with international buyers who want to source from North American suppliers, and we're developing partnerships to serve other regions. Contact our team to discuss your specific location and requirements.",
     },
     {
       id: 6,
@@ -95,7 +86,7 @@ export default function FAQPage() {
       category: "buying",
       question: "What happens if I'm not satisfied with my order?",
       answer:
-        "We have a comprehensive quality guarantee policy. If you receive products that don&apos;t meet the agreed specifications, contact our support team within 24 hours of delivery with photos and details. We'll work with the supplier to resolve the issue, which may include partial refunds, replacement products, or credits for future orders. Our goal is to ensure every transaction meets your expectations.",
+        "We have a comprehensive quality guarantee policy. If you receive products that don't meet the agreed specifications, contact our support team within 24 hours of delivery with photos and details. We'll work with the supplier to resolve the issue, which may include partial refunds, replacement products, or credits for future orders. Our goal is to ensure every transaction meets your expectations.",
     },
     {
       id: 11,
@@ -151,7 +142,7 @@ export default function FAQPage() {
       category: "payments",
       question: "How do refunds and disputes work?",
       answer:
-        "If there&apos;s a quality issue or dispute, we facilitate resolution between buyers and suppliers. Refunds can be processed as credits to your account, refunds to your original payment method, or replacement products. Our dispute resolution team investigates all claims with documentation and photos. Most disputes are resolved within 3-5 business days.",
+        "If there's a quality issue or dispute, we facilitate resolution between buyers and suppliers. Refunds can be processed as credits to your account, refunds to your original payment method, or replacement products. Our dispute resolution team investigates all claims with documentation and photos. Most disputes are resolved within 3-5 business days.",
     },
     {
       id: 19,
@@ -210,106 +201,216 @@ export default function FAQPage() {
   });
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
-      <TopNavigation />
+    <PublicPageShell>
+      {/* Hero */}
+      <div
+        style={{
+          paddingTop: 80,
+          paddingBottom: 48,
+          textAlign: "center",
+          maxWidth: 800,
+          margin: "0 auto",
+          padding: "80px 24px 48px",
+        }}
+      >
+        <p
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            color: "#2d4a3e",
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            marginBottom: 12,
+          }}
+        >
+          FAQ
+        </p>
+        <h1
+          style={{
+            fontSize: 38,
+            fontWeight: 800,
+            color: "#1c2b23",
+            lineHeight: 1.2,
+            margin: "0 0 16px",
+          }}
+        >
+          Frequently asked questions
+        </h1>
+        <p
+          style={{
+            fontSize: 16,
+            color: "#5a6b63",
+            lineHeight: 1.6,
+            maxWidth: 560,
+            margin: "0 auto",
+          }}
+        >
+          Find quick answers to common questions about Procur. Can't find what
+          you're looking for? Our support team is here to help.
+        </p>
+      </div>
 
-      {/* Hero Section */}
-      <section className="max-w-7xl mx-auto px-6 pt-12">
-        <div className="text-center">
-          <h1 className="text-5xl md:text-6xl font-bold text-[var(--secondary-black)] text-balance">
-            Frequently Asked Questions
-          </h1>
-          <p className="mt-6 text-lg md:text-xl text-gray-600 max-w-3xl mx-auto text-pretty">
-            Find quick answers to the most common questions about Procur. Can't
-            find what you&apos;re looking for? Our support team is here to help.
-          </p>
-        </div>
-      </section>
+      {/* Category filter chips */}
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 8,
+          justifyContent: "center",
+          maxWidth: 900,
+          margin: "0 auto",
+          padding: "0 24px",
+          marginTop: 40,
+        }}
+      >
+        {categories.map((category) => (
+          <button
+            key={category.id}
+            onClick={() => setSelectedCategory(category.id)}
+            style={{
+              padding: "8px 16px",
+              borderRadius: 999,
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+              border:
+                selectedCategory === category.id
+                  ? "1px solid #2d4a3e"
+                  : "1px solid #e8e4dc",
+              background:
+                selectedCategory === category.id ? "#2d4a3e" : "#f5f1ea",
+              color:
+                selectedCategory === category.id ? "#ffffff" : "#1c2b23",
+              transition: "background 0.15s, color 0.15s, border-color 0.15s",
+              fontFamily: "inherit",
+            }}
+          >
+            {category.name} ({category.count})
+          </button>
+        ))}
+      </div>
 
-      <main className="max-w-7xl mx-auto px-6 py-20">
-        {/* Category Filter */}
-        <section className="mb-12">
-          <div className="flex flex-wrap justify-center gap-3">
-            {categories.map((category) => (
+      {/* FAQ list */}
+      <div
+        style={{
+          maxWidth: 760,
+          margin: "32px auto 80px",
+          padding: "0 24px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
+        }}
+      >
+        {filteredFAQs.length > 0 ? (
+          filteredFAQs.map((faq) => (
+            <div
+              key={faq.id}
+              style={{
+                background: "#f5f1ea",
+                border: "1px solid #e8e4dc",
+                borderRadius: 12,
+                padding: "20px 24px",
+              }}
+            >
               <button
-                key={category.id}
-                onClick={() => setSelectedCategory(category.id)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                  selectedCategory === category.id
-                    ? "bg-[var(--primary-accent2)] text-white"
-                    : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
-                }`}
+                onClick={() => toggleExpanded(faq.id)}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 16,
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: 0,
+                  textAlign: "left",
+                  fontFamily: "inherit",
+                }}
               >
-                {category.name} ({category.count})
-              </button>
-            ))}
-          </div>
-        </section>
-
-        {/* FAQ List */}
-        <section className="mb-20">
-          <div className="max-w-4xl mx-auto">
-            {filteredFAQs.length > 0 ? (
-              <div className="space-y-4">
-                {filteredFAQs.map((faq) => (
-                  <div key={faq.id} className="card">
-                    <button
-                      onClick={() => toggleExpanded(faq.id)}
-                      className="w-full text-left flex items-center justify-between gap-4 group"
-                    >
-                      <h3 className="font-semibold text-[var(--secondary-black)] group-hover:text-[var(--primary-accent2)] transition-colors">
-                        {faq.question}
-                      </h3>
-                      <div
-                        className={`flex-shrink-0 transform transition-transform duration-200 ${
-                          expandedItems.includes(faq.id) ? "rotate-180" : ""
-                        }`}
-                      >
-                        <svg
-                          className="h-5 w-5 text-gray-400"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
-                      </div>
-                    </button>
-                    {expandedItems.includes(faq.id) && (
-                      <div className="mt-4 pt-4 border-t border-gray-100">
-                        <p className="text-gray-600 leading-relaxed">
-                          {faq.answer}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <p className="text-gray-600 mb-4">
-                  No questions found for this category.
-                </p>
-                <button
-                  onClick={() => {
-                    setSelectedCategory("all");
+                <span
+                  style={{
+                    fontSize: 15,
+                    fontWeight: 700,
+                    color: "#1c2b23",
+                    lineHeight: 1.4,
                   }}
-                  className="btn btn-ghost px-6 py-2"
                 >
-                  Clear filters
-                </button>
-              </div>
-            )}
-          </div>
-        </section>
-      </main>
+                  {faq.question}
+                </span>
+                <span
+                  style={{
+                    flexShrink: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    transform: expandedItems.includes(faq.id)
+                      ? "rotate(180deg)"
+                      : "rotate(0deg)",
+                    transition: "transform 0.2s",
+                  }}
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    fill="none"
+                    stroke="#5a6b63"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M19 9l-7 7-7-7" />
+                  </svg>
+                </span>
+              </button>
 
-      <Footer />
-    </div>
+              {expandedItems.includes(faq.id) && (
+                <div
+                  style={{
+                    marginTop: 12,
+                    paddingTop: 12,
+                    borderTop: "1px solid #e8e4dc",
+                  }}
+                >
+                  <p
+                    style={{
+                      fontSize: 14,
+                      color: "#5a6b63",
+                      lineHeight: 1.7,
+                      margin: 0,
+                    }}
+                  >
+                    {faq.answer}
+                  </p>
+                </div>
+              )}
+            </div>
+          ))
+        ) : (
+          <div style={{ textAlign: "center", padding: "48px 0" }}>
+            <p style={{ color: "#5a6b63", marginBottom: 16, fontSize: 14 }}>
+              No questions found for this category.
+            </p>
+            <button
+              onClick={() => setSelectedCategory("all")}
+              style={{
+                padding: "8px 20px",
+                borderRadius: 999,
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+                border: "1px solid #e8e4dc",
+                background: "#f5f1ea",
+                color: "#1c2b23",
+                fontFamily: "inherit",
+              }}
+            >
+              Clear filters
+            </button>
+          </div>
+        )}
+      </div>
+    </PublicPageShell>
   );
 }
