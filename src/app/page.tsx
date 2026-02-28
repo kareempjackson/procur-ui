@@ -1220,7 +1220,8 @@ export default function Home() {
               style={{
                 display: "flex",
                 flexDirection: "column",
-                alignItems: "flex-start",
+                alignItems: "center",
+                justifyContent: "center",
                 padding: "6px 10px",
                 borderRadius: 4,
                 cursor: "pointer",
