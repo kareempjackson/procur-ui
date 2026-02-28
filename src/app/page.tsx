@@ -1394,6 +1394,7 @@ export default function Home() {
                 }}
               >
                 <p
+                  className="v6-hero-label"
                   style={{
                     fontSize: 11,
                     fontWeight: 700,
@@ -1435,6 +1436,7 @@ export default function Home() {
                 </p>
                 <Link
                   href={slide.href}
+                  className="v6-hero-cta"
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
