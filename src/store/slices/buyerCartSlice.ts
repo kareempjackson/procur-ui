@@ -254,6 +254,13 @@ const buyerCartSlice = createSlice({
       })
 
       // Remove Cart Item
+      .addCase(removeCartItemAsync.pending, (state) => {
+        state.error = null;
+      })
+      .addCase(removeCartItemAsync.rejected, (state, action) => {
+        state.error = action.payload as string;
+        state.status = "failed";
+      })
       .addCase(removeCartItemAsync.fulfilled, (state, action) => {
         if (!state.cart) return;
 

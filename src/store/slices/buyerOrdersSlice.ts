@@ -68,6 +68,7 @@ export interface CreateOrderDto {
   buyer_notes?: string;
   preferred_delivery_date?: string;
   credits_applied_cents?: number;
+  payment_method?: "bank_transfer" | "cash_on_delivery" | "cheque_on_delivery";
 }
 
 export interface OrdersFilters {

@@ -31,6 +31,123 @@ import { CurrencyDollarIcon } from "@heroicons/react/24/outline";
 
 type CheckoutStep = "shipping" | "review" | "payment";
 
+// ── Error helpers ──────────────────────────────────────────────────────────────
+
+/**
+ * RTK's .unwrap() throws the rejectWithValue payload directly (a string),
+ * not an Error object. This helper extracts the raw message regardless.
+ */
+function extractRaw(error: unknown): string {
+  if (typeof error === "string") return error;
+  if (error && typeof error === "object") {
+    const msg = (error as any)?.message ?? (error as any)?.payload ?? "";
+    if (typeof msg === "string") return msg;
+  }
+  return "";
+}
+
+/**
+ * Maps raw server/network error messages to user-friendly copy for order placement.
+ */
+function toFriendlyOrderError(error: unknown): string {
+  const raw = extractRaw(error);
+  const lower = raw.toLowerCase();
+
+  // Stock errors: "Insufficient stock for product Plantain"
+  if (lower.includes("insufficient stock")) {
+    const match = raw.match(/insufficient stock for product (.+)/i);
+    return match
+      ? `"${match[1]}" doesn't have enough stock for your requested quantity. Please reduce the quantity or remove it from your cart.`
+      : "One or more items in your cart doesn't have enough stock. Please update your cart and try again.";
+  }
+
+  // Address errors
+  if (lower.includes("address not found") || lower.includes("address is not found")) {
+    return "The selected shipping address is no longer valid. Please go back and choose a different address.";
+  }
+
+  // Product no longer available
+  if (lower.includes("product") && lower.includes("not found")) {
+    return "One or more items in your cart are no longer available. Please update your cart and try again.";
+  }
+
+  // Auth errors
+  if (
+    lower.includes("unauthorized") ||
+    lower.includes("unauthenticated") ||
+    lower.includes("invalid or expired token") ||
+    lower.includes("forbidden")
+  ) {
+    return "Your session has expired. Please sign in again to continue.";
+  }
+
+  // Network / timeout
+  if (
+    lower.includes("network") ||
+    lower.includes("timeout") ||
+    lower.includes("econnaborted") ||
+    lower.includes("etimedout")
+  ) {
+    return "Connection issue. Please check your internet and try again.";
+  }
+
+  // Technical DB / server errors — don't leak internals
+  if (
+    lower.includes("failed to create") ||
+    lower.includes("database") ||
+    lower.includes("supabase") ||
+    lower.includes("exception") ||
+    lower.includes("stack")
+  ) {
+    return "We couldn't place your order due to a server issue. Please try again in a moment or contact support.";
+  }
+
+  // Short, readable server message that's safe to surface
+  if (raw && raw.length < 140) return raw;
+
+  return "We couldn't place your order. Please try again or contact support if the issue persists.";
+}
+
+/**
+ * Maps raw errors from the address save API call to user-friendly copy.
+ * Direct axios calls throw AxiosError, not RTK strings.
+ */
+function toFriendlyAddressError(error: unknown): string {
+  const status = (error as any)?.response?.status;
+  const data = (error as any)?.response?.data;
+
+  if (status === 401 || status === 403) {
+    return "Your session has expired. Please sign in again.";
+  }
+
+  if (data) {
+    const msg = data.message;
+    // class-validator returns arrays of field errors
+    if (Array.isArray(msg)) {
+      return "Please fill in all required address fields correctly.";
+    }
+    if (typeof msg === "string") {
+      const lower = msg.toLowerCase();
+      if (lower.includes("duplicate") || lower.includes("already exists")) {
+        return "This address is already saved in your account.";
+      }
+      if (lower.includes("unauthorized") || lower.includes("forbidden")) {
+        return "Your session has expired. Please sign in again.";
+      }
+      // Short, readable message safe to surface
+      if (msg.length < 140 && !lower.includes("exception") && !lower.includes("stack")) {
+        return msg;
+      }
+    }
+  }
+
+  if (status === 422 || status === 400) {
+    return "Please check your address details — some fields may be invalid.";
+  }
+
+  return "Failed to save address. Please check your details and try again.";
+}
+
 export default function CheckoutClient() {
   const router = useRouter();
   const dispatch = useAppDispatch();
@@ -40,7 +157,7 @@ export default function CheckoutClient() {
   const { cart, status: cartStatus } = useAppSelector(
     (state) => state.buyerCart
   );
-  const { addresses, addressesStatus, createOrderStatus, createOrderError } =
+  const { addresses, addressesStatus, createOrderStatus } =
     useAppSelector((state) => state.buyerOrders);
   const { creditAmount, creditAmountCents } = useAppSelector(
     (state) => state.buyerCredits
@@ -61,7 +178,6 @@ export default function CheckoutClient() {
 
   // Unified Pay handler
   const handlePay = async () => {
-    console.log("[Checkout] handlePay clicked; method=%s", paymentMethod);
     if (!cart || !selectedAddress) return;
     setPaymentError(null);
     setIsPlacingOrder(true);
@@ -75,7 +191,7 @@ export default function CheckoutClient() {
       // Calculate credits to apply
       const totalsAtCheckout = calculateTotals();
       const creditsAppliedCents = Math.round(totalsAtCheckout.creditsApplied * 100);
-      
+
       const created = await dispatch(
         createOrder({
           items,
@@ -83,6 +199,7 @@ export default function CheckoutClient() {
           billing_address_id: selectedAddress,
           buyer_notes: deliveryInstructions || undefined,
           credits_applied_cents: creditsAppliedCents > 0 ? creditsAppliedCents : undefined,
+          payment_method: paymentMethod,
         })
       ).unwrap();
       const createdId =
@@ -90,14 +207,18 @@ export default function CheckoutClient() {
         (created as any)?.order?.id ||
         (created as any)?.data?.id ||
         (created as any)?.data?.order?.id;
-      if (createdId) {
-        router.push(`/buyer/order-confirmation/${createdId}`);
-      }
-      // Refresh cart and orders after order creation (non-card flows)
+      // Refresh cart and orders regardless of redirect outcome
       dispatch(fetchCart());
       dispatch(fetchOrders({ page: 1, limit: 20 } as any));
-    } catch (e: any) {
-      setPaymentError(e?.message || "Failed to place order");
+      if (createdId) {
+        router.push(`/buyer/order-confirmation/${createdId}`);
+      } else {
+        setPaymentError(
+          "Your order was placed, but we couldn't load the confirmation page. Please check your Orders page."
+        );
+      }
+    } catch (e: unknown) {
+      setPaymentError(toFriendlyOrderError(e));
     } finally {
       setIsPlacingOrder(false);
     }
@@ -257,8 +378,8 @@ export default function CheckoutClient() {
       }
       setShowAddressForm(false);
       return true;
-    } catch (e: any) {
-      setAddressError(e?.message || "Failed to save address");
+    } catch (e: unknown) {
+      setAddressError(toFriendlyAddressError(e));
       return false;
     } finally {
       setIsSavingAddress(false);
@@ -267,20 +388,12 @@ export default function CheckoutClient() {
 
   const handleNextStep = async () => {
     if (currentStep === "shipping") {
-      console.log(
-        "[Checkout] Continue from shipping; showAddressForm=%s",
-        showAddressForm
-      );
       const ok = await saveAddressIfNeeded();
       if (!ok) return;
       if (!selectedAddress) {
         setAddressError("Please select or add an address.");
         return;
       }
-      console.log(
-        "[Checkout] Shipping step complete with address=%s",
-        selectedAddress
-      );
       setCurrentStep("review");
       return;
     }
@@ -382,6 +495,22 @@ export default function CheckoutClient() {
 
                 {!showAddressForm ? (
                   <div className="space-y-4">
+                    {addressesStatus === "loading" && (
+                      <>
+                        <div className="h-24 rounded-xl bg-gray-100 animate-pulse" />
+                        <div className="h-24 rounded-xl bg-gray-100 animate-pulse" />
+                      </>
+                    )}
+                    {addressesStatus === "failed" && (
+                      <div className="p-3 text-sm rounded-lg border border-red-200 bg-red-50 text-red-700">
+                        Couldn&apos;t load your saved addresses. You can still add a new one below.
+                      </div>
+                    )}
+                    {addressesStatus === "succeeded" && demoAddresses.length === 0 && (
+                      <p className="text-sm text-[var(--secondary-muted-edge)]">
+                        No saved addresses yet. Add one below.
+                      </p>
+                    )}
                     {demoAddresses.map((address) => (
                       <label
                         key={address.id}
@@ -580,53 +709,7 @@ export default function CheckoutClient() {
 
                     <div className="flex items-center gap-4">
                       <button
-                        onClick={async () => {
-                          setAddressError(null);
-                          if (
-                            !addrStreet ||
-                            !addrCity ||
-                            !addrState ||
-                            !addrZip ||
-                            !addrCountry
-                          ) {
-                            setAddressError(
-                              "Please complete street, city, state, postal code, and country."
-                            );
-                            return;
-                          }
-                          setIsSavingAddress(true);
-                          try {
-                            const api = getApiClient();
-                            const { data } = await api.post(
-                              "/buyers/addresses",
-                              {
-                                street_address: [addrStreet, addrApartment]
-                                  .filter(Boolean)
-                                  .join(", "),
-                                city: addrCity,
-                                state: addrState || undefined,
-                                postal_code: addrZip || undefined,
-                                country: addrCountry,
-                                contact_name: addrName || undefined,
-                                contact_phone: addrPhone || undefined,
-                                is_default: false,
-                                is_shipping: true,
-                                is_billing: false,
-                              }
-                            );
-                            await dispatch(fetchAddresses());
-                            if (data?.id) {
-                              setSelectedAddress(data.id);
-                            }
-                            setShowAddressForm(false);
-                          } catch (e: any) {
-                            setAddressError(
-                              e?.message || "Failed to save address"
-                            );
-                          } finally {
-                            setIsSavingAddress(false);
-                          }
-                        }}
+                        onClick={saveAddressIfNeeded}
                         disabled={isSavingAddress}
                         className="px-5 py-3 bg-[var(--primary-accent2)] text-white rounded-full text-sm font-medium hover:bg-[var(--primary-accent3)] transition-colors disabled:opacity-50"
                       >
@@ -866,11 +949,9 @@ export default function CheckoutClient() {
                 </button>
               ) : (
                 <div className="space-y-3">
-                  {(paymentError || createOrderError) && (
+                  {paymentError && (
                     <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                      <p className="text-sm text-red-800">
-                        {paymentError || createOrderError}
-                      </p>
+                      <p className="text-sm text-red-800">{paymentError}</p>
                     </div>
                   )}
                   <button
