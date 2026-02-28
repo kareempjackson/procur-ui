@@ -47,12 +47,21 @@ export const metadata: Metadata = {
     description:
       "Procur connects farmers, buyers, and government entities in a modern agricultural marketplace.",
     siteName: "Procur",
+    images: [
+      {
+        url: "/images/hero/land-o-lakes-inc-BlXa_riHlp4-unsplash.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Procur - Agricultural Marketplace",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Procur - Agricultural Marketplace",
     description:
       "Procur connects farmers, buyers, and government entities in a modern agricultural marketplace.",
+    images: ["/images/hero/land-o-lakes-inc-BlXa_riHlp4-unsplash.jpg"],
   },
 };
 

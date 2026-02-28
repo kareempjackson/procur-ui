@@ -153,8 +153,8 @@ export default function CheckoutClient() {
         sellers: cart.seller_groups.map((group) => ({
           id: group.seller_org_id,
           name: group.seller_name,
-          location: "Caribbean", // TODO: Get from API when available
-          verified: false, // TODO: Get from API when available
+          location: (group as any).seller_location || "",
+          verified: (group as any).is_verified ?? false,
           items: group.items.map((item) => ({
             id: item.id,
             name: item.product_name,

@@ -29,6 +29,7 @@ export function getApiClient(getToken?: () => string | null): AxiosInstance {
   const instance = axios.create({
     baseURL: getBaseUrl(),
     withCredentials: true,
+    timeout: 15000, // 15s — requests that exceed this reject instead of hanging forever
   });
 
   instance.interceptors.request.use((config: InternalAxiosRequestConfig) => {

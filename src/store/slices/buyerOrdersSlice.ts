@@ -158,25 +158,6 @@ export const fetchOrderDetail = createAsyncThunk(
   async (orderId: string, { rejectWithValue }) => {
     try {
       const apiClient = getApiClient();
-      // Try common include parameters to ensure items are returned
-      const candidates = [
-        `/buyers/orders/${orderId}?include_items=true`,
-        `/buyers/orders/${orderId}?include=items`,
-        `/buyers/orders/${orderId}?include=order_items`,
-        `/buyers/orders/${orderId}?include=line_items`,
-        `/buyers/orders/${orderId}`,
-      ];
-
-      for (const url of candidates) {
-        try {
-          const response = await apiClient.get(url);
-          if (response?.data) return response.data;
-        } catch {
-          // try next candidate
-        }
-      }
-
-      // Final fallback
       const response = await apiClient.get(`/buyers/orders/${orderId}`);
       return response.data;
     } catch (error) {
