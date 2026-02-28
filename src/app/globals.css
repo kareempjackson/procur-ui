@@ -563,6 +563,8 @@ html {
   .v6-menu-icon    { display: block !important; }
   .v6-acct-desktop { display: none !important; }
   .v6-cart-link    { display: none !important; }
+  /* Hide scroll arrows — prevents right: -16px from causing horizontal overflow */
+  .v6-arr          { display: none !important; }
   .v6-hero-wrap { height: 440px !important; }
   .v6-hero-pad  { padding: 0 36px !important; }
   .v6-hero-h2   { font-size: 36px !important; letter-spacing: -.8px !important; }
@@ -583,15 +585,16 @@ html {
 
 /* ── ≤ 480px mobile ── */
 @media (max-width: 480px) {
-  .v6-hdr-row     { padding: 0 14px !important; height: 50px !important; }
-  .v6-hdr-search  { margin: 0 6px !important; }
-  .v6-sn-row      { padding: 0 10px !important; }
+  /* Use safe-area-inset-right so the hamburger never clips into iPhone bezels */
+  .v6-hdr-row     { padding: 0 max(16px, env(safe-area-inset-right, 16px)) 0 max(16px, env(safe-area-inset-left, 16px)) !important; height: 52px !important; }
+  .v6-menu-btn    { padding: 8px 14px !important; }
+  .v6-hdr-search  { margin: 0 8px !important; }
+  .v6-sn-row      { padding: 0 max(12px, env(safe-area-inset-left, 12px)) !important; }
   .v6-hero-wrap   { height: 300px !important; }
   .v6-hero-pad    { padding: 0 18px !important; }
   .v6-hero-h2     { font-size: 24px !important; letter-spacing: -.3px !important; white-space: normal !important; max-width: 100% !important; }
   .v6-hero-body   { font-size: 13px !important; max-width: 100% !important; }
   .v6-hero-dots   { left: 50% !important; transform: translateX(-50%) !important; bottom: 12px !important; }
-  .v6-arr         { display: none !important; }
   .v6-cta-box     { padding: 28px 18px !important; border-radius: 12px !important; }
   .v6-ft-top      { padding: 32px 0 20px !important; }
   .v6-ft-h2       { font-size: 22px !important; }

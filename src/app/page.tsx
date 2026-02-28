@@ -632,6 +632,7 @@ export default function Home() {
         background: "#faf8f4",
         color: "#1c2b23",
         WebkitFontSmoothing: "antialiased",
+        overflowX: "hidden",
       }}
     >
       {/* ── Menu overlay ── */}
@@ -1140,6 +1141,7 @@ export default function Home() {
           >
             <button
               onClick={() => setMenuOpen(true)}
+              className="v6-menu-btn"
               style={{
                 display: "flex",
                 flexDirection: "column",
