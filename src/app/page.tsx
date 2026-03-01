@@ -378,6 +378,8 @@ export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [searchInput, setSearchInput] = useState("");
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
+  const mobileSearchRef = useRef<HTMLInputElement>(null);
 
   // ── Data loading — sessionStorage SWR + API refresh ──────────────────────────
   //    1. If sessionStorage has fresh data (< 2 min), render immediately (no skeleton).
@@ -907,6 +909,134 @@ export default function Home() {
         </div>
       </div>
 
+      {/* ── Mobile search modal ── */}
+      <div
+        onClick={() => setSearchModalOpen(false)}
+        style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(0,0,0,.55)",
+          zIndex: 300,
+          opacity: searchModalOpen ? 1 : 0,
+          pointerEvents: searchModalOpen ? "auto" : "none",
+          transition: "opacity .2s",
+        }}
+      />
+      <div
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 301,
+          background: "#2d4a3e",
+          padding: "14px 16px",
+          transform: searchModalOpen ? "translateY(0)" : "translateY(-100%)",
+          transition: "transform .25s cubic-bezier(.4,0,.2,1)",
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+        }}
+      >
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            background: "rgba(255,255,255,.14)",
+            borderRadius: 999,
+            height: 44,
+            border: "1px solid rgba(255,255,255,.16)",
+            padding: "0 4px 0 14px",
+          }}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="rgba(245,241,234,.5)" strokeWidth="2" width={16} height={16} style={{ flexShrink: 0 }}>
+            <circle cx="11" cy="11" r="7" />
+            <path d="M21 21l-4.35-4.35" />
+          </svg>
+          <input
+            ref={mobileSearchRef}
+            type="text"
+            placeholder="Search produce, sellers..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { setSearchModalOpen(false); handleSearch(); } }}
+            style={{
+              flex: 1,
+              border: "none",
+              outline: "none",
+              fontFamily: "inherit",
+              fontSize: 15,
+              color: "#f5f1ea",
+              fontWeight: 400,
+              background: "transparent",
+              padding: "0 10px",
+              caretColor: "#f5f1ea",
+            }}
+          />
+          {searchInput && (
+            <button
+              onClick={() => setSearchInput("")}
+              style={{
+                width: 24,
+                height: 24,
+                borderRadius: "50%",
+                background: "rgba(255,255,255,.15)",
+                border: "none",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "rgba(245,241,234,.7)",
+                flexShrink: 0,
+                marginRight: 4,
+              }}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" width={11} height={11}>
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+          <button
+            onClick={() => { setSearchModalOpen(false); handleSearch(); }}
+            style={{
+              height: 32,
+              width: 32,
+              background: "#d4783c",
+              color: "#fff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+              border: "none",
+              cursor: "pointer",
+              borderRadius: "50%",
+              marginRight: 2,
+            }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" width={14} height={14}>
+              <circle cx="11" cy="11" r="7" />
+              <path d="M21 21l-4.35-4.35" />
+            </svg>
+          </button>
+        </div>
+        <button
+          onClick={() => setSearchModalOpen(false)}
+          style={{
+            flexShrink: 0,
+            background: "none",
+            border: "none",
+            color: "rgba(245,241,234,.7)",
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: "pointer",
+            padding: "0 4px",
+          }}
+        >
+          Cancel
+        </button>
+      </div>
+
       {/* ── Filter drawer (left) ── */}
       <div
         onClick={() => setFilterOpen(false)}
@@ -1214,6 +1344,29 @@ export default function Home() {
               flexShrink: 0,
             }}
           >
+            {/* Mobile search icon — hidden on desktop via CSS */}
+            <button
+              onClick={() => { setSearchModalOpen(true); setTimeout(() => mobileSearchRef.current?.focus(), 80); }}
+              className="v6-search-mobile-btn"
+              style={{
+                display: "none",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 38,
+                height: 38,
+                borderRadius: 4,
+                cursor: "pointer",
+                border: "none",
+                background: "none",
+                flexShrink: 0,
+              }}
+              aria-label="Search"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="#f5f1ea" strokeWidth="2.2" strokeLinecap="round" width={20} height={20}>
+                <circle cx="11" cy="11" r="7" />
+                <path d="M21 21l-4.35-4.35" />
+              </svg>
+            </button>
             <button
               onClick={() => setMenuOpen(true)}
               className="v6-menu-btn"
