@@ -594,6 +594,7 @@ html {
   .v6-cart-link         { display: none !important; }
   .v6-hdr-search        { display: none !important; }
   .v6-search-mobile-btn { display: flex !important; }
+  .v6-hdr-right         { margin-left: auto !important; }
   /* Hide scroll arrows — prevents right: -16px from causing horizontal overflow */
   .v6-arr          { display: none !important; }
   /* Hide hero slide prev/next buttons — users swipe on touch */

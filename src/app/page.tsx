@@ -1337,6 +1337,7 @@ export default function Home() {
           </div>
           {/* Nav right */}
           <div
+            className="v6-hdr-right"
             style={{
               display: "flex",
               alignItems: "center",
