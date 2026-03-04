@@ -59,8 +59,9 @@ const sampleInvoice = {
   ],
   charges: {
     currency: "USD",
-    delivery: 185,
-    platformFee: 79,
+    buyerShipping: 185,
+    sellerShipping: 85,
+    transactionFee: 79,
     taxRate: 0.15,
     discount: 120,
   },
@@ -254,8 +255,9 @@ const InvoiceTestPage: React.FC = () => {
               }))}
               charges={{
                 currency: sampleInvoice.charges.currency,
-                delivery: sampleInvoice.charges.delivery,
-                platformFee: sampleInvoice.charges.platformFee,
+                buyerShipping: sampleInvoice.charges.buyerShipping,
+                sellerShipping: sampleInvoice.charges.sellerShipping,
+                transactionFee: sampleInvoice.charges.transactionFee,
                 discount: sampleInvoice.charges.discount,
                 taxRate: sampleInvoice.charges.taxRate,
               }}

@@ -442,22 +442,26 @@ export default function CheckoutClient() {
                   <span style={{ fontWeight: 600, color: "#1c2b23", fontVariantNumeric: "tabular-nums" }}>${subtotal.toFixed(2)}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                  <span style={{ color: "#8a9e92" }}>Delivery</span>
+                  <span style={{ color: "#8a9e92" }}>Tax</span>
+                  <span style={{ fontWeight: 600, color: "#1c2b23", fontVariantNumeric: "tabular-nums" }}>$0.00</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                  <span style={{ color: "#8a9e92" }}>Buyer Shipping</span>
                   <span style={{ fontWeight: 600, color: "#1c2b23", fontVariantNumeric: "tabular-nums" }}>${shipping.toFixed(2)}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                  <span style={{ color: "#8a9e92" }}>Platform fee ({feeRate.toFixed(1)}%)</span>
+                  <span style={{ color: "#8a9e92" }}>Transaction Fee{feeRate > 0 ? ` (${feeRate.toFixed(1)}%)` : ""}</span>
                   <span style={{ fontWeight: 600, color: "#1c2b23", fontVariantNumeric: "tabular-nums" }}>${feeAmt.toFixed(2)}</span>
                 </div>
-                {creditsApplied > 0 && (
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                    <span style={{ color: "#6ee7b7" }}>Credits applied</span>
-                    <span style={{ fontWeight: 600, color: "#6ee7b7", fontVariantNumeric: "tabular-nums" }}>-${creditsApplied.toFixed(2)}</span>
-                  </div>
-                )}
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, borderTop: "1px dashed #e8e4dc", paddingTop: 9, marginTop: 2 }}>
+                  <span style={{ color: creditsApplied > 0 ? "#059669" : "#8a9e92" }}>Discount</span>
+                  <span style={{ fontWeight: 600, color: creditsApplied > 0 ? "#059669" : "#1c2b23", fontVariantNumeric: "tabular-nums" }}>
+                    {creditsApplied > 0 ? `-$${creditsApplied.toFixed(2)}` : "$0.00"}
+                  </span>
+                </div>
                 <div style={{ height: 1, background: "#e8e4dc" }} />
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: 15, fontWeight: 700, color: "#1c2b23" }}>Total</span>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: "#1c2b23" }}>Total paid by buyer</span>
                   <span style={{ fontSize: 18, fontWeight: 700, color: "#1c2b23", fontVariantNumeric: "tabular-nums" }}>${finalTotal.toFixed(2)}</span>
                 </div>
               </div>

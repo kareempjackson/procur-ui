@@ -20,8 +20,17 @@ export type ClassicInvoiceItem = {
 
 export type ClassicInvoiceCharges = {
   currency: string;
+  /** Buyer-facing shipping cost (what the buyer pays for delivery) */
+  buyerShipping?: number;
+  /** Seller-facing shipping cost (deducted from seller payout) */
+  sellerShipping?: number;
+  /** Platform transaction fee charged to the buyer */
+  transactionFee?: number;
+  /** Legacy alias for buyerShipping — still supported */
   delivery?: number;
+  /** Legacy alias for transactionFee — still supported */
   platformFee?: number;
+  /** Absolute discount amount */
   discount?: number;
   taxRate?: number; // 0.15 => 15%
 };
@@ -98,12 +107,14 @@ export const ClassicInvoice = forwardRef<HTMLDivElement, ClassicInvoiceProps>(
       (sum, item) => sum + Number(item.quantity || 0) * Number(item.unitPrice || 0),
       0
     );
-    const delivery = Number(charges.delivery || 0);
-    const platformFee = Number(charges.platformFee || 0);
+    // Support both new named fields and legacy aliases
+    const buyerShipping = Number(charges.buyerShipping ?? charges.delivery ?? 0);
+    const sellerShipping = Number(charges.sellerShipping ?? 0);
+    const transactionFee = Number(charges.transactionFee ?? charges.platformFee ?? 0);
     const taxRate = Number(charges.taxRate || 0);
     const discount = Number(charges.discount || 0);
-    const tax = (lineSubtotal + delivery) * taxRate;
-    const gross = lineSubtotal + delivery + platformFee + tax;
+    const tax = (lineSubtotal + buyerShipping) * taxRate;
+    const gross = lineSubtotal + buyerShipping + transactionFee + tax;
     const total = gross - discount;
 
     const unitLabel =
@@ -316,39 +327,39 @@ export const ClassicInvoice = forwardRef<HTMLDivElement, ClassicInvoiceProps>(
                 </div>
                 <div className="flex justify-between gap-4">
                   <dt className="text-[var(--primary-base)]">
-                    Delivery &amp; handling
+                    Tax{taxRate > 0 ? ` (${(taxRate * 100).toFixed(0)}%)` : ""}
                   </dt>
                   <dd className="font-medium text-[var(--secondary-black)]">
-                    {currency(charges.currency, delivery)}
+                    {currency(charges.currency, tax)}
                   </dd>
                 </div>
                 <div className="flex justify-between gap-4">
-                  <dt className="text-[var(--primary-base)]">Platform fee</dt>
+                  <dt className="text-[var(--primary-base)]">Buyer shipping</dt>
                   <dd className="font-medium text-[var(--secondary-black)]">
-                    {currency(charges.currency, platformFee)}
+                    {currency(charges.currency, buyerShipping)}
                   </dd>
                 </div>
-                {taxRate > 0 ? (
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-[var(--primary-base)]">
-                      Tax ({(taxRate * 100).toFixed(0)}%)
-                    </dt>
-                    <dd className="font-medium text-[var(--secondary-black)]">
-                      {currency(charges.currency, tax)}
-                    </dd>
-                  </div>
-                ) : null}
-                {discount > 0 ? (
-                  <div className="flex justify-between gap-4 pt-2 border-t border-dashed border-gray-200 mt-1">
-                    <dt className="text-[var(--primary-base)]">Discount</dt>
-                    <dd className="font-medium text-emerald-600">
-                      -{currency(charges.currency, discount)}
-                    </dd>
-                  </div>
-                ) : null}
+                <div className="flex justify-between gap-4">
+                  <dt className="text-[var(--primary-base)]">Seller shipping</dt>
+                  <dd className="font-medium text-[var(--secondary-black)]">
+                    {currency(charges.currency, sellerShipping)}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-[var(--primary-base)]">Transaction fee</dt>
+                  <dd className="font-medium text-[var(--secondary-black)]">
+                    {currency(charges.currency, transactionFee)}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-4 pt-2 border-t border-dashed border-gray-200 mt-1">
+                  <dt className="text-[var(--primary-base)]">Discount</dt>
+                  <dd className={`font-medium ${discount > 0 ? "text-emerald-600" : "text-[var(--secondary-black)]"}`}>
+                    {discount > 0 ? "-" : ""}{currency(charges.currency, discount)}
+                  </dd>
+                </div>
                 <div className="flex justify-between gap-4 pt-2 border-t border-gray-900/10 mt-2">
                   <dt className="text-xs font-semibold text-[var(--secondary-black)] uppercase tracking-[0.16em]">
-                    Amount due
+                    Total paid by buyer
                   </dt>
                   <dd className="text-base font-semibold text-[var(--secondary-black)]">
                     {currency(charges.currency, total)}

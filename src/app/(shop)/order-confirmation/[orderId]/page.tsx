@@ -69,8 +69,12 @@ export default function OrderConfirmationPage() {
   const aggregatedTotals = useMemo(() => {
     const list = ordersToDisplay;
     const subtotal = list.reduce((sum, o) => sum + Number(o?.subtotal || 0), 0);
-    const delivery = list.reduce(
+    const buyerShipping = list.reduce(
       (sum, o) => sum + Number(o?.shipping_amount || o?.shipping_cost || 0),
+      0
+    );
+    const sellerShipping = list.reduce(
+      (sum, o) => sum + Number(o?.seller_shipping_amount || 0),
       0
     );
     const tax = list.reduce((sum, o) => sum + Number(o?.tax_amount || 0), 0);
@@ -82,7 +86,14 @@ export default function OrderConfirmationPage() {
       (sum, o) => sum + Number(o?.total_amount || 0),
       0
     );
-    return { subtotal, delivery, tax, discount, total };
+    // Derive transaction fee from totals when not explicitly stored
+    const explicitFee = list.reduce(
+      (sum, o) => sum + Number(o?.transaction_fee || o?.platform_fee_amount || 0),
+      0
+    );
+    const derivedFee = Math.max(0, total - subtotal - buyerShipping - tax + discount);
+    const transactionFee = explicitFee > 0 ? explicitFee : derivedFee;
+    return { subtotal, buyerShipping, sellerShipping, tax, discount, transactionFee, total };
   }, [ordersToDisplay]);
 
   const shipping = order?.shipping_address || {};
@@ -594,14 +605,22 @@ export default function OrderConfirmationPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {[
               { label: "Subtotal", value: aggregatedTotals.subtotal },
-              { label: "Shipping", value: aggregatedTotals.delivery },
               { label: "Tax", value: aggregatedTotals.tax },
+              { label: "Buyer Shipping", value: aggregatedTotals.buyerShipping },
+              { label: "Seller Shipping", value: aggregatedTotals.sellerShipping },
+              { label: "Transaction Fee", value: aggregatedTotals.transactionFee },
             ].map(({ label, value }) => (
               <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
                 <span style={{ color: S.muted }}>{label}</span>
                 <span style={{ fontWeight: 600, color: S.dark }}>${Number(value || 0).toFixed(2)}</span>
               </div>
             ))}
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, borderTop: `1px dashed ${S.border}`, paddingTop: 10, marginTop: 2 }}>
+              <span style={{ color: aggregatedTotals.discount > 0 ? "#059669" : S.muted }}>Discount</span>
+              <span style={{ fontWeight: 600, color: aggregatedTotals.discount > 0 ? "#059669" : S.dark }}>
+                {aggregatedTotals.discount > 0 ? "-" : ""}${Number(aggregatedTotals.discount || 0).toFixed(2)}
+              </span>
+            </div>
             <div
               style={{
                 borderTop: `1px solid ${S.border}`,
@@ -610,7 +629,7 @@ export default function OrderConfirmationPage() {
                 justifyContent: "space-between",
               }}
             >
-              <span style={{ fontWeight: 700, fontSize: 15, color: S.dark }}>Total</span>
+              <span style={{ fontWeight: 700, fontSize: 15, color: S.dark }}>Total paid by buyer</span>
               <span style={{ fontWeight: 800, fontSize: 20, color: S.dark }}>
                 ${Number(aggregatedTotals.total || 0).toFixed(2)}
               </span>
