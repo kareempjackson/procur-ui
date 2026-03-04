@@ -79,11 +79,10 @@ export type SellerPayoutsState = {
   page: number;
   limit: number;
   payoutsStatus: "idle" | "loading" | "succeeded" | "failed";
-  // Payout requests
+  // Payout history (admin-issued)
   payoutRequests: PayoutRequest[];
   payoutRequestsTotal: number;
   payoutRequestsStatus: "idle" | "loading" | "succeeded" | "failed";
-  requestPayoutStatus: "idle" | "loading" | "succeeded" | "failed";
   // Credit transactions
   creditTransactions: SellerCreditTransaction[];
   creditTransactionsTotal: number;
@@ -104,7 +103,6 @@ const initialState: SellerPayoutsState = {
   payoutRequests: [],
   payoutRequestsTotal: 0,
   payoutRequestsStatus: "idle",
-  requestPayoutStatus: "idle",
   creditTransactions: [],
   creditTransactionsTotal: 0,
   creditTransactionsStatus: "idle",
@@ -205,37 +203,6 @@ export const fetchPayoutRequests = createAsyncThunk(
     } catch (err: unknown) {
       return rejectWithValue(
         (err as { message?: string })?.message || "Failed to fetch payout requests"
-      );
-    }
-  }
-);
-
-export const requestPayout = createAsyncThunk(
-  "sellerPayouts/requestPayout",
-  async (dto: { amount?: number; note?: string }, { rejectWithValue }) => {
-    try {
-      const client = getApiClient();
-      const { data } = await client.post("/sellers/payouts/request", dto);
-      return data as PayoutRequest & { message: string };
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } }; message?: string };
-      return rejectWithValue(
-        error.response?.data?.message || error.message || "Failed to request payout"
-      );
-    }
-  }
-);
-
-export const cancelPayoutRequest = createAsyncThunk(
-  "sellerPayouts/cancelPayoutRequest",
-  async (requestId: string, { rejectWithValue }) => {
-    try {
-      const client = getApiClient();
-      await client.delete(`/sellers/payouts/requests/${requestId}`);
-      return requestId;
-    } catch (err: unknown) {
-      return rejectWithValue(
-        (err as { message?: string })?.message || "Failed to cancel request"
       );
     }
   }
@@ -360,29 +327,7 @@ const sellerPayoutsSlice = createSlice({
         state.payoutRequests = [];
         state.payoutRequestsTotal = 0;
       })
-      // Request Payout
-      .addCase(requestPayout.pending, (state) => {
-        state.requestPayoutStatus = "loading";
-        state.error = null;
-      })
-      .addCase(requestPayout.fulfilled, (state, action) => {
-        state.requestPayoutStatus = "succeeded";
-        // Add to the front of the list
-        state.payoutRequests = [action.payload, ...state.payoutRequests];
-        state.payoutRequestsTotal += 1;
-      })
-      .addCase(requestPayout.rejected, (state, action) => {
-        state.requestPayoutStatus = "failed";
-        state.error = (action.payload as string) || "Failed to request payout";
-      })
-      // Cancel Payout Request
-      .addCase(cancelPayoutRequest.fulfilled, (state, action) => {
-        const id = action.payload;
-        const request = state.payoutRequests.find((r) => r.id === id);
-        if (request) {
-          request.status = "cancelled";
-        }
-      });
+      ;
   },
 });
 
