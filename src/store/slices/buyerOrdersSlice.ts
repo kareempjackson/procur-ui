@@ -38,6 +38,27 @@ export interface OrderItem {
   unit: string;
 }
 
+export interface OrderFulfillment {
+  id: string;
+  order_number: string;
+  seller_org_id: string;
+  seller_name: string;
+  status: string;
+  subtotal: number;
+  total_amount: number;
+  tracking_number?: string | null;
+  shipping_method?: string | null;
+  estimated_delivery_date?: string | null;
+  actual_delivery_date?: string | null;
+  accepted_at?: string | null;
+  rejected_at?: string | null;
+  shipped_at?: string | null;
+  delivered_at?: string | null;
+  seller_notes?: string | null;
+  items: OrderItem[];
+  timeline?: any[];
+}
+
 export interface Order {
   id: string;
   order_number: string;
@@ -45,9 +66,12 @@ export interface Order {
   payment_status?: string;
   created_at: string;
   updated_at: string;
-  seller_org_id: string;
-  seller_name: string;
+  seller_org_id?: string | null;
+  seller_name?: string;
   seller_location?: string;
+  parent_order_id?: string | null;
+  is_aggregate?: boolean;
+  fulfillments?: OrderFulfillment[];
   total_items: number;
   subtotal: number;
   shipping_cost: number;

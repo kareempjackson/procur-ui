@@ -33,6 +33,8 @@ export type SellerOrder = {
   buyer_org_id: string;
   seller_org_id: string;
   buyer_user_id?: string;
+  /** Set when this is a child fulfillment order (multi-seller checkout). The parent and children share the same order_number. */
+  parent_order_id?: string | null;
   buyer_info?: {
     organization_name?: string;
     business_name?: string;

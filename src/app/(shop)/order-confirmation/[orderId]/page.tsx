@@ -40,11 +40,19 @@ export default function OrderConfirmationPage() {
   const checkoutGroupId: string | null =
     (order as any)?.checkout_group_id || null;
 
-  // Load all orders for this checkout group (if present)
+  // For new aggregate orders the fulfillments are embedded directly on the parent order.
+  // Only fall back to the group API call for legacy orders (checkout_group_id set, no fulfillments).
+  const hasFulfillments =
+    Array.isArray((order as any)?.fulfillments) &&
+    (order as any)?.fulfillments?.length > 0;
+
+  // Load all orders for this checkout group (legacy fallback only)
   useEffect(() => {
     const load = async () => {
       if (!authToken) return;
       if (!checkoutGroupId) return;
+      // Skip if the new fulfillments field is already populated
+      if (hasFulfillments) return;
       setGroupLoading(true);
       try {
         const client = getApiClient(() => authToken);
@@ -59,12 +67,15 @@ export default function OrderConfirmationPage() {
       }
     };
     void load();
-  }, [authToken, checkoutGroupId]);
+  }, [authToken, checkoutGroupId, hasFulfillments]);
 
   const ordersToDisplay = useMemo(() => {
+    // New aggregate orders: use embedded fulfillments
+    if (hasFulfillments) return (order as any).fulfillments as any[];
+    // Legacy multi-seller orders: use group API response
     if (Array.isArray(groupOrders) && groupOrders.length > 0) return groupOrders;
     return order ? [order] : [];
-  }, [groupOrders, order]);
+  }, [hasFulfillments, groupOrders, order]);
 
   const aggregatedTotals = useMemo(() => {
     const list = ordersToDisplay;
@@ -303,14 +314,17 @@ export default function OrderConfirmationPage() {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" as any, gap: 16 }}>
             <div>
               <p style={{ fontSize: 13, color: S.muted, marginBottom: 4 }}>
-                Order Number{ordersToDisplay.length > 1 ? "s" : ""}
+                Order Number
               </p>
               <p style={{ fontSize: 22, fontWeight: 800, color: S.dark }}>
-                {ordersToDisplay.length > 1
-                  ? `${ordersToDisplay.length} supplier orders`
-                  : order?.order_number || "--"}
+                {order?.order_number || "--"}
               </p>
-              {groupLoading && checkoutGroupId ? (
+              {ordersToDisplay.length > 1 && (
+                <p style={{ fontSize: 12, color: S.muted, marginTop: 4 }}>
+                  {ordersToDisplay.length} sellers fulfilling this order
+                </p>
+              )}
+              {groupLoading && checkoutGroupId && !hasFulfillments ? (
                 <p style={{ fontSize: 12, color: S.muted, marginTop: 4 }}>
                   Loading full checkout…
                 </p>
@@ -442,8 +456,18 @@ export default function OrderConfirmationPage() {
                     <h3 style={{ fontSize: 15, fontWeight: 700, color: S.dark }}>
                       {o.seller_name || "Seller"}
                     </h3>
-                    {ordersToDisplay.length > 1 && o.order_number && (
-                      <span style={{ fontSize: 12, color: S.muted }}>• {o.order_number}</span>
+                    {ordersToDisplay.length > 1 && (
+                      <span
+                        style={{
+                          fontSize: 11,
+                          color: "#fff",
+                          background: S.teal,
+                          borderRadius: 999,
+                          padding: "2px 8px",
+                        }}
+                      >
+                        Fulfillment
+                      </span>
                     )}
                   </div>
                   <p style={{ fontSize: 13, color: S.muted }}>

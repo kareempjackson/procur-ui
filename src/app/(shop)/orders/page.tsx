@@ -456,7 +456,9 @@ export default function BuyerOrdersPage() {
                         {order.order_number || `ORD-${order.id.slice(-8).toUpperCase()}`}
                       </Link>
                       <span style={{ fontSize: 10, color: "#b0c0b6", marginTop: 2 }}>
-                        {order.seller_name || "—"}
+                        {order.is_aggregate || !order.seller_org_id
+                          ? "Multiple Sellers"
+                          : order.seller_name || "—"}
                       </span>
                     </div>
 

@@ -381,6 +381,27 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
 
             {/* Order header */}
             <div style={card}>
+              {/* "Part of order" banner for multi-seller checkout fulfillments */}
+              {(currentOrder as any).parent_order_id && (
+                <div style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: "#2d4a3e",
+                  background: "#f0f7f4",
+                  border: "1px solid #c8ddd4",
+                  borderRadius: 999,
+                  padding: "4px 12px",
+                  marginBottom: 12,
+                }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" width={11} height={11}>
+                    <path d="M21 10H3M16 6l5 4-5 4"/>
+                  </svg>
+                  Part of order {currentOrder.order_number}
+                </div>
+              )}
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                 <div>
                   <h1 style={{ fontSize: 20, fontWeight: 800, color: "#1c2b23", margin: 0, marginBottom: 6 }}>

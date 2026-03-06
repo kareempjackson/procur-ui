@@ -268,7 +268,11 @@ export default function OrderDetailPage({
           </div>
           <p style={{ fontSize: 12, color: "#8a9e92", margin: 0 }}>
             Placed {fmtDate(order.created_at)}
-            {order.seller_name && <> · <span style={{ color: "#6a7f73", fontWeight: 600 }}>{order.seller_name}</span></>}
+            {(order as any).is_aggregate ? (
+              <> · <span style={{ color: "#6a7f73", fontWeight: 600 }}>Multiple Sellers</span></>
+            ) : (
+              order.seller_name && <> · <span style={{ color: "#6a7f73", fontWeight: 600 }}>{order.seller_name}</span></>
+            )}
           </p>
         </div>
 
@@ -345,59 +349,110 @@ export default function OrderDetailPage({
           {/* Left: items + notes */}
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-            {/* Items card */}
-            <div style={{ background: "#fff", border: "1px solid #ebe7df", borderRadius: 10, overflow: "hidden" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid #f0ece6" }}>
-                <h2 style={{ fontSize: 14, fontWeight: 700, color: "#1c2b23", margin: 0 }}>Items Purchased</h2>
-                <span style={{ fontSize: 11, color: "#8a9e92" }}>{orderItems.length} item{orderItems.length !== 1 ? "s" : ""}</span>
-              </div>
-
-              {orderItems.length === 0 ? (
-                <p style={{ padding: "20px", fontSize: 13, color: "#8a9e92", margin: 0 }}>No items found for this order.</p>
-              ) : (
-                orderItems.map((item: any, index: number) => {
-                  const qty = Number(item.quantity || 0);
-                  const unitPrice = Number(item.unit_price ?? item.price_per_unit ?? item.price ?? 0);
-                  const lineTotal = Number(item.total_price ?? item.subtotal ?? qty * unitPrice);
-                  const unit = item.unit || item.unit_of_measurement || item?.product_snapshot?.unit_of_measurement || item?.product_snapshot?.unit || "";
-                  const name = item.product_name || item?.product_snapshot?.product_name || item?.product_snapshot?.name || "Item";
-                  const imageUrl = item.product_image || item.image_url || item?.product_snapshot?.image_url || null;
-
-                  return (
-                    <div
-                      key={item.id || `${item.product_id || "i"}-${index}`}
-                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, padding: "14px 20px", borderBottom: index < orderItems.length - 1 ? "1px solid rgba(235,231,223,.4)" : "none" }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-                        {/* Thumbnail */}
-                        <div style={{ width: 48, height: 48, borderRadius: 10, overflow: "hidden", border: "1px solid #e8e4dc", background: "#f5f1ea", flexShrink: 0, position: "relative" }}>
-                          {typeof imageUrl === "string" && imageUrl ? (
-                            <Image src={imageUrl} alt={name} fill style={{ objectFit: "cover" }} />
-                          ) : (
-                            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              <svg viewBox="0 0 24 24" fill="none" stroke="#c8c0b8" strokeWidth="1.5" width={18} height={18}>
-                                <path d="M6 2 3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/>
-                              </svg>
-                            </div>
-                          )}
-                        </div>
-                        <div style={{ minWidth: 0 }}>
-                          <p style={{ fontSize: 13, fontWeight: 700, color: "#1c2b23", margin: "0 0 3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</p>
-                          <p style={{ fontSize: 11, color: "#8a9e92", margin: 0 }}>
-                            ×{qty}{unit ? ` ${unit}` : ""}
-                            <span style={{ margin: "0 5px", color: "#d8d2c8" }}>·</span>
-                            {fmtUSD(unitPrice)} each
-                          </p>
-                        </div>
+            {/* Items card — aggregate (multi-seller) or single seller */}
+            {(order as any).is_aggregate && Array.isArray((order as any).fulfillments) && (order as any).fulfillments.length > 0 ? (
+              // Aggregate view: one card per seller fulfillment
+              (order as any).fulfillments.map((fulfillment: any) => {
+                const fStatus = (fulfillment.status || "pending").toLowerCase();
+                const fSc = STATUS_COLOR[fStatus] || { color: "#8a9e92", bg: "#f5f1ea" };
+                return (
+                  <div key={fulfillment.id} style={{ background: "#fff", border: "1px solid #ebe7df", borderRadius: 10, overflow: "hidden" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", borderBottom: "1px solid #f0ece6", background: "#f9f7f4" }}>
+                      <div>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: "#1c2b23" }}>{fulfillment.seller_name || "Seller"}</span>
+                        {fulfillment.tracking_number && (
+                          <span style={{ fontSize: 11, color: "#8a9e92", marginLeft: 8 }}>
+                            Tracking #{" "}
+                            <a href={`https://parcelsapp.com/en/tracking/${encodeURIComponent(fulfillment.tracking_number)}`} target="_blank" rel="noopener noreferrer" style={{ color: "#2d4a3e", fontWeight: 700 }}>
+                              {fulfillment.tracking_number}
+                            </a>
+                          </span>
+                        )}
                       </div>
-                      <div style={{ textAlign: "right", flexShrink: 0 }}>
-                        <p style={{ fontSize: 14, fontWeight: 800, color: "#1c2b23", margin: 0, fontVariantNumeric: "tabular-nums" }}>{fmtUSD(lineTotal)}</p>
-                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: fSc.color, background: fSc.bg, padding: "3px 10px", borderRadius: 999 }}>
+                        {fStatus.charAt(0).toUpperCase() + fStatus.slice(1)}
+                      </span>
                     </div>
-                  );
-                })
-              )}
-            </div>
+                    {(fulfillment.items || []).map((item: any, index: number) => {
+                      const qty = Number(item.quantity || 0);
+                      const unitPrice = Number(item.unit_price ?? 0);
+                      const lineTotal = Number(item.total_price ?? qty * unitPrice);
+                      const unit = item.unit || item.unit_of_measurement || item?.product_snapshot?.unit_of_measurement || "";
+                      const name = item.product_name || "Item";
+                      const imageUrl = item.product_image || item.image_url || item?.product_snapshot?.image_url || null;
+                      return (
+                        <div key={item.id || `fi-${index}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, padding: "14px 20px", borderBottom: index < (fulfillment.items.length - 1) ? "1px solid rgba(235,231,223,.4)" : "none" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+                            <div style={{ width: 48, height: 48, borderRadius: 10, overflow: "hidden", border: "1px solid #e8e4dc", background: "#f5f1ea", flexShrink: 0, position: "relative" }}>
+                              {imageUrl ? <Image src={imageUrl} alt={name} fill style={{ objectFit: "cover" }} /> : null}
+                            </div>
+                            <div style={{ minWidth: 0 }}>
+                              <p style={{ fontSize: 13, fontWeight: 700, color: "#1c2b23", margin: "0 0 3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</p>
+                              <p style={{ fontSize: 11, color: "#8a9e92", margin: 0 }}>×{qty}{unit ? ` ${unit}` : ""} · {fmtUSD(unitPrice)} each</p>
+                            </div>
+                          </div>
+                          <p style={{ fontSize: 14, fontWeight: 800, color: "#1c2b23", margin: 0, flexShrink: 0 }}>{fmtUSD(lineTotal)}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })
+            ) : (
+              // Single-seller view (legacy or single-seller order)
+              <div style={{ background: "#fff", border: "1px solid #ebe7df", borderRadius: 10, overflow: "hidden" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid #f0ece6" }}>
+                  <h2 style={{ fontSize: 14, fontWeight: 700, color: "#1c2b23", margin: 0 }}>Items Purchased</h2>
+                  <span style={{ fontSize: 11, color: "#8a9e92" }}>{orderItems.length} item{orderItems.length !== 1 ? "s" : ""}</span>
+                </div>
+
+                {orderItems.length === 0 ? (
+                  <p style={{ padding: "20px", fontSize: 13, color: "#8a9e92", margin: 0 }}>No items found for this order.</p>
+                ) : (
+                  orderItems.map((item: any, index: number) => {
+                    const qty = Number(item.quantity || 0);
+                    const unitPrice = Number(item.unit_price ?? item.price_per_unit ?? item.price ?? 0);
+                    const lineTotal = Number(item.total_price ?? item.subtotal ?? qty * unitPrice);
+                    const unit = item.unit || item.unit_of_measurement || item?.product_snapshot?.unit_of_measurement || item?.product_snapshot?.unit || "";
+                    const name = item.product_name || item?.product_snapshot?.product_name || item?.product_snapshot?.name || "Item";
+                    const imageUrl = item.product_image || item.image_url || item?.product_snapshot?.image_url || null;
+
+                    return (
+                      <div
+                        key={item.id || `${item.product_id || "i"}-${index}`}
+                        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, padding: "14px 20px", borderBottom: index < orderItems.length - 1 ? "1px solid rgba(235,231,223,.4)" : "none" }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+                          {/* Thumbnail */}
+                          <div style={{ width: 48, height: 48, borderRadius: 10, overflow: "hidden", border: "1px solid #e8e4dc", background: "#f5f1ea", flexShrink: 0, position: "relative" }}>
+                            {typeof imageUrl === "string" && imageUrl ? (
+                              <Image src={imageUrl} alt={name} fill style={{ objectFit: "cover" }} />
+                            ) : (
+                              <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="#c8c0b8" strokeWidth="1.5" width={18} height={18}>
+                                  <path d="M6 2 3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/>
+                                </svg>
+                              </div>
+                            )}
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <p style={{ fontSize: 13, fontWeight: 700, color: "#1c2b23", margin: "0 0 3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</p>
+                            <p style={{ fontSize: 11, color: "#8a9e92", margin: 0 }}>
+                              ×{qty}{unit ? ` ${unit}` : ""}
+                              <span style={{ margin: "0 5px", color: "#d8d2c8" }}>·</span>
+                              {fmtUSD(unitPrice)} each
+                            </p>
+                          </div>
+                        </div>
+                        <div style={{ textAlign: "right", flexShrink: 0 }}>
+                          <p style={{ fontSize: 14, fontWeight: 800, color: "#1c2b23", margin: 0, fontVariantNumeric: "tabular-nums" }}>{fmtUSD(lineTotal)}</p>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
 
             {/* Delivery notes */}
             {order.buyer_notes && (
@@ -434,30 +489,50 @@ export default function OrderDetailPage({
               )}
             </div>
 
-            {/* Seller */}
+            {/* Seller(s) */}
             <div style={{ background: "#fff", border: "1px solid #ebe7df", borderRadius: 10, padding: "18px 20px" }}>
-              <h3 style={{ fontSize: 13, fontWeight: 700, color: "#1c2b23", margin: "0 0 12px" }}>Supplier</h3>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 8, background: "#2d4a3e", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <span style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>{(order.seller_name || "?").charAt(0)}</span>
+              <h3 style={{ fontSize: 13, fontWeight: 700, color: "#1c2b23", margin: "0 0 12px" }}>
+                {(order as any).is_aggregate ? "Suppliers" : "Supplier"}
+              </h3>
+              {(order as any).is_aggregate && Array.isArray((order as any).fulfillments) ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {(order as any).fulfillments.map((f: any) => (
+                    <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ width: 32, height: 32, borderRadius: 8, background: "#2d4a3e", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <span style={{ fontSize: 12, fontWeight: 800, color: "#fff" }}>{(f.seller_name || "?").charAt(0)}</span>
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <p style={{ fontSize: 12, fontWeight: 700, color: "#1c2b23", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.seller_name || "—"}</p>
+                        <p style={{ fontSize: 10, color: "#8a9e92", margin: "1px 0 0", textTransform: "capitalize" }}>{f.status}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: "#1c2b23", margin: 0 }}>{order.seller_name || "—"}</p>
-                  {order.seller_location && (
-                    <p style={{ fontSize: 11, color: "#8a9e92", margin: "2px 0 0" }}>{order.seller_location}</p>
-                  )}
-                </div>
-              </div>
-              <button
-                onClick={handleContactSeller}
-                disabled={isStartingConversation}
-                style={{ width: "100%", padding: "10px 16px", background: "#2d4a3e", border: "none", borderRadius: 999, fontSize: 12, fontWeight: 700, color: "#f5f1ea", cursor: isStartingConversation ? "not-allowed" : "pointer", opacity: isStartingConversation ? 0.6 : 1, fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width={13} height={13}>
-                  <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-                </svg>
-                {isStartingConversation ? "Loading…" : "Message Supplier"}
-              </button>
+              ) : (
+                <>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 8, background: "#2d4a3e", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <span style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>{(order.seller_name || "?").charAt(0)}</span>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: "#1c2b23", margin: 0 }}>{order.seller_name || "—"}</p>
+                      {order.seller_location && (
+                        <p style={{ fontSize: 11, color: "#8a9e92", margin: "2px 0 0" }}>{order.seller_location}</p>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleContactSeller}
+                    disabled={isStartingConversation}
+                    style={{ width: "100%", padding: "10px 16px", background: "#2d4a3e", border: "none", borderRadius: 999, fontSize: 12, fontWeight: 700, color: "#f5f1ea", cursor: isStartingConversation ? "not-allowed" : "pointer", opacity: isStartingConversation ? 0.6 : 1, fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width={13} height={13}>
+                      <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+                    </svg>
+                    {isStartingConversation ? "Loading…" : "Message Supplier"}
+                  </button>
+                </>
+              )}
             </div>
 
             {/* Delivery address */}
