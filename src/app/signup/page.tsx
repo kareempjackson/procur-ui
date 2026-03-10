@@ -11,7 +11,7 @@ import ReCAPTCHA from "react-google-recaptcha";
 
 const INPUT: React.CSSProperties = {
   width: "100%",
-  padding: "13px 16px",
+  padding: "10px 14px",
   border: "1px solid #d8d2c8",
   borderRadius: 10,
   fontSize: 14,
@@ -87,6 +87,11 @@ function toSignupError(raw: unknown): AuthError {
     return {
       title: "Too many attempts",
       hint: "Wait a few minutes before trying again.",
+    };
+  if (s.includes("phone") || s.includes("whatsapp"))
+    return {
+      title: "Invalid WhatsApp number",
+      hint: "Enter a valid international phone number (e.g. +1 473 123 4567).",
     };
   return {
     title: "Couldn't create your account",
@@ -174,7 +179,7 @@ const SignUpPage: React.FC = () => {
     country: "Grenada",
     website: "",
   });
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<AuthError | null>(null);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
@@ -207,7 +212,7 @@ const SignUpPage: React.FC = () => {
     }));
   };
 
-  const goToNextStep = () => {
+  const goToStep2 = () => {
     if (!formData.accountType) {
       setError({
         title: "Account type required",
@@ -217,6 +222,25 @@ const SignUpPage: React.FC = () => {
     }
     setError(null);
     setStep(2);
+  };
+
+  const goToStep3 = () => {
+    if (!formData.businessType) {
+      setError({
+        title: "Business type required",
+        hint: "Select your business type from the dropdown to continue.",
+      });
+      return;
+    }
+    if (!formData.businessName.trim()) {
+      setError({
+        title: "Business name required",
+        hint: "Enter your business or organisation name to continue.",
+      });
+      return;
+    }
+    setError(null);
+    setStep(3);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -229,32 +253,22 @@ const SignUpPage: React.FC = () => {
       });
       return;
     }
+    if (!formData.phoneNumber.trim()) {
+      setError({
+        title: "WhatsApp number required",
+        hint: "Enter your WhatsApp number so we can send you order updates.",
+      });
+      return;
+    }
+    if (!/^\+?[1-9]\d{7,14}$/.test(formData.phoneNumber.trim().replace(/\s/g, ""))) {
+      setError({
+        title: "Invalid WhatsApp number",
+        hint: "Enter a valid international phone number (e.g. +1 473 123 4567).",
+      });
+      return;
+    }
     setIsLoading(true);
     try {
-      if (
-        (formData.accountType === "buyer" ||
-          formData.accountType === "seller") &&
-        !formData.businessType
-      ) {
-        setIsLoading(false);
-        setError({
-          title: "Business type required",
-          hint: "Select your business type from the dropdown to continue.",
-        });
-        return;
-      }
-      if (
-        (formData.accountType === "buyer" ||
-          formData.accountType === "seller") &&
-        !formData.businessName
-      ) {
-        setIsLoading(false);
-        setError({
-          title: "Business name required",
-          hint: "Enter your business or organisation name to continue.",
-        });
-        return;
-      }
       await dispatch(
         signupThunk({
           email: formData.email,
@@ -361,22 +375,21 @@ const SignUpPage: React.FC = () => {
               minWidth: 0,
               display: "flex",
               flexDirection: "column",
-              justifyContent: "center",
               alignItems: "center",
               padding: "32px 32px",
               overflowY: "auto",
             }}
           >
-            <div style={{ width: "100%", maxWidth: 420 }}>
+            <div style={{ width: "100%", maxWidth: 420, margin: "auto 0" }}>
               {/* Headline */}
-              <div style={{ marginBottom: 20 }}>
+              <div style={{ marginBottom: 14 }}>
                 <h1
                   style={{
-                    fontSize: 26,
+                    fontSize: 24,
                     fontWeight: 700,
                     color: "#1c2b23",
                     letterSpacing: "-.3px",
-                    margin: "0 0 4px",
+                    margin: "0 0 3px",
                   }}
                 >
                   Join Procur
@@ -391,74 +404,58 @@ const SignUpPage: React.FC = () => {
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 10,
-                  marginBottom: 20,
+                  gap: 8,
+                  marginBottom: 16,
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                  <span
-                    style={{
-                      width: 26,
-                      height: 26,
-                      borderRadius: "50%",
-                      background: "#2d4a3e",
-                      color: "#f5f1ea",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 12,
-                      fontWeight: 700,
-                      flexShrink: 0,
-                    }}
-                  >
-                    {step > 1 ? "✓" : "1"}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: 13,
-                      fontWeight: step === 1 ? 700 : 400,
-                      color: step === 1 ? "#1c2b23" : "#8a9e92",
-                    }}
-                  >
-                    Account Type
-                  </span>
-                </div>
-                <div
-                  style={{
-                    flex: 1,
-                    height: 1,
-                    background: step === 2 ? "#2d4a3e" : "#d8d2c8",
-                    maxWidth: 36,
-                  }}
-                />
-                <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                  <span
-                    style={{
-                      width: 26,
-                      height: 26,
-                      borderRadius: "50%",
-                      background: step >= 2 ? "#2d4a3e" : "#ebe7df",
-                      color: step >= 2 ? "#f5f1ea" : "#8a9e92",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 12,
-                      fontWeight: 700,
-                      flexShrink: 0,
-                    }}
-                  >
-                    2
-                  </span>
-                  <span
-                    style={{
-                      fontSize: 13,
-                      fontWeight: step === 2 ? 700 : 400,
-                      color: step === 2 ? "#1c2b23" : "#8a9e92",
-                    }}
-                  >
-                    Business & Details
-                  </span>
-                </div>
+                {(
+                  [
+                    { num: 1, label: "Account" },
+                    { num: 2, label: "Business" },
+                    { num: 3, label: "Details" },
+                  ] as { num: 1 | 2 | 3; label: string }[]
+                ).map((s, i) => (
+                  <React.Fragment key={s.num}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                      <span
+                        style={{
+                          width: 22,
+                          height: 22,
+                          borderRadius: "50%",
+                          background: step >= s.num ? "#2d4a3e" : "#ebe7df",
+                          color: step >= s.num ? "#f5f1ea" : "#8a9e92",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 11,
+                          fontWeight: 700,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {step > s.num ? "✓" : s.num}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 12,
+                          fontWeight: step === s.num ? 700 : 400,
+                          color: step === s.num ? "#1c2b23" : "#8a9e92",
+                        }}
+                      >
+                        {s.label}
+                      </span>
+                    </div>
+                    {i < 2 && (
+                      <div
+                        style={{
+                          flex: 1,
+                          height: 1,
+                          background: step > s.num ? "#2d4a3e" : "#d8d2c8",
+                          maxWidth: 28,
+                        }}
+                      />
+                    )}
+                  </React.Fragment>
+                ))}
               </div>
 
               {/* Error */}
@@ -468,8 +465,8 @@ const SignUpPage: React.FC = () => {
                     background: "#fff9f5",
                     border: "1px solid #fbd0b0",
                     borderRadius: 12,
-                    padding: "12px 16px",
-                    marginBottom: 18,
+                    padding: "10px 14px",
+                    marginBottom: 12,
                     display: "flex",
                     gap: 10,
                     alignItems: "flex-start",
@@ -523,20 +520,8 @@ const SignUpPage: React.FC = () => {
               <form onSubmit={handleSubmit}>
                 {/* ── Step 1: Account type ── */}
                 {step === 1 && (
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 16,
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "1fr 1fr",
-                        gap: 12,
-                      }}
-                    >
+                  <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                       {ACCOUNT_TYPES.map((opt) => {
                         const selected = formData.accountType === opt.value;
                         return (
@@ -546,14 +531,12 @@ const SignUpPage: React.FC = () => {
                               position: "relative",
                               cursor: "pointer",
                               borderRadius: 14,
-                              border: selected
-                                ? "2px solid #2d4a3e"
-                                : "1px solid #d8d2c8",
-                              padding: selected ? "17px 15px" : "18px 16px",
+                              border: selected ? "2px solid #2d4a3e" : "1px solid #d8d2c8",
+                              padding: selected ? "15px 13px" : "16px 14px",
                               background: selected ? "#f0f4f2" : "#fff",
                               display: "flex",
                               flexDirection: "column",
-                              gap: 10,
+                              gap: 8,
                               transition: "all .15s",
                             }}
                           >
@@ -567,9 +550,9 @@ const SignUpPage: React.FC = () => {
                             />
                             <div
                               style={{
-                                width: 44,
-                                height: 44,
-                                borderRadius: 10,
+                                width: 38,
+                                height: 38,
+                                borderRadius: 9,
                                 background: selected ? "#d4783c" : "#f5f1ea",
                                 display: "flex",
                                 alignItems: "center",
@@ -581,23 +564,10 @@ const SignUpPage: React.FC = () => {
                               {opt.icon}
                             </div>
                             <div>
-                              <div
-                                style={{
-                                  fontSize: 15,
-                                  fontWeight: 700,
-                                  color: selected ? "#2d4a3e" : "#1c2b23",
-                                  marginBottom: 3,
-                                }}
-                              >
+                              <div style={{ fontSize: 14, fontWeight: 700, color: selected ? "#2d4a3e" : "#1c2b23", marginBottom: 2 }}>
                                 {opt.label}
                               </div>
-                              <div
-                                style={{
-                                  fontSize: 12,
-                                  color: "#6a7f73",
-                                  lineHeight: 1.4,
-                                }}
-                              >
+                              <div style={{ fontSize: 11, color: "#6a7f73", lineHeight: 1.4 }}>
                                 {opt.description}
                               </div>
                             </div>
@@ -605,10 +575,10 @@ const SignUpPage: React.FC = () => {
                               <div
                                 style={{
                                   position: "absolute",
-                                  top: 10,
-                                  right: 10,
-                                  width: 20,
-                                  height: 20,
+                                  top: 9,
+                                  right: 9,
+                                  width: 18,
+                                  height: 18,
                                   borderRadius: "50%",
                                   background: "#2d4a3e",
                                   display: "flex",
@@ -616,15 +586,7 @@ const SignUpPage: React.FC = () => {
                                   justifyContent: "center",
                                 }}
                               >
-                                <svg
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="#f5f1ea"
-                                  strokeWidth="3"
-                                  strokeLinecap="round"
-                                  width={10}
-                                  height={10}
-                                >
+                                <svg viewBox="0 0 24 24" fill="none" stroke="#f5f1ea" strokeWidth="3" strokeLinecap="round" width={9} height={9}>
                                   <path d="M20 6L9 17l-5-5" />
                                 </svg>
                               </div>
@@ -635,7 +597,7 @@ const SignUpPage: React.FC = () => {
                     </div>
                     <button
                       type="button"
-                      onClick={goToNextStep}
+                      onClick={goToStep2}
                       disabled={!formData.accountType || isLoading}
                       style={btn(!formData.accountType || isLoading)}
                     >
@@ -644,75 +606,87 @@ const SignUpPage: React.FC = () => {
                   </div>
                 )}
 
-                {/* ── Step 2: Details ── */}
+                {/* ── Step 2: Business details ── */}
                 {step === 2 && (
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 14,
-                    }}
-                  >
-                    {(formData.accountType === "buyer" ||
-                      formData.accountType === "seller") && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    <div style={{ position: "relative" }}>
+                      <select
+                        id="businessType"
+                        name="businessType"
+                        value={formData.businessType}
+                        onChange={handleInputChange}
+                        style={SELECT}
+                      >
+                        <option value="">Select business type</option>
+                        {BUSINESS_TYPES[formData.accountType]?.map((bt) => (
+                          <option key={bt.value} value={bt.value}>
+                            {bt.label}
+                          </option>
+                        ))}
+                      </select>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="#8a9e92" strokeWidth="2" width={14} height={14}
+                        style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}
+                      >
+                        <path d="M6 9l6 6 6-6" />
+                      </svg>
+                    </div>
+                    <input
+                      id="businessName"
+                      name="businessName"
+                      type="text"
+                      value={formData.businessName}
+                      onChange={handleInputChange}
+                      placeholder="Business or organisation name"
+                      style={INPUT}
+                    />
+                    <button type="button" onClick={goToStep3} style={btn(false)}>
+                      Continue
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setStep(1); setError(null); }}
+                      style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 13, color: "#407178", textDecoration: "underline", padding: "4px 0" }}
+                    >
+                      ← Back
+                    </button>
+                  </div>
+                )}
+
+                {/* ── Step 3: Personal details ── */}
+                {step === 3 && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {/* Name + Country row */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                      <input
+                        id="fullname"
+                        name="fullname"
+                        type="text"
+                        required
+                        value={formData.fullname}
+                        onChange={handleInputChange}
+                        placeholder="Full name"
+                        style={INPUT}
+                      />
                       <div style={{ position: "relative" }}>
                         <select
-                          id="businessType"
-                          name="businessType"
+                          id="country"
+                          name="country"
                           required
-                          value={formData.businessType}
+                          value={formData.country}
                           onChange={handleInputChange}
                           style={SELECT}
                         >
-                          <option value="">Select business type</option>
-                          {BUSINESS_TYPES[formData.accountType]?.map((bt) => (
-                            <option key={bt.value} value={bt.value}>
-                              {bt.label}
-                            </option>
+                          {COUNTRIES.map((c) => (
+                            <option key={c} value={c}>{c}</option>
                           ))}
                         </select>
-                        <svg
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="#8a9e92"
-                          strokeWidth="2"
-                          width={14}
-                          height={14}
-                          style={{
-                            position: "absolute",
-                            right: 14,
-                            top: "50%",
-                            transform: "translateY(-50%)",
-                            pointerEvents: "none",
-                          }}
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#8a9e92" strokeWidth="2" width={14} height={14}
+                          style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}
                         >
                           <path d="M6 9l6 6 6-6" />
                         </svg>
                       </div>
-                    )}
-                    {(formData.accountType === "buyer" ||
-                      formData.accountType === "seller") && (
-                      <input
-                        id="businessName"
-                        name="businessName"
-                        type="text"
-                        required
-                        value={formData.businessName}
-                        onChange={handleInputChange}
-                        placeholder="Business name"
-                        style={INPUT}
-                      />
-                    )}
-                    <input
-                      id="fullname"
-                      name="fullname"
-                      type="text"
-                      required
-                      value={formData.fullname}
-                      onChange={handleInputChange}
-                      placeholder="Full name"
-                      style={INPUT}
-                    />
+                    </div>
                     <input
                       id="email"
                       name="email"
@@ -735,84 +709,41 @@ const SignUpPage: React.FC = () => {
                       placeholder="Create a password"
                       style={INPUT}
                     />
-                    <div style={{ position: "relative" }}>
-                      <select
-                        id="country"
-                        name="country"
+                    <div>
+                      <input
+                        id="phoneNumber"
+                        name="phoneNumber"
+                        type="tel"
+                        autoComplete="tel"
                         required
-                        value={formData.country}
+                        value={formData.phoneNumber}
                         onChange={handleInputChange}
-                        style={SELECT}
-                      >
-                        <option value="">Select country</option>
-                        {COUNTRIES.map((c) => (
-                          <option key={c} value={c}>
-                            {c}
-                          </option>
-                        ))}
-                      </select>
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="#8a9e92"
-                        strokeWidth="2"
-                        width={14}
-                        height={14}
-                        style={{
-                          position: "absolute",
-                          right: 14,
-                          top: "50%",
-                          transform: "translateY(-50%)",
-                          pointerEvents: "none",
-                        }}
-                      >
-                        <path d="M6 9l6 6 6-6" />
-                      </svg>
+                        placeholder="WhatsApp number (e.g. +1 473 123 4567)"
+                        style={INPUT}
+                      />
+                      <p style={{ fontSize: 11, color: "#6a7f73", margin: "3px 0 0 4px" }}>
+                        Used for order updates and direct communication
+                      </p>
                     </div>
                     {/* Honeypot */}
                     <div style={{ display: "none" }} aria-hidden="true">
-                      <input
-                        id="website"
-                        name="website"
-                        type="text"
-                        autoComplete="off"
-                        value={formData.website}
-                        onChange={handleInputChange}
-                      />
+                      <input id="website" name="website" type="text" autoComplete="off" value={formData.website} onChange={handleInputChange} />
                     </div>
                     <div style={{ display: "flex", justifyContent: "center" }}>
                       <ReCAPTCHA
-                        sitekey={
-                          process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY as string
-                        }
+                        sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY as string}
                         onChange={(token) => setCaptchaToken(token || null)}
                       />
                     </div>
-                    <button
-                      type="submit"
-                      disabled={isLoading || !captchaToken}
-                      style={btn(isLoading || !captchaToken)}
-                    >
+                    <button type="submit" disabled={isLoading || !captchaToken} style={btn(isLoading || !captchaToken)}>
                       {isLoading ? "Creating account…" : "Create Account"}
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        setStep(1);
-                        setError(null);
-                      }}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        fontFamily: "inherit",
-                        fontSize: 13,
-                        color: "#407178",
-                        textDecoration: "underline",
-                        padding: "4px 0",
-                      }}
+                      onClick={() => { setStep(2); setError(null); }}
+                      style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 13, color: "#407178", textDecoration: "underline", padding: "4px 0" }}
                     >
-                      ← Back to account type
+                      ← Back
                     </button>
                   </div>
                 )}
@@ -821,11 +752,11 @@ const SignUpPage: React.FC = () => {
               {/* Bottom links */}
               <div
                 style={{
-                  marginTop: 16,
-                  fontSize: 12,
+                  marginTop: 12,
+                  fontSize: 11,
                   color: "#8a9e92",
                   textAlign: "center",
-                  lineHeight: 1.9,
+                  lineHeight: 1.7,
                 }}
               >
                 <p style={{ margin: "0 0 2px" }}>
