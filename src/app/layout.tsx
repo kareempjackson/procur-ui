@@ -73,6 +73,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        {/* Preload critical Urbanist font weights to prevent FOUT */}
+        <link rel="preload" href="/fonts/Urbanist-Regular.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
+        <link rel="preload" href="/fonts/Urbanist-Medium.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
+        <link rel="preload" href="/fonts/Urbanist-SemiBold.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
+        <link rel="preload" href="/fonts/Urbanist-Bold.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
         {/* Google Analytics */}
         <Script
           src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}

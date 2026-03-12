@@ -8,7 +8,11 @@ import { useAppSelector } from "@/store";
 import { selectAuthUser } from "@/store/slices/authSlice";
 import { getApiClient } from "@/lib/apiClient";
 import BuyerTopNavigation from "@/components/navigation/BuyerTopNavigation";
-import BuyerClient from "./buyer/BuyerClient";
+import dynamic from "next/dynamic";
+const BuyerClient = dynamic(() => import("./buyer/BuyerClient"), {
+  ssr: false,
+  loading: () => null,
+});
 import SellerTopNavigation from "@/components/navigation/SellerTopNavigation";
 import { ToastProvider } from "@/components/ui/Toast";
 
@@ -287,6 +291,7 @@ const PRODUCT_FALLBACK =
 function ProductImg({
   src,
   alt,
+  sizes,
   lazy,
 }: {
   src: string;
@@ -299,19 +304,14 @@ function ProductImg({
     setImgSrc(src);
   }, [src]);
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
+    <Image
       src={imgSrc}
       alt={alt}
+      fill
+      sizes={sizes ?? "180px"}
       loading={lazy ? "lazy" : "eager"}
       onError={() => setImgSrc(PRODUCT_FALLBACK)}
-      style={{
-        position: "absolute",
-        inset: 0,
-        width: "100%",
-        height: "100%",
-        objectFit: "cover",
-      }}
+      style={{ objectFit: "cover" }}
     />
   );
 }
@@ -362,10 +362,24 @@ function SecH({
   );
 }
 
+// ─── Reduced motion hook ──────────────────────────────────────────────────────
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = React.useState(false);
+  React.useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReduced(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setReduced(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+  return reduced;
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function Home() {
   const user = useAppSelector(selectAuthUser);
   const router = useRouter();
+  const reducedMotion = usePrefersReducedMotion();
 
   // Data state — empty until both requests settle; skeleton shown in the interim
   const [products, setProducts] = useState<LandingProduct[]>([]);
@@ -547,6 +561,7 @@ export default function Home() {
     ref.current?.scrollBy({ left: dir * 320, behavior: "smooth" });
   }
   function startHeroTimer() {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     if (heroTimerRef.current) clearInterval(heroTimerRef.current);
     heroTimerRef.current = setInterval(
       () => setHeroIdx((i) => (i + 1) % 3),
@@ -555,8 +570,18 @@ export default function Home() {
   }
   useEffect(() => {
     startHeroTimer();
+    function handleVisibility() {
+      if (document.hidden) {
+        if (heroTimerRef.current) clearInterval(heroTimerRef.current);
+        heroTimerRef.current = null;
+      } else {
+        startHeroTimer();
+      }
+    }
+    document.addEventListener("visibilitychange", handleVisibility);
     return () => {
       if (heroTimerRef.current) clearInterval(heroTimerRef.current);
+      document.removeEventListener("visibilitychange", handleVisibility);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1585,7 +1610,7 @@ export default function Home() {
                 inset: 0,
                 opacity: isActive ? 1 : 0,
                 zIndex: isActive ? 2 : isPrev ? 1 : 0,
-                transition: "opacity .95s cubic-bezier(.4,0,.2,1)",
+                transition: reducedMotion ? "opacity .01s" : "opacity .95s cubic-bezier(.4,0,.2,1)",
                 display: "flex",
                 alignItems: "center",
               }}
@@ -1618,7 +1643,9 @@ export default function Home() {
                   width: "100%",
                   opacity: isActive ? 1 : 0,
                   transform: isActive ? "translateY(0)" : "translateY(20px)",
-                  transition: isActive
+                  transition: reducedMotion
+                    ? "opacity .01s"
+                    : isActive
                     ? "opacity .7s ease .38s, transform .7s cubic-bezier(.22,1,.36,1) .38s"
                     : "opacity .2s ease, transform .2s ease",
                 }}

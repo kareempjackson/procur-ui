@@ -242,37 +242,6 @@ textarea.input {
   }
 }
 
-/* Glassmorphic effects */
-.glass {
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.glass-dark {
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  background: rgba(0, 0, 0, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-/* Premium animations */
-@keyframes float {
-
-  0%,
-  100% {
-    transform: translateY(0px);
-  }
-
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
-.float-animation {
-  animation: float 6s ease-in-out infinite;
-}
 
 /* Smooth scroll */
 html {
@@ -368,31 +337,6 @@ html {
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
 }
 
-.dark-glass {
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  background: rgba(26, 26, 28, 0.8);
-  border: 1px solid var(--dark-border);
-}
-
-/* Dark mode animations */
-.dark-float {
-  animation: darkFloat 8s ease-in-out infinite;
-}
-
-@keyframes darkFloat {
-
-  0%,
-  100% {
-    transform: translateY(0px) scale(1);
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
-  }
-
-  50% {
-    transform: translateY(-10px) scale(1.02);
-    box-shadow: 0 25px 30px -5px rgba(0, 0, 0, 0.4);
-  }
-}
 
 /* Dark mode scrollbar */
 .dark-mode ::-webkit-scrollbar {
@@ -757,13 +701,21 @@ html {
 
 /* ── Skeleton loading shimmer ────────────────────────────────────────────── */
 .skel {
-  background: linear-gradient(90deg, #e8e3d9 25%, #ddd8cc 50%, #e8e3d9 75%);
-  background-size: 200% 100%;
+  position: relative;
+  overflow: hidden;
+  background: #e8e3d9;
+}
+.skel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.35) 50%, transparent 100%);
+  transform: translateX(-100%);
   animation: skel-shimmer 1.6s ease-in-out infinite;
 }
 @keyframes skel-shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
 @keyframes marker-pulse {
