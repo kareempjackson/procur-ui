@@ -690,8 +690,8 @@ export default function Home() {
                   {[
                     { title: "Platform", links: [{ label: "Browse Produce", href: "/" }, { label: "For Suppliers", href: "/signup?accountType=seller" }, { label: "For Buyers", href: "/signup?accountType=buyer" }, { label: "Log in", href: "/login" }] },
                     { title: "Solutions", links: [{ label: "Restaurants", href: "/solutions/restaurants" }, { label: "Hotels", href: "/solutions/hotels" }, { label: "Grocery", href: "/solutions/grocery" }, { label: "Government", href: "/solutions/government" }] },
-                    { title: "Company", links: [{ label: "About Procur", href: "/company/about" }, { label: "Newsroom", href: "/newsroom" }, { label: "Contact", href: "/company/contact" }] },
-                    { title: "Resources", links: [{ label: "Help Center", href: "/help" }, { label: "FAQ", href: "/help/faq" }, { label: "Blog", href: "/newsroom" }, { label: "Buyer Guide", href: "/buyer-guide" }] },
+                    { title: "Company", links: [{ label: "About Procur", href: "/company/about" }, { label: "Blog", href: "/blog" }, { label: "Contact", href: "/company/contact" }] },
+                    { title: "Resources", links: [{ label: "Help Center", href: "/help" }, { label: "FAQ", href: "/help/faq" }, { label: "Buyer Guide", href: "/buyer-guide" }] },
                   ].map((col) => (
                     <div key={col.title}>
                       <h5 style={{ fontSize: 10, fontWeight: 700, color: "rgba(245,241,234,.5)", marginBottom: 14, letterSpacing: ".08em", textTransform: "uppercase" }}>{col.title}</h5>
@@ -2672,7 +2672,7 @@ export default function Home() {
                   title: "Company",
                   links: [
                     { label: "About Procur", href: "/company/about" },
-                    { label: "Newsroom", href: "/newsroom" },
+                    { label: "Blog", href: "/blog" },
                     { label: "Contact", href: "/company/contact" },
                   ],
                 },
@@ -2681,7 +2681,6 @@ export default function Home() {
                   links: [
                     { label: "Help Center", href: "/help" },
                     { label: "FAQ", href: "/help/faq" },
-                    { label: "Blog", href: "/newsroom" },
                     { label: "Supplier Guide", href: "/supplier-guide" },
                     { label: "Buyer Guide", href: "/buyer-guide" },
                   ],

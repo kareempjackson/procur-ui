@@ -10,10 +10,11 @@ export const metadata: Metadata = {
   },
 };
 
-export default function SupplierPage({
+export default async function SupplierPage({
   params,
 }: {
-  params: { supplierId: string };
+  params: Promise<{ supplierId: string }>;
 }) {
-  return <SupplierClient supplierId={params.supplierId} />;
+  const { supplierId } = await params;
+  return <SupplierClient supplierId={supplierId} />;
 }

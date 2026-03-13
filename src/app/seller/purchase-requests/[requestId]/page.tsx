@@ -2,15 +2,14 @@ import { Metadata } from "next";
 import RequestDetailClient from "./RequestDetailClient";
 
 type RequestDetailPageProps = {
-  params: {
-    requestId: string;
-  };
+  params: Promise<{ requestId: string }>;
 };
 
 export async function generateMetadata({
   params,
 }: RequestDetailPageProps): Promise<Metadata> {
-  const requestName = `Request ${params.requestId}`;
+  const { requestId } = await params;
+  const requestName = `Request ${requestId}`;
   return {
     title: `${requestName} Details · Procur`,
     description: `View and respond to ${requestName} on Procur.`,
@@ -21,6 +20,7 @@ export async function generateMetadata({
   };
 }
 
-export default function RequestDetailPage({ params }: RequestDetailPageProps) {
-  return <RequestDetailClient requestId={params.requestId} />;
+export default async function RequestDetailPage({ params }: RequestDetailPageProps) {
+  const { requestId } = await params;
+  return <RequestDetailClient requestId={requestId} />;
 }

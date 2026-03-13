@@ -54,7 +54,7 @@ interface SellerProduct {
 export default function EditOrderPage({
   params,
 }: {
-  params: Promise<{ orderId: string }> | { orderId: string };
+  params: Promise<{ orderId: string }>;
 }) {
   const router = useRouter();
   const dispatch = useAppDispatch();
@@ -63,12 +63,7 @@ export default function EditOrderPage({
     useAppSelector((state) => state.buyerOrders);
   const authToken = useAppSelector((state) => state.auth.accessToken);
 
-  // Unwrap params for Next.js 15
-  const unwrappedParams =
-    typeof (params as any)?.then === "function"
-      ? (React as any).use(params as Promise<{ orderId: string }>)
-      : (params as { orderId: string });
-  const orderId = unwrappedParams.orderId;
+  const { orderId } = React.use(params);
 
   // State
   const [editedItems, setEditedItems] = useState<EditableItem[]>([]);

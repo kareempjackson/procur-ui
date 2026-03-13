@@ -2,24 +2,24 @@ import { Metadata } from "next";
 import RequestDetailClient from "./RequestDetailClient";
 
 type RequestDetailPageProps = {
-  params: {
-    requestId: string;
-  };
+  params: Promise<{ requestId: string }>;
 };
 
 export async function generateMetadata({
   params,
 }: RequestDetailPageProps): Promise<Metadata> {
+  const { requestId } = await params;
   return {
-    title: `Request #${params.requestId} · Procur`,
-    description: `View details and bids for request #${params.requestId}.`,
+    title: `Request #${requestId} · Procur`,
+    description: `View details and bids for request #${requestId}.`,
     openGraph: {
-      title: `Request #${params.requestId} · Procur`,
-      description: `View details and bids for request #${params.requestId}.`,
+      title: `Request #${requestId} · Procur`,
+      description: `View details and bids for request #${requestId}.`,
     },
   };
 }
 
-export default function RequestDetailPage({ params }: RequestDetailPageProps) {
-  return <RequestDetailClient requestId={params.requestId} />;
+export default async function RequestDetailPage({ params }: RequestDetailPageProps) {
+  const { requestId } = await params;
+  return <RequestDetailClient requestId={requestId} />;
 }

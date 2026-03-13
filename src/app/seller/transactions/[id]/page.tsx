@@ -10,10 +10,11 @@ export const metadata: Metadata = {
   },
 };
 
-export default function TransactionDetailPage({
+export default async function TransactionDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  return <TransactionDetailClient transactionId={params.id} />;
+  const { id } = await params;
+  return <TransactionDetailClient transactionId={id} />;
 }

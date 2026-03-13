@@ -166,7 +166,7 @@ export default function ProcurFooter() {
                 title: "Company",
                 links: [
                   { label: "About Procur", href: "/company/about" },
-                  { label: "Newsroom", href: "/newsroom" },
+                  { label: "Blog", href: "/blog" },
                   { label: "Contact", href: "/company/contact" },
                 ],
               },
@@ -175,7 +175,7 @@ export default function ProcurFooter() {
                 links: [
                   { label: "Help Center", href: "/help" },
                   { label: "FAQ", href: "/help/faq" },
-                  { label: "Blog", href: "/newsroom" },
+                  { label: "Blog", href: "/blog" },
                   { label: "Supplier Guide", href: "/supplier-guide" },
                   { label: "Buyer Guide", href: "/buyer-guide" },
                 ],

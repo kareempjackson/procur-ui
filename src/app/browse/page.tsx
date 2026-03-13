@@ -1607,7 +1607,7 @@ function BrowseContent() {
                   title: "Company",
                   links: [
                     { label: "About Procur", href: "/about" },
-                    { label: "Newsroom", href: "/news" },
+                    { label: "Blog", href: "/blog" },
                     { label: "Contact", href: "/contact" },
                     { label: "Careers", href: "/careers" },
                   ],

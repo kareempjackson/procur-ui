@@ -10,10 +10,11 @@ export const metadata: Metadata = {
   },
 };
 
-export default function OrderDetailPage({
+export default async function OrderDetailPage({
   params,
 }: {
-  params: { orderId: string };
+  params: Promise<{ orderId: string }>;
 }) {
-  return <OrderDetailClient orderId={params.orderId} />;
+  const { orderId } = await params;
+  return <OrderDetailClient orderId={orderId} />;
 }

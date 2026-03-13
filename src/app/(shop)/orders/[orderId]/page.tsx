@@ -38,7 +38,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 export default function OrderDetailPage({
   params,
 }: {
-  params: Promise<{ orderId: string }> | { orderId: string };
+  params: Promise<{ orderId: string }>;
 }) {
   const router = useRouter();
   const dispatch = useAppDispatch();
@@ -53,12 +53,7 @@ export default function OrderDetailPage({
   const [downloadingInvoice, setDownloadingInvoice] = useState(false);
   const [isStartingConversation, setIsStartingConversation] = useState(false);
 
-  // Next.js 15: unwrap params if Promise
-  const unwrappedParams =
-    typeof (params as any)?.then === "function"
-      ? (React as any).use(params as Promise<{ orderId: string }>)
-      : (params as { orderId: string });
-  const orderId = unwrappedParams.orderId;
+  const { orderId } = React.use(params);
 
   useEffect(() => {
     dispatch(fetchOrderDetail(orderId));

@@ -17,25 +17,34 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://procur.io";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "Procur - Agricultural Marketplace",
+    default: "Procur — Fresh Produce Marketplace",
     template: "%s | Procur",
   },
   description:
-    "Procur connects farmers, buyers, and government entities in a modern agricultural marketplace. Buy and sell fresh produce, manage orders, and streamline agricultural commerce.",
+    "Procur connects buyers directly with verified Caribbean farmers. Transparent pricing, reliable supply, and produce that's never more than a day from harvest.",
   keywords: [
-    "agriculture",
-    "marketplace",
-    "farmers",
-    "produce",
-    "buyers",
-    "sellers",
-    "agricultural commerce",
+    "fresh produce marketplace",
+    "Caribbean agriculture",
+    "Grenada farmers",
+    "farm to table",
+    "agricultural marketplace",
+    "buy fresh produce",
+    "verified farmers",
+    "food supply chain",
   ],
   authors: [{ name: "Procur" }],
   creator: "Procur",
   publisher: "Procur",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large" },
+  },
   icons: {
     icon: [{ url: "/favicon.ico" }, { url: "/favicon.png", type: "image/png" }],
     shortcut: "/favicon.ico",
@@ -43,24 +52,27 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
-    title: "Procur - Agricultural Marketplace",
-    description:
-      "Procur connects farmers, buyers, and government entities in a modern agricultural marketplace.",
+    locale: "en_US",
+    url: SITE_URL,
     siteName: "Procur",
+    title: "Procur — Fresh Produce Marketplace",
+    description:
+      "Procur connects buyers directly with verified Caribbean farmers. Transparent pricing, reliable supply, and produce that's never more than a day from harvest.",
     images: [
       {
         url: "/images/hero/land-o-lakes-inc-BlXa_riHlp4-unsplash.jpg",
         width: 1200,
         height: 630,
-        alt: "Procur - Agricultural Marketplace",
+        alt: "Procur — Fresh Produce Marketplace",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Procur - Agricultural Marketplace",
+    site: "@procurapp",
+    title: "Procur — Fresh Produce Marketplace",
     description:
-      "Procur connects farmers, buyers, and government entities in a modern agricultural marketplace.",
+      "Procur connects buyers directly with verified Caribbean farmers. Transparent pricing, reliable supply, and produce that's never more than a day from harvest.",
     images: ["/images/hero/land-o-lakes-inc-BlXa_riHlp4-unsplash.jpg"],
   },
 };

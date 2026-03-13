@@ -20,7 +20,19 @@ export const postBySlugQuery = groq`*[_type == "post" && slug.current == $slug][
   mainImage,
   "imageAlt": coalesce(mainImage.alt, title),
   "category": categories[0]->title,
-  "author": author->{name, image}
+  "author": author->{name, image},
+  excerpt,
+  seoTitle,
+  seoDescription,
+  ogImage,
+  noIndex
+}`;
+
+// Lightweight query for generateStaticParams + sitemap
+export const postSlugsQuery = groq`*[_type == "post" && defined(slug.current)]{
+  "slug": slug.current,
+  publishedAt,
+  _updatedAt
 }`;
 
 export type SanityPostListItem = {
@@ -37,4 +49,14 @@ export type SanityPostListItem = {
 export type SanityPost = SanityPostListItem & {
   body?: any;
   author?: { name?: string; image?: any };
+  seoTitle?: string;
+  seoDescription?: string;
+  ogImage?: any;
+  noIndex?: boolean;
+};
+
+export type SanityPostSlug = {
+  slug: string;
+  publishedAt?: string;
+  _updatedAt?: string;
 };

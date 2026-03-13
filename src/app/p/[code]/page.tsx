@@ -73,14 +73,10 @@ type PublicPaymentLinkPayload = {
 export default function PublicPaymentLinkPage({
   params,
 }: {
-  params: Promise<{ code: string }> | { code: string };
+  params: Promise<{ code: string }>;
 }) {
   const router = useRouter();
-  const unwrappedParams =
-    typeof (params as any)?.then === "function"
-      ? (React as any).use(params as Promise<{ code: string }>)
-      : (params as { code: string });
-  const code = unwrappedParams.code;
+  const { code } = React.use(params);
 
   const [data, setData] = useState<PublicPaymentLinkPayload | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "loaded" | "error">(

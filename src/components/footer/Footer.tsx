@@ -11,7 +11,7 @@ const Footer: React.FC = () => {
       { title: "About Procur", href: "/company/about" },
       // { title: "Careers", href: "/company/careers" },
       { title: "Contact Us", href: "/company/contact" },
-      { title: "Newsroom", href: "/newsroom" },
+      { title: "Blog", href: "/blog" },
     ],
     Help: [
       // { title: "Support Center", href: "/help/support" },

@@ -14,5 +14,5 @@ export const sanityClient = createClient({
   useCdn,
   perspective: "published",
   stega: false,
-  token: process.env.SANITY_READ_TOKEN, // optional, only needed for draft/private content
+  // token only needed for private datasets or draft previews
 });

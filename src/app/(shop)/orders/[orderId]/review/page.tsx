@@ -26,7 +26,7 @@ import { useToast } from "@/components/ui/Toast";
 export default function OrderReviewPage({
   params,
 }: {
-  params: { orderId: string };
+  params: Promise<{ orderId: string }>;
 }) {
   const dispatch = useAppDispatch();
   const { show } = useToast();
@@ -47,7 +47,7 @@ export default function OrderReviewPage({
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const orderId = params.orderId;
+  const { orderId } = React.use(params);
 
   useEffect(() => {
     dispatch(fetchOrderDetail(orderId));
@@ -506,7 +506,7 @@ export default function OrderReviewPage({
           {/* Submit Buttons */}
           <div className="flex gap-3">
             <Link
-              href={`/orders/${params.orderId}`}
+              href={`/orders/${orderId}`}
               className="px-6 py-2.5 border border-[var(--secondary-soft-highlight)]/30 text-[var(--secondary-black)] rounded-full font-medium hover:bg-white transition-all"
             >
               Cancel

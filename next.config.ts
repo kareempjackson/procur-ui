@@ -18,8 +18,30 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  serverExternalPackages: ["sanity", "@sanity/client", "@sanity/image-url"],
+  webpack(config) {
+    // Sanity 5.15+ imports `useEffectEvent` as a named export from React,
+    // but stable React 19.x does not export it. Disabling webpack's strict
+    // named-export check globally so the build succeeds.
+    // The runtime polyfill in react-polyfill.ts supplies the implementation.
+    config.module.parser = {
+      ...config.module.parser,
+      javascript: {
+        ...(config.module.parser?.javascript ?? {}),
+        exportsPresence: false,
+      },
+    };
+    return config;
+  },
   turbopack: {
     root: __dirname,
+    resolveAlias: {
+      // Next.js bundles its own React canary internally which doesn't expose
+      // useEffectEvent. Force Sanity (and all client code) to use the project's
+      // react@19.1.x which does export it.
+      react: "./node_modules/react",
+      "react-dom": "./node_modules/react-dom",
+    },
   },
   images: {
     remotePatterns: [

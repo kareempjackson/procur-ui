@@ -10,10 +10,11 @@ export const metadata: Metadata = {
   },
 };
 
-export default function ProductPreviewPage({
+export default async function ProductPreviewPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  return <ProductPreviewClient productId={params.id} />;
+  const { id } = await params;
+  return <ProductPreviewClient productId={id} />;
 }

@@ -10,10 +10,11 @@ export const metadata: Metadata = {
   },
 };
 
-export default function EditProductPage({
+export default async function EditProductPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  return <EditProductClient productId={params.id} />;
+  const { id } = await params;
+  return <EditProductClient productId={id} />;
 }
