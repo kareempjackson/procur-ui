@@ -22,11 +22,23 @@ const INPUT: React.CSSProperties = {
   boxSizing: "border-box",
 };
 
+const INPUT_ERROR: React.CSSProperties = {
+  ...INPUT,
+  border: "1px solid #e05c2a",
+  background: "#fff9f5",
+};
+
 const SELECT: React.CSSProperties = {
   ...INPUT,
   appearance: "none",
   WebkitAppearance: "none",
   cursor: "pointer",
+};
+
+const SELECT_ERROR: React.CSSProperties = {
+  ...SELECT,
+  border: "1px solid #e05c2a",
+  background: "#fff9f5",
 };
 
 function btn(disabled?: boolean): React.CSSProperties {
@@ -46,56 +58,76 @@ function btn(disabled?: boolean): React.CSSProperties {
 }
 
 type AuthError = { title: string; hint: string };
+type FieldErrors = Partial<Record<string, string>>;
 
-function toSignupError(raw: unknown): AuthError {
-  const s = typeof raw === "string" ? raw.toLowerCase() : "";
-  if (
-    s.includes("network") ||
-    s.includes("fetch") ||
-    s.includes("econnrefused")
-  )
-    return {
-      title: "Connection problem",
-      hint: "Check your internet and try again.",
-    };
-  if (
-    s.includes("exists") ||
-    s.includes("duplicate") ||
-    s.includes("already") ||
-    s.includes("registered")
-  )
-    return {
-      title: "Email already in use",
-      hint: "An account with this email already exists. Try signing in instead.",
-    };
+function FieldError({ msg }: { msg?: string }) {
+  if (!msg) return null;
+  return (
+    <p style={{ fontSize: 11, color: "#c2390a", margin: "3px 0 0 4px", display: "flex", alignItems: "center", gap: 4 }}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" width={11} height={11} style={{ flexShrink: 0 }}>
+        <circle cx="12" cy="12" r="10" />
+        <line x1="12" y1="8" x2="12" y2="12" />
+        <circle cx="12" cy="16" r=".6" fill="currentColor" stroke="none" />
+      </svg>
+      {msg}
+    </p>
+  );
+}
+
+function extractMsg(raw: unknown): string {
+  if (typeof raw === "string") return raw;
+  if (raw && typeof raw === "object") {
+    const r = raw as Record<string, unknown>;
+    if (typeof r.message === "string") return r.message;
+    if (typeof r.error === "string") return r.error;
+    if (typeof r.msg === "string") return r.msg;
+    // axios error shape
+    const data = r.response && typeof r.response === "object"
+      ? (r.response as Record<string, unknown>).data
+      : null;
+    if (data && typeof data === "object") {
+      const d = data as Record<string, unknown>;
+      if (typeof d.message === "string") return d.message;
+      if (Array.isArray(d.message)) return (d.message as string[]).join(", ");
+    }
+  }
+  return "";
+}
+
+function toSignupError(raw: unknown): { banner: AuthError | null; field?: string; fieldMsg?: string } {
+  const s = extractMsg(raw).toLowerCase();
+
+  if (s.includes("network") || s.includes("fetch") || s.includes("econnrefused"))
+    return { banner: { title: "Connection problem", hint: "Check your internet and try again." } };
+
+  if (s.includes("exists") || s.includes("duplicate") || s.includes("already") || s.includes("registered") || s.includes("taken"))
+    return { banner: null, field: "email", fieldMsg: "An account with this email already exists. Try signing in instead." };
+
+  if (s.includes("email") && (s.includes("invalid") || s.includes("format") || s.includes("valid")))
+    return { banner: null, field: "email", fieldMsg: "Enter a valid email address." };
+
   if (s.includes("password"))
-    return {
-      title: "Password doesn't meet requirements",
-      hint: "Use at least 8 characters with a mix of letters and numbers.",
-    };
+    return { banner: null, field: "password", fieldMsg: "Use at least 8 characters with a mix of letters and numbers." };
+
   if (s.includes("captcha") || s.includes("bot") || s.includes("recaptcha"))
-    return {
-      title: "Bot verification failed",
-      hint: "Complete the CAPTCHA challenge and try again.",
-    };
-  if (s.includes("email") && (s.includes("invalid") || s.includes("format")))
-    return {
-      title: "Invalid email address",
-      hint: "Check your email address and try again.",
-    };
+    return { banner: { title: "Bot verification failed", hint: "Complete the CAPTCHA challenge and try again." } };
+
   if (s.includes("rate") || s.includes("too many") || s.includes("429"))
-    return {
-      title: "Too many attempts",
-      hint: "Wait a few minutes before trying again.",
-    };
+    return { banner: { title: "Too many attempts", hint: "Wait a few minutes before trying again." } };
+
   if (s.includes("phone") || s.includes("whatsapp"))
-    return {
-      title: "Invalid WhatsApp number",
-      hint: "Enter a valid international phone number (e.g. +1 473 123 4567).",
-    };
+    return { banner: null, field: "phoneNumber", fieldMsg: "Enter a valid international phone number (e.g. +1 473 123 4567)." };
+
+  // Show the raw API message if it's short and readable, otherwise generic
+  const rawMsg = extractMsg(raw);
+  const isGenericFallback = !rawMsg || rawMsg.toLowerCase().includes("failed to sign up");
   return {
-    title: "Couldn't create your account",
-    hint: "Check your details and try again. Contact support if the issue persists.",
+    banner: {
+      title: "Couldn't create your account",
+      hint: isGenericFallback
+        ? "Check your details and try again. Contact support if the issue persists."
+        : rawMsg,
+    },
   };
 }
 
@@ -182,6 +214,7 @@ const SignUpPage: React.FC = () => {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<AuthError | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const dispatch = useAppDispatch();
   const router = useRouter();
@@ -202,6 +235,9 @@ const SignUpPage: React.FC = () => {
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    if (fieldErrors[name]) {
+      setFieldErrors((prev) => { const next = { ...prev }; delete next[name]; return next; });
+    }
   };
 
   const handleAccountTypeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -221,52 +257,49 @@ const SignUpPage: React.FC = () => {
       return;
     }
     setError(null);
+    setFieldErrors({});
     setStep(2);
   };
 
   const goToStep3 = () => {
-    if (!formData.businessType) {
-      setError({
-        title: "Business type required",
-        hint: "Select your business type from the dropdown to continue.",
-      });
-      return;
-    }
-    if (!formData.businessName.trim()) {
-      setError({
-        title: "Business name required",
-        hint: "Enter your business or organisation name to continue.",
-      });
+    const errs: FieldErrors = {};
+    if (!formData.businessType) errs.businessType = "Select your business type to continue.";
+    if (!formData.businessName.trim()) errs.businessName = "Enter your business or organisation name.";
+    if (Object.keys(errs).length) {
+      setFieldErrors(errs);
       return;
     }
     setError(null);
+    setFieldErrors({});
     setStep(3);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!captchaToken) {
-      setError({
-        title: "Bot verification needed",
-        hint: "Complete the CAPTCHA challenge before creating your account.",
-      });
-      return;
-    }
+
+    // Field-level validation
+    const errs: FieldErrors = {};
+    if (!formData.fullname.trim()) errs.fullname = "Enter your full name.";
+    if (!formData.email.trim()) errs.email = "Enter your email address.";
+    if (!formData.password) errs.password = "Create a password.";
+    else if (formData.password.length < 8) errs.password = "Password must be at least 8 characters.";
     if (!formData.phoneNumber.trim()) {
-      setError({
-        title: "WhatsApp number required",
-        hint: "Enter your WhatsApp number so we can send you order updates.",
-      });
+      errs.phoneNumber = "Enter your WhatsApp number so we can send order updates.";
+    } else if (!formData.phoneNumber.trim().startsWith("+")) {
+      errs.phoneNumber = "Include your country code — start with + (e.g. +1 473 123 4567).";
+    } else if (!/^\+[1-9]\d{7,14}$/.test(formData.phoneNumber.trim().replace(/\s/g, ""))) {
+      errs.phoneNumber = "Enter a valid number with country code (e.g. +1 473 123 4567).";
+    }
+    if (!captchaToken) {
+      setError({ title: "Bot verification needed", hint: "Complete the CAPTCHA challenge before creating your account." });
+    }
+    if (Object.keys(errs).length) {
+      setFieldErrors(errs);
       return;
     }
-    if (!/^\+?[1-9]\d{7,14}$/.test(formData.phoneNumber.trim().replace(/\s/g, ""))) {
-      setError({
-        title: "Invalid WhatsApp number",
-        hint: "Enter a valid international phone number (e.g. +1 473 123 4567).",
-      });
-      return;
-    }
+    if (!captchaToken) return;
+
     setIsLoading(true);
     try {
       await dispatch(
@@ -293,7 +326,13 @@ const SignUpPage: React.FC = () => {
       ).unwrap();
       router.push("/check-email");
     } catch (err) {
-      setError(toSignupError(err));
+      const result = toSignupError(err);
+      if (result.field && result.fieldMsg) {
+        setFieldErrors({ [result.field]: result.fieldMsg });
+        setError(null);
+      } else {
+        setError(result.banner);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -609,42 +648,48 @@ const SignUpPage: React.FC = () => {
                 {/* ── Step 2: Business details ── */}
                 {step === 2 && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    <div style={{ position: "relative" }}>
-                      <select
-                        id="businessType"
-                        name="businessType"
-                        value={formData.businessType}
-                        onChange={handleInputChange}
-                        style={SELECT}
-                      >
-                        <option value="">Select business type</option>
-                        {BUSINESS_TYPES[formData.accountType]?.map((bt) => (
-                          <option key={bt.value} value={bt.value}>
-                            {bt.label}
-                          </option>
-                        ))}
-                      </select>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="#8a9e92" strokeWidth="2" width={14} height={14}
-                        style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}
-                      >
-                        <path d="M6 9l6 6 6-6" />
-                      </svg>
+                    <div>
+                      <div style={{ position: "relative" }}>
+                        <select
+                          id="businessType"
+                          name="businessType"
+                          value={formData.businessType}
+                          onChange={handleInputChange}
+                          style={fieldErrors.businessType ? SELECT_ERROR : SELECT}
+                        >
+                          <option value="">Select business type</option>
+                          {BUSINESS_TYPES[formData.accountType]?.map((bt) => (
+                            <option key={bt.value} value={bt.value}>
+                              {bt.label}
+                            </option>
+                          ))}
+                        </select>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#8a9e92" strokeWidth="2" width={14} height={14}
+                          style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}
+                        >
+                          <path d="M6 9l6 6 6-6" />
+                        </svg>
+                      </div>
+                      <FieldError msg={fieldErrors.businessType} />
                     </div>
-                    <input
-                      id="businessName"
-                      name="businessName"
-                      type="text"
-                      value={formData.businessName}
-                      onChange={handleInputChange}
-                      placeholder="Business or organisation name"
-                      style={INPUT}
-                    />
+                    <div>
+                      <input
+                        id="businessName"
+                        name="businessName"
+                        type="text"
+                        value={formData.businessName}
+                        onChange={handleInputChange}
+                        placeholder="Business or organisation name"
+                        style={fieldErrors.businessName ? INPUT_ERROR : INPUT}
+                      />
+                      <FieldError msg={fieldErrors.businessName} />
+                    </div>
                     <button type="button" onClick={goToStep3} style={btn(false)}>
                       Continue
                     </button>
                     <button
                       type="button"
-                      onClick={() => { setStep(1); setError(null); }}
+                      onClick={() => { setStep(1); setError(null); setFieldErrors({}); }}
                       style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 13, color: "#407178", textDecoration: "underline", padding: "4px 0" }}
                     >
                       ← Back
@@ -657,16 +702,19 @@ const SignUpPage: React.FC = () => {
                   <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                     {/* Name + Country row */}
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                      <input
-                        id="fullname"
-                        name="fullname"
-                        type="text"
-                        required
-                        value={formData.fullname}
-                        onChange={handleInputChange}
-                        placeholder="Full name"
-                        style={INPUT}
-                      />
+                      <div>
+                        <input
+                          id="fullname"
+                          name="fullname"
+                          type="text"
+                          required
+                          value={formData.fullname}
+                          onChange={handleInputChange}
+                          placeholder="Full name"
+                          style={fieldErrors.fullname ? INPUT_ERROR : INPUT}
+                        />
+                        <FieldError msg={fieldErrors.fullname} />
+                      </div>
                       <div style={{ position: "relative" }}>
                         <select
                           id="country"
@@ -687,43 +735,76 @@ const SignUpPage: React.FC = () => {
                         </svg>
                       </div>
                     </div>
-                    <input
-                      id="email"
-                      name="email"
-                      type="email"
-                      autoComplete="email"
-                      required
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      placeholder="Email address"
-                      style={INPUT}
-                    />
-                    <input
-                      id="password"
-                      name="password"
-                      type="password"
-                      autoComplete="new-password"
-                      required
-                      value={formData.password}
-                      onChange={handleInputChange}
-                      placeholder="Create a password"
-                      style={INPUT}
-                    />
                     <div>
                       <input
-                        id="phoneNumber"
-                        name="phoneNumber"
-                        type="tel"
-                        autoComplete="tel"
+                        id="email"
+                        name="email"
+                        type="email"
+                        autoComplete="email"
                         required
-                        value={formData.phoneNumber}
+                        value={formData.email}
                         onChange={handleInputChange}
-                        placeholder="WhatsApp number (e.g. +1 473 123 4567)"
-                        style={INPUT}
+                        placeholder="Email address"
+                        style={fieldErrors.email ? INPUT_ERROR : INPUT}
                       />
-                      <p style={{ fontSize: 11, color: "#6a7f73", margin: "3px 0 0 4px" }}>
-                        Used for order updates and direct communication
-                      </p>
+                      <FieldError msg={fieldErrors.email} />
+                    </div>
+                    <div>
+                      <input
+                        id="password"
+                        name="password"
+                        type="password"
+                        autoComplete="new-password"
+                        required
+                        value={formData.password}
+                        onChange={handleInputChange}
+                        placeholder="Create a password"
+                        style={fieldErrors.password ? INPUT_ERROR : INPUT}
+                      />
+                      <FieldError msg={fieldErrors.password} />
+                    </div>
+                    <div>
+                      <div style={{ position: "relative" }}>
+                        <input
+                          id="phoneNumber"
+                          name="phoneNumber"
+                          type="tel"
+                          autoComplete="tel"
+                          required
+                          value={formData.phoneNumber}
+                          onChange={handleInputChange}
+                          onBlur={() => {
+                            const val = formData.phoneNumber.trim().replace(/\s/g, "");
+                            if (!val) {
+                              setFieldErrors((prev) => ({ ...prev, phoneNumber: "Enter your WhatsApp number so we can send order updates." }));
+                            } else if (!val.startsWith("+")) {
+                              setFieldErrors((prev) => ({ ...prev, phoneNumber: "Include your country code — start with + (e.g. +1 473 123 4567)." }));
+                            } else if (!/^\+[1-9]\d{7,14}$/.test(val)) {
+                              setFieldErrors((prev) => ({ ...prev, phoneNumber: "Enter a valid number with country code (e.g. +1 473 123 4567)." }));
+                            } else {
+                              setFieldErrors((prev) => { const next = { ...prev }; delete next.phoneNumber; return next; });
+                            }
+                          }}
+                          placeholder="WhatsApp number (e.g. +1 473 123 4567)"
+                          style={{
+                            ...(fieldErrors.phoneNumber ? INPUT_ERROR : INPUT),
+                            paddingRight: 36,
+                          }}
+                        />
+                        {/* Valid checkmark */}
+                        {formData.phoneNumber.trim() && !fieldErrors.phoneNumber &&
+                          /^\+1[2-9]\d{9}$/.test(formData.phoneNumber.trim().replace(/\s/g, "")) && (
+                          <svg viewBox="0 0 24 24" fill="none" stroke="#2d8a4e" strokeWidth="2.5" strokeLinecap="round" width={15} height={15}
+                            style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}
+                          >
+                            <path d="M20 6L9 17l-5-5" />
+                          </svg>
+                        )}
+                      </div>
+                      {fieldErrors.phoneNumber
+                        ? <FieldError msg={fieldErrors.phoneNumber} />
+                        : <p style={{ fontSize: 11, color: "#6a7f73", margin: "3px 0 0 4px" }}>Include country code (e.g. +1 473 123 4567)</p>
+                      }
                     </div>
                     {/* Honeypot */}
                     <div style={{ display: "none" }} aria-hidden="true">
@@ -740,7 +821,7 @@ const SignUpPage: React.FC = () => {
                     </button>
                     <button
                       type="button"
-                      onClick={() => { setStep(2); setError(null); }}
+                      onClick={() => { setStep(2); setError(null); setFieldErrors({}); }}
                       style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 13, color: "#407178", textDecoration: "underline", padding: "4px 0" }}
                     >
                       ← Back
