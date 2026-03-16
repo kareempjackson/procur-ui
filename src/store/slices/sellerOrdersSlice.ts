@@ -186,6 +186,7 @@ export const acceptOrder = createAsyncThunk(
         seller_notes?: string;
         estimated_delivery_date?: string;
         shipping_method?: string;
+        lot_code_assignments?: Array<{ order_item_id: string; lot_code: string }>;
       };
     },
     { rejectWithValue }

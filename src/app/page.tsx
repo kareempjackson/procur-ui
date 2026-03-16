@@ -273,8 +273,11 @@ function selColor(name: string): string {
 }
 
 function toProductHref(p: LandingProduct): string {
-  const name = p.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-  return `/products/${name}-${p.id}`;
+  const countrySlug = (p.seller.location ?? "caribbean")
+    .toLowerCase()
+    .replace(/\s+/g, "-");
+  const productSlug = `${p.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${p.id}`;
+  return `/products/${countrySlug}/${productSlug}`;
 }
 
 function productImage(p: LandingProduct): string {

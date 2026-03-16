@@ -3,9 +3,23 @@ import Image from "next/image";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Verified Farms & Suppliers · Procur",
+  title: "Verified Farms & Suppliers",
   description:
-    "Browse all verified farms and suppliers on Procur. Connect directly with Grenadian farmers and producers to source fresh, quality produce.",
+    "Browse all verified farms and suppliers on Procur. Connect directly with Caribbean farmers and producers to source fresh, quality produce.",
+  keywords: ["verified farmers", "Caribbean suppliers", "Grenada farms", "fresh produce suppliers", "agricultural suppliers"],
+  openGraph: {
+    title: "Verified Farms & Suppliers — Procur",
+    description:
+      "Browse verified Caribbean farms and suppliers. Connect directly with producers to source fresh, quality produce.",
+    url: "https://procur.io/sellers",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Verified Farms & Suppliers — Procur",
+    description:
+      "Browse verified Caribbean farms and suppliers on Procur.",
+  },
 };
 
 type PublicSeller = {

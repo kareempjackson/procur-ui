@@ -384,6 +384,11 @@ export default function OrderDetailPage({
                             <div style={{ minWidth: 0 }}>
                               <p style={{ fontSize: 13, fontWeight: 700, color: "#1c2b23", margin: "0 0 3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</p>
                               <p style={{ fontSize: 11, color: "#8a9e92", margin: 0 }}>×{qty}{unit ? ` ${unit}` : ""} · {fmtUSD(unitPrice)} each</p>
+                              {item.lot_code && (
+                                <span style={{ display: "inline-block", marginTop: 4, fontFamily: "monospace", fontSize: 10, fontWeight: 700, color: "#407178", background: "rgba(64,113,120,.08)", border: "1px solid rgba(64,113,120,.2)", borderRadius: 4, padding: "1px 6px", letterSpacing: ".02em" }}>
+                                  {item.lot_code}
+                                </span>
+                              )}
                             </div>
                           </div>
                           <p style={{ fontSize: 14, fontWeight: 800, color: "#1c2b23", margin: 0, flexShrink: 0 }}>{fmtUSD(lineTotal)}</p>
@@ -437,6 +442,11 @@ export default function OrderDetailPage({
                               <span style={{ margin: "0 5px", color: "#d8d2c8" }}>·</span>
                               {fmtUSD(unitPrice)} each
                             </p>
+                            {item.lot_code && (
+                              <span style={{ display: "inline-block", marginTop: 4, fontFamily: "monospace", fontSize: 10, fontWeight: 700, color: "#407178", background: "rgba(64,113,120,.08)", border: "1px solid rgba(64,113,120,.2)", borderRadius: 4, padding: "1px 6px", letterSpacing: ".02em" }}>
+                                {item.lot_code}
+                              </span>
+                            )}
                           </div>
                         </div>
                         <div style={{ textAlign: "right", flexShrink: 0 }}>

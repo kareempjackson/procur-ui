@@ -12,6 +12,7 @@ import {
   rejectOrder,
   clearCurrentOrder,
 } from "@/store/slices/sellerOrdersSlice";
+import { fetchHarvestLogs } from "@/store/slices/farmSlice";
 import ProcurLoader from "@/components/ProcurLoader";
 import { useToast } from "@/components/ui/Toast";
 import { getApiClient } from "@/lib/apiClient";
@@ -84,10 +85,13 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
   const { currentOrder, currentOrderStatus, timeline, timelineStatus, error } =
     useAppSelector((state) => state.sellerOrders);
   const authToken = useAppSelector((state) => state.auth.accessToken);
+  const { harvestLogs } = useAppSelector((state) => state.farm);
 
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [downloadingReceipt, setDownloadingReceipt] = useState(false);
   const [rejectForm, setRejectForm] = useState({ reason: "", seller_notes: "" });
+  // itemId → selected lot_code (empty string = none selected)
+  const [lotCodeAssignments, setLotCodeAssignments] = useState<Record<string, string>>({});
 
   useEffect(() => {
     dispatch(fetchOrderDetail(orderId));
@@ -95,8 +99,20 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
     return () => { dispatch(clearCurrentOrder()); };
   }, [dispatch, orderId]);
 
+  useEffect(() => {
+    if (authToken) {
+      dispatch(fetchHarvestLogs({ accessToken: authToken, query: { page: 1, limit: 100 } }));
+    }
+  }, [authToken, dispatch]);
+
   const handleAcceptOrder = async () => {
-    const result = await dispatch(acceptOrder({ orderId }));
+    const assignments = Object.entries(lotCodeAssignments)
+      .filter(([, lc]) => lc)
+      .map(([order_item_id, lot_code]) => ({ order_item_id, lot_code }));
+    const result = await dispatch(acceptOrder({
+      orderId,
+      acceptData: assignments.length ? { lot_code_assignments: assignments } : undefined,
+    }));
     if (acceptOrder.fulfilled.match(result)) {
       dispatch(fetchOrderTimeline(orderId));
     }
@@ -158,6 +174,7 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
   // ── derived values ───────────────────────────────────────────────────────
 
   const canAccept = currentOrder.status === "pending";
+  const canAssignLotCodes = ["pending", "accepted"].includes(currentOrder.status);
   const paymentStatus = (currentOrder.payment_status || "").toLowerCase();
   const orderStatus = (currentOrder.status || "").toLowerCase();
   const showPaymentPill = Boolean(paymentStatus) && paymentStatus !== orderStatus;
@@ -445,44 +462,80 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
                   (item as any)?.product_snapshot?.image_url ||
                   null;
 
+                const existingLotCode = (item as any).lot_code as string | undefined;
+
                 return (
                   <div
                     key={item.id}
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 16,
                       padding: "16px 24px",
                       borderBottom: i < (currentOrder.items?.length ?? 1) - 1 ? "1px solid #f5f2ec" : "none",
                     }}
                   >
-                    <div style={{ width: 60, height: 60, borderRadius: 8, overflow: "hidden", background: "#f5f2ec", flexShrink: 0, position: "relative" }}>
-                      {imageUrl && (
-                        <Image src={imageUrl} alt={item.product_name} fill style={{ objectFit: "cover" }} />
-                      )}
+                    <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                      <div style={{ width: 60, height: 60, borderRadius: 8, overflow: "hidden", background: "#f5f2ec", flexShrink: 0, position: "relative" }}>
+                        {imageUrl && (
+                          <Image src={imageUrl} alt={item.product_name} fill style={{ objectFit: "cover" }} />
+                        )}
+                      </div>
+
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: "#1c2b23", marginBottom: 3 }}>
+                          {item.product_name}
+                        </div>
+                        {item.product_sku && (
+                          <div style={{ fontSize: 12, color: "#8a9e92" }}>SKU: {item.product_sku}</div>
+                        )}
+                        {existingLotCode && (
+                          <div style={{ marginTop: 4, display: "inline-flex", alignItems: "center", gap: 4, background: "rgba(64,113,120,.08)", border: "1px solid rgba(64,113,120,.2)", borderRadius: 4, padding: "2px 7px", fontFamily: "monospace", fontSize: 11, fontWeight: 700, color: "#407178", letterSpacing: ".03em" }}>
+                            {existingLotCode}
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ fontSize: 12, color: "#8a9e92", marginBottom: 3 }}>Qty: {item.quantity}</div>
+                        <div style={{ fontSize: 13, color: "#1c2b23", fontWeight: 500 }}>
+                          {fmt(item.unit_price, currentOrder.currency)} ea
+                        </div>
+                      </div>
+
+                      <div style={{ textAlign: "right", minWidth: 90 }}>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: "#1c2b23" }}>
+                          {fmt(item.total_price, currentOrder.currency)}
+                        </div>
+                      </div>
                     </div>
 
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: "#1c2b23", marginBottom: 3 }}>
-                        {item.product_name}
+                    {/* Lot code selector — only for pending orders without an assigned code */}
+                    {canAccept && !existingLotCode && harvestLogs.length > 0 && (
+                      <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #f5f2ec", display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: "#8a9e92", textTransform: "uppercase" as const, letterSpacing: ".04em", whiteSpace: "nowrap" as const }}>
+                          Lot Code
+                        </span>
+                        <select
+                          value={lotCodeAssignments[item.id] ?? ""}
+                          onChange={(e) => setLotCodeAssignments((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                          style={{ flex: 1, padding: "5px 8px", border: "1px solid #ebe7df", borderRadius: 6, fontSize: 12, fontFamily: "monospace", color: "#1c2b23", background: "#fff", outline: "none" }}
+                        >
+                          <option value="">— Assign a lot code (optional) —</option>
+                          {harvestLogs
+                            .filter((log) => log.crop.toLowerCase().includes(item.product_name.toLowerCase().split(" ")[0]) || item.product_name.toLowerCase().includes(log.crop.toLowerCase()))
+                            .map((log) => (
+                              <option key={log.id} value={log.lot_code}>
+                                {log.lot_code} — {log.crop}{log.variety ? ` (${log.variety})` : ""} · {new Date(log.harvest_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                              </option>
+                            ))}
+                          {harvestLogs
+                            .filter((log) => !(log.crop.toLowerCase().includes(item.product_name.toLowerCase().split(" ")[0]) || item.product_name.toLowerCase().includes(log.crop.toLowerCase())))
+                            .map((log) => (
+                              <option key={`other-${log.id}`} value={log.lot_code}>
+                                {log.lot_code} — {log.crop}{log.variety ? ` (${log.variety})` : ""}
+                              </option>
+                            ))}
+                        </select>
                       </div>
-                      {item.product_sku && (
-                        <div style={{ fontSize: 12, color: "#8a9e92" }}>SKU: {item.product_sku}</div>
-                      )}
-                    </div>
-
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{ fontSize: 12, color: "#8a9e92", marginBottom: 3 }}>Qty: {item.quantity}</div>
-                      <div style={{ fontSize: 13, color: "#1c2b23", fontWeight: 500 }}>
-                        {fmt(item.unit_price, currentOrder.currency)} ea
-                      </div>
-                    </div>
-
-                    <div style={{ textAlign: "right", minWidth: 90 }}>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: "#1c2b23" }}>
-                        {fmt(item.total_price, currentOrder.currency)}
-                      </div>
-                    </div>
+                    )}
                   </div>
                 );
               })}
@@ -511,6 +564,22 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
                 </div>
               </div>
             </div>
+
+            {/* Lot code prompt — if pending and no harvest logs yet */}
+            {canAccept && harvestLogs.length === 0 && (
+              <div style={{ ...card, background: "rgba(64,113,120,.05)", border: "1px solid rgba(64,113,120,.2)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#407178" }}>Assign Traceability Lot Codes</div>
+                  <div style={{ fontSize: 12, color: "#6a9499", marginTop: 3 }}>Log a harvest to get FSMA 204 lot codes you can assign to these items.</div>
+                </div>
+                <Link
+                  href="/seller/farm/harvest-logs/new"
+                  style={{ flexShrink: 0, padding: "7px 14px", background: "#407178", color: "#fff", borderRadius: 999, fontSize: 12, fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}
+                >
+                  Log Harvest
+                </Link>
+              </div>
+            )}
 
             {/* Shipping information */}
             <div style={card}>

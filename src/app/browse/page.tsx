@@ -201,8 +201,11 @@ function PImg({ src, alt }: { src: string; alt: string }) {
 }
 
 function toHref(p: BrowseProduct) {
-  const name = p.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-  return `/products/${name}-${p.id}`;
+  const countrySlug = (p.seller.location ?? "caribbean")
+    .toLowerCase()
+    .replace(/\s+/g, "-");
+  const productSlug = `${p.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${p.id}`;
+  return `/products/${countrySlug}/${productSlug}`;
 }
 
 // ─── Browse content (requires Suspense for useSearchParams) ──────────────────

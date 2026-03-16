@@ -20,6 +20,7 @@ import sellerAnalyticsReducer from "./slices/sellerAnalyticsSlice";
 import sellerInsightsReducer from "./slices/sellerInsightsSlice";
 import sellerPayoutsReducer from "./slices/sellerPayoutsSlice";
 import buyerCreditsReducer from "./slices/buyerCreditsSlice";
+import farmReducer from "./slices/farmSlice";
 
 // Government slices
 import governmentVendorsReducer from "./slices/governmentVendorsSlice";
@@ -54,6 +55,7 @@ export const store = configureStore({
     sellerInsights: sellerInsightsReducer,
     sellerPayouts: sellerPayoutsReducer,
     buyerCredits: buyerCreditsReducer,
+    farm: farmReducer,
     // Government reducers
     governmentVendors: governmentVendorsReducer,
     governmentPrograms: governmentProgramsReducer,

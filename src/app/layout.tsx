@@ -1,21 +1,10 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import StoreProvider from "@/store/StoreProvider";
 import { I18nProvider } from "@/lib/i18n/I18nProvider";
 
 const GA_MEASUREMENT_ID = "G-0W1025KKQ3";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://procur.io";
 
@@ -77,6 +66,34 @@ export const metadata: Metadata = {
   },
 };
 
+const organizationSchema = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "Procur",
+  url: "https://procur.io",
+  logo: "https://procur.io/images/logos/procur-logo.svg",
+  sameAs: ["https://twitter.com/procurapp"],
+  description:
+    "Procur connects buyers directly with verified Caribbean farmers. Transparent pricing, reliable supply, and produce that's never more than a day from harvest.",
+  areaServed: "Caribbean",
+  knowsAbout: ["fresh produce", "agricultural marketplace", "Caribbean farming", "farm-to-table"],
+};
+
+const websiteSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "Procur",
+  url: "https://procur.io",
+  potentialAction: {
+    "@type": "SearchAction",
+    target: {
+      "@type": "EntryPoint",
+      urlTemplate: "https://procur.io/browse?q={search_term_string}",
+    },
+    "query-input": "required name=search_term_string",
+  },
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -90,6 +107,15 @@ export default function RootLayout({
         <link rel="preload" href="/fonts/Urbanist-Medium.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
         <link rel="preload" href="/fonts/Urbanist-SemiBold.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
         <link rel="preload" href="/fonts/Urbanist-Bold.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
+        {/* Structured data */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
+        />
         {/* Google Analytics */}
         <Script
           src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
@@ -104,9 +130,7 @@ export default function RootLayout({
           `}
         </Script>
       </head>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className="antialiased">
         <StoreProvider>
           <I18nProvider>{children}</I18nProvider>
         </StoreProvider>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import ImageGallery from "./ImageGallery";
 
 interface ProductPageProps {
   params: Promise<{ country: string; slug: string }>;
@@ -17,6 +18,12 @@ type PublicSeller = {
   product_count: number;
   is_verified: boolean;
   specialties?: string[];
+};
+
+type FarmOrigin = {
+  parish?: string;
+  country?: string;
+  is_organic?: boolean;
 };
 
 type PublicProduct = {
@@ -42,6 +49,7 @@ type PublicProduct = {
   average_rating?: number;
   review_count: number;
   seller: PublicSeller;
+  farm_origin?: FarmOrigin;
 };
 
 function splitSlug(slug: string): { id: string | null; nameSlug: string } {
@@ -64,9 +72,20 @@ function toTitle(str: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export async function generateMetadata({
-  params,
-}: ProductPageProps): Promise<Metadata> {
+function Stars({ rating }: { rating: number }) {
+  const full = Math.floor(rating);
+  return (
+    <span style={{ display: "inline-flex", gap: 2 }}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <svg key={i} viewBox="0 0 24 24" fill={i <= full ? "#f59e0b" : "#e0dbd2"} width={14} height={14}>
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+        </svg>
+      ))}
+    </span>
+  );
+}
+
+export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
   const { slug, country } = await params;
   const { nameSlug } = splitSlug(slug);
   const readableName = toTitle(nameSlug || slug);
@@ -82,11 +101,8 @@ export async function generateMetadata({
   };
 }
 
-async function fetchPublicProduct(
-  productId: string
-): Promise<PublicProduct | null> {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000/api/v1";
+async function fetchPublicProduct(productId: string): Promise<PublicProduct | null> {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000/api/v1";
   try {
     const res = await fetch(`${baseUrl}/marketplace/products/${productId}`, {
       next: { revalidate: 60 },
@@ -98,9 +114,35 @@ async function fetchPublicProduct(
   }
 }
 
-export default async function PublicProductPage({
-  params,
-}: ProductPageProps) {
+const CSS = `
+.pd-wrap { max-width: 1300px; margin: 0 auto; padding: 0 20px 96px; }
+.pd-layout {
+  display: grid;
+  grid-template-columns: 500px 1fr 296px;
+  gap: 40px;
+  align-items: start;
+}
+.pd-detail-grid { display: grid; grid-template-columns: 1fr 1fr; }
+@media (max-width: 1100px) {
+  .pd-layout {
+    grid-template-columns: 1fr 280px;
+    gap: 28px;
+  }
+  .pd-gallery { grid-column: 1 / 3; max-width: 600px; }
+  .pd-info { grid-column: 1 / 2; }
+  .pd-buybox { grid-column: 2 / 3; grid-row: 2; }
+}
+@media (max-width: 720px) {
+  .pd-layout { grid-template-columns: 1fr; gap: 20px; }
+  .pd-gallery,
+  .pd-info,
+  .pd-buybox { grid-column: auto !important; grid-row: auto !important; }
+  .pd-sticky { position: static !important; top: auto !important; }
+  .pd-detail-grid { grid-template-columns: 1fr; }
+}
+`;
+
+export default async function PublicProductPage({ params }: ProductPageProps) {
   const { slug, country } = await params;
   const { id: productId, nameSlug } = splitSlug(slug);
   const readableName = toTitle(nameSlug || slug);
@@ -115,18 +157,24 @@ export default async function PublicProductPage({
         ? [product.image_url]
         : []) || [];
 
-  const mainImage =
-    images[0] ||
-    "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg";
   const displayName = product?.name || readableName;
 
   const discountPct =
     product?.sale_price && product.sale_price < product.base_price
-      ? Math.round(
-          ((product.base_price - product.sale_price) / product.base_price) *
-            100
-        )
+      ? Math.round(((product.base_price - product.sale_price) / product.base_price) * 100)
       : 0;
+
+  const bullets = product
+    ? [
+        product.is_organic && { text: "Certified Organic" },
+        product.is_featured && { text: "Featured by Procur" },
+        product.farm_origin?.parish && {
+          text: `From ${product.farm_origin.parish}${product.farm_origin.country ? `, ${product.farm_origin.country}` : ""}`,
+        },
+        { text: `${product.stock_quantity} ${product.unit_of_measurement} available` },
+        { text: `Sold by ${product.seller.name}${product.seller.is_verified ? " · Verified Supplier" : ""}` },
+      ].filter(Boolean)
+    : [];
 
   return (
     <div
@@ -138,10 +186,10 @@ export default async function PublicProductPage({
         color: "#1c2b23",
       }}
     >
+      <style>{CSS}</style>
+
       {/* ── Header ── */}
-      <header
-        style={{ position: "sticky", top: 0, zIndex: 100, background: "#2d4a3e" }}
-      >
+      <header style={{ position: "sticky", top: 0, zIndex: 100, background: "#2d4a3e" }}>
         <div
           style={{
             height: 58,
@@ -154,12 +202,7 @@ export default async function PublicProductPage({
         >
           <Link
             href="/"
-            style={{
-              textDecoration: "none",
-              flexShrink: 0,
-              display: "flex",
-              alignItems: "center",
-            }}
+            style={{ textDecoration: "none", flexShrink: 0, display: "flex", alignItems: "center" }}
           >
             <Image
               src="/images/logos/procur-logo.svg"
@@ -237,14 +280,9 @@ export default async function PublicProductPage({
 
       {/* ── Not found ── */}
       {!product && (
-        <main
-          style={{ maxWidth: 1300, margin: "0 auto", padding: "60px 20px" }}
-        >
+        <main style={{ maxWidth: 1300, margin: "0 auto", padding: "60px 20px" }}>
           <p style={{ fontSize: 12, color: "#8a9e92", marginBottom: 20 }}>
-            <Link
-              href="/browse"
-              style={{ color: "#2d4a3e", fontWeight: 700, textDecoration: "none" }}
-            >
+            <Link href="/browse" style={{ color: "#2d4a3e", fontWeight: 700, textDecoration: "none" }}>
               ← Marketplace
             </Link>
           </p>
@@ -268,8 +306,7 @@ export default async function PublicProductPage({
               maxWidth: 480,
             }}
           >
-            We couldn&apos;t load full details for this product. It may be
-            unavailable or no longer listed.
+            We couldn&apos;t load full details for this product. It may be unavailable or no longer listed.
           </p>
           <Link
             href="/browse"
@@ -291,685 +328,473 @@ export default async function PublicProductPage({
         </main>
       )}
 
+      {/* ── Product page ── */}
       {product && (
-        <>
-          {/* ── Product hero ── */}
-          <section style={{ position: "relative" }}>
-            {/* Blurred cover from main product image */}
-            <div
-              style={{
-                height: 200,
-                position: "relative",
-                overflow: "hidden",
-              }}
-            >
-              <Image
-                src={mainImage}
-                alt=""
-                fill
-                priority
-                sizes="100vw"
-                style={{ objectFit: "cover", filter: "blur(18px) brightness(.65)", transform: "scale(1.08)" }}
-              />
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  background:
-                    "linear-gradient(to bottom, rgba(10,16,12,.15) 0%, rgba(10,16,12,.6) 100%)",
-                }}
+        <main className="pd-wrap">
+          {/* Breadcrumb */}
+          <nav
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "18px 0 28px",
+              fontSize: 12,
+              color: "#8a9e92",
+              flexWrap: "wrap",
+            }}
+          >
+            <Link href="/" style={{ color: "#2d4a3e", fontWeight: 600, textDecoration: "none" }}>
+              Home
+            </Link>
+            <span>/</span>
+            <Link href="/browse" style={{ color: "#2d4a3e", fontWeight: 600, textDecoration: "none" }}>
+              Marketplace
+            </Link>
+            <span>/</span>
+            <span style={{ color: "#8a9e92" }}>{product.category}</span>
+            <span>/</span>
+            <span style={{ color: "#1c2b23", fontWeight: 600 }}>{displayName}</span>
+          </nav>
+
+          {/* ── 3-column layout ── */}
+          <div className="pd-layout">
+
+            {/* ── Col 1: Image gallery ── */}
+            <div className="pd-gallery">
+              <ImageGallery
+                images={images}
+                productName={displayName}
+                discountPct={discountPct}
+                stockQty={product.stock_quantity}
               />
             </div>
 
-            {/* Product identity card */}
-            <div style={{ maxWidth: 1300, margin: "0 auto", padding: "0 20px" }}>
-              <div
+            {/* ── Col 2: Product info ── */}
+            <div className="pd-info">
+              {/* Category label */}
+              <p
                 style={{
-                  background: "#fff",
-                  borderRadius: 20,
-                  border: "1px solid #e8e4dc",
-                  padding: "24px 28px",
-                  marginTop: -48,
-                  position: "relative",
-                  zIndex: 1,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: "#8a9e92",
+                  textTransform: "uppercase",
+                  letterSpacing: ".08em",
+                  margin: "0 0 8px",
                 }}
               >
+                {product.category}{product.subcategory ? ` › ${product.subcategory}` : ""}
+              </p>
+
+              {/* Title */}
+              <h1
+                style={{
+                  fontSize: 26,
+                  fontWeight: 800,
+                  color: "#1c2b23",
+                  letterSpacing: "-.5px",
+                  lineHeight: 1.2,
+                  margin: "0 0 10px",
+                }}
+              >
+                {displayName}
+              </h1>
+
+              {/* Badges row */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+                {product.is_organic && (
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "#2d4a3e",
+                      background: "#eef4f1",
+                      border: "1px solid #c8ddd4",
+                      padding: "3px 10px",
+                      borderRadius: 999,
+                    }}
+                  >
+                    Organic
+                  </span>
+                )}
+                {product.is_featured && (
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "#92610a",
+                      background: "#fef9ec",
+                      border: "1px solid #f0d48a",
+                      padding: "3px 10px",
+                      borderRadius: 999,
+                    }}
+                  >
+                    Featured
+                  </span>
+                )}
+                {discountPct > 0 && (
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "#d4783c",
+                      background: "#fdf0e8",
+                      border: "1px solid #f0c4a0",
+                      padding: "3px 10px",
+                      borderRadius: 999,
+                    }}
+                  >
+                    {discountPct}% Off
+                  </span>
+                )}
+              </div>
+
+              {/* Rating */}
+              {typeof product.average_rating === "number" && (
                 <div
                   style={{
                     display: "flex",
-                    flexWrap: "wrap",
-                    gap: 20,
-                    alignItems: "flex-start",
+                    alignItems: "center",
+                    gap: 8,
+                    marginBottom: 16,
+                    paddingBottom: 16,
+                    borderBottom: "1px solid #f0ece6",
                   }}
                 >
-                  {/* Product image thumbnail */}
-                  <div
-                    style={{
-                      marginTop: -56,
-                      flexShrink: 0,
-                      position: "relative",
-                      zIndex: 2,
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 80,
-                        height: 80,
-                        borderRadius: 16,
-                        border: "3px solid #fff",
-                        overflow: "hidden",
-                        boxShadow: "0 4px 16px rgba(0,0,0,.14)",
-                      }}
-                    >
-                      <Image
-                        src={mainImage}
-                        alt={displayName}
-                        width={80}
-                        height={80}
-                        style={{ objectFit: "cover", width: "100%", height: "100%" }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Info */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        marginBottom: 4,
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <h1
-                        style={{
-                          fontSize: 26,
-                          fontWeight: 800,
-                          color: "#1c2b23",
-                          letterSpacing: "-.5px",
-                          margin: 0,
-                        }}
-                      >
-                        {displayName}
-                      </h1>
-                      {product.is_organic && (
-                        <span
-                          style={{
-                            fontSize: 11,
-                            fontWeight: 700,
-                            color: "#2d4a3e",
-                            background: "#eef4f1",
-                            border: "1px solid #c8ddd4",
-                            padding: "3px 10px",
-                            borderRadius: 999,
-                            flexShrink: 0,
-                          }}
-                        >
-                          Organic
-                        </span>
-                      )}
-                      {discountPct > 0 && (
-                        <span
-                          style={{
-                            fontSize: 11,
-                            fontWeight: 700,
-                            color: "#d4783c",
-                            background: "#fdf0e8",
-                            border: "1px solid #f0c4a0",
-                            padding: "3px 10px",
-                            borderRadius: 999,
-                            flexShrink: 0,
-                          }}
-                        >
-                          {discountPct}% Off
-                        </span>
-                      )}
-                    </div>
-
-                    {product.category && (
-                      <p
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 700,
-                          color: "#8a9e92",
-                          textTransform: "uppercase",
-                          letterSpacing: ".08em",
-                          margin: "0 0 10px",
-                        }}
-                      >
-                        {product.category}
-                        {product.subcategory
-                          ? ` · ${product.subcategory}`
-                          : ""}
-                      </p>
-                    )}
-
-                    {/* Pill stats */}
-                    <div
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        gap: 8,
-                        marginBottom: 12,
-                      }}
-                    >
-                      <span
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 5,
-                          fontSize: 12,
-                          color: "#6a7f73",
-                          background: "#f5f1ea",
-                          padding: "5px 12px",
-                          borderRadius: 999,
-                        }}
-                      >
-                        <svg
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          width={11}
-                          height={11}
-                        >
-                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
-                          <circle cx="12" cy="10" r="3" />
-                        </svg>
-                        {product.seller.location || readableCountry}
-                      </span>
-                      <span
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 4,
-                          fontSize: 12,
-                          color:
-                            product.stock_quantity > 0 ? "#2d7a3e" : "#c44",
-                          background:
-                            product.stock_quantity > 0 ? "#eef4f1" : "#fef2f2",
-                          padding: "5px 12px",
-                          borderRadius: 999,
-                        }}
-                      >
-                        <span
-                          style={{
-                            width: 6,
-                            height: 6,
-                            borderRadius: "50%",
-                            background:
-                              product.stock_quantity > 0 ? "#2d7a3e" : "#c44",
-                            display: "inline-block",
-                            flexShrink: 0,
-                          }}
-                        />
-                        {product.stock_quantity > 0 ? "In stock" : "Out of stock"}
-                      </span>
-                      {typeof product.average_rating === "number" && (
-                        <span
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 4,
-                            fontSize: 12,
-                            color: "#6a7f73",
-                            background: "#f5f1ea",
-                            padding: "5px 12px",
-                            borderRadius: 999,
-                          }}
-                        >
-                          <svg
-                            viewBox="0 0 24 24"
-                            fill="#f59e0b"
-                            width={11}
-                            height={11}
-                          >
-                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                          </svg>
-                          <span style={{ fontWeight: 700, color: "#1c2b23" }}>
-                            {product.average_rating.toFixed(1)}
-                          </span>
-                          <span>({product.review_count})</span>
-                        </span>
-                      )}
-                      {product.tags &&
-                        product.tags.slice(0, 2).map((tag) => (
-                          <span
-                            key={tag}
-                            style={{
-                              fontSize: 11,
-                              color: "#2d4a3e",
-                              background: "#eef4f1",
-                              border: "1px solid #c8ddd4",
-                              padding: "3px 10px",
-                              borderRadius: 999,
-                            }}
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                    </div>
-
-                    {(product.description || product.short_description) && (
-                      <p
-                        style={{
-                          fontSize: 14,
-                          color: "#6a7f73",
-                          lineHeight: 1.65,
-                          margin: 0,
-                          maxWidth: 600,
-                        }}
-                      >
-                        {product.description || product.short_description}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* CTAs */}
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 8,
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Link
-                      href="/signup?accountType=buyer"
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        padding: "10px 20px",
-                        background: "#d4783c",
-                        color: "#fff",
-                        fontSize: 13,
-                        fontWeight: 700,
-                        borderRadius: 999,
-                        textDecoration: "none",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      Create buyer account
-                    </Link>
-                    <Link
-                      href="/login"
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        padding: "10px 20px",
-                        background: "#fff",
-                        color: "#1c2b23",
-                        fontSize: 13,
-                        fontWeight: 600,
-                        borderRadius: 999,
-                        textDecoration: "none",
-                        border: "1px solid #e8e4dc",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      Sign in to order
-                    </Link>
-                  </div>
+                  <Stars rating={product.average_rating} />
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#2d4a3e" }}>
+                    {product.average_rating.toFixed(1)}
+                  </span>
+                  <span style={{ fontSize: 13, color: "#8a9e92" }}>
+                    ({product.review_count} {product.review_count === 1 ? "review" : "reviews"})
+                  </span>
                 </div>
-              </div>
-            </div>
-          </section>
-
-          {/* ── Main content ── */}
-          <main
-            style={{ maxWidth: 1300, margin: "0 auto", padding: "40px 20px 80px" }}
-          >
-            {/* Breadcrumb */}
-            <p style={{ fontSize: 12, color: "#8a9e92", marginBottom: 32 }}>
-              <Link
-                href="/browse"
-                style={{ color: "#2d4a3e", fontWeight: 700, textDecoration: "none" }}
-              >
-                ← Marketplace
-              </Link>
-              {product.seller && (
-                <>
-                  {" "}
-                  ·{" "}
-                  <Link
-                    href={`/sellers/${product.seller.id}`}
-                    style={{ color: "#2d4a3e", fontWeight: 600, textDecoration: "none" }}
-                  >
-                    {product.seller.name}
-                  </Link>
-                </>
               )}
-            </p>
 
-            {/* ── Two-column layout ── */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 360px",
-                gap: 32,
-                alignItems: "start",
-                marginBottom: 56,
-              }}
-            >
-              {/* Left: Image gallery */}
-              <div>
-                {/* Main image */}
-                <div
-                  style={{
-                    borderRadius: 20,
-                    overflow: "hidden",
-                    border: "1px solid #e8e4dc",
-                    background: "#f5f1ea",
-                    position: "relative",
-                    aspectRatio: "4/3",
-                  }}
-                >
-                  <Image
-                    src={mainImage}
-                    alt={displayName}
-                    fill
-                    priority
-                    sizes="(max-width: 1024px) 100vw, 700px"
-                    style={{ objectFit: "cover" }}
-                  />
-                  {product.stock_quantity === 0 && (
-                    <div
-                      style={{
-                        position: "absolute",
-                        top: 14,
-                        left: 14,
-                        background: "rgba(0,0,0,.7)",
-                        color: "#fff",
-                        fontSize: 11,
-                        fontWeight: 700,
-                        padding: "4px 12px",
-                        borderRadius: 999,
-                      }}
-                    >
-                      Out of stock
-                    </div>
-                  )}
-                  {discountPct > 0 && (
-                    <div
-                      style={{
-                        position: "absolute",
-                        top: 14,
-                        left: 14,
-                        background: "#d4783c",
-                        color: "#fff",
-                        fontSize: 11,
-                        fontWeight: 700,
-                        padding: "4px 12px",
-                        borderRadius: 999,
-                      }}
-                    >
-                      {discountPct}% Off
-                    </div>
-                  )}
+              {/* Price */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+                  <span
+                    style={{
+                      fontSize: 32,
+                      fontWeight: 800,
+                      color: "#1c2b23",
+                      letterSpacing: "-.5px",
+                    }}
+                  >
+                    ${product.current_price.toFixed(2)}
+                  </span>
+                  <span style={{ fontSize: 15, color: "#8a9e92", fontWeight: 500 }}>
+                    per {product.unit_of_measurement}
+                  </span>
                 </div>
+                {product.sale_price && product.sale_price < product.base_price && (
+                  <p style={{ fontSize: 13, color: "#8a9e92", margin: "4px 0 0" }}>
+                    Was{" "}
+                    <span style={{ textDecoration: "line-through" }}>
+                      ${product.base_price.toFixed(2)}
+                    </span>{" "}
+                    <span style={{ color: "#d4783c", fontWeight: 700 }}>{discountPct}% off</span>
+                  </p>
+                )}
+              </div>
 
-                {/* Thumbnail strip */}
-                {images.length > 1 && (
-                  <div
+              {/* Divider */}
+              <div style={{ height: 1, background: "#f0ece6", marginBottom: 20 }} />
+
+              {/* Key feature bullets */}
+              <ul
+                style={{
+                  listStyle: "none",
+                  padding: 0,
+                  margin: "0 0 24px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                }}
+              >
+                {(bullets as { text: string }[]).map((b, i) => (
+                  <li
+                    key={i}
                     style={{
                       display: "flex",
+                      alignItems: "flex-start",
                       gap: 10,
-                      marginTop: 12,
-                      overflowX: "auto",
+                      fontSize: 14,
+                      color: "#3a4f44",
+                      lineHeight: 1.45,
                     }}
                   >
-                    {images.map((img, i) => (
-                      <div
-                        key={i}
-                        style={{
-                          width: 72,
-                          height: 72,
-                          borderRadius: 10,
-                          overflow: "hidden",
-                          flexShrink: 0,
-                          border:
-                            i === 0
-                              ? "2px solid #2d4a3e"
-                              : "2px solid #e8e4dc",
-                          opacity: i === 0 ? 1 : 0.6,
-                          position: "relative",
-                        }}
-                      >
-                        <Image
-                          src={img}
-                          alt={`${displayName} ${i + 1}`}
-                          fill
-                          sizes="72px"
-                          style={{ objectFit: "cover" }}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Description expanded */}
-                {(product.description || product.short_description) && (
-                  <div
-                    style={{
-                      marginTop: 28,
-                      padding: "20px 22px",
-                      background: "#fff",
-                      borderRadius: 16,
-                      border: "1px solid #e8e4dc",
-                    }}
-                  >
-                    <h3
+                    <span
                       style={{
-                        fontSize: 10,
-                        fontWeight: 700,
-                        color: "#1c2b23",
-                        margin: "0 0 10px",
-                        letterSpacing: ".02em",
-                        textTransform: "uppercase",
-                      } as React.CSSProperties}
-                    >
-                      About this product
-                    </h3>
-                    <p
-                      style={{
-                        fontSize: 14,
-                        color: "#6a7f73",
-                        lineHeight: 1.7,
-                        margin: 0,
+                        width: 6,
+                        height: 6,
+                        borderRadius: "50%",
+                        background: "#2d4a3e",
+                        flexShrink: 0,
+                        marginTop: 6,
+                        display: "inline-block",
                       }}
-                    >
-                      {product.description ||
-                        product.short_description ||
-                        `${displayName} is listed on Procur's marketplace by a verified supplier. Create a free buyer account to see full availability and place orders.`}
-                    </p>
-                  </div>
+                    />
+                    <span>{b.text}</span>
+                  </li>
+                ))}
+                {product.tags && product.tags.length > 0 && (
+                  <li style={{ display: "flex", alignItems: "flex-start", gap: 10, fontSize: 14, color: "#3a4f44" }}>
+                    <span
+                      style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: "50%",
+                        background: "#2d4a3e",
+                        flexShrink: 0,
+                        marginTop: 6,
+                        display: "inline-block",
+                      }}
+                    />
+                    <span>{product.tags.slice(0, 5).join(" · ")}</span>
+                  </li>
                 )}
+              </ul>
 
-                {/* Product details grid */}
+              {/* Divider */}
+              <div style={{ height: 1, background: "#f0ece6", marginBottom: 24 }} />
+
+              {/* About this product */}
+              <div style={{ marginBottom: 28 }}>
+                <h2
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 700,
+                    color: "#1c2b23",
+                    margin: "0 0 10px",
+                    letterSpacing: "-.2px",
+                  }}
+                >
+                  About this product
+                </h2>
+                <p
+                  style={{
+                    fontSize: 14,
+                    color: "#4a5f54",
+                    lineHeight: 1.75,
+                    margin: 0,
+                  }}
+                >
+                  {product.description ||
+                    product.short_description ||
+                    `${displayName} is listed on Procur's marketplace by a verified supplier from ${product.seller.location || readableCountry}. Create a free buyer account to see full availability and place orders.`}
+                </p>
+              </div>
+
+              {/* Product details table */}
+              <div
+                style={{
+                  background: "#fff",
+                  border: "1px solid #e8e4dc",
+                  borderRadius: 14,
+                  overflow: "hidden",
+                }}
+              >
                 <div
                   style={{
-                    marginTop: 20,
-                    padding: "20px 22px",
-                    background: "#fff",
-                    borderRadius: 16,
-                    border: "1px solid #e8e4dc",
+                    padding: "14px 20px",
+                    borderBottom: "1px solid #f0ece6",
+                    background: "#fafaf8",
                   }}
                 >
                   <h3
                     style={{
-                      fontSize: 10,
+                      fontSize: 12,
                       fontWeight: 700,
-                      color: "#8a9e92",
-                      margin: "0 0 14px",
-                      letterSpacing: ".08em",
+                      color: "#1c2b23",
+                      margin: 0,
+                      letterSpacing: ".02em",
                       textTransform: "uppercase",
                     }}
                   >
                     Product details
                   </h3>
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr",
-                      gap: "10px 20px",
-                    }}
-                  >
-                    {[
-                      { label: "Category", value: product.category },
-                      product.subcategory
-                        ? { label: "Type", value: product.subcategory }
-                        : null,
-                      {
-                        label: "Unit",
-                        value: product.unit_of_measurement,
-                      },
-                      { label: "Condition", value: product.condition },
-                      {
-                        label: "Origin",
-                        value: product.seller.location || readableCountry,
-                      },
-                      product.is_local
-                        ? { label: "Source", value: "Local" }
-                        : null,
-                    ]
-                      .filter(Boolean)
-                      .map((item) => (
-                        <div
-                          key={item!.label}
+                </div>
+                <div className="pd-detail-grid">
+                  {[
+                    { label: "Category", value: product.category },
+                    product.subcategory ? { label: "Type", value: product.subcategory } : null,
+                    { label: "Unit", value: product.unit_of_measurement },
+                    { label: "Condition", value: product.condition },
+                    { label: "Origin", value: product.seller.location || readableCountry },
+                    product.farm_origin?.parish
+                      ? { label: "Parish", value: product.farm_origin.parish }
+                      : null,
+                    { label: "Organic", value: product.is_organic ? "Yes" : "No" },
+                  ]
+                    .filter(Boolean)
+                    .map((item) => (
+                      <div
+                        key={item!.label}
+                        style={{
+                          padding: "12px 20px",
+                          borderBottom: "1px solid #f5f1ea",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 2,
+                        }}
+                      >
+                        <span
                           style={{
-                            padding: "10px 0",
-                            borderBottom: "1px solid #f0ece6",
+                            fontSize: 10,
+                            fontWeight: 700,
+                            color: "#8a9e92",
+                            textTransform: "uppercase",
+                            letterSpacing: ".06em",
                           }}
                         >
-                          <p
-                            style={{
-                              fontSize: 10,
-                              fontWeight: 700,
-                              color: "#8a9e92",
-                              margin: "0 0 3px",
-                              textTransform: "uppercase",
-                              letterSpacing: ".06em",
-                            }}
-                          >
-                            {item!.label}
-                          </p>
-                          <p
-                            style={{
-                              fontSize: 13,
-                              fontWeight: 600,
-                              color: "#1c2b23",
-                              margin: 0,
-                            }}
-                          >
-                            {item!.value}
-                          </p>
-                        </div>
-                      ))}
-                  </div>
+                          {item!.label}
+                        </span>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: "#1c2b23" }}>
+                          {item!.value}
+                        </span>
+                      </div>
+                    ))}
                 </div>
               </div>
+            </div>
 
-              {/* Right: Sticky buy box */}
-              <div style={{ position: "sticky", top: 78 }}>
+            {/* ── Col 3: Buy box (sticky) ── */}
+            <div className="pd-buybox">
+              <div className="pd-sticky" style={{ position: "sticky", top: 78 }}>
+                {/* Main buy card */}
                 <div
                   style={{
                     background: "#fff",
-                    borderRadius: 20,
                     border: "1px solid #e8e4dc",
-                    padding: "24px",
-                    marginBottom: 16,
+                    borderRadius: 16,
+                    padding: "22px 20px",
+                    marginBottom: 12,
                   }}
                 >
                   {/* Price */}
-                  <div style={{ marginBottom: 18 }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "baseline",
-                        gap: 8,
-                        marginBottom: 4,
-                      }}
-                    >
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
                       <span
                         style={{
-                          fontSize: 32,
+                          fontSize: 28,
                           fontWeight: 800,
                           color: "#1c2b23",
-                          letterSpacing: "-.5px",
+                          letterSpacing: "-.4px",
                         }}
                       >
                         ${product.current_price.toFixed(2)}
                       </span>
-                      <span style={{ fontSize: 14, color: "#8a9e92" }}>
-                        per {product.unit_of_measurement}
+                      <span style={{ fontSize: 13, color: "#8a9e92" }}>
+                        / {product.unit_of_measurement}
                       </span>
                     </div>
-                    {product.sale_price &&
-                      product.sale_price < product.base_price && (
-                        <p style={{ fontSize: 13, color: "#8a9e92", margin: 0 }}>
-                          <span
-                            style={{ textDecoration: "line-through" }}
-                          >
-                            ${product.base_price.toFixed(2)}
-                          </span>{" "}
-                          <span
-                            style={{ color: "#d4783c", fontWeight: 700 }}
-                          >
-                            {discountPct}% off
-                          </span>
-                        </p>
-                      )}
+                    {product.sale_price && product.sale_price < product.base_price && (
+                      <p style={{ fontSize: 12, color: "#d4783c", fontWeight: 700, margin: "3px 0 0" }}>
+                        Save {discountPct}% — was ${product.base_price.toFixed(2)}
+                      </p>
+                    )}
                   </div>
 
-                  {/* Stock info */}
+                  {/* Sold by */}
                   <div
                     style={{
                       display: "flex",
-                      justifyContent: "space-between",
-                      padding: "10px 0",
-                      borderTop: "1px solid #f0ece6",
-                      marginBottom: 6,
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "12px 0",
+                      borderTop: "1px solid #f5f1ea",
+                      borderBottom: "1px solid #f5f1ea",
+                      marginBottom: 14,
                     }}
                   >
-                    <span style={{ fontSize: 13, color: "#8a9e92" }}>
-                      Available stock
-                    </span>
-                    <span
-                      style={{ fontSize: 13, fontWeight: 700, color: "#1c2b23" }}
+                    <div
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 8,
+                        overflow: "hidden",
+                        flexShrink: 0,
+                        border: "1px solid #e8e4dc",
+                        background: "linear-gradient(155deg, #1e3528 0%, #2d5a42 100%)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
                     >
-                      {product.stock_quantity} {product.unit_of_measurement}
-                    </span>
+                      {product.seller.logo_url ? (
+                        <Image
+                          src={product.seller.logo_url}
+                          alt={product.seller.name}
+                          width={36}
+                          height={36}
+                          style={{ objectFit: "cover", width: "100%", height: "100%" }}
+                        />
+                      ) : (
+                        <span style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>
+                          {product.seller.name.charAt(0)}
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 10, color: "#8a9e92", margin: "0 0 2px" }}>Sold by</p>
+                      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                        <Link
+                          href={`/sellers/${product.seller.id}`}
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 700,
+                            color: "#2d4a3e",
+                            textDecoration: "none",
+                          }}
+                        >
+                          {product.seller.name}
+                        </Link>
+                        {product.seller.is_verified && (
+                          <span
+                            style={{
+                              fontSize: 9,
+                              fontWeight: 700,
+                              color: "#2d4a3e",
+                              background: "#eef4f1",
+                              border: "1px solid #c8ddd4",
+                              padding: "1px 6px",
+                              borderRadius: 999,
+                            }}
+                          >
+                            ✓ Verified
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      padding: "10px 0",
-                      borderTop: "1px solid #f0ece6",
-                      marginBottom: 20,
-                    }}
-                  >
-                    <span style={{ fontSize: 13, color: "#8a9e92" }}>
-                      Status
-                    </span>
+                  {/* Stock */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
+                    <span
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: "50%",
+                        background: product.stock_quantity > 0 ? "#2d7a3e" : "#c44",
+                        flexShrink: 0,
+                        display: "inline-block",
+                      }}
+                    />
                     <span
                       style={{
                         fontSize: 13,
-                        fontWeight: 700,
-                        color:
-                          product.stock_quantity > 0 ? "#2d7a3e" : "#c44444",
+                        fontWeight: 600,
+                        color: product.stock_quantity > 0 ? "#2d7a3e" : "#c44",
                       }}
                     >
-                      {product.stock_quantity > 0 ? "In stock" : "Out of stock"}
+                      {product.stock_quantity > 0
+                        ? `In stock · ${product.stock_quantity} ${product.unit_of_measurement} available`
+                        : "Out of stock"}
                     </span>
                   </div>
 
-                  {/* Create account CTA */}
+                  {/* CTA buttons */}
                   <Link
                     href="/signup?accountType=buyer"
                     style={{
@@ -985,7 +810,7 @@ export default async function PublicProductPage({
                       borderRadius: 999,
                       textDecoration: "none",
                       textAlign: "center",
-                      marginBottom: 10,
+                      marginBottom: 8,
                       boxSizing: "border-box",
                     } as React.CSSProperties}
                   >
@@ -1010,17 +835,20 @@ export default async function PublicProductPage({
                       boxSizing: "border-box",
                     } as React.CSSProperties}
                   >
-                    Sign in
+                    Sign in to order
                   </Link>
                 </div>
 
-                {/* Delivery info card */}
+                {/* Fulfillment info */}
                 <div
                   style={{
                     background: "#fff",
-                    borderRadius: 16,
                     border: "1px solid #e8e4dc",
-                    padding: "18px 20px",
+                    borderRadius: 14,
+                    padding: "16px 18px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 14,
                   }}
                 >
                   {[
@@ -1031,7 +859,7 @@ export default async function PublicProductPage({
                           <polyline points="12 6 12 12 16 14" />
                         </svg>
                       ),
-                      text: "Orders placed before 2pm ship same day",
+                      text: "Orders before 2pm ship same day",
                     },
                     {
                       icon: (
@@ -1053,17 +881,7 @@ export default async function PublicProductPage({
                       text: "Verified supplier · quality guaranteed",
                     },
                   ].map((row, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        display: "flex",
-                        alignItems: "flex-start",
-                        gap: 10,
-                        padding: i > 0 ? "12px 0 0" : "0",
-                        marginTop: i > 0 ? 12 : 0,
-                        borderTop: i > 0 ? "1px solid #f0ece6" : "none",
-                      }}
-                    >
+                    <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
                       <div
                         style={{
                           width: 28,
@@ -1078,15 +896,7 @@ export default async function PublicProductPage({
                       >
                         {row.icon}
                       </div>
-                      <p
-                        style={{
-                          fontSize: 12,
-                          color: "#6a7f73",
-                          margin: 0,
-                          lineHeight: 1.5,
-                          paddingTop: 4,
-                        }}
-                      >
+                      <p style={{ fontSize: 12, color: "#6a7f73", margin: 0, lineHeight: 1.5, paddingTop: 4 }}>
                         {row.text}
                       </p>
                     </div>
@@ -1094,325 +904,221 @@ export default async function PublicProductPage({
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* ── Seller card ── */}
-            <section style={{ marginBottom: 56 }}>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "baseline",
-                  marginBottom: 20,
-                }}
-              >
-                <h2
+          {/* ── About the supplier ── */}
+          <section style={{ marginTop: 56 }}>
+            <h2
+              style={{
+                fontSize: 20,
+                fontWeight: 700,
+                color: "#1c2b23",
+                margin: "0 0 20px",
+                letterSpacing: "-.3px",
+              }}
+            >
+              About the supplier
+            </h2>
+            <div
+              style={{
+                background: "#fff",
+                borderRadius: 20,
+                border: "1px solid #e8e4dc",
+                padding: "24px 28px",
+                maxWidth: 680,
+              }}
+            >
+              <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+                <div
                   style={{
-                    fontSize: 20,
-                    fontWeight: 700,
-                    color: "#1c2b23",
-                    margin: 0,
-                    letterSpacing: "-.3px",
+                    width: 56,
+                    height: 56,
+                    borderRadius: 12,
+                    overflow: "hidden",
+                    flexShrink: 0,
+                    border: "2px solid #e8e4dc",
+                    background: "linear-gradient(155deg, #1e3528 0%, #2d5a42 100%)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
                   }}
                 >
-                  About the supplier
-                </h2>
-              </div>
+                  {product.seller.logo_url ? (
+                    <Image
+                      src={product.seller.logo_url}
+                      alt={product.seller.name}
+                      width={56}
+                      height={56}
+                      style={{ objectFit: "cover", width: "100%", height: "100%" }}
+                    />
+                  ) : (
+                    <span style={{ fontSize: 22, fontWeight: 800, color: "#fff" }}>
+                      {product.seller.name.charAt(0)}
+                    </span>
+                  )}
+                </div>
 
-              <div
-                style={{
-                  background: "#fff",
-                  borderRadius: 20,
-                  border: "1px solid #e8e4dc",
-                  padding: "24px 28px",
-                  maxWidth: 640,
-                }}
-              >
-                <div style={{ display: "flex", gap: 16, alignItems: "flex-start", marginBottom: 16 }}>
-                  {/* Avatar */}
-                  <div
-                    style={{
-                      width: 52,
-                      height: 52,
-                      borderRadius: 12,
-                      overflow: "hidden",
-                      flexShrink: 0,
-                      border: "2px solid #e8e4dc",
-                    }}
-                  >
-                    {product.seller.logo_url ? (
-                      <Image
-                        src={product.seller.logo_url}
-                        alt={product.seller.name}
-                        width={52}
-                        height={52}
-                        style={{ objectFit: "cover", width: "100%", height: "100%" }}
-                      />
-                    ) : (
-                      <div
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+                    <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1c2b23", margin: 0 }}>
+                      {product.seller.name}
+                    </h3>
+                    {product.seller.is_verified && (
+                      <span
                         style={{
-                          width: "100%",
-                          height: "100%",
-                          background:
-                            "linear-gradient(155deg, #1e3528 0%, #2d5a42 100%)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
+                          fontSize: 10,
+                          fontWeight: 700,
+                          color: "#2d4a3e",
+                          background: "#eef4f1",
+                          border: "1px solid #c8ddd4",
+                          padding: "2px 8px",
+                          borderRadius: 999,
                         }}
                       >
-                        <span
-                          style={{
-                            fontSize: 20,
-                            fontWeight: 800,
-                            color: "#fff",
-                          }}
-                        >
-                          {product.seller.name.charAt(0)}
-                        </span>
-                      </div>
+                        ✓ Verified
+                      </span>
                     )}
                   </div>
 
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        marginBottom: 4,
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <h3
-                        style={{
-                          fontSize: 16,
-                          fontWeight: 700,
-                          color: "#1c2b23",
-                          margin: 0,
-                        }}
-                      >
-                        {product.seller.name}
-                      </h3>
-                      {product.seller.is_verified && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 12 }}>
+                    {product.seller.location && (
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, color: "#6a7f73" }}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width={11} height={11}>
+                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+                          <circle cx="12" cy="10" r="3" />
+                        </svg>
+                        {product.seller.location}
+                      </span>
+                    )}
+                    {typeof product.seller.average_rating === "number" && (
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, color: "#6a7f73" }}>
+                        <svg viewBox="0 0 24 24" fill="#f59e0b" width={11} height={11}>
+                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                        </svg>
+                        <span style={{ fontWeight: 700, color: "#1c2b23" }}>
+                          {product.seller.average_rating.toFixed(1)}
+                        </span>
+                        <span>({product.seller.review_count} reviews)</span>
+                      </span>
+                    )}
+                    {product.seller.product_count > 0 && (
+                      <span style={{ fontSize: 12, color: "#8a9e92" }}>
+                        {product.seller.product_count} listed products
+                      </span>
+                    )}
+                  </div>
+
+                  {product.seller.description && (
+                    <p style={{ fontSize: 13, color: "#6a7f73", lineHeight: 1.65, margin: "0 0 12px" }}>
+                      {product.seller.description}
+                    </p>
+                  )}
+
+                  {product.seller.specialties && product.seller.specialties.length > 0 && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
+                      {product.seller.specialties.slice(0, 5).map((s) => (
                         <span
+                          key={s}
                           style={{
-                            fontSize: 10,
-                            fontWeight: 700,
+                            fontSize: 11,
                             color: "#2d4a3e",
                             background: "#eef4f1",
                             border: "1px solid #c8ddd4",
-                            padding: "2px 8px",
+                            padding: "3px 10px",
                             borderRadius: 999,
-                            flexShrink: 0,
                           }}
                         >
-                          ✓ Verified
+                          {s}
                         </span>
-                      )}
+                      ))}
                     </div>
+                  )}
 
-                    <div
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        gap: 8,
-                        marginBottom: product.seller.description ? 12 : 0,
-                      }}
-                    >
-                      {product.seller.location && (
-                        <span
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 4,
-                            fontSize: 12,
-                            color: "#6a7f73",
-                          }}
-                        >
-                          <svg
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            width={11}
-                            height={11}
-                          >
-                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
-                            <circle cx="12" cy="10" r="3" />
-                          </svg>
-                          {product.seller.location}
-                        </span>
-                      )}
-                      {typeof product.seller.average_rating === "number" && (
-                        <span
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 4,
-                            fontSize: 12,
-                            color: "#6a7f73",
-                          }}
-                        >
-                          <svg
-                            viewBox="0 0 24 24"
-                            fill="#f59e0b"
-                            width={11}
-                            height={11}
-                          >
-                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                          </svg>
-                          <span style={{ fontWeight: 700, color: "#1c2b23" }}>
-                            {product.seller.average_rating.toFixed(1)}
-                          </span>
-                          <span>({product.seller.review_count} reviews)</span>
-                        </span>
-                      )}
-                      {product.seller.product_count > 0 && (
-                        <span
-                          style={{ fontSize: 12, color: "#8a9e92" }}
-                        >
-                          {product.seller.product_count} listed products
-                        </span>
-                      )}
-                    </div>
-
-                    {product.seller.description && (
-                      <p
-                        style={{
-                          fontSize: 13,
-                          color: "#6a7f73",
-                          lineHeight: 1.65,
-                          margin: 0,
-                        }}
-                      >
-                        {product.seller.description}
-                      </p>
-                    )}
-
-                    {product.seller.specialties &&
-                      product.seller.specialties.length > 0 && (
-                        <div
-                          style={{
-                            display: "flex",
-                            flexWrap: "wrap",
-                            gap: 6,
-                            marginTop: 12,
-                          }}
-                        >
-                          {product.seller.specialties
-                            .slice(0, 4)
-                            .map((s) => (
-                              <span
-                                key={s}
-                                style={{
-                                  fontSize: 11,
-                                  color: "#2d4a3e",
-                                  background: "#eef4f1",
-                                  border: "1px solid #c8ddd4",
-                                  padding: "3px 10px",
-                                  borderRadius: 999,
-                                }}
-                              >
-                                {s}
-                              </span>
-                            ))}
-                        </div>
-                      )}
-                  </div>
+                  <Link
+                    href={`/sellers/${product.seller.id}`}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "9px 18px",
+                      background: "#2d4a3e",
+                      color: "#f5f1ea",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      borderRadius: 999,
+                      textDecoration: "none",
+                    }}
+                  >
+                    View supplier profile →
+                  </Link>
                 </div>
-
-                <Link
-                  href={`/sellers/${product.seller.id}`}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "10px 18px",
-                    background: "#2d4a3e",
-                    color: "#f5f1ea",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    borderRadius: 999,
-                    textDecoration: "none",
-                  }}
-                >
-                  View supplier profile →
-                </Link>
-              </div>
-            </section>
-
-            {/* ── Join CTA ── */}
-            <div
-              style={{
-                padding: "40px 36px",
-                background: "#2d4a3e",
-                borderRadius: 24,
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 24,
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <div>
-                <h3
-                  style={{
-                    fontSize: 22,
-                    fontWeight: 700,
-                    color: "#f5f1ea",
-                    margin: "0 0 6px",
-                    letterSpacing: "-.3px",
-                  }}
-                >
-                  Ready to order {displayName}?
-                </h3>
-                <p
-                  style={{
-                    fontSize: 14,
-                    color: "rgba(245,241,234,.65)",
-                    margin: 0,
-                    maxWidth: 400,
-                    lineHeight: 1.6,
-                  }}
-                >
-                  Create a free buyer account to send messages, request quotes,
-                  and place orders directly with verified suppliers.
-                </p>
-              </div>
-              <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>
-                <Link
-                  href="/signup?accountType=buyer"
-                  style={{
-                    padding: "11px 22px",
-                    background: "#f5f1ea",
-                    color: "#1c2b23",
-                    fontSize: 13,
-                    fontWeight: 700,
-                    borderRadius: 999,
-                    textDecoration: "none",
-                  }}
-                >
-                  Create account
-                </Link>
-                <Link
-                  href="/login"
-                  style={{
-                    padding: "11px 22px",
-                    background: "transparent",
-                    color: "#f5f1ea",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    borderRadius: 999,
-                    textDecoration: "none",
-                    border: "1px solid rgba(245,241,234,.2)",
-                  }}
-                >
-                  Sign in
-                </Link>
               </div>
             </div>
-          </main>
-        </>
+          </section>
+
+          {/* ── Join CTA ── */}
+          <div
+            style={{
+              marginTop: 56,
+              padding: "44px 40px",
+              background: "#1c2b23",
+              borderRadius: 24,
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 28,
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div>
+              <h3
+                style={{
+                  fontSize: 24,
+                  fontWeight: 800,
+                  color: "#f5f1ea",
+                  margin: "0 0 8px",
+                  letterSpacing: "-.4px",
+                }}
+              >
+                Ready to order {displayName}?
+              </h3>
+              <p style={{ fontSize: 14, color: "rgba(245,241,234,.6)", margin: 0, maxWidth: 400, lineHeight: 1.65 }}>
+                Create a free buyer account to send messages, request quotes, and place orders directly with verified suppliers.
+              </p>
+            </div>
+            <div style={{ display: "flex", gap: 10, flexShrink: 0, flexWrap: "wrap" }}>
+              <Link
+                href="/signup?accountType=buyer"
+                style={{
+                  padding: "12px 24px",
+                  background: "#d4783c",
+                  color: "#fff",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  borderRadius: 999,
+                  textDecoration: "none",
+                }}
+              >
+                Create account
+              </Link>
+              <Link
+                href="/login"
+                style={{
+                  padding: "12px 24px",
+                  background: "transparent",
+                  color: "#f5f1ea",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  borderRadius: 999,
+                  textDecoration: "none",
+                  border: "1px solid rgba(245,241,234,.2)",
+                }}
+              >
+                Sign in
+              </Link>
+            </div>
+          </div>
+        </main>
       )}
 
       {/* ── Footer ── */}
@@ -1441,9 +1147,7 @@ export default async function PublicProductPage({
                 margin: "0 0 26px",
               }}
             >
-              Procur connects buyers directly with verified farmers: transparent
-              pricing, reliable supply, and produce that&apos;s never more than
-              a day from harvest.
+              Procur connects buyers directly with verified farmers: transparent pricing, reliable supply, and produce that&apos;s never more than a day from harvest.
             </p>
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
               <Link
@@ -1478,14 +1182,7 @@ export default async function PublicProductPage({
             </div>
           </div>
           <div style={{ height: 1, background: "rgba(245,241,234,.08)" }} />
-          <div
-            style={{
-              display: "flex",
-              gap: 48,
-              padding: "44px 0 36px",
-              flexWrap: "wrap",
-            }}
-          >
+          <div style={{ display: "flex", gap: 48, padding: "44px 0 36px", flexWrap: "wrap" }}>
             <div style={{ minWidth: 200 }}>
               <Image
                 src="/images/logos/procur-logo.svg"
@@ -1504,18 +1201,10 @@ export default async function PublicProductPage({
                   maxWidth: 220,
                 }}
               >
-                Grenada&apos;s agricultural marketplace, purpose-built to
-                shorten supply chains and strengthen local food economies.
+                Grenada&apos;s agricultural marketplace, purpose-built to shorten supply chains and strengthen local food economies.
               </p>
             </div>
-            <div
-              style={{
-                flex: 1,
-                display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
-                gap: 20,
-              }}
-            >
+            <div style={{ flex: 1, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20 }}>
               {[
                 {
                   title: "Platform",
@@ -1609,11 +1298,7 @@ export default async function PublicProductPage({
                 <Link
                   key={l.label}
                   href={l.href}
-                  style={{
-                    fontSize: 11,
-                    color: "rgba(245,241,234,.3)",
-                    textDecoration: "none",
-                  }}
+                  style={{ fontSize: 11, color: "rgba(245,241,234,.3)", textDecoration: "none" }}
                 >
                   {l.label}
                 </Link>

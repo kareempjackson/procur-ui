@@ -3,26 +3,42 @@ import { sanityClient } from "@/lib/sanity/client";
 import { postSlugsQuery, type SanityPostSlug } from "@/lib/sanity/queries";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://procur.io";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000/api/v1";
 
 const STATIC_ROUTES: MetadataRoute.Sitemap = [
+  // Core
   { url: SITE_URL, lastModified: new Date(), changeFrequency: "weekly", priority: 1 },
   { url: `${SITE_URL}/blog`, lastModified: new Date(), changeFrequency: "daily", priority: 0.9 },
-  { url: `${SITE_URL}/browse`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.8 },
-  { url: `${SITE_URL}/company/about`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
-  { url: `${SITE_URL}/company/contact`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.6 },
+  { url: `${SITE_URL}/browse`, lastModified: new Date(), changeFrequency: "daily", priority: 0.9 },
+  { url: `${SITE_URL}/sellers`, lastModified: new Date(), changeFrequency: "daily", priority: 0.8 },
+  { url: `${SITE_URL}/pricing`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
+  // Solutions
   { url: `${SITE_URL}/solutions/restaurants`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
   { url: `${SITE_URL}/solutions/hotels`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
   { url: `${SITE_URL}/solutions/grocery`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
   { url: `${SITE_URL}/solutions/government`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
   { url: `${SITE_URL}/solutions/agriculture`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
-  { url: `${SITE_URL}/pricing`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.6 },
-  { url: `${SITE_URL}/help`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.5 },
+  // Company
+  { url: `${SITE_URL}/company/about`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
+  { url: `${SITE_URL}/company/contact`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.6 },
+  { url: `${SITE_URL}/company/careers`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.6 },
+  // Help
+  { url: `${SITE_URL}/help`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.6 },
+  { url: `${SITE_URL}/help/faq`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.6 },
+  { url: `${SITE_URL}/help/support`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.5 },
+  // Legal
   { url: `${SITE_URL}/legal/privacy`, lastModified: new Date(), changeFrequency: "yearly", priority: 0.3 },
   { url: `${SITE_URL}/legal/terms`, lastModified: new Date(), changeFrequency: "yearly", priority: 0.3 },
+  { url: `${SITE_URL}/legal/cookies`, lastModified: new Date(), changeFrequency: "yearly", priority: 0.3 },
 ];
+
+type ApiSeller = { id: string; updated_at?: string };
+type ApiProduct = { id: string; name: string; country?: string; slug?: string; updated_at?: string };
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let blogRoutes: MetadataRoute.Sitemap = [];
+  let sellerRoutes: MetadataRoute.Sitemap = [];
+  let productRoutes: MetadataRoute.Sitemap = [];
 
   try {
     const posts = await sanityClient.fetch<SanityPostSlug[]>(postSlugsQuery);
@@ -36,5 +52,39 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Sanity unavailable at build time — skip blog routes
   }
 
-  return [...STATIC_ROUTES, ...blogRoutes];
+  try {
+    const res = await fetch(`${API_URL}/marketplace/sellers?limit=500`, { next: { revalidate: 3600 } });
+    if (res.ok) {
+      const data = await res.json();
+      const sellers: ApiSeller[] = Array.isArray(data) ? data : (data.sellers ?? data.data ?? []);
+      sellerRoutes = sellers.map((s) => ({
+        url: `${SITE_URL}/sellers/${s.id}`,
+        lastModified: s.updated_at ? new Date(s.updated_at) : new Date(),
+        changeFrequency: "weekly" as const,
+        priority: 0.7,
+      }));
+    }
+  } catch {
+    // API unavailable at build time — skip seller routes
+  }
+
+  try {
+    const res = await fetch(`${API_URL}/marketplace/products?limit=1000`, { next: { revalidate: 3600 } });
+    if (res.ok) {
+      const data = await res.json();
+      const products: ApiProduct[] = Array.isArray(data) ? data : (data.products ?? data.data ?? []);
+      productRoutes = products
+        .filter((p) => p.slug && p.country)
+        .map((p) => ({
+          url: `${SITE_URL}/products/${p.country}/${p.slug}`,
+          lastModified: p.updated_at ? new Date(p.updated_at) : new Date(),
+          changeFrequency: "weekly" as const,
+          priority: 0.6,
+        }));
+    }
+  } catch {
+    // API unavailable at build time — skip product routes
+  }
+
+  return [...STATIC_ROUTES, ...blogRoutes, ...sellerRoutes, ...productRoutes];
 }
