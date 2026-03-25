@@ -20,6 +20,8 @@ type PublicSeller = {
   years_in_business?: number;
   is_verified: boolean;
   specialties?: string[];
+  verified_batch_count?: number;
+  reliability_badge?: string;
 };
 
 type PublicProduct = {
@@ -334,6 +336,26 @@ export default async function PublicSellerProfile({ params }: SellerPageProps) {
                             {seller.years_in_business}+ yrs on market
                           </span>
                         )}
+                      {seller.reliability_badge && seller.reliability_badge !== "Standard" && (() => {
+                        const badgeStyles: Record<string, { bg: string; color: string }> = {
+                          Platinum: { bg: "#f5f0ff", color: "#6d28d9" },
+                          Gold: { bg: "#fffbeb", color: "#b45309" },
+                          Silver: { bg: "#f1f5f9", color: "#475569" },
+                        };
+                        const s = badgeStyles[seller.reliability_badge!] ?? badgeStyles.Silver;
+                        return (
+                          <span style={{ fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 999, background: s.bg, color: s.color, flexShrink: 0 }}>
+                            {seller.reliability_badge} Supplier
+                          </span>
+                        );
+                      })()}
+                      {typeof seller.verified_batch_count === "number" && seller.verified_batch_count > 0 && (
+                        <span
+                          style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, color: "#2d4a3e", background: "#eef4f1", border: "1px solid #c8ddd4", padding: "5px 12px", borderRadius: 999 }}
+                        >
+                          ✓ {seller.verified_batch_count} FSMA verified batch{seller.verified_batch_count !== 1 ? "es" : ""}
+                        </span>
+                      )}
                     </div>
 
                     {/* Specialties */}

@@ -942,7 +942,10 @@ export default function Home() {
         onClick={() => setSearchModalOpen(false)}
         style={{
           position: "fixed",
-          inset: 0,
+          top: 0,
+          right: 0,
+          bottom: 0,
+          left: 0,
           background: "rgba(0,0,0,.55)",
           zIndex: 300,
           opacity: searchModalOpen ? 1 : 0,
@@ -1610,7 +1613,10 @@ export default function Home() {
               key={i}
               style={{
                 position: "absolute",
-                inset: 0,
+                top: 0,
+                right: 0,
+                bottom: 0,
+                left: 0,
                 opacity: isActive ? 1 : 0,
                 zIndex: isActive ? 2 : isPrev ? 1 : 0,
                 transition: reducedMotion ? "opacity .01s" : "opacity .95s cubic-bezier(.4,0,.2,1)",
@@ -1630,7 +1636,10 @@ export default function Home() {
               <div
                 style={{
                   position: "absolute",
-                  inset: 0,
+                  top: 0,
+                  right: 0,
+                  bottom: 0,
+                  left: 0,
                   background:
                     "linear-gradient(108deg, rgba(10,16,12,.92) 0%, rgba(10,16,12,.56) 38%, rgba(10,16,12,.08) 70%, transparent 100%)",
                 }}

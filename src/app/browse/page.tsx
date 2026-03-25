@@ -14,6 +14,7 @@ type BrowseProduct = {
   current_price: number;
   unit: string;
   image_url?: string | null;
+  in_stock?: boolean | null;
   seller: {
     id: string;
     name: string;
@@ -34,6 +35,7 @@ const FALLBACK: BrowseProduct[] = [
     category: "Vegetables",
     current_price: 2.5,
     unit: "lb",
+    in_stock: true,
     image_url:
       "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400&h=400&fit=crop",
     seller: {
@@ -50,6 +52,7 @@ const FALLBACK: BrowseProduct[] = [
     category: "Vegetables",
     current_price: 2.5,
     unit: "lb",
+    in_stock: true,
     image_url:
       "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400&h=400&fit=crop",
     seller: {
@@ -66,6 +69,7 @@ const FALLBACK: BrowseProduct[] = [
     category: "Vegetables",
     current_price: 2.0,
     unit: "lb",
+    in_stock: true,
     image_url:
       "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400&h=400&fit=crop",
     seller: {
@@ -82,6 +86,7 @@ const FALLBACK: BrowseProduct[] = [
     category: "Fruits",
     current_price: 1.5,
     unit: "lb",
+    in_stock: true,
     image_url:
       "https://images.unsplash.com/photo-1603833665858-e61d17a86224?w=400&h=400&fit=crop",
     seller: {
@@ -98,6 +103,7 @@ const FALLBACK: BrowseProduct[] = [
     category: "Vegetables",
     current_price: 2.5,
     unit: "lb",
+    in_stock: true,
     image_url:
       "https://images.unsplash.com/photo-1587132137056-bfbf0166836e?w=400&h=400&fit=crop",
     seller: {
@@ -114,6 +120,7 @@ const FALLBACK: BrowseProduct[] = [
     category: "Root Crops",
     current_price: 6.0,
     unit: "lb",
+    in_stock: true,
     image_url:
       "https://images.unsplash.com/photo-1590779033100-9f60a05a013d?w=400&h=400&fit=crop",
     seller: {
@@ -130,6 +137,7 @@ const FALLBACK: BrowseProduct[] = [
     category: "Vegetables",
     current_price: 2.75,
     unit: "lb",
+    in_stock: true,
     image_url:
       "https://images.unsplash.com/photo-1509622905150-fa66d3906e09?w=400&h=400&fit=crop",
     seller: {
@@ -146,6 +154,7 @@ const FALLBACK: BrowseProduct[] = [
     category: "Fruits",
     current_price: 0.5,
     unit: "lb",
+    in_stock: true,
     image_url:
       "https://images.unsplash.com/photo-1587162146766-e06b1189b907?w=400&h=400&fit=crop",
     seller: {
@@ -162,6 +171,7 @@ const FALLBACK: BrowseProduct[] = [
     category: "Root Crops",
     current_price: 3.5,
     unit: "lb",
+    in_stock: true,
     image_url:
       "https://images.unsplash.com/photo-1590779033100-9f60a05a013d?w=400&h=400&fit=crop",
     seller: {
@@ -223,6 +233,7 @@ function BrowseContent() {
   );
   const [maxPrice, setMaxPrice] = useState(500);
   const [sortBy, setSortBy] = useState("relevance");
+  const [availableOnly, setAvailableOnly] = useState(false);
   const [products, setProducts] = useState<BrowseProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -236,7 +247,7 @@ function BrowseContent() {
     (async () => {
       try {
         const res = await api.get("/marketplace/products", {
-          params: { in_stock: true, limit: 100, location: "Grenada" },
+          params: { limit: 100, location: "Grenada" },
         });
         if (cancelled) return;
         const data = res?.data?.products;
@@ -254,6 +265,7 @@ function BrowseContent() {
                   (p.image_url as string | null) ??
                   (p.images as string[])?.[0] ??
                   null,
+                in_stock: (p.in_stock as boolean | null) ?? null,
                 seller: {
                   id: String((p.seller as Record<string, unknown>)?.id ?? ""),
                   name: String(
@@ -338,14 +350,15 @@ function BrowseContent() {
           p.name.toLowerCase().includes(q) ||
           p.seller.name.toLowerCase().includes(q) ||
           p.category.toLowerCase().includes(q);
-        return catOk && priceOk && qOk;
+        const availOk = !availableOnly || p.in_stock === true;
+        return catOk && priceOk && qOk && availOk;
       })
       .sort((a, b) => {
         if (sortBy === "price_asc") return a.current_price - b.current_price;
         if (sortBy === "price_desc") return b.current_price - a.current_price;
         return 0;
       });
-  }, [products, selectedCats, maxPrice, query, sortBy]);
+  }, [products, selectedCats, maxPrice, query, sortBy, availableOnly]);
 
   // ── URL helpers ──
   function pushURL(params: { q?: string; category?: string }) {
@@ -381,12 +394,13 @@ function BrowseContent() {
     setMaxPrice(500);
     setQuery("");
     setSearchInput("");
+    setAvailableOnly(false);
     setSidebarOpen(false);
     router.replace("/browse", { scroll: false });
   }
 
   const activeCount =
-    selectedCats.length + (maxPrice < 500 ? 1 : 0) + (query ? 1 : 0);
+    selectedCats.length + (maxPrice < 500 ? 1 : 0) + (query ? 1 : 0) + (availableOnly ? 1 : 0);
 
   // ── Render ──
   return (
@@ -1105,6 +1119,67 @@ function BrowseContent() {
             })}
           </div>
 
+          {/* Availability */}
+          <div
+            style={{
+              marginBottom: 20,
+              paddingBottom: 20,
+              borderBottom: "1px solid #ebe7df",
+            }}
+          >
+            <h4
+              style={{
+                fontSize: 13,
+                fontWeight: 700,
+                color: "#1c2b23",
+                marginBottom: 12,
+                letterSpacing: "-.1px",
+              }}
+            >
+              Availability
+            </h4>
+            <button
+              onClick={() => setAvailableOnly((v) => !v)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "4px 0",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                fontFamily: "inherit",
+                fontSize: 13,
+                fontWeight: availableOnly ? 700 : 400,
+                color: availableOnly ? "#1c2b23" : "#407178",
+                textAlign: "left",
+                width: "100%",
+              }}
+            >
+              <span
+                style={{
+                  width: 16,
+                  height: 16,
+                  borderRadius: 4,
+                  border: `2px solid ${availableOnly ? "#2d4a3e" : "#c5bdb0"}`,
+                  background: availableOnly ? "#2d4a3e" : "transparent",
+                  flexShrink: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "background .15s, border-color .15s",
+                }}
+              >
+                {availableOnly && (
+                  <svg viewBox="0 0 12 12" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" width={9} height={9}>
+                    <path d="M2 6l3 3 5-5" />
+                  </svg>
+                )}
+              </span>
+              In Stock
+            </button>
+          </div>
+
           {/* Price */}
           <div
             style={{
@@ -1276,6 +1351,36 @@ function BrowseContent() {
                   </svg>
                 </span>
               ))}
+              {availableOnly && (
+                <span
+                  onClick={() => setAvailableOnly(false)}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    padding: "4px 10px",
+                    background: "#2d4a3e",
+                    color: "#f5f1ea",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    borderRadius: 999,
+                    cursor: "pointer",
+                  }}
+                >
+                  In Stock
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    width={9}
+                    height={9}
+                  >
+                    <path d="M18 6L6 18M6 6l12 12" />
+                  </svg>
+                </span>
+              )}
               {query && (
                 <span
                   onClick={() => {

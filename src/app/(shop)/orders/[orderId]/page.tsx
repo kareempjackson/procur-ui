@@ -47,11 +47,42 @@ export default function OrderDetailPage({
     useAppSelector((s) => s.buyerOrders);
   const authToken = useAppSelector((s) => s.auth.accessToken);
 
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    function check() { setIsMobile(window.innerWidth < 768); }
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [cancellingOrder, setCancellingOrder] = useState(false);
   const [downloadingInvoice, setDownloadingInvoice] = useState(false);
   const [isStartingConversation, setIsStartingConversation] = useState(false);
+
+  // Receiving confirmation state
+  const [showReceivingForm, setShowReceivingForm] = useState(false);
+  const [receivingForm, setReceivingForm] = useState<{
+    received_date: string;
+    receiving_facility: string;
+    overall_condition: number;
+    has_rejection: boolean;
+    rejection_reason: string;
+    notes: string;
+  }>({
+    received_date: new Date().toISOString().slice(0, 10),
+    receiving_facility: "",
+    overall_condition: 5,
+    has_rejection: false,
+    rejection_reason: "",
+    notes: "",
+  });
+  const [submittingReceiving, setSubmittingReceiving] = useState(false);
+  const [receivingConfirmation, setReceivingConfirmation] = useState<any | null>(null);
+  const [receivingItems, setReceivingItems] = useState<
+    Array<{ order_item_id: string; product_name: string; lot_code: string | null; quantity: number; condition_score: number; notes: string }>
+  >([]);
 
   const { orderId } = React.use(params);
 
@@ -59,6 +90,63 @@ export default function OrderDetailPage({
     dispatch(fetchOrderDetail(orderId));
     return () => { dispatch(clearCurrentOrder()); };
   }, [orderId, dispatch]);
+
+  // Load receiving form when order is in shipped/delivered state
+  useEffect(() => {
+    if (!order || !authToken) return;
+    const s = (order.status || "").toLowerCase();
+    if (s !== "shipped" && s !== "delivered") return;
+    const client = getApiClient(() => authToken);
+    client.get(`/buyers/orders/${orderId}/receiving`).then((res) => {
+      const { items, existing_confirmation } = res.data;
+      if (existing_confirmation) {
+        setReceivingConfirmation(existing_confirmation);
+      }
+      if (items && items.length > 0) {
+        setReceivingItems(
+          items.map((i: any) => ({
+            order_item_id: i.id,
+            product_name: i.product_name,
+            lot_code: i.lot_code,
+            quantity: i.quantity,
+            condition_score: 5,
+            notes: "",
+          }))
+        );
+      }
+    }).catch(() => {/* silent — optional feature */});
+  }, [order?.status, orderId, authToken]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSubmitReceiving = async () => {
+    if (!authToken) return;
+    setSubmittingReceiving(true);
+    try {
+      const client = getApiClient(() => authToken);
+      const payload = {
+        received_date: receivingForm.received_date,
+        receiving_facility: receivingForm.receiving_facility || undefined,
+        overall_condition: receivingForm.overall_condition,
+        has_rejection: receivingForm.has_rejection,
+        rejection_reason: receivingForm.has_rejection ? receivingForm.rejection_reason : undefined,
+        notes: receivingForm.notes || undefined,
+        items: receivingItems.map((i) => ({
+          order_item_id: i.order_item_id,
+          lot_code: i.lot_code ?? undefined,
+          condition_score: i.condition_score,
+          notes: i.notes || undefined,
+        })),
+      };
+      const { data } = await client.post(`/buyers/orders/${orderId}/receiving`, payload);
+      setReceivingConfirmation(data);
+      setShowReceivingForm(false);
+      show("Receiving confirmed. Order marked as delivered.");
+      dispatch(fetchOrderDetail(orderId));
+    } catch {
+      show("Failed to submit receiving confirmation.");
+    } finally {
+      setSubmittingReceiving(false);
+    }
+  };
 
   const handleDownloadInvoice = async () => {
     if (!order || !authToken) return;
@@ -339,7 +427,7 @@ export default function OrderDetailPage({
         </div>
 
         {/* ── Two-column body ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 20, alignItems: "start" }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 320px", gap: 20, alignItems: "start" }}>
 
           {/* Left: items + notes */}
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -469,6 +557,7 @@ export default function OrderDetailPage({
           </div>
 
           {/* Right: sticky sidebar */}
+          {/* eslint-disable-next-line @typescript-eslint/no-unused-vars */}
           <div style={{ display: "flex", flexDirection: "column", gap: 16, position: "sticky", top: 80 }}>
 
             {/* Order summary */}
@@ -557,6 +646,120 @@ export default function OrderDetailPage({
           </div>
         </div>
       </div>
+
+      {/* ── Receiving confirmation card (shipped or delivered) ── */}
+      {(statusKey === "shipped" || statusKey === "delivered") && (
+        <div style={{ maxWidth: 1140, margin: "0 auto", padding: "0 28px 24px" }}>
+          <div style={{ background: "#fff", border: "1px solid #ebe7df", borderRadius: 10, overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid #f0ece6", background: "#f9f7f4" }}>
+              <div>
+                <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 2px" }}>Receiving Confirmation</h3>
+                <p style={{ fontSize: 11, color: "#8a9e92", margin: 0 }}>FSMA 204 Receiving CTE</p>
+              </div>
+              {receivingConfirmation ? (
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#2e7d4f", background: "#f0f7f4", padding: "3px 10px", borderRadius: 999 }}>✓ Confirmed</span>
+              ) : (
+                <button
+                  onClick={() => setShowReceivingForm(!showReceivingForm)}
+                  style={{ padding: "6px 14px", background: "#2d4a3e", border: "none", borderRadius: 999, fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer", fontFamily: "inherit" }}
+                >
+                  {showReceivingForm ? "Cancel" : "Confirm Receipt"}
+                </button>
+              )}
+            </div>
+
+            {/* Already submitted */}
+            {receivingConfirmation && (
+              <div style={{ padding: "16px 20px", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px,1fr))", gap: 12 }}>
+                {[
+                  { label: "Received Date",    value: receivingConfirmation.received_date ? fmtDate(receivingConfirmation.received_date) : null },
+                  { label: "Facility",          value: receivingConfirmation.receiving_facility },
+                  { label: "Overall Condition", value: receivingConfirmation.overall_condition ? `${receivingConfirmation.overall_condition}/5` : null },
+                  { label: "Rejection",         value: receivingConfirmation.has_rejection ? "Yes" : "None" },
+                ].filter((i) => i.value).map(({ label, value }) => (
+                  <div key={label}>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: "#8a9e92", textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 2px" }}>{label}</p>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: "#1c2b23", margin: 0 }}>{value}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Receiving form */}
+            {showReceivingForm && !receivingConfirmation && (
+              <div style={{ padding: "20px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#8a9e92", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 5 }}>Received Date *</label>
+                    <input type="date" value={receivingForm.received_date} onChange={(e) => setReceivingForm((f) => ({ ...f, received_date: e.target.value }))} style={{ width: "100%", padding: "9px 12px", border: "1px solid #e8e4dc", borderRadius: 8, fontSize: 13, color: "#1c2b23", background: "#fff", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#8a9e92", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 5 }}>Overall Condition (1–5)</label>
+                    <select value={receivingForm.overall_condition} onChange={(e) => setReceivingForm((f) => ({ ...f, overall_condition: Number(e.target.value) }))} style={{ width: "100%", padding: "9px 12px", border: "1px solid #e8e4dc", borderRadius: 8, fontSize: 13, color: "#1c2b23", background: "#fff", outline: "none", fontFamily: "inherit", boxSizing: "border-box", cursor: "pointer" }}>
+                      {[5,4,3,2,1].map((n) => <option key={n} value={n}>{n} — {["","Poor","Below Average","Average","Good","Excellent"][n]}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#8a9e92", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 5 }}>Receiving Facility</label>
+                  <input value={receivingForm.receiving_facility} onChange={(e) => setReceivingForm((f) => ({ ...f, receiving_facility: e.target.value }))} placeholder="Distribution center name" style={{ width: "100%", padding: "9px 12px", border: "1px solid #e8e4dc", borderRadius: 8, fontSize: 13, color: "#1c2b23", background: "#fff", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
+                </div>
+
+                {/* Per-item condition */}
+                {receivingItems.length > 0 && (
+                  <div style={{ marginBottom: 14 }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: "#8a9e92", textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 10px" }}>Items Received</p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {receivingItems.map((item, idx) => (
+                        <div key={item.order_item_id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", border: "1px solid #ebe7df", borderRadius: 8, background: "#faf8f4" }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ fontSize: 12, fontWeight: 700, color: "#1c2b23", margin: "0 0 2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.product_name}</p>
+                            {item.lot_code && (
+                              <span style={{ fontFamily: "monospace", fontSize: 10, color: "#407178", background: "rgba(64,113,120,.08)", border: "1px solid rgba(64,113,120,.2)", borderRadius: 4, padding: "1px 5px" }}>{item.lot_code}</span>
+                            )}
+                          </div>
+                          <select
+                            value={item.condition_score}
+                            onChange={(e) => setReceivingItems((prev) => prev.map((r, i) => i === idx ? { ...r, condition_score: Number(e.target.value) } : r))}
+                            style={{ padding: "5px 8px", border: "1px solid #e8e4dc", borderRadius: 6, fontSize: 12, color: "#1c2b23", background: "#fff", cursor: "pointer", fontFamily: "inherit" }}
+                          >
+                            {[5,4,3,2,1].map((n) => <option key={n} value={n}>{n}/5</option>)}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Rejection toggle */}
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#1c2b23" }}>
+                    <input type="checkbox" checked={receivingForm.has_rejection} onChange={(e) => setReceivingForm((f) => ({ ...f, has_rejection: e.target.checked }))} />
+                    Report a rejection
+                  </label>
+                  {receivingForm.has_rejection && (
+                    <textarea value={receivingForm.rejection_reason} onChange={(e) => setReceivingForm((f) => ({ ...f, rejection_reason: e.target.value }))} placeholder="Describe what was rejected and why…" rows={2} style={{ marginTop: 8, width: "100%", padding: "9px 12px", border: "1px solid #e8e4dc", borderRadius: 8, fontSize: 13, color: "#1c2b23", background: "#fff", outline: "none", fontFamily: "inherit", resize: "none", boxSizing: "border-box" }} />
+                  )}
+                </div>
+
+                <div style={{ marginBottom: 18 }}>
+                  <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#8a9e92", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 5 }}>Additional Notes</label>
+                  <textarea value={receivingForm.notes} onChange={(e) => setReceivingForm((f) => ({ ...f, notes: e.target.value }))} placeholder="Any other comments…" rows={2} style={{ width: "100%", padding: "9px 12px", border: "1px solid #e8e4dc", borderRadius: 8, fontSize: 13, color: "#1c2b23", background: "#fff", outline: "none", fontFamily: "inherit", resize: "none", boxSizing: "border-box" }} />
+                </div>
+
+                <button
+                  onClick={handleSubmitReceiving}
+                  disabled={submittingReceiving || !receivingForm.received_date}
+                  style={{ width: "100%", padding: "12px 20px", background: submittingReceiving ? "#d8d2c8" : "#2d4a3e", border: "none", borderRadius: 999, fontSize: 13, fontWeight: 700, color: "#fff", cursor: submittingReceiving ? "not-allowed" : "pointer", fontFamily: "inherit" }}
+                >
+                  {submittingReceiving ? "Submitting…" : "Confirm Receipt & Complete Order"}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── Cancel dialog ── */}
       {showCancelDialog && (
