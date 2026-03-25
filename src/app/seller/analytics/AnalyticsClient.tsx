@@ -34,7 +34,7 @@ const PERIODS = [
   { key: AnalyticsPeriod.THIS_YEAR,    label: "Year" },
 ];
 
-const fmt = (n: number, cur = "USD") =>
+const fmt = (n: number, cur = "XCD") =>
   new Intl.NumberFormat("en-US", {
     style: "currency", currency: cur, maximumFractionDigits: 0,
   }).format(n);
