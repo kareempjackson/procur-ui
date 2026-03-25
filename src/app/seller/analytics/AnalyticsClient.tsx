@@ -125,7 +125,7 @@ export default function AnalyticsClient() {
 
   const loading = status === "loading";
   const failed  = status === "failed";
-  const cur     = dashboardMetrics?.currency || "USD";
+  const cur     = dashboardMetrics?.currency || "XCD";
 
   const kpis = dashboardMetrics ? [
     {
