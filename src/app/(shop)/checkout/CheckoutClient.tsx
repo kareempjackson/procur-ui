@@ -78,6 +78,14 @@ export default function CheckoutClient() {
   const { addresses, addressesStatus, createOrderStatus } = useAppSelector((s) => s.buyerOrders);
   const { creditAmount } = useAppSelector((s) => s.buyerCredits);
 
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    function check() { setIsMobile(window.innerWidth < 768); }
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
   const [step, setStep] = useState<Step>("delivery");
   const [selectedAddr, setSelectedAddr] = useState<string>("");
   const [notes, setNotes] = useState("");
@@ -230,7 +238,7 @@ export default function CheckoutClient() {
 
   return (
     <div style={{ background: "#faf8f4", minHeight: "100vh", fontFamily: "'Urbanist', system-ui, sans-serif" }}>
-      <div style={{ maxWidth: 900, margin: "0 auto", padding: "32px 20px 64px" }}>
+      <div style={{ maxWidth: 900, margin: "0 auto", padding: isMobile ? "20px 16px 48px" : "32px 20px 64px" }}>
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 28 }}>
@@ -266,7 +274,7 @@ export default function CheckoutClient() {
           ))}
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 20, alignItems: "start" }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 300px", gap: 20, alignItems: "start" }}>
 
           {/* Main panel */}
           <div>

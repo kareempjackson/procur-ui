@@ -29,6 +29,13 @@ export default function CartPage() {
   const [localQty, setLocalQty] = useState<Record<string, number>>({});
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
   const syncTimers = useRef<Record<string, NodeJS.Timeout>>({});
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    function check() { setIsMobile(window.innerWidth < 768); }
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   useEffect(() => { dispatch(fetchCart()); }, [dispatch]);
 
@@ -116,7 +123,7 @@ export default function CartPage() {
 
   return (
     <div style={{ background: "#faf8f4", minHeight: "100vh", fontFamily: "'Urbanist', system-ui, sans-serif", color: "#1c2b23" }}>
-      <div style={{ maxWidth: 1140, margin: "0 auto", padding: "32px 28px 64px" }}>
+      <div style={{ maxWidth: 1140, margin: "0 auto", padding: isMobile ? "20px 16px 48px" : "32px 28px 64px" }}>
 
         {/* Page title row */}
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 24 }}>
@@ -151,7 +158,7 @@ export default function CartPage() {
           </div>
         ) : (
           /* ── Cart layout ── */
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 20, alignItems: "start" }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 320px", gap: 20, alignItems: "start" }}>
 
             {/* Left: seller groups */}
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>

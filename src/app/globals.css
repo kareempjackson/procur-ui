@@ -558,11 +558,13 @@ html {
   /* ── BuyerTopNavigation mobile: flex, logo left + hamburger right ── */
   .bn-inner  { display: flex !important; padding: 0 16px !important; gap: 0 !important; }
   .bn-search { display: none !important; }
+  .bn-right  { margin-left: auto !important; }
   .bn-right > *:not(.btn-mobile-menu) { display: none !important; }
 
   /* ── SellerTopNavigation mobile: flex, logo left + hamburger right ── */
   .sn-inner  { display: flex !important; padding: 0 16px !important; gap: 0 !important; }
   .sn-center { display: none !important; }
+  .sn-right  { margin-left: auto !important; }
   .sn-right > *:not(.sn-hamburger) { display: none !important; }
   .sn-hamburger { display: flex !important; }
 }
@@ -708,7 +710,7 @@ html {
 .skel::after {
   content: "";
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
   background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.35) 50%, transparent 100%);
   transform: translateX(-100%);
   animation: skel-shimmer 1.6s ease-in-out infinite;
@@ -735,14 +737,14 @@ html {
 
 .blog-card { display:block; text-decoration:none; color:inherit; }
 .blog-card-img { overflow:hidden; border-radius:10px; background:#e8e4dc; position:relative; }
-.blog-card-img-inner { transition: transform 520ms cubic-bezier(.25,.46,.45,.94); position:absolute; inset:0; }
+.blog-card-img-inner { transition: transform 520ms cubic-bezier(.25,.46,.45,.94); position:absolute; top:0; right:0; bottom:0; left:0; }
 .blog-card:hover .blog-card-img-inner { transform: scale(1.05); }
 .blog-card-title { transition: color 180ms ease; }
 .blog-card:hover .blog-card-title { color: #2d4a3e !important; }
 
 .blog-feat { display:block; text-decoration:none; color:inherit; }
 .blog-feat-img { overflow:hidden; border-radius:14px; background:#e8e4dc; position:relative; }
-.blog-feat-img-inner { transition: transform 600ms cubic-bezier(.25,.46,.45,.94); position:absolute; inset:0; }
+.blog-feat-img-inner { transition: transform 600ms cubic-bezier(.25,.46,.45,.94); position:absolute; top:0; right:0; bottom:0; left:0; }
 .blog-feat:hover .blog-feat-img-inner { transform: scale(1.03); }
 .blog-feat-title { transition: color 180ms ease; }
 .blog-feat:hover .blog-feat-title { color: #2d4a3e !important; }

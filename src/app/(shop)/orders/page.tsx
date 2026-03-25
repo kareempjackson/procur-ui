@@ -7,7 +7,8 @@ import { useAppDispatch, useAppSelector } from "@/store";
 import { fetchOrders } from "@/store/slices/buyerOrdersSlice";
 import ProcurLoader from "@/components/ProcurLoader";
 
-const COLS = "200px 1fr 96px 96px 72px 108px";
+const COLS_DESKTOP = "200px 1fr 96px 96px 72px 108px";
+const COLS_MOBILE = "1fr auto";
 
 type StatusKey = "all" | "delivered" | "pending" | "cancelled";
 
@@ -32,6 +33,14 @@ export default function BuyerOrdersPage() {
   const { orders, status, error, pagination } = useAppSelector(
     (state) => state.buyerOrders
   );
+
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    function check() { setIsMobile(window.innerWidth < 768); }
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   const [page, setPage] = useState(1);
   const [tab, setTab] = useState<StatusKey>("all");
@@ -116,7 +125,7 @@ export default function BuyerOrdersPage() {
         color: "#1c2b23",
       }}
     >
-      <div style={{ maxWidth: 1140, margin: "0 auto", padding: "36px 28px 64px" }}>
+      <div style={{ maxWidth: 1140, margin: "0 auto", padding: isMobile ? "20px 16px 48px" : "36px 28px 64px" }}>
         {/* ── Page header ── */}
         <div
           style={{
@@ -142,7 +151,7 @@ export default function BuyerOrdersPage() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
+              gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)",
               marginBottom: 36,
             }}
           >
@@ -368,7 +377,7 @@ export default function BuyerOrdersPage() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: COLS,
+                gridTemplateColumns: isMobile ? COLS_MOBILE : COLS_DESKTOP,
                 columnGap: 16,
                 alignItems: "center",
                 padding: "0 20px",
@@ -376,7 +385,7 @@ export default function BuyerOrdersPage() {
                 borderBottom: "1px solid #ebe7df",
               }}
             >
-              {["Order", "Items", "Total", "Status", "Payment", "Date"].map(
+              {(isMobile ? ["Order", "Status"] : ["Order", "Items", "Total", "Status", "Payment", "Date"]).map(
                 (h, i) => (
                   <span
                     key={h}
@@ -417,7 +426,7 @@ export default function BuyerOrdersPage() {
                     key={order.id}
                     style={{
                       display: "grid",
-                      gridTemplateColumns: COLS,
+                      gridTemplateColumns: isMobile ? COLS_MOBILE : COLS_DESKTOP,
                       columnGap: 16,
                       alignItems: "start",
                       padding: "14px 20px",
@@ -463,7 +472,7 @@ export default function BuyerOrdersPage() {
                     </div>
 
                     {/* Items */}
-                    <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0, overflow: "hidden" }}>
+                    <div style={{ display: isMobile ? "none" : "flex", flexDirection: "column", gap: 4, minWidth: 0, overflow: "hidden" }}>
                       {order.items && order.items.length > 0 ? (
                         order.items.map((item: any, iIdx: number) => {
                           const name =
@@ -558,6 +567,7 @@ export default function BuyerOrdersPage() {
                     {/* Total */}
                     <div
                       style={{
+                        display: isMobile ? "none" : undefined,
                         fontSize: 14,
                         fontWeight: 800,
                         color: "#1c2b23",
@@ -597,13 +607,13 @@ export default function BuyerOrdersPage() {
 
                     {/* Payment */}
                     <div
-                      style={{ fontSize: 10.5, fontWeight: 600, color: "#8a9e92" }}
+                      style={{ display: isMobile ? "none" : undefined, fontSize: 10.5, fontWeight: 600, color: "#8a9e92" }}
                     >
                       {(order.payment_status || "—").replace(/_/g, " ")}
                     </div>
 
                     {/* Date */}
-                    <div>
+                    <div style={{ display: isMobile ? "none" : undefined }}>
                       {dt ? (
                         <>
                           <span

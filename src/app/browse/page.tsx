@@ -226,6 +226,8 @@ function BrowseContent() {
   const [products, setProducts] = useState<BrowseProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // ── Fetch products ──
   useEffect(() => {
@@ -297,6 +299,14 @@ function BrowseContent() {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  // ── Mobile detection ──
+  useEffect(() => {
+    function check() { setIsMobile(window.innerWidth < 768); }
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
   }, []);
 
   // ── Derived ──
@@ -371,6 +381,7 @@ function BrowseContent() {
     setMaxPrice(500);
     setQuery("");
     setSearchInput("");
+    setSidebarOpen(false);
     router.replace("/browse", { scroll: false });
   }
 
@@ -923,16 +934,52 @@ function BrowseContent() {
         style={{
           maxWidth: 1300,
           margin: "0 auto",
-          padding: "20px 24px",
+          padding: isMobile ? "16px" : "20px 24px",
           display: "flex",
-          gap: 28,
+          gap: isMobile ? 0 : 28,
           alignItems: "flex-start",
         }}
       >
+        {/* ── Mobile filter backdrop ── */}
+        {isMobile && sidebarOpen && (
+          <div
+            onClick={() => setSidebarOpen(false)}
+            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.4)", zIndex: 298 }}
+          />
+        )}
+
         {/* ── Left sidebar ── */}
         <aside
-          style={{ width: 220, flexShrink: 0, position: "sticky", top: 110 }}
+          style={{
+            width: isMobile ? 280 : 220,
+            flexShrink: 0,
+            ...(isMobile
+              ? {
+                  position: "fixed" as const,
+                  top: 0,
+                  left: 0,
+                  bottom: 0,
+                  zIndex: 299,
+                  background: "#fff",
+                  transform: sidebarOpen ? "translateX(0)" : "translateX(-100%)",
+                  transition: "transform .3s cubic-bezier(.4,0,.2,1)",
+                  overflowY: "auto" as const,
+                  padding: "16px",
+                  boxShadow: sidebarOpen ? "4px 0 24px rgba(0,0,0,.15)" : "none",
+                }
+              : { position: "sticky" as const, top: 110 }),
+          }}
         >
+          {/* Mobile sidebar header */}
+          {isMobile && (
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, paddingBottom: 12, borderBottom: "1px solid #ebe7df" }}>
+              <span style={{ fontSize: 15, fontWeight: 700, color: "#1c2b23" }}>Filters</span>
+              <button onClick={() => setSidebarOpen(false)} style={{ width: 30, height: 30, borderRadius: "50%", background: "#f5f1ea", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#6a7f73" strokeWidth="2.5" strokeLinecap="round" width={13} height={13}><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
+          )}
+
           {activeCount > 0 && (
             <button
               onClick={resetFilters}
@@ -1157,6 +1204,33 @@ function BrowseContent() {
 
         {/* ── Results ── */}
         <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Mobile: Filters toggle button */}
+          {isMobile && (
+            <button
+              onClick={() => setSidebarOpen(true)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "7px 14px",
+                background: "#fff",
+                border: "1px solid #d8d2c8",
+                borderRadius: 8,
+                fontSize: 12,
+                fontWeight: 700,
+                color: "#1c2b23",
+                cursor: "pointer",
+                fontFamily: "inherit",
+                marginBottom: 10,
+              }}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width={13} height={13}>
+                <line x1="4" y1="6" x2="20" y2="6" /><line x1="8" y1="12" x2="16" y2="12" /><line x1="10" y1="18" x2="14" y2="18" />
+              </svg>
+              Filters{activeCount > 0 ? ` (${activeCount})` : ""}
+            </button>
+          )}
+
           {/* Top bar: active chips + sort */}
           <div
             style={{
@@ -1418,11 +1492,11 @@ function BrowseContent() {
       </div>
       {/* ── Footer ── */}
       <footer style={{ background: "#0a0a0a", color: "#f5f1ea" }}>
-        <div style={{ maxWidth: 1300, margin: "0 auto", padding: "0 20px" }}>
-          <div style={{ padding: "80px 0 64px" }}>
+        <div style={{ maxWidth: 1300, margin: "0 auto", padding: isMobile ? "0 16px" : "0 20px" }}>
+          <div style={{ padding: isMobile ? "40px 0 32px" : "80px 0 64px" }}>
             <h2
               style={{
-                fontSize: 40,
+                fontSize: isMobile ? 24 : 40,
                 fontWeight: 700,
                 lineHeight: 1.15,
                 maxWidth: 520,
@@ -1482,8 +1556,8 @@ function BrowseContent() {
 
           <div style={{ height: 1, background: "rgba(245,241,234,.08)" }} />
 
-          <div style={{ display: "flex", gap: 60, padding: "48px 0 40px" }}>
-            <div style={{ flexShrink: 0, width: 240 }}>
+          <div style={{ display: "flex", flexDirection: isMobile ? "column" : undefined, gap: isMobile ? 24 : 60, padding: isMobile ? "24px 0 20px" : "48px 0 40px" }}>
+            <div style={{ flexShrink: 0, width: isMobile ? "100%" : 240 }}>
               <Image
                 src="/images/logos/procur-logo.svg"
                 alt="Procur"
@@ -1578,8 +1652,8 @@ function BrowseContent() {
               style={{
                 flex: 1,
                 display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
-                gap: 20,
+                gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)",
+                gap: isMobile ? "16px 24px" : 20,
               }}
             >
               {[
@@ -1666,8 +1740,10 @@ function BrowseContent() {
               paddingBottom: 28,
               borderTop: "1px solid rgba(245,241,234,.1)",
               display: "flex",
+              flexDirection: isMobile ? "column" : undefined,
               justifyContent: "space-between",
-              alignItems: "center",
+              alignItems: isMobile ? "flex-start" : "center",
+              gap: isMobile ? 10 : undefined,
             }}
           >
             <p
