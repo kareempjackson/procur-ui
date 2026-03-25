@@ -83,7 +83,7 @@ export default function OrderReviewPage({
   const orderNumber =
     (order as any)?.order_number || (order as any)?.orderNumber || orderId;
   const currencyCode =
-    (order as any)?.currency || (order as any)?.currency_code || "USD";
+    (order as any)?.currency || (order as any)?.currency_code || "XCD";
   const formatMoney = (value: number) =>
     `${currencyCode} ${value.toLocaleString("en-US", {
       minimumFractionDigits: 2,
