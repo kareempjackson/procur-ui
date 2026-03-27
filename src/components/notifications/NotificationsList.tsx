@@ -38,7 +38,9 @@ export default function NotificationsList() {
       (n.data && (n.data.link as string));
 
     if (ctaUrl) {
-      router.push(ctaUrl);
+      let navUrl = ctaUrl;
+      try { navUrl = new URL(ctaUrl).pathname + new URL(ctaUrl).search + new URL(ctaUrl).hash; } catch { /* relative, use as-is */ }
+      router.push(navUrl);
     }
 
     if (!n.read_at) {

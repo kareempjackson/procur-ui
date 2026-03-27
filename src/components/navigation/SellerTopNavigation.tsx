@@ -329,7 +329,11 @@ const SellerTopNavigation: React.FC = () => {
                         key={n.id}
                         type="button"
                         onClick={() => {
-                          const url = (n.data?.cta_url as string) || (n.data?.link as string);
+                          const rawUrl = (n.data?.cta_url as string) || (n.data?.link as string);
+                          let url = rawUrl;
+                          if (rawUrl) {
+                            try { url = new URL(rawUrl).pathname + new URL(rawUrl).search + new URL(rawUrl).hash; } catch { /* relative, use as-is */ }
+                          }
                           router.push(url || "/seller/notifications");
                           if (!n.read_at) dispatch(markNotificationRead({ id: n.id }));
                           setActiveDropdown(null);
