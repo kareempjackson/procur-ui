@@ -4,7 +4,7 @@ import React, { useState, useEffect, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAppDispatch } from "@/store";
-import { signup as signupThunk } from "@/store/slices/authSlice";
+import { signup as signupThunk, devSignin } from "@/store/slices/authSlice";
 import { useRouter } from "next/navigation";
 import ProcurLoader from "@/components/ProcurLoader";
 import ReCAPTCHA from "react-google-recaptcha";
@@ -333,6 +333,30 @@ const SignUpPage: React.FC = () => {
       } else {
         setError(result.banner);
       }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDevSignin = async (type: "seller" | "buyer" | "government") => {
+    setError(null);
+    setIsLoading(true);
+    try {
+      const auth = await dispatch(devSignin({ accountType: type })).unwrap();
+      const accountType = (auth.user.accountType || "").toLowerCase();
+      const dest = !auth.user.emailVerified
+        ? "/check-email"
+        : accountType === "seller"
+          ? "/seller"
+          : accountType === "buyer"
+            ? "/buyer"
+            : accountType === "government"
+              ? "/government"
+              : "/";
+      router.push(dest);
+    } catch (err) {
+      const result = toSignupError(err);
+      setError(result.banner);
     } finally {
       setIsLoading(false);
     }
@@ -878,6 +902,63 @@ const SignUpPage: React.FC = () => {
                   </Link>
                 </p>
               </div>
+
+              {/* Dev quick sign-in (non-production only) */}
+              {process.env.NEXT_PUBLIC_ENV !== "production" && (
+                <div
+                  style={{
+                    marginTop: 16,
+                    padding: "14px 16px",
+                    background: "#f5f3ee",
+                    borderRadius: 12,
+                    border: "1px dashed #d8d2c8",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 9,
+                      color: "#8a9e92",
+                      marginBottom: 10,
+                      fontWeight: 600,
+                      letterSpacing: ".05em",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Dev quick sign-in
+                  </div>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr 1fr",
+                      gap: 8,
+                    }}
+                  >
+                    {(["seller", "buyer", "government"] as const).map(
+                      (type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          disabled={isLoading}
+                          onClick={() => handleDevSignin(type)}
+                          style={{
+                            padding: "9px 4px",
+                            background: "#fff",
+                            border: "1px solid #d8d2c8",
+                            borderRadius: 8,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            color: "#407178",
+                            cursor: "pointer",
+                            fontFamily: "inherit",
+                          }}
+                        >
+                          {type.charAt(0).toUpperCase() + type.slice(1)}
+                        </button>
+                      ),
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
             {/* end maxWidth wrapper */}
           </div>

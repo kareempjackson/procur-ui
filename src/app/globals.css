@@ -95,6 +95,46 @@
   --font-sans: var(--font-family);
 }
 
+/* Government dashboard theme — scoped override */
+.gov-theme {
+  --primary-background: #faf8f4;
+  --primary-base: #2d4a3e;
+  --primary-accent1: #d4783c;
+  --secondary-soft-highlight: #ebe7df;
+  --secondary-muted-edge: #8a9e92;
+  --secondary-highlight1: #d4783c;
+  --secondary-highlight2: #d4783c;
+  --secondary-black: #1c2b23;
+}
+
+/* Gov responsive grids */
+.gov-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+@media (min-width: 1025px) {
+  .gov-main-content {
+    padding-left: 48px;
+  }
+  .gov-nav-inner {
+    padding-left: 56px !important;
+  }
+}
+@media (max-width: 1024px) {
+  .gov-body-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 768px) {
+  .gov-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .gov-mini-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Commenting out the dark mode media query to disable automatic dark mode */
 /* 
 @media (prefers-color-scheme: dark) {
@@ -760,4 +800,46 @@ html {
 @media (max-width: 560px) {
   .blog-grid-cols { grid-template-columns: 1fr !important; }
   .blog-outer { padding-left: 20px !important; padding-right: 20px !important; }
+}
+
+/* ── Bot assistant animations ─────────────────────────────────────────────── */
+
+@keyframes bot-bubble-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+@keyframes bot-window-enter {
+  from { opacity: 0; transform: scale(0.92) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes bot-window-exit {
+  from { opacity: 1; transform: scale(1) translateY(0); }
+  to { opacity: 0; transform: scale(0.92) translateY(10px); }
+}
+
+.bot-typing-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #9ca3af;
+  animation: bot-typing-bounce 1.2s ease-in-out infinite;
+}
+
+@keyframes bot-typing-bounce {
+  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-4px); }
+}
+
+/* Bot chat window mobile responsive */
+@media (max-width: 480px) {
+  .bot-chat-window {
+    width: calc(100vw - 16px) !important;
+    height: calc(100vh - 100px) !important;
+    bottom: 80px !important;
+    right: 8px !important;
+    border-radius: 16px !important;
+  }
 }

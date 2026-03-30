@@ -31,6 +31,18 @@ import {
 } from "@/store/slices/governmentVendorsSlice";
 import { Vendor } from "@/types";
 import { useToast } from "@/components/ui/Toast";
+import {
+  GOV,
+  govCard,
+  govCardPadded,
+  govPageTitle,
+  govPageSubtitle,
+  govPillButton,
+  govPrimaryButton,
+  govStatusPillStyle,
+  govStatusLabel,
+  govHoverBg,
+} from "../../../styles";
 
 type EnrollmentStep = "select" | "review" | "confirm";
 
@@ -43,6 +55,60 @@ interface SelectedVendor {
   eligibilityStatus: "eligible" | "ineligible" | "review";
   eligibilityReasons: string[];
 }
+
+/* ── Shared inline style fragments ────────────────────────────────────────── */
+
+const inputStyle: React.CSSProperties = {
+  border: "1px solid #ebe7df",
+  borderRadius: 8,
+  padding: "10px 14px",
+  fontSize: 13,
+  width: "100%",
+  fontFamily: "inherit",
+  outline: "none",
+  color: GOV.text,
+  background: GOV.cardBg,
+};
+
+const selectStyle: React.CSSProperties = {
+  ...inputStyle,
+  width: "auto",
+  padding: "8px 12px",
+  cursor: "pointer",
+};
+
+const sectionLabel: React.CSSProperties = {
+  fontSize: 10.5,
+  fontWeight: 700,
+  color: GOV.muted,
+  textTransform: "uppercase",
+  letterSpacing: ".06em",
+  marginBottom: 4,
+};
+
+const summaryValue: React.CSSProperties = {
+  fontSize: 14,
+  fontWeight: 600,
+  color: GOV.text,
+};
+
+const eligibilityBg: Record<string, string> = {
+  eligible: GOV.successBg,
+  review: GOV.warningBg,
+  ineligible: GOV.dangerBg,
+};
+
+const eligibilityColor: Record<string, string> = {
+  eligible: GOV.success,
+  review: GOV.warning,
+  ineligible: GOV.danger,
+};
+
+const eligibilityLabel: Record<string, string> = {
+  eligible: "Eligible",
+  review: "Requires Review",
+  ineligible: "Not Eligible",
+};
 
 export default function ProgramEnrollmentPage() {
   const params = useParams();
@@ -64,6 +130,7 @@ export default function ProgramEnrollmentPage() {
   const [showEligibleOnly, setShowEligibleOnly] = useState(false);
   const [enrollmentNotes, setEnrollmentNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hoveredVendor, setHoveredVendor] = useState<string | null>(null);
   const { show } = useToast();
 
   // Fetch program and vendors
@@ -93,13 +160,11 @@ export default function ProgramEnrollmentPage() {
       return { status: "review", reasons: ["Program data not available"] };
     }
 
-    // Check compliance status
     if (vendor.compliance_status === "alert") {
       reasons.push("Has outstanding compliance issues");
       status = "ineligible";
     }
 
-    // Check minimum acreage (example: minimum 10 acres)
     if (
       program.eligibility?.some((e) => e.toLowerCase().includes("10 acres"))
     ) {
@@ -108,13 +173,6 @@ export default function ProgramEnrollmentPage() {
         status = "ineligible";
       }
     }
-
-    // Check if already enrolled (mock check)
-    // In real implementation, check against enrollment records
-    // Skipping already enrolled check (not available on vendor model)
-
-    // Check certification requirements for organic programs
-    // Skipping certification requirement check (not available on vendor model)
 
     if (status === "eligible") {
       reasons.push("Meets all eligibility requirements");
@@ -127,7 +185,6 @@ export default function ProgramEnrollmentPage() {
   const filteredVendors = useMemo(() => {
     let filtered = [...vendors];
 
-    // Search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
@@ -137,12 +194,10 @@ export default function ProgramEnrollmentPage() {
       );
     }
 
-    // Status filter
     if (filterStatus !== "all") {
       filtered = filtered.filter((v) => v.compliance_status === filterStatus);
     }
 
-    // Add eligibility status
     const withEligibility = filtered.map((vendor) => {
       const eligibility = checkEligibility(vendor);
       return {
@@ -156,7 +211,6 @@ export default function ProgramEnrollmentPage() {
       };
     });
 
-    // Eligibility filter
     if (showEligibleOnly) {
       return withEligibility.filter((v) => v.eligibilityStatus === "eligible");
     }
@@ -183,16 +237,8 @@ export default function ProgramEnrollmentPage() {
     setIsSubmitting(true);
 
     try {
-      // In a real implementation, call the enrollment API
-      // await governmentApi.enrollVendors(programId, {
-      //   vendor_ids: selectedVendors.map(v => v.id),
-      //   notes: enrollmentNotes
-      // });
-
-      // Mock delay
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      // Navigate to success page or program details
       router.push(
         `/government/programs?enrolled=success&count=${selectedVendors.length}`
       );
@@ -220,592 +266,1263 @@ export default function ProgramEnrollmentPage() {
     return { eligible, review, totalAcreage };
   }, [selectedVendors]);
 
+  /* ── Loading state ──────────────────────────────────────────────────────── */
+
   if (programStatus === "loading" || !program) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--primary-accent2)]"></div>
+      <div
+        style={{
+          minHeight: "100vh",
+          background: GOV.bg,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <div
+          style={{
+            width: 36,
+            height: 36,
+            border: `3px solid ${GOV.border}`,
+            borderTopColor: GOV.accent,
+            borderRadius: "50%",
+            animation: "spin 0.8s linear infinite",
+          }}
+        />
       </div>
     );
   }
 
+  /* ── Step indicator helper ──────────────────────────────────────────────── */
+
+  const stepChip = (
+    label: string,
+    stepKey: EnrollmentStep,
+    num: number
+  ): React.ReactNode => {
+    const isActive = step === stepKey;
+    const steps: EnrollmentStep[] = ["select", "review", "confirm"];
+    const currentIdx = steps.indexOf(step);
+    const thisIdx = steps.indexOf(stepKey);
+    const isPast = thisIdx < currentIdx;
+
+    return (
+      <div
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          padding: "7px 16px",
+          borderRadius: 999,
+          fontSize: 12,
+          fontWeight: 700,
+          background: isActive ? GOV.accent : isPast ? GOV.successBg : GOV.cardBg,
+          color: isActive ? "#fff" : isPast ? GOV.success : GOV.muted,
+          border: `1px solid ${isActive ? GOV.accent : isPast ? GOV.success : GOV.border}`,
+          transition: "all .2s",
+        }}
+      >
+        {isPast ? (
+          <CheckCircleIcon style={{ width: 14, height: 14 }} />
+        ) : (
+          <span>{num}.</span>
+        )}
+        {label}
+      </div>
+    );
+  };
+
+  /* ── Main render ────────────────────────────────────────────────────────── */
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <Link
-          href="/government/programs"
-          className="inline-flex items-center text-sm text-[color:var(--primary-accent2)] hover:text-[var(--primary-accent3)] mb-4 transition-colors"
-        >
-          <ArrowLeftIcon className="h-4 w-4 mr-1" />
-          Back to Programs
-        </Link>
+    <div style={{ minHeight: "100vh", background: GOV.bg, color: GOV.text }}>
+      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 24px 80px" }}>
+        {/* ── Header ──────────────────────────────────────────────────── */}
+        <div style={{ marginBottom: 28 }}>
+          <Link
+            href="/government/programs"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: 12,
+              fontWeight: 600,
+              color: GOV.accent,
+              textDecoration: "none",
+              marginBottom: 16,
+            }}
+          >
+            <ArrowLeftIcon style={{ width: 14, height: 14 }} />
+            Back to Programs
+          </Link>
 
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-[color:var(--secondary-black)]">
-              Enroll Vendors
-            </h1>
-            <p className="mt-1 text-sm text-[color:var(--secondary-muted-edge)]">
-              {program.name}
-            </p>
-          </div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: 16,
+            }}
+          >
+            <div>
+              <h1 style={govPageTitle}>Enroll Vendors</h1>
+              <p style={govPageSubtitle}>{program.name}</p>
+            </div>
 
-          {/* Progress Steps */}
-          <div className="flex items-center gap-2">
-            <div
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
-                step === "select"
-                  ? "bg-[var(--primary-accent2)] text-white"
-                  : "bg-gray-100 text-gray-500"
-              }`}
-            >
-              <span className="text-sm font-medium">1. Select Vendors</span>
-            </div>
-            <div className="h-px w-8 bg-gray-300" />
-            <div
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
-                step === "review"
-                  ? "bg-[var(--primary-accent2)] text-white"
-                  : "bg-gray-100 text-gray-500"
-              }`}
-            >
-              <span className="text-sm font-medium">2. Review</span>
-            </div>
-            <div className="h-px w-8 bg-gray-300" />
-            <div
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
-                step === "confirm"
-                  ? "bg-[var(--primary-accent2)] text-white"
-                  : "bg-gray-100 text-gray-500"
-              }`}
-            >
-              <span className="text-sm font-medium">3. Confirm</span>
+            {/* Progress Steps */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {stepChip("Select Vendors", "select", 1)}
+              <div
+                style={{
+                  width: 24,
+                  height: 1,
+                  background: GOV.border,
+                }}
+              />
+              {stepChip("Review", "review", 2)}
+              <div
+                style={{
+                  width: 24,
+                  height: 1,
+                  background: GOV.border,
+                }}
+              />
+              {stepChip("Confirm", "confirm", 3)}
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Step: Select Vendors */}
-          {step === "select" && (
-            <>
-              {/* Search and Filters */}
-              <div className="bg-white rounded-xl border border-[color:var(--secondary-soft-highlight)] p-6">
-                <div className="space-y-4">
-                  {/* Search */}
-                  <div className="relative">
-                    <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-[color:var(--secondary-muted-edge)]" />
-                    <input
-                      type="text"
-                      placeholder="Search vendors by name or location..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--primary-accent2)] focus:border-transparent"
-                    />
-                  </div>
-
-                  {/* Filters */}
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <FunnelIcon className="h-5 w-5 text-[color:var(--secondary-muted-edge)]" />
-                      <span className="text-sm font-medium text-[color:var(--secondary-black)]">
-                        Filters:
-                      </span>
+        {/* ── 2-col grid ──────────────────────────────────────────────── */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 360px",
+            gap: 24,
+            alignItems: "start",
+          }}
+        >
+          {/* ── Main column ────────────────────────────────────────────── */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            {/* ── STEP: SELECT ────────────────────────────────────────── */}
+            {step === "select" && (
+              <>
+                {/* Search & Filters */}
+                <div style={govCardPadded}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                    {/* Search input */}
+                    <div style={{ position: "relative" }}>
+                      <MagnifyingGlassIcon
+                        style={{
+                          position: "absolute",
+                          left: 12,
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          width: 16,
+                          height: 16,
+                          color: GOV.muted,
+                        }}
+                      />
+                      <input
+                        type="text"
+                        placeholder="Search vendors by name or location..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        style={{
+                          ...inputStyle,
+                          paddingLeft: 36,
+                        }}
+                      />
                     </div>
 
-                    <select
-                      value={filterStatus}
-                      onChange={(e) => setFilterStatus(e.target.value)}
-                      className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary-accent2)] focus:border-transparent"
+                    {/* Filter row */}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 14,
+                        flexWrap: "wrap",
+                      }}
                     >
-                      <option value="all">All Status</option>
-                      <option value="compliant">Compliant</option>
-                      <option value="warning">Warning</option>
-                      <option value="alert">Alert</option>
-                    </select>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <FunnelIcon
+                          style={{ width: 14, height: 14, color: GOV.muted }}
+                        />
+                        <span
+                          style={{
+                            fontSize: 12,
+                            fontWeight: 700,
+                            color: GOV.text,
+                          }}
+                        >
+                          Filters:
+                        </span>
+                      </div>
 
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={showEligibleOnly}
-                        onChange={(e) => setShowEligibleOnly(e.target.checked)}
-                        className="rounded border-gray-300 text-[var(--primary-accent2)] focus:ring-[var(--primary-accent2)]"
-                      />
-                      <span className="text-sm text-[color:var(--secondary-black)]">
+                      <select
+                        value={filterStatus}
+                        onChange={(e) => setFilterStatus(e.target.value)}
+                        style={selectStyle}
+                      >
+                        <option value="all">All Status</option>
+                        <option value="compliant">Compliant</option>
+                        <option value="warning">Warning</option>
+                        <option value="alert">Alert</option>
+                      </select>
+
+                      <label
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          cursor: "pointer",
+                          fontSize: 12,
+                          fontWeight: 500,
+                          color: GOV.text,
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={showEligibleOnly}
+                          onChange={(e) => setShowEligibleOnly(e.target.checked)}
+                          style={{ accentColor: GOV.accent }}
+                        />
                         Show eligible only
-                      </span>
-                    </label>
-                  </div>
+                      </label>
+                    </div>
 
-                  <div className="text-sm text-[color:var(--secondary-muted-edge)]">
-                    Found {filteredVendors.length} vendor
-                    {filteredVendors.length !== 1 ? "s" : ""}
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: GOV.muted,
+                        fontWeight: 500,
+                      }}
+                    >
+                      Found {filteredVendors.length} vendor
+                      {filteredVendors.length !== 1 ? "s" : ""}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Vendor List */}
-              <div className="space-y-3">
-                {vendorsStatus === "loading" ? (
-                  <div className="bg-white rounded-xl border border-[color:var(--secondary-soft-highlight)] p-12 text-center">
-                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[var(--primary-accent2)] mx-auto mb-4"></div>
-                    <p className="text-sm text-[color:var(--secondary-muted-edge)]">
-                      Loading vendors...
-                    </p>
-                  </div>
-                ) : filteredVendors.length === 0 ? (
-                  <div className="bg-white rounded-xl border border-[color:var(--secondary-soft-highlight)] p-12 text-center">
-                    <UserGroupIcon className="h-12 w-12 mx-auto text-[color:var(--secondary-muted-edge)] mb-4" />
-                    <p className="text-sm text-[color:var(--secondary-muted-edge)]">
-                      No vendors found matching your criteria
-                    </p>
-                  </div>
-                ) : (
-                  filteredVendors.map((vendor) => {
-                    const isSelected = selectedVendors.some(
-                      (v) => v.id === vendor.id
-                    );
-                    const isIneligible =
-                      vendor.eligibilityStatus === "ineligible";
-
-                    return (
+                {/* Vendor list */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {vendorsStatus === "loading" ? (
+                    <div
+                      style={{
+                        ...govCardPadded,
+                        padding: 48,
+                        textAlign: "center",
+                      }}
+                    >
                       <div
-                        key={vendor.id}
-                        onClick={() => toggleVendorSelection(vendor)}
-                        className={`bg-white rounded-xl border-2 p-5 transition-all cursor-pointer ${
-                          isIneligible
-                            ? "border-gray-200 opacity-50 cursor-not-allowed"
-                            : isSelected
-                              ? "border-[var(--primary-accent2)] shadow-md"
-                              : "border-[color:var(--secondary-soft-highlight)] hover:border-[var(--primary-accent2)]/50 hover:shadow-sm"
-                        }`}
-                      >
-                        <div className="flex items-start gap-4">
-                          {/* Checkbox */}
-                          <div className="pt-1">
-                            {isSelected ? (
-                              <CheckCircleSolidIcon className="h-6 w-6 text-[var(--primary-accent2)]" />
-                            ) : (
-                              <div className="h-6 w-6 rounded-full border-2 border-gray-300" />
-                            )}
-                          </div>
+                        style={{
+                          width: 32,
+                          height: 32,
+                          border: `3px solid ${GOV.border}`,
+                          borderTopColor: GOV.accent,
+                          borderRadius: "50%",
+                          animation: "spin 0.8s linear infinite",
+                          margin: "0 auto 12px",
+                        }}
+                      />
+                      <p style={{ fontSize: 12, color: GOV.muted }}>
+                        Loading vendors...
+                      </p>
+                    </div>
+                  ) : filteredVendors.length === 0 ? (
+                    <div
+                      style={{
+                        ...govCardPadded,
+                        padding: 48,
+                        textAlign: "center",
+                      }}
+                    >
+                      <UserGroupIcon
+                        style={{
+                          width: 40,
+                          height: 40,
+                          color: GOV.lightMuted,
+                          margin: "0 auto 12px",
+                        }}
+                      />
+                      <p style={{ fontSize: 12, color: GOV.muted }}>
+                        No vendors found matching your criteria
+                      </p>
+                    </div>
+                  ) : (
+                    filteredVendors.map((vendor) => {
+                      const isSelected = selectedVendors.some(
+                        (v) => v.id === vendor.id
+                      );
+                      const isIneligible =
+                        vendor.eligibilityStatus === "ineligible";
+                      const isHovered = hoveredVendor === vendor.id;
 
-                          {/* Vendor Info */}
-                          <div className="flex-1">
-                            <div className="flex items-start justify-between mb-2">
-                              <div>
-                                <h3 className="text-lg font-semibold text-[color:var(--secondary-black)]">
-                                  {vendor.name}
-                                </h3>
-                                <p className="text-sm text-[color:var(--secondary-muted-edge)]">
-                                  {vendor.location}
-                                </p>
-                              </div>
-
-                              {/* Status Badge */}
-                              <span
-                                className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                                  vendor.status === "compliant"
-                                    ? "bg-green-100 text-green-800"
-                                    : vendor.status === "warning"
-                                      ? "bg-yellow-100 text-yellow-800"
-                                      : "bg-red-100 text-red-800"
-                                }`}
-                              >
-                                {vendor.status}
-                              </span>
+                      return (
+                        <div
+                          key={vendor.id}
+                          onClick={() => toggleVendorSelection(vendor)}
+                          onMouseEnter={() => setHoveredVendor(vendor.id)}
+                          onMouseLeave={() => setHoveredVendor(null)}
+                          style={{
+                            ...govCard,
+                            border: isSelected
+                              ? `2px solid ${GOV.accent}`
+                              : `2px solid ${isHovered && !isIneligible ? GOV.lightMuted : GOV.border}`,
+                            padding: "16px 18px",
+                            cursor: isIneligible ? "not-allowed" : "pointer",
+                            opacity: isIneligible ? 0.5 : 1,
+                            transition: "border-color .15s, box-shadow .15s",
+                            boxShadow: isSelected
+                              ? `0 0 0 1px ${GOV.accent}20`
+                              : "none",
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "flex-start",
+                              gap: 14,
+                            }}
+                          >
+                            {/* Checkbox circle */}
+                            <div style={{ paddingTop: 2, flexShrink: 0 }}>
+                              {isSelected ? (
+                                <CheckCircleSolidIcon
+                                  style={{
+                                    width: 22,
+                                    height: 22,
+                                    color: GOV.accent,
+                                  }}
+                                />
+                              ) : (
+                                <div
+                                  style={{
+                                    width: 22,
+                                    height: 22,
+                                    borderRadius: "50%",
+                                    border: `2px solid ${GOV.border}`,
+                                  }}
+                                />
+                              )}
                             </div>
 
-                            {/* Stats */}
-                            <div className="flex items-center gap-4 mb-3">
-                              <div className="text-sm text-[color:var(--secondary-muted-edge)]">
-                                <span className="font-medium text-[color:var(--secondary-black)]">
+                            {/* Vendor info */}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "flex-start",
+                                  justifyContent: "space-between",
+                                  marginBottom: 6,
+                                  gap: 8,
+                                }}
+                              >
+                                <div>
+                                  <h3
+                                    style={{
+                                      fontSize: 15,
+                                      fontWeight: 700,
+                                      color: GOV.text,
+                                      margin: 0,
+                                    }}
+                                  >
+                                    {vendor.name}
+                                  </h3>
+                                  <p
+                                    style={{
+                                      fontSize: 12,
+                                      color: GOV.muted,
+                                      margin: "2px 0 0",
+                                    }}
+                                  >
+                                    {vendor.location}
+                                  </p>
+                                </div>
+
+                                {/* Status badge */}
+                                <span style={govStatusPillStyle(vendor.status)}>
+                                  {govStatusLabel(vendor.status)}
+                                </span>
+                              </div>
+
+                              {/* Acreage */}
+                              <div
+                                style={{
+                                  fontSize: 12,
+                                  color: GOV.muted,
+                                  marginBottom: 10,
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    fontWeight: 700,
+                                    color: GOV.text,
+                                  }}
+                                >
                                   {vendor.total_acreage.toLocaleString()}
                                 </span>{" "}
                                 acres
                               </div>
-                            </div>
 
-                            {/* Eligibility Status */}
-                            <div
-                              className={`flex items-start gap-2 p-3 rounded-lg ${
-                                vendor.eligibilityStatus === "eligible"
-                                  ? "bg-green-50"
-                                  : vendor.eligibilityStatus === "review"
-                                    ? "bg-yellow-50"
-                                    : "bg-red-50"
-                              }`}
-                            >
-                              {vendor.eligibilityStatus === "eligible" ? (
-                                <CheckCircleIcon className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                              ) : vendor.eligibilityStatus === "review" ? (
-                                <InformationCircleIcon className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                              ) : (
-                                <XCircleIcon className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-                              )}
-                              <div className="flex-1">
-                                <p
-                                  className={`text-xs font-semibold mb-1 ${
-                                    vendor.eligibilityStatus === "eligible"
-                                      ? "text-green-800"
-                                      : vendor.eligibilityStatus === "review"
-                                        ? "text-yellow-800"
-                                        : "text-red-800"
-                                  }`}
-                                >
-                                  {vendor.eligibilityStatus === "eligible"
-                                    ? "Eligible"
-                                    : vendor.eligibilityStatus === "review"
-                                      ? "Requires Review"
-                                      : "Not Eligible"}
-                                </p>
-                                <ul className="text-xs text-gray-600 space-y-1">
-                                  {vendor.eligibilityReasons.map(
-                                    (reason, idx) => (
-                                      <li key={idx}>• {reason}</li>
-                                    )
-                                  )}
-                                </ul>
+                              {/* Eligibility box */}
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "flex-start",
+                                  gap: 8,
+                                  padding: "10px 12px",
+                                  borderRadius: 8,
+                                  background:
+                                    eligibilityBg[vendor.eligibilityStatus],
+                                }}
+                              >
+                                {vendor.eligibilityStatus === "eligible" ? (
+                                  <CheckCircleIcon
+                                    style={{
+                                      width: 16,
+                                      height: 16,
+                                      color: GOV.success,
+                                      flexShrink: 0,
+                                      marginTop: 1,
+                                    }}
+                                  />
+                                ) : vendor.eligibilityStatus === "review" ? (
+                                  <InformationCircleIcon
+                                    style={{
+                                      width: 16,
+                                      height: 16,
+                                      color: GOV.warning,
+                                      flexShrink: 0,
+                                      marginTop: 1,
+                                    }}
+                                  />
+                                ) : (
+                                  <XCircleIcon
+                                    style={{
+                                      width: 16,
+                                      height: 16,
+                                      color: GOV.danger,
+                                      flexShrink: 0,
+                                      marginTop: 1,
+                                    }}
+                                  />
+                                )}
+                                <div style={{ flex: 1 }}>
+                                  <p
+                                    style={{
+                                      fontSize: 11,
+                                      fontWeight: 700,
+                                      color:
+                                        eligibilityColor[
+                                          vendor.eligibilityStatus
+                                        ],
+                                      margin: "0 0 3px",
+                                    }}
+                                  >
+                                    {eligibilityLabel[vendor.eligibilityStatus]}
+                                  </p>
+                                  <ul
+                                    style={{
+                                      margin: 0,
+                                      padding: 0,
+                                      listStyle: "none",
+                                    }}
+                                  >
+                                    {vendor.eligibilityReasons.map(
+                                      (reason, idx) => (
+                                        <li
+                                          key={idx}
+                                          style={{
+                                            fontSize: 11,
+                                            color: GOV.textSecondary,
+                                            lineHeight: 1.5,
+                                          }}
+                                        >
+                                          &bull; {reason}
+                                        </li>
+                                      )
+                                    )}
+                                  </ul>
+                                </div>
                               </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </>
-          )}
+                      );
+                    })
+                  )}
+                </div>
+              </>
+            )}
 
-          {/* Step: Review */}
-          {step === "review" && (
-            <div className="space-y-4">
-              <div className="bg-white rounded-xl border border-[color:var(--secondary-soft-highlight)] p-6">
-                <h3 className="text-lg font-semibold text-[color:var(--secondary-black)] mb-4">
-                  Selected Vendors ({selectedVendors.length})
-                </h3>
+            {/* ── STEP: REVIEW ────────────────────────────────────────── */}
+            {step === "review" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div style={govCardPadded}>
+                  <h3
+                    style={{
+                      fontSize: 15,
+                      fontWeight: 700,
+                      color: GOV.text,
+                      margin: "0 0 14px",
+                    }}
+                  >
+                    Selected Vendors ({selectedVendors.length})
+                  </h3>
 
-                <div className="space-y-3">
-                  {selectedVendors.map((vendor) => (
-                    <div
-                      key={vendor.id}
-                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
-                    >
-                      <div>
-                        <p className="font-medium text-[color:var(--secondary-black)]">
-                          {vendor.name}
-                        </p>
-                        <p className="text-sm text-[color:var(--secondary-muted-edge)]">
-                          {vendor.location} •{" "}
-                          {vendor.total_acreage.toLocaleString()} acres
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => toggleVendorSelection(vendor)}
-                        className="text-sm text-red-600 hover:text-red-700"
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 8,
+                    }}
+                  >
+                    {selectedVendors.map((vendor) => (
+                      <div
+                        key={vendor.id}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "12px 14px",
+                          background: GOV.bg,
+                          borderRadius: 8,
+                        }}
                       >
-                        Remove
-                      </button>
+                        <div>
+                          <p
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 600,
+                              color: GOV.text,
+                              margin: 0,
+                            }}
+                          >
+                            {vendor.name}
+                          </p>
+                          <p
+                            style={{
+                              fontSize: 11,
+                              color: GOV.muted,
+                              margin: "2px 0 0",
+                            }}
+                          >
+                            {vendor.location} &bull;{" "}
+                            {vendor.total_acreage.toLocaleString()} acres
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => toggleVendorSelection(vendor)}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            fontSize: 12,
+                            fontWeight: 600,
+                            color: GOV.danger,
+                            cursor: "pointer",
+                            fontFamily: "inherit",
+                            padding: "4px 8px",
+                            borderRadius: 6,
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {selectedStats.review > 0 && (
+                    <div
+                      style={{
+                        marginTop: 14,
+                        padding: "12px 14px",
+                        background: GOV.warningBg,
+                        border: `1px solid #f6dfa8`,
+                        borderRadius: 8,
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: 10,
+                      }}
+                    >
+                      <ExclamationTriangleIcon
+                        style={{
+                          width: 18,
+                          height: 18,
+                          color: GOV.warning,
+                          flexShrink: 0,
+                          marginTop: 1,
+                        }}
+                      />
+                      <div>
+                        <p
+                          style={{
+                            fontSize: 12,
+                            fontWeight: 700,
+                            color: GOV.warning,
+                            margin: "0 0 3px",
+                          }}
+                        >
+                          {selectedStats.review} vendor
+                          {selectedStats.review > 1 ? "s" : ""} require manual
+                          review
+                        </p>
+                        <p
+                          style={{
+                            fontSize: 11,
+                            color: GOV.warning,
+                            margin: 0,
+                            opacity: 0.85,
+                          }}
+                        >
+                          These vendors will be flagged for additional
+                          verification before final enrollment.
+                        </p>
+                      </div>
                     </div>
-                  ))}
+                  )}
                 </div>
 
-                {selectedStats.review > 0 && (
-                  <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start gap-3">
-                    <ExclamationTriangleIcon className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-semibold text-yellow-800 mb-1">
-                        {selectedStats.review} vendor
-                        {selectedStats.review > 1 ? "s" : ""} require manual
-                        review
-                      </p>
-                      <p className="text-xs text-yellow-700">
-                        These vendors will be flagged for additional
-                        verification before final enrollment.
+                {/* Enrollment Notes */}
+                <div style={govCardPadded}>
+                  <h3
+                    style={{
+                      fontSize: 15,
+                      fontWeight: 700,
+                      color: GOV.text,
+                      margin: "0 0 12px",
+                    }}
+                  >
+                    Enrollment Notes (Optional)
+                  </h3>
+                  <textarea
+                    value={enrollmentNotes}
+                    onChange={(e) => setEnrollmentNotes(e.target.value)}
+                    rows={4}
+                    placeholder="Add any notes or special instructions for this enrollment..."
+                    style={{
+                      ...inputStyle,
+                      resize: "none",
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* ── STEP: CONFIRM ───────────────────────────────────────── */}
+            {step === "confirm" && (
+              <div style={{ ...govCardPadded, padding: "32px 28px" }}>
+                <div
+                  style={{
+                    textAlign: "center",
+                    marginBottom: 24,
+                  }}
+                >
+                  <DocumentCheckIcon
+                    style={{
+                      width: 52,
+                      height: 52,
+                      color: GOV.accent,
+                      margin: "0 auto 12px",
+                    }}
+                  />
+                  <h3
+                    style={{
+                      fontSize: 20,
+                      fontWeight: 800,
+                      color: GOV.text,
+                      margin: "0 0 6px",
+                    }}
+                  >
+                    Confirm Enrollment
+                  </h3>
+                  <p
+                    style={{
+                      fontSize: 13,
+                      color: GOV.muted,
+                      margin: 0,
+                    }}
+                  >
+                    Please review the enrollment summary before submitting
+                  </p>
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 14,
+                  }}
+                >
+                  {/* Summary grid */}
+                  <div
+                    style={{
+                      padding: 16,
+                      background: GOV.bg,
+                      borderRadius: 8,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: 16,
+                      }}
+                    >
+                      <div>
+                        <p style={sectionLabel}>Program</p>
+                        <p style={summaryValue}>{program.name}</p>
+                      </div>
+                      <div>
+                        <p style={sectionLabel}>Vendors to Enroll</p>
+                        <p style={summaryValue}>{selectedVendors.length}</p>
+                      </div>
+                      <div>
+                        <p style={sectionLabel}>Total Acreage</p>
+                        <p style={summaryValue}>
+                          {selectedStats.totalAcreage.toLocaleString()} acres
+                        </p>
+                      </div>
+                      <div>
+                        <p style={sectionLabel}>Require Review</p>
+                        <p style={summaryValue}>{selectedStats.review}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {enrollmentNotes && (
+                    <div
+                      style={{
+                        padding: 16,
+                        background: GOV.bg,
+                        borderRadius: 8,
+                      }}
+                    >
+                      <p style={{ ...sectionLabel, marginBottom: 6 }}>Notes</p>
+                      <p
+                        style={{
+                          fontSize: 13,
+                          color: GOV.text,
+                          margin: 0,
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        {enrollmentNotes}
                       </p>
                     </div>
+                  )}
+
+                  {/* Info banner */}
+                  <div
+                    style={{
+                      padding: "12px 14px",
+                      background: GOV.infoBg,
+                      border: `1px solid #bfdbfe`,
+                      borderRadius: 8,
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: 12,
+                        color: GOV.info,
+                        margin: 0,
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      <strong>Note:</strong> By submitting this enrollment, you
+                      confirm that all selected vendors meet the program
+                      requirements. Vendors requiring review will be processed
+                      separately.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Navigation buttons ──────────────────────────────────── */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <button
+                onClick={() => {
+                  if (step === "review") setStep("select");
+                  else if (step === "confirm") setStep("review");
+                  else router.back();
+                }}
+                style={govPillButton}
+              >
+                {step === "select" ? "Cancel" : "Back"}
+              </button>
+
+              <button
+                onClick={() => {
+                  if (step === "select" && selectedVendors.length > 0)
+                    setStep("review");
+                  else if (step === "review") setStep("confirm");
+                  else if (step === "confirm") handleSubmit();
+                }}
+                disabled={
+                  (step === "select" && selectedVendors.length === 0) ||
+                  isSubmitting
+                }
+                style={{
+                  ...govPrimaryButton,
+                  opacity:
+                    (step === "select" && selectedVendors.length === 0) ||
+                    isSubmitting
+                      ? 0.5
+                      : 1,
+                  cursor:
+                    (step === "select" && selectedVendors.length === 0) ||
+                    isSubmitting
+                      ? "not-allowed"
+                      : "pointer",
+                }}
+              >
+                {isSubmitting ? (
+                  <>
+                    <div
+                      style={{
+                        width: 14,
+                        height: 14,
+                        border: "2px solid rgba(255,255,255,.3)",
+                        borderTopColor: "#fff",
+                        borderRadius: "50%",
+                        animation: "spin 0.8s linear infinite",
+                      }}
+                    />
+                    Submitting...
+                  </>
+                ) : step === "confirm" ? (
+                  "Submit Enrollment"
+                ) : (
+                  "Continue"
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* ── Sidebar ────────────────────────────────────────────────── */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            {/* Program Info */}
+            <div
+              style={{
+                ...govCardPadded,
+                position: "sticky",
+                top: 24,
+              }}
+            >
+              <h3
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: GOV.text,
+                  margin: "0 0 14px",
+                }}
+              >
+                Program Information
+              </h3>
+
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 14,
+                }}
+              >
+                <div>
+                  <p style={sectionLabel}>Category</p>
+                  <p
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: GOV.text,
+                      margin: 0,
+                    }}
+                  >
+                    {program.category}
+                  </p>
+                </div>
+
+                <div>
+                  <p style={sectionLabel}>Description</p>
+                  <p
+                    style={{
+                      fontSize: 12,
+                      color: GOV.text,
+                      margin: 0,
+                      lineHeight: 1.55,
+                    }}
+                  >
+                    {program.description}
+                  </p>
+                </div>
+
+                <div
+                  style={{
+                    paddingTop: 14,
+                    borderTop: `1px solid ${GOV.border}`,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      marginBottom: 4,
+                    }}
+                  >
+                    <CalendarIcon
+                      style={{ width: 14, height: 14, color: GOV.muted }}
+                    />
+                    <p style={{ ...sectionLabel, marginBottom: 0 }}>Duration</p>
+                  </div>
+                  <p
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: GOV.text,
+                      margin: 0,
+                    }}
+                  >
+                    {new Date(program.start_date).toLocaleDateString()} -{" "}
+                    {new Date(program.end_date).toLocaleDateString()}
+                  </p>
+                </div>
+
+                <div>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      marginBottom: 4,
+                    }}
+                  >
+                    <BanknotesIcon
+                      style={{ width: 14, height: 14, color: GOV.muted }}
+                    />
+                    <p style={{ ...sectionLabel, marginBottom: 0 }}>
+                      Budget Available
+                    </p>
+                  </div>
+                  <p
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: GOV.text,
+                      margin: 0,
+                    }}
+                  >
+                    ${((program.budget - program.budget_used) / 1000).toFixed(0)}K
+                  </p>
+                  {/* Budget bar */}
+                  <div
+                    style={{
+                      marginTop: 6,
+                      height: 5,
+                      background: GOV.border,
+                      borderRadius: 99,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        height: "100%",
+                        width: `${program.budget_percentage}%`,
+                        background: GOV.accent,
+                        borderRadius: 99,
+                        transition: "width .4s",
+                      }}
+                    />
+                  </div>
+                  <p
+                    style={{
+                      fontSize: 10.5,
+                      color: GOV.muted,
+                      marginTop: 4,
+                    }}
+                  >
+                    {program.budget_percentage}% utilized
+                  </p>
+                </div>
+
+                <div>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      marginBottom: 4,
+                    }}
+                  >
+                    <ChartBarIcon
+                      style={{ width: 14, height: 14, color: GOV.muted }}
+                    />
+                    <p style={{ ...sectionLabel, marginBottom: 0 }}>
+                      Current Enrollment
+                    </p>
+                  </div>
+                  <p
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: GOV.text,
+                      margin: 0,
+                    }}
+                  >
+                    {program.participants} / {program.target_participants} vendors
+                  </p>
+                </div>
+
+                {program.benefits && program.benefits.length > 0 && (
+                  <div
+                    style={{
+                      paddingTop: 14,
+                      borderTop: `1px solid ${GOV.border}`,
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: GOV.text,
+                        margin: "0 0 8px",
+                      }}
+                    >
+                      Benefits
+                    </p>
+                    <ul
+                      style={{
+                        margin: 0,
+                        padding: 0,
+                        listStyle: "none",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 6,
+                      }}
+                    >
+                      {program.benefits.map((benefit, idx) => (
+                        <li
+                          key={idx}
+                          style={{
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: 6,
+                          }}
+                        >
+                          <CheckCircleIcon
+                            style={{
+                              width: 14,
+                              height: 14,
+                              color: GOV.success,
+                              flexShrink: 0,
+                              marginTop: 1,
+                            }}
+                          />
+                          <span style={{ fontSize: 11, color: GOV.text }}>
+                            {benefit}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {program.eligibility && program.eligibility.length > 0 && (
+                  <div
+                    style={{
+                      paddingTop: 14,
+                      borderTop: `1px solid ${GOV.border}`,
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: GOV.text,
+                        margin: "0 0 8px",
+                      }}
+                    >
+                      Eligibility Requirements
+                    </p>
+                    <ul
+                      style={{
+                        margin: 0,
+                        padding: 0,
+                        listStyle: "none",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 6,
+                      }}
+                    >
+                      {program.eligibility.map((req, idx) => (
+                        <li
+                          key={idx}
+                          style={{
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: 6,
+                          }}
+                        >
+                          <DocumentCheckIcon
+                            style={{
+                              width: 14,
+                              height: 14,
+                              color: GOV.muted,
+                              flexShrink: 0,
+                              marginTop: 1,
+                            }}
+                          />
+                          <span style={{ fontSize: 11, color: GOV.text }}>
+                            {req}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
               </div>
-
-              {/* Enrollment Notes */}
-              <div className="bg-white rounded-xl border border-[color:var(--secondary-soft-highlight)] p-6">
-                <h3 className="text-lg font-semibold text-[color:var(--secondary-black)] mb-4">
-                  Enrollment Notes (Optional)
-                </h3>
-                <textarea
-                  value={enrollmentNotes}
-                  onChange={(e) => setEnrollmentNotes(e.target.value)}
-                  rows={4}
-                  placeholder="Add any notes or special instructions for this enrollment..."
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--primary-accent2)] focus:border-transparent resize-none"
-                />
-              </div>
             </div>
-          )}
 
-          {/* Step: Confirm */}
-          {step === "confirm" && (
-            <div className="bg-white rounded-xl border border-[color:var(--secondary-soft-highlight)] p-8">
-              <div className="text-center mb-6">
-                <DocumentCheckIcon className="h-16 w-16 mx-auto text-[var(--primary-accent2)] mb-4" />
-                <h3 className="text-xl font-bold text-[color:var(--secondary-black)] mb-2">
-                  Confirm Enrollment
+            {/* Selection summary (shown on select step) */}
+            {step === "select" && selectedVendors.length > 0 && (
+              <div
+                style={{
+                  background: GOV.brand,
+                  borderRadius: 10,
+                  padding: "18px 20px",
+                  color: "#fff",
+                }}
+              >
+                <h3
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    margin: "0 0 14px",
+                    color: "#fff",
+                  }}
+                >
+                  Selection Summary
                 </h3>
-                <p className="text-sm text-[color:var(--secondary-muted-edge)]">
-                  Please review the enrollment summary before submitting
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <div className="grid grid-cols-2 gap-4">
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 12,
+                  }}
+                >
+                  <div>
+                    <p
+                      style={{
+                        fontSize: 10.5,
+                        opacity: 0.7,
+                        margin: "0 0 2px",
+                        fontWeight: 600,
+                        textTransform: "uppercase",
+                        letterSpacing: ".06em",
+                      }}
+                    >
+                      Vendors Selected
+                    </p>
+                    <p
+                      style={{
+                        fontSize: 26,
+                        fontWeight: 800,
+                        margin: 0,
+                        lineHeight: 1,
+                      }}
+                    >
+                      {selectedVendors.length}
+                    </p>
+                  </div>
+                  <div>
+                    <p
+                      style={{
+                        fontSize: 10.5,
+                        opacity: 0.7,
+                        margin: "0 0 2px",
+                        fontWeight: 600,
+                        textTransform: "uppercase",
+                        letterSpacing: ".06em",
+                      }}
+                    >
+                      Eligible
+                    </p>
+                    <p
+                      style={{
+                        fontSize: 18,
+                        fontWeight: 700,
+                        margin: 0,
+                        lineHeight: 1,
+                      }}
+                    >
+                      {selectedStats.eligible}
+                    </p>
+                  </div>
+                  {selectedStats.review > 0 && (
                     <div>
-                      <p className="text-xs text-[color:var(--secondary-muted-edge)] mb-1">
-                        Program
-                      </p>
-                      <p className="font-semibold text-[color:var(--secondary-black)]">
-                        {program.name}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-[color:var(--secondary-muted-edge)] mb-1">
-                        Vendors to Enroll
-                      </p>
-                      <p className="font-semibold text-[color:var(--secondary-black)]">
-                        {selectedVendors.length}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-[color:var(--secondary-muted-edge)] mb-1">
-                        Total Acreage
-                      </p>
-                      <p className="font-semibold text-[color:var(--secondary-black)]">
-                        {selectedStats.totalAcreage.toLocaleString()} acres
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-[color:var(--secondary-muted-edge)] mb-1">
+                      <p
+                        style={{
+                          fontSize: 10.5,
+                          opacity: 0.7,
+                          margin: "0 0 2px",
+                          fontWeight: 600,
+                          textTransform: "uppercase",
+                          letterSpacing: ".06em",
+                        }}
+                      >
                         Require Review
                       </p>
-                      <p className="font-semibold text-[color:var(--secondary-black)]">
+                      <p
+                        style={{
+                          fontSize: 18,
+                          fontWeight: 700,
+                          margin: 0,
+                          lineHeight: 1,
+                        }}
+                      >
                         {selectedStats.review}
                       </p>
                     </div>
-                  </div>
-                </div>
-
-                {enrollmentNotes && (
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <p className="text-xs text-[color:var(--secondary-muted-edge)] mb-2">
-                      Notes
-                    </p>
-                    <p className="text-sm text-[color:var(--secondary-black)]">
-                      {enrollmentNotes}
-                    </p>
-                  </div>
-                )}
-
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-blue-800">
-                    <strong>Note:</strong> By submitting this enrollment, you
-                    confirm that all selected vendors meet the program
-                    requirements. Vendors requiring review will be processed
-                    separately.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Navigation Buttons */}
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => {
-                if (step === "review") setStep("select");
-                else if (step === "confirm") setStep("review");
-                else router.back();
-              }}
-              className="px-6 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-[color:var(--secondary-black)] hover:bg-gray-50 transition-colors"
-            >
-              {step === "select" ? "Cancel" : "Back"}
-            </button>
-
-            <button
-              onClick={() => {
-                if (step === "select" && selectedVendors.length > 0)
-                  setStep("review");
-                else if (step === "review") setStep("confirm");
-                else if (step === "confirm") handleSubmit();
-              }}
-              disabled={
-                (step === "select" && selectedVendors.length === 0) ||
-                isSubmitting
-              }
-              className="px-6 py-2.5 bg-[var(--primary-accent2)] text-white rounded-lg text-sm font-medium hover:bg-[var(--primary-accent3)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-            >
-              {isSubmitting ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  Submitting...
-                </>
-              ) : step === "confirm" ? (
-                "Submit Enrollment"
-              ) : (
-                "Continue"
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Program Info */}
-          <div className="bg-white rounded-xl border border-[color:var(--secondary-soft-highlight)] p-6 sticky top-6">
-            <h3 className="text-sm font-semibold text-[color:var(--secondary-black)] mb-4">
-              Program Information
-            </h3>
-
-            <div className="space-y-4">
-              <div>
-                <p className="text-xs text-[color:var(--secondary-muted-edge)] mb-1">
-                  Category
-                </p>
-                <p className="text-sm font-medium text-[color:var(--secondary-black)]">
-                  {program.category}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs text-[color:var(--secondary-muted-edge)] mb-1">
-                  Description
-                </p>
-                <p className="text-sm text-[color:var(--secondary-black)]">
-                  {program.description}
-                </p>
-              </div>
-
-              <div className="pt-4 border-t border-gray-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <CalendarIcon className="h-4 w-4 text-[color:var(--secondary-muted-edge)]" />
-                  <p className="text-xs text-[color:var(--secondary-muted-edge)]">
-                    Duration
-                  </p>
-                </div>
-                <p className="text-sm font-medium text-[color:var(--secondary-black)]">
-                  {new Date(program.start_date).toLocaleDateString()} -{" "}
-                  {new Date(program.end_date).toLocaleDateString()}
-                </p>
-              </div>
-
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <BanknotesIcon className="h-4 w-4 text-[color:var(--secondary-muted-edge)]" />
-                  <p className="text-xs text-[color:var(--secondary-muted-edge)]">
-                    Budget Available
-                  </p>
-                </div>
-                <p className="text-sm font-medium text-[color:var(--secondary-black)]">
-                  ${((program.budget - program.budget_used) / 1000).toFixed(0)}K
-                </p>
-                <div className="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-[var(--primary-accent2)] to-[var(--primary-accent3)]"
-                    style={{ width: `${program.budget_percentage}%` }}
-                  />
-                </div>
-                <p className="text-xs text-[color:var(--secondary-muted-edge)] mt-1">
-                  {program.budget_percentage}% utilized
-                </p>
-              </div>
-
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <ChartBarIcon className="h-4 w-4 text-[color:var(--secondary-muted-edge)]" />
-                  <p className="text-xs text-[color:var(--secondary-muted-edge)]">
-                    Current Enrollment
-                  </p>
-                </div>
-                <p className="text-sm font-medium text-[color:var(--secondary-black)]">
-                  {program.participants} / {program.target_participants} vendors
-                </p>
-              </div>
-
-              {program.benefits && program.benefits.length > 0 && (
-                <div className="pt-4 border-t border-gray-200">
-                  <p className="text-xs font-semibold text-[color:var(--secondary-black)] mb-2">
-                    Benefits
-                  </p>
-                  <ul className="space-y-2">
-                    {program.benefits.map((benefit, idx) => (
-                      <li key={idx} className="flex items-start gap-2">
-                        <CheckCircleIcon className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
-                        <span className="text-xs text-[color:var(--secondary-black)]">
-                          {benefit}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {program.eligibility && program.eligibility.length > 0 && (
-                <div className="pt-4 border-t border-gray-200">
-                  <p className="text-xs font-semibold text-[color:var(--secondary-black)] mb-2">
-                    Eligibility Requirements
-                  </p>
-                  <ul className="space-y-2">
-                    {program.eligibility.map((req, idx) => (
-                      <li key={idx} className="flex items-start gap-2">
-                        <DocumentCheckIcon className="h-4 w-4 text-[color:var(--secondary-muted-edge)] flex-shrink-0 mt-0.5" />
-                        <span className="text-xs text-[color:var(--secondary-black)]">
-                          {req}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Selection Summary (shown on select step) */}
-          {step === "select" && selectedVendors.length > 0 && (
-            <div className="bg-gradient-to-br from-[var(--primary-accent1)] to-[var(--primary-accent2)] rounded-xl p-6 text-white">
-              <h3 className="text-sm font-semibold mb-4">Selection Summary</h3>
-              <div className="space-y-3">
-                <div>
-                  <p className="text-xs opacity-90 mb-1">Vendors Selected</p>
-                  <p className="text-2xl font-bold">{selectedVendors.length}</p>
-                </div>
-                <div>
-                  <p className="text-xs opacity-90 mb-1">Eligible</p>
-                  <p className="text-lg font-semibold">
-                    {selectedStats.eligible}
-                  </p>
-                </div>
-                {selectedStats.review > 0 && (
+                  )}
                   <div>
-                    <p className="text-xs opacity-90 mb-1">Require Review</p>
-                    <p className="text-lg font-semibold">
-                      {selectedStats.review}
+                    <p
+                      style={{
+                        fontSize: 10.5,
+                        opacity: 0.7,
+                        margin: "0 0 2px",
+                        fontWeight: 600,
+                        textTransform: "uppercase",
+                        letterSpacing: ".06em",
+                      }}
+                    >
+                      Total Acreage
+                    </p>
+                    <p
+                      style={{
+                        fontSize: 18,
+                        fontWeight: 700,
+                        margin: 0,
+                        lineHeight: 1,
+                      }}
+                    >
+                      {selectedStats.totalAcreage.toLocaleString()} acres
                     </p>
                   </div>
-                )}
-                <div>
-                  <p className="text-xs opacity-90 mb-1">Total Acreage</p>
-                  <p className="text-lg font-semibold">
-                    {selectedStats.totalAcreage.toLocaleString()} acres
-                  </p>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Spin animation keyframes */}
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 }

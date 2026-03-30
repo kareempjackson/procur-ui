@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Fragment, useEffect } from "react";
+import { useState, Fragment, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -11,316 +11,331 @@ import {
   AcademicCapIcon,
   Cog6ToothIcon,
   QuestionMarkCircleIcon,
-  ChevronRightIcon,
   ChevronDownIcon,
-  Bars3Icon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 
-interface NavChild {
-  label: string;
-  href: string;
-  description?: string;
-}
+interface NavChild { label: string; href: string; }
+interface NavItem { id: string; label: string; icon?: any; href?: string; section?: string; children?: NavChild[]; separator?: boolean; }
+interface Props { collapsed: boolean; onToggle: () => void; }
 
-interface NavItem {
-  id: string;
-  label: string;
-  icon?: any;
-  href?: string;
-  section?: string;
-  children?: NavChild[];
-  separator?: boolean;
-}
+const C = {
+  bg: "#fff",
+  pageBg: "#faf8f4",
+  text: "#1c2b23",
+  muted: "#8a9e92",
+  accent: "#d4783c",
+  brand: "#2d4a3e",
+  hoverBg: "rgba(45,74,62,.04)",
+  activeBg: "rgba(212,120,60,.06)",
+} as const;
 
-interface Props {
-  collapsed: boolean;
-  onToggle: () => void;
-}
+const RAIL_W = 48;
+const PANEL_W = 230;
 
-export default function GovernmentSideNavigation({
-  collapsed,
-  onToggle,
-}: Props) {
+export default function GovernmentSideNavigation({ collapsed, onToggle }: Props) {
   const pathname = usePathname();
-  const [expandedSections, setExpandedSections] = useState<string[]>([
-    "vendors-operations",
-  ]);
+  const [expandedSections, setExpandedSections] = useState<string[]>(["vendors-operations"]);
+  const prevPathname = useRef(pathname);
+  const open = !collapsed;
 
-  // Keyboard shortcut to toggle sidebar
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "/") {
-        e.preventDefault();
-        onToggle();
-      }
-    };
+    if (pathname !== prevPathname.current && open) onToggle();
+    prevPathname.current = pathname;
+  }, [pathname, open, onToggle]);
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "/") { e.preventDefault(); onToggle(); }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
   }, [onToggle]);
 
+  // Lock body scroll when panel is open
+  useEffect(() => {
+    if (open) document.body.style.overflow = "hidden";
+    else document.body.style.overflow = "";
+    return () => { document.body.style.overflow = ""; };
+  }, [open]);
+
   const navigationItems: NavItem[] = [
+    { id: "overview", label: "Overview", icon: HomeIcon, href: "/government", section: "main" },
     {
-      id: "overview",
-      label: "Overview",
-      icon: HomeIcon,
-      href: "/government",
-      section: "main",
-    },
-    {
-      id: "vendors-operations",
-      label: "Vendors & Operations",
-      icon: BuildingOffice2Icon,
-      section: "main",
+      id: "vendors-operations", label: "Vendors & Ops", icon: BuildingOffice2Icon, section: "main",
       children: [
-        {
-          label: "All Vendors",
-          href: "/government/vendors",
-          description: "Browse and manage vendors",
-        },
-        {
-          label: "Register New",
-          href: "/government/vendors/new",
-          description: "Add new vendor",
-        },
-        {
-          label: "Production",
-          href: "/government/production",
-          description: "Monitor crop cycles",
-        },
-        {
-          label: "Land",
-          href: "/government/land",
-          description: "Acreage utilization",
-        },
-        {
-          label: "Products",
-          href: "/government/products",
-          description: "Browse all products",
-        },
+        { label: "All Vendors", href: "/government/vendors" },
+        { label: "Register New", href: "/government/vendors/new" },
+        { label: "Production", href: "/government/production" },
+        { label: "Land", href: "/government/land" },
+        { label: "Products", href: "/government/products" },
       ],
     },
     {
-      id: "insights",
-      label: "Market & Insights",
-      icon: ChartBarIcon,
-      section: "main",
+      id: "insights", label: "Market & Insights", icon: ChartBarIcon, section: "main",
       children: [
-        {
-          label: "Market Analysis",
-          href: "/government/market",
-          description: "Supply & demand",
-        },
-        {
-          label: "Data Explorer",
-          href: "/government/data",
-          description: "Export & visualizations",
-        },
+        { label: "Market Analysis", href: "/government/market" },
+        { label: "Data Explorer", href: "/government/data" },
       ],
     },
     {
-      id: "compliance",
-      label: "Compliance & Reports",
-      icon: ShieldCheckIcon,
-      section: "main",
+      id: "compliance", label: "Compliance", icon: ShieldCheckIcon, section: "main",
       children: [
-        {
-          label: "Compliance",
-          href: "/government/compliance",
-          description: "Monitor status",
-        },
-        {
-          label: "Reporting",
-          href: "/government/reporting",
-          description: "Generate reports",
-        },
+        { label: "Compliance", href: "/government/compliance" },
+        { label: "Reporting", href: "/government/reporting" },
       ],
     },
-    {
-      id: "programs",
-      label: "Programs",
-      icon: AcademicCapIcon,
-      href: "/government/programs",
-      section: "main",
-    },
+    { id: "programs", label: "Programs", icon: AcademicCapIcon, href: "/government/programs", section: "main" },
     { separator: true } as NavItem,
-    {
-      id: "settings",
-      label: "Settings",
-      icon: Cog6ToothIcon,
-      href: "/government/settings",
-      section: "footer",
-    },
-    {
-      id: "support",
-      label: "Help & Support",
-      icon: QuestionMarkCircleIcon,
-      href: "/government/support",
-      section: "footer",
-    },
+    { id: "settings", label: "Settings", icon: Cog6ToothIcon, href: "/government/settings", section: "footer" },
+    { id: "support", label: "Support", icon: QuestionMarkCircleIcon, href: "/government/support", section: "footer" },
   ];
 
-  const toggleSection = (sectionId: string) => {
-    setExpandedSections((prev) =>
-      prev.includes(sectionId)
-        ? prev.filter((id) => id !== sectionId)
-        : [...prev, sectionId]
-    );
+  const toggleSection = (id: string) => {
+    setExpandedSections((prev) => prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]);
   };
 
   const isActive = (href: string) => {
-    if (href === "/government") {
-      return pathname === "/government";
-    }
+    if (href === "/government") return pathname === "/government";
     return pathname?.startsWith(href);
   };
 
   const isSectionActive = (item: NavItem) => {
     if (item.href) return isActive(item.href);
-    if (item.children) {
-      return item.children.some((child) => child.href && isActive(child.href));
-    }
+    if (item.children) return item.children.some((c) => c.href && isActive(c.href));
     return false;
   };
 
+  const mainItems = navigationItems.filter((i) => !i.separator && i.section !== "footer");
+  const footerItems = navigationItems.filter((i) => i.section === "footer");
+
+  const iconBtn = (active: boolean): React.CSSProperties => ({
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    border: "none",
+    background: active ? C.activeBg : "transparent",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: active ? C.accent : C.muted,
+    transition: "all 0.15s ease",
+  });
+
   return (
-    <aside
-      className={`sticky top-0 h-screen bg-[var(--primary-background)] transition-all duration-300 flex-shrink-0 hidden lg:block ${
-        collapsed ? "w-16" : "w-64"
-      }`}
-    >
-      <div className="flex flex-col h-full">
-        {/* Toggle Button */}
-        <div className="h-20 flex items-center justify-between px-4">
-          {!collapsed && (
-            <div className="flex items-center gap-2">
-              <div className="text-xs uppercase tracking-wider text-[color:var(--secondary-muted-edge)] font-medium">
-                Quick Nav
-              </div>
-            </div>
+    <>
+      {/* ── Icon rail (fixed, floats over page) ───────────────────── */}
+      <div
+        className="hidden lg:flex"
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: RAIL_W,
+          height: "100vh",
+          flexDirection: "column",
+          alignItems: "center",
+          paddingTop: 14,
+          paddingBottom: 14,
+          zIndex: 45,
+        }}
+      >
+        {/* Menu toggle */}
+        <button
+          onClick={onToggle}
+          style={{
+            ...iconBtn(false),
+            marginBottom: 12,
+            color: open ? C.accent : C.muted,
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = C.hoverBg; e.currentTarget.style.color = C.text; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = open ? C.accent : C.muted; }}
+          title={open ? "Close menu" : "Open menu"}
+        >
+          {open ? (
+            <XMarkIcon style={{ width: 18, height: 18 }} />
+          ) : (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width={17} height={17}>
+              <line x1="4" y1="7" x2="20" y2="7" />
+              <line x1="4" y1="12" x2="20" y2="12" />
+              <line x1="4" y1="17" x2="20" y2="17" />
+            </svg>
           )}
-          <button
-            onClick={onToggle}
-            className={`p-2.5 rounded-xl hover:bg-white transition-all duration-200 group ${
-              collapsed ? "mx-auto" : ""
-            }`}
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {collapsed ? (
-              <ChevronRightIcon className="h-5 w-5 text-[color:var(--secondary-muted-edge)] group-hover:text-[var(--secondary-highlight2)] transition-colors" />
-            ) : (
-              <ChevronRightIcon className="h-5 w-5 text-[color:var(--secondary-muted-edge)] group-hover:text-[var(--secondary-highlight2)] transition-colors rotate-180" />
-            )}
-          </button>
+        </button>
+
+        {/* Main icons */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, flex: 1 }}>
+          {mainItems.map((item) => {
+            const Icon = item.icon;
+            const active = isSectionActive(item);
+            return (
+              <button
+                key={item.id}
+                onClick={onToggle}
+                style={iconBtn(active)}
+                onMouseEnter={(e) => {
+                  if (!active) { e.currentTarget.style.background = C.hoverBg; e.currentTarget.style.color = C.text; }
+                }}
+                onMouseLeave={(e) => {
+                  if (!active) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.muted; }
+                }}
+                title={item.label}
+              >
+                {Icon && <Icon style={{ width: 17, height: 17 }} />}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Navigation Items */}
-        <nav className="flex-1 overflow-y-auto py-4 px-2">
-          <div className="space-y-1">
+        {/* Footer icons */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+          {footerItems.map((item) => {
+            const Icon = item.icon;
+            const active = item.href ? isActive(item.href) : false;
+            return (
+              <Link
+                key={item.id}
+                href={item.href || "#"}
+                style={{ ...iconBtn(active), textDecoration: "none" }}
+                onMouseEnter={(e) => {
+                  if (!active) { e.currentTarget.style.background = C.hoverBg; e.currentTarget.style.color = C.text; }
+                }}
+                onMouseLeave={(e) => {
+                  if (!active) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.muted; }
+                }}
+                title={item.label}
+              >
+                {Icon && <Icon style={{ width: 17, height: 17 }} />}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Backdrop ──────────────────────────────────────────────── */}
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(28,43,35,.12)",
+          zIndex: 46,
+          opacity: open ? 1 : 0,
+          pointerEvents: open ? "auto" : "none",
+          transition: "opacity 0.25s ease",
+        }}
+        onClick={onToggle}
+      />
+
+      {/* ── Slide-out panel ───────────────────────────────────────── */}
+      <div
+        className="hidden lg:flex"
+        style={{
+          position: "fixed",
+          top: 12,
+          left: RAIL_W,
+          bottom: 12,
+          width: PANEL_W,
+          background: C.bg,
+          zIndex: 47,
+          flexDirection: "column",
+          borderRadius: 14,
+          boxShadow: open
+            ? "0 8px 40px rgba(0,0,0,.10), 0 0 0 1px rgba(0,0,0,.04)"
+            : "none",
+          transform: open ? "translateX(0)" : `translateX(-${PANEL_W + 20}px)`,
+          opacity: open ? 1 : 0,
+          transition: "transform 0.28s cubic-bezier(.4,0,.2,1), opacity 0.22s ease",
+          overflowY: "auto",
+          overflowX: "hidden",
+        }}
+      >
+        {/* Panel header */}
+        <div style={{ padding: "18px 18px 10px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em", color: C.muted }}>
+            Menu
+          </span>
+        </div>
+
+        {/* Nav items */}
+        <nav style={{ flex: 1, padding: "0 8px 8px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
             {navigationItems.map((item, index) => {
-              if (item.separator) {
-                return <div key={`separator-${index}`} className="my-3" />;
-              }
+              if (item.separator) return <div key={`sep-${index}`} style={{ height: 8 }} />;
 
               const Icon = item.icon;
               const hasChildren = item.children && item.children.length > 0;
               const isExpanded = expandedSections.includes(item.id);
               const active = isSectionActive(item);
 
+              const base: React.CSSProperties = {
+                display: "flex",
+                alignItems: "center",
+                gap: 9,
+                padding: "8px 10px",
+                borderRadius: 8,
+                border: "none",
+                background: active ? C.activeBg : "transparent",
+                color: active ? C.text : C.muted,
+                cursor: "pointer",
+                textDecoration: "none",
+                fontSize: 13,
+                fontWeight: active ? 700 : 500,
+                width: "100%",
+                fontFamily: "inherit",
+                transition: "all 0.12s ease",
+              };
+
+              const hIn = (e: React.MouseEvent<HTMLElement>) => {
+                if (!active) { e.currentTarget.style.background = C.hoverBg; e.currentTarget.style.color = C.text; }
+              };
+              const hOut = (e: React.MouseEvent<HTMLElement>) => {
+                if (!active) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.muted; }
+              };
+
               return (
                 <Fragment key={item.id}>
-                  {/* Parent Item */}
                   {item.href && !hasChildren ? (
-                    <Link
-                      href={item.href}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group relative ${
-                        isActive(item.href)
-                          ? "bg-white text-[var(--secondary-highlight2)] shadow-sm"
-                          : "text-gray-700 hover:bg-white/60"
-                      }`}
-                      title={collapsed ? item.label : undefined}
-                    >
-                      {Icon && (
-                        <Icon
-                          className={`h-5 w-5 flex-shrink-0 ${
-                            isActive(item.href)
-                              ? "text-[var(--secondary-highlight2)]"
-                              : "text-gray-600 group-hover:text-gray-900"
-                          }`}
-                        />
-                      )}
-                      {!collapsed && (
-                        <span className="text-sm font-medium">
-                          {item.label}
-                        </span>
-                      )}
-                      {/* Tooltip for collapsed state */}
-                      {collapsed && (
-                        <div className="absolute left-full ml-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 whitespace-nowrap z-50">
-                          {item.label}
-                        </div>
-                      )}
+                    <Link href={item.href} style={base} onMouseEnter={hIn} onMouseLeave={hOut}>
+                      {Icon && <Icon style={{ width: 16, height: 16, flexShrink: 0, color: active ? C.accent : "inherit" }} />}
+                      <span>{item.label}</span>
                     </Link>
                   ) : (
-                    <button
-                      onClick={() => hasChildren && toggleSection(item.id)}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group relative ${
-                        active
-                          ? "bg-white/80 text-[var(--secondary-highlight2)]"
-                          : "text-gray-700 hover:bg-white/60"
-                      }`}
-                      title={collapsed ? item.label : undefined}
-                    >
-                      {Icon && (
-                        <Icon
-                          className={`h-5 w-5 flex-shrink-0 ${
-                            active
-                              ? "text-[var(--secondary-highlight2)]"
-                              : "text-gray-600 group-hover:text-gray-900"
-                          }`}
-                        />
-                      )}
-                      {!collapsed && (
-                        <>
-                          <span className="flex-1 text-left text-sm font-medium">
-                            {item.label}
-                          </span>
-                          {hasChildren && (
-                            <ChevronDownIcon
-                              className={`h-4 w-4 transition-transform duration-200 ${
-                                isExpanded ? "rotate-180" : ""
-                              }`}
-                            />
-                          )}
-                        </>
-                      )}
-                      {/* Tooltip for collapsed state */}
-                      {collapsed && (
-                        <div className="absolute left-full ml-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 whitespace-nowrap z-50">
-                          {item.label}
-                        </div>
+                    <button onClick={() => hasChildren && toggleSection(item.id)} style={base} onMouseEnter={hIn} onMouseLeave={hOut}>
+                      {Icon && <Icon style={{ width: 16, height: 16, flexShrink: 0, color: active ? C.accent : "inherit" }} />}
+                      <span style={{ flex: 1, textAlign: "left" }}>{item.label}</span>
+                      {hasChildren && (
+                        <ChevronDownIcon style={{ width: 11, height: 11, transform: isExpanded ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s", opacity: 0.35 }} />
                       )}
                     </button>
                   )}
 
-                  {/* Child Items */}
-                  {hasChildren && isExpanded && !collapsed && (
-                    <div className="ml-8 mt-1 space-y-1">
-                      {item.children!.map((child, childIndex) => (
-                        <Link
-                          key={childIndex}
-                          href={child.href}
-                          className={`block px-3 py-2 rounded-xl text-sm transition-all duration-200 ${
-                            isActive(child.href)
-                              ? "bg-white text-[var(--secondary-highlight2)] font-medium shadow-sm"
-                              : "text-gray-600 hover:bg-white/60 hover:text-gray-900"
-                          }`}
-                        >
-                          {child.label}
-                        </Link>
-                      ))}
+                  {hasChildren && isExpanded && (
+                    <div style={{ marginLeft: 25, display: "flex", flexDirection: "column" }}>
+                      {item.children!.map((child, ci) => {
+                        const ca = isActive(child.href);
+                        return (
+                          <Link
+                            key={ci}
+                            href={child.href}
+                            style={{
+                              display: "block",
+                              padding: "6px 10px",
+                              borderRadius: 6,
+                              fontSize: 12.5,
+                              fontWeight: ca ? 700 : 500,
+                              color: ca ? C.accent : C.muted,
+                              textDecoration: "none",
+                              background: ca ? C.activeBg : "transparent",
+                              transition: "all 0.12s ease",
+                            }}
+                            onMouseEnter={(e) => { if (!ca) { e.currentTarget.style.background = C.hoverBg; e.currentTarget.style.color = C.text; } }}
+                            onMouseLeave={(e) => { if (!ca) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.muted; } }}
+                          >
+                            {child.label}
+                          </Link>
+                        );
+                      })}
                     </div>
                   )}
                 </Fragment>
@@ -329,28 +344,13 @@ export default function GovernmentSideNavigation({
           </div>
         </nav>
 
-        {/* Footer Info */}
-        {!collapsed && (
-          <div className="p-4">
-            <div className="text-xs text-[color:var(--secondary-muted-edge)]">
-              <div className="font-medium mb-1">Navigation Shortcuts</div>
-              <div className="space-y-1">
-                <div>
-                  Press{" "}
-                  <kbd className="px-1.5 py-0.5 rounded bg-white/60 text-[10px]">
-                    Ctrl
-                  </kbd>{" "}
-                  +{" "}
-                  <kbd className="px-1.5 py-0.5 rounded bg-white/60 text-[10px]">
-                    /
-                  </kbd>{" "}
-                  to toggle
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Shortcut */}
+        <div style={{ padding: "12px 18px" }}>
+          <span style={{ fontSize: 10, color: C.muted, opacity: 0.6 }}>
+            <kbd style={{ padding: "1px 4px", borderRadius: 3, background: "rgba(0,0,0,.03)", fontSize: 9 }}>⌘/</kbd> toggle
+          </span>
+        </div>
       </div>
-    </aside>
+    </>
   );
 }

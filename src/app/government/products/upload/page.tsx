@@ -16,6 +16,47 @@ import {
   selectVendors,
   selectVendorsStatus,
 } from "@/store/slices/governmentVendorsSlice";
+import {
+  GOV,
+  govCard,
+  govPageTitle,
+  govPageSubtitle,
+  govPillButton,
+  govPrimaryButton,
+  govHoverBg,
+} from "../../styles";
+
+/* ── Shared inline-style constants ──────────────────────────────────────────── */
+
+const labelStyle: React.CSSProperties = {
+  display: "block",
+  fontSize: 13,
+  fontWeight: 700,
+  color: "#1c2b23",
+  marginBottom: 6,
+};
+
+const inputStyle: React.CSSProperties = {
+  border: "1px solid #ebe7df",
+  borderRadius: 8,
+  padding: "10px 14px",
+  fontSize: 13,
+  width: "100%",
+  fontFamily: "inherit",
+  outline: "none",
+  background: "#fff",
+  color: "#1c2b23",
+  boxSizing: "border-box" as const,
+};
+
+const sectionHeading: React.CSSProperties = {
+  fontSize: 16,
+  fontWeight: 800,
+  color: "#1c2b23",
+  margin: "0 0 16px",
+};
+
+/* ── Page ────────────────────────────────────────────────────────────────────── */
 
 export default function ProductUploadPage() {
   const router = useRouter();
@@ -41,6 +82,12 @@ export default function ProductUploadPage() {
     notes: "",
     images: [] as File[],
   });
+
+  const [hoveredCert, setHoveredCert] = useState<string | null>(null);
+  const [hoveredCancel, setHoveredCancel] = useState(false);
+  const [hoveredSubmit, setHoveredSubmit] = useState(false);
+  const [hoveredUploadZone, setHoveredUploadZone] = useState(false);
+  const [hoveredImageIdx, setHoveredImageIdx] = useState<number | null>(null);
 
   // Fetch vendors on mount if not already loaded
   useEffect(() => {
@@ -119,8 +166,8 @@ export default function ProductUploadPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16">
+    <div style={{ minHeight: "100vh", background: GOV.bg, color: GOV.text }}>
+      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 24px 80px" }}>
         {/* Back Button */}
         <Link
           href={
@@ -128,18 +175,25 @@ export default function ProductUploadPage() {
               ? `/government/vendors/${preselectedVendorId}`
               : "/government/vendors"
           }
-          className="inline-flex items-center gap-2 text-sm text-[color:var(--secondary-muted-edge)] hover:text-[color:var(--secondary-black)] mb-6"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: 13,
+            fontWeight: 600,
+            color: GOV.muted,
+            textDecoration: "none",
+            marginBottom: 24,
+          }}
         >
-          <ArrowLeftIcon className="h-4 w-4" />
+          <ArrowLeftIcon style={{ width: 16, height: 16 }} />
           Back
         </Link>
 
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-semibold text-[color:var(--secondary-black)]">
-            Upload Product for Vendor
-          </h1>
-          <p className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
+        <div style={{ marginBottom: 32 }}>
+          <h1 style={govPageTitle}>Upload Product for Vendor</h1>
+          <p style={govPageSubtitle}>
             List a product on behalf of a vendor who lacks internet access or
             requires assistance
           </p>
@@ -147,17 +201,12 @@ export default function ProductUploadPage() {
 
         {/* Form */}
         <form onSubmit={handleSubmit}>
-          <div className="space-y-6">
+          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
             {/* Vendor Selection */}
-            <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-              <h2 className="text-lg font-semibold text-[color:var(--secondary-black)] mb-4">
-                Select Vendor
-              </h2>
+            <div style={{ ...govCard, padding: 24 }}>
+              <h2 style={sectionHeading}>Select Vendor</h2>
               <div>
-                <label
-                  htmlFor="vendorId"
-                  className="block text-sm font-medium text-[color:var(--secondary-black)] mb-2"
-                >
+                <label htmlFor="vendorId" style={labelStyle}>
                   Vendor *
                 </label>
                 <select
@@ -166,7 +215,7 @@ export default function ProductUploadPage() {
                   required
                   value={formData.vendorId}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-2.5 rounded-lg border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
+                  style={inputStyle}
                 >
                   <option value="">Select a vendor</option>
                   {vendors.map((vendor) => (
@@ -179,17 +228,19 @@ export default function ProductUploadPage() {
             </div>
 
             {/* Product Details */}
-            <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6 space-y-6">
-              <h2 className="text-lg font-semibold text-[color:var(--secondary-black)]">
-                Product Details
-              </h2>
+            <div style={{ ...govCard, padding: 24 }}>
+              <h2 style={sectionHeading}>Product Details</h2>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+                  gap: 20,
+                }}
+              >
+                {/* Crop Type */}
                 <div>
-                  <label
-                    htmlFor="cropType"
-                    className="block text-sm font-medium text-[color:var(--secondary-black)] mb-2"
-                  >
+                  <label htmlFor="cropType" style={labelStyle}>
                     Crop Type *
                   </label>
                   <select
@@ -198,7 +249,7 @@ export default function ProductUploadPage() {
                     required
                     value={formData.cropType}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2.5 rounded-lg border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
+                    style={inputStyle}
                   >
                     <option value="">Select crop type</option>
                     <option value="tomatoes">Tomatoes</option>
@@ -212,11 +263,9 @@ export default function ProductUploadPage() {
                   </select>
                 </div>
 
+                {/* Variety */}
                 <div>
-                  <label
-                    htmlFor="variety"
-                    className="block text-sm font-medium text-[color:var(--secondary-black)] mb-2"
-                  >
+                  <label htmlFor="variety" style={labelStyle}>
                     Variety *
                   </label>
                   <input
@@ -227,15 +276,13 @@ export default function ProductUploadPage() {
                     placeholder="e.g., Roma, Cherry, Iceberg"
                     value={formData.variety}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2.5 rounded-lg border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
+                    style={inputStyle}
                   />
                 </div>
 
+                {/* Quantity */}
                 <div>
-                  <label
-                    htmlFor="quantity"
-                    className="block text-sm font-medium text-[color:var(--secondary-black)] mb-2"
-                  >
+                  <label htmlFor="quantity" style={labelStyle}>
                     Quantity Available *
                   </label>
                   <input
@@ -247,15 +294,13 @@ export default function ProductUploadPage() {
                     step="0.1"
                     value={formData.quantity}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2.5 rounded-lg border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
+                    style={inputStyle}
                   />
                 </div>
 
+                {/* Unit */}
                 <div>
-                  <label
-                    htmlFor="unit"
-                    className="block text-sm font-medium text-[color:var(--secondary-black)] mb-2"
-                  >
+                  <label htmlFor="unit" style={labelStyle}>
                     Unit *
                   </label>
                   <select
@@ -264,7 +309,7 @@ export default function ProductUploadPage() {
                     required
                     value={formData.unit}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2.5 rounded-lg border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
+                    style={inputStyle}
                   >
                     <option value="kg">Kilograms (kg)</option>
                     <option value="lbs">Pounds (lbs)</option>
@@ -274,11 +319,9 @@ export default function ProductUploadPage() {
                   </select>
                 </div>
 
+                {/* Quality Grade */}
                 <div>
-                  <label
-                    htmlFor="qualityGrade"
-                    className="block text-sm font-medium text-[color:var(--secondary-black)] mb-2"
-                  >
+                  <label htmlFor="qualityGrade" style={labelStyle}>
                     Quality Grade *
                   </label>
                   <select
@@ -287,7 +330,7 @@ export default function ProductUploadPage() {
                     required
                     value={formData.qualityGrade}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2.5 rounded-lg border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
+                    style={inputStyle}
                   >
                     <option value="">Select grade</option>
                     <option value="premium">Premium</option>
@@ -297,11 +340,9 @@ export default function ProductUploadPage() {
                   </select>
                 </div>
 
+                {/* Harvest Date */}
                 <div>
-                  <label
-                    htmlFor="harvestDate"
-                    className="block text-sm font-medium text-[color:var(--secondary-black)] mb-2"
-                  >
+                  <label htmlFor="harvestDate" style={labelStyle}>
                     Harvest Date *
                   </label>
                   <input
@@ -311,15 +352,13 @@ export default function ProductUploadPage() {
                     required
                     value={formData.harvestDate}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2.5 rounded-lg border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
+                    style={inputStyle}
                   />
                 </div>
 
+                {/* Storage Location */}
                 <div>
-                  <label
-                    htmlFor="storageLocation"
-                    className="block text-sm font-medium text-[color:var(--secondary-black)] mb-2"
-                  >
+                  <label htmlFor="storageLocation" style={labelStyle}>
                     Storage Location *
                   </label>
                   <input
@@ -330,15 +369,13 @@ export default function ProductUploadPage() {
                     placeholder="e.g., Cold storage, Warehouse A"
                     value={formData.storageLocation}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2.5 rounded-lg border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
+                    style={inputStyle}
                   />
                 </div>
 
+                {/* Pricing */}
                 <div>
-                  <label
-                    htmlFor="pricing"
-                    className="block text-sm font-medium text-[color:var(--secondary-black)] mb-2"
-                  >
+                  <label htmlFor="pricing" style={labelStyle}>
                     Pricing (per unit)
                   </label>
                   <input
@@ -348,16 +385,23 @@ export default function ProductUploadPage() {
                     placeholder="e.g., $2.50/kg"
                     value={formData.pricing}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2.5 rounded-lg border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
+                    style={inputStyle}
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-[color:var(--secondary-black)] mb-2">
+              {/* Certifications */}
+              <div style={{ marginTop: 24 }}>
+                <label style={labelStyle}>
                   Certifications (if applicable)
                 </label>
-                <div className="grid grid-cols-2 gap-3">
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+                    gap: 10,
+                  }}
+                >
                   {[
                     "Organic Certified",
                     "GlobalGAP",
@@ -366,7 +410,20 @@ export default function ProductUploadPage() {
                   ].map((cert) => (
                     <label
                       key={cert}
-                      className="flex items-center gap-2 p-3 rounded-lg border border-[color:var(--secondary-soft-highlight)] hover:bg-gray-50 cursor-pointer"
+                      onMouseEnter={() => setHoveredCert(cert)}
+                      onMouseLeave={() => setHoveredCert(null)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        padding: "10px 14px",
+                        borderRadius: 8,
+                        border: `1px solid ${GOV.border}`,
+                        cursor: "pointer",
+                        background:
+                          hoveredCert === cert ? govHoverBg : GOV.cardBg,
+                        transition: "background .15s",
+                      }}
                     >
                       <input
                         type="checkbox"
@@ -387,9 +444,9 @@ export default function ProductUploadPage() {
                             }));
                           }
                         }}
-                        className="h-4 w-4 text-[var(--primary-accent2)] focus:ring-[color:var(--primary-base)] rounded"
+                        style={{ width: 16, height: 16, accentColor: GOV.accent }}
                       />
-                      <span className="text-sm text-[color:var(--secondary-black)]">
+                      <span style={{ fontSize: 13, color: "#1c2b23" }}>
                         {cert}
                       </span>
                     </label>
@@ -399,48 +456,110 @@ export default function ProductUploadPage() {
             </div>
 
             {/* Images */}
-            <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-              <h2 className="text-lg font-semibold text-[color:var(--secondary-black)] mb-4">
-                Product Images
-              </h2>
+            <div style={{ ...govCard, padding: 24 }}>
+              <h2 style={sectionHeading}>Product Images</h2>
 
-              <div className="space-y-4">
-                {/* Upload Button */}
-                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-[color:var(--secondary-soft-highlight)] rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    <PhotoIcon className="h-10 w-10 text-[color:var(--secondary-muted-edge)] mb-2" />
-                    <p className="text-sm text-[color:var(--secondary-muted-edge)]">
-                      Click to upload images
-                    </p>
-                    <p className="text-xs text-[color:var(--secondary-muted-edge)] mt-1">
-                      PNG, JPG up to 10MB
-                    </p>
-                  </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                {/* Upload Zone */}
+                <label
+                  onMouseEnter={() => setHoveredUploadZone(true)}
+                  onMouseLeave={() => setHoveredUploadZone(false)}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: "100%",
+                    border: "2px dashed #ebe7df",
+                    borderRadius: 10,
+                    padding: 32,
+                    textAlign: "center" as const,
+                    cursor: "pointer",
+                    background: hoveredUploadZone ? govHoverBg : "transparent",
+                    transition: "background .15s",
+                  }}
+                >
+                  <PhotoIcon
+                    style={{
+                      width: 40,
+                      height: 40,
+                      color: "#8a9e92",
+                      marginBottom: 8,
+                    }}
+                  />
+                  <p style={{ fontSize: 13, color: "#8a9e92", margin: 0 }}>
+                    Click to upload images
+                  </p>
+                  <p
+                    style={{
+                      fontSize: 11,
+                      color: "#8a9e92",
+                      marginTop: 4,
+                      margin: "4px 0 0",
+                    }}
+                  >
+                    PNG, JPG up to 10MB
+                  </p>
                   <input
                     type="file"
                     multiple
                     accept="image/*"
-                    className="hidden"
+                    style={{ display: "none" }}
                     onChange={handleImageUpload}
                   />
                 </label>
 
                 {/* Image Preview */}
                 {formData.images.length > 0 && (
-                  <div className="grid grid-cols-3 gap-4">
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(3, 1fr)",
+                      gap: 16,
+                    }}
+                  >
                     {formData.images.map((image, index) => (
-                      <div key={index} className="relative group">
+                      <div
+                        key={index}
+                        style={{ position: "relative" }}
+                        onMouseEnter={() => setHoveredImageIdx(index)}
+                        onMouseLeave={() => setHoveredImageIdx(null)}
+                      >
                         <img
                           src={URL.createObjectURL(image)}
                           alt={`Preview ${index + 1}`}
-                          className="w-full h-32 object-cover rounded-lg border border-[color:var(--secondary-soft-highlight)]"
+                          style={{
+                            width: "100%",
+                            height: 128,
+                            objectFit: "cover",
+                            borderRadius: 10,
+                            border: `1px solid ${GOV.border}`,
+                            display: "block",
+                          }}
                         />
                         <button
                           type="button"
                           onClick={() => removeImage(index)}
-                          className="absolute top-2 right-2 p-1 rounded-full bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                          style={{
+                            position: "absolute",
+                            top: 8,
+                            right: 8,
+                            width: 24,
+                            height: 24,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            borderRadius: "50%",
+                            background: "#991b1b",
+                            color: "#fff",
+                            border: "none",
+                            cursor: "pointer",
+                            opacity: hoveredImageIdx === index ? 1 : 0,
+                            transition: "opacity .15s",
+                            padding: 0,
+                          }}
                         >
-                          <XMarkIcon className="h-4 w-4" />
+                          <XMarkIcon style={{ width: 14, height: 14 }} />
                         </button>
                       </div>
                     ))}
@@ -450,84 +569,100 @@ export default function ProductUploadPage() {
             </div>
 
             {/* Reason & Notes */}
-            <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6 space-y-6">
-              <h2 className="text-lg font-semibold text-[color:var(--secondary-black)]">
-                Additional Information
-              </h2>
+            <div style={{ ...govCard, padding: 24 }}>
+              <h2 style={sectionHeading}>Additional Information</h2>
 
-              <div>
-                <label
-                  htmlFor="reason"
-                  className="block text-sm font-medium text-[color:var(--secondary-black)] mb-2"
-                >
-                  Reason for Government Upload *
-                </label>
-                <select
-                  id="reason"
-                  name="reason"
-                  required
-                  value={formData.reason}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-2.5 rounded-lg border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
-                >
-                  <option value="">Select reason</option>
-                  <option value="no-internet">
-                    Vendor lacks internet access
-                  </option>
-                  <option value="technical-assistance">
-                    Technical assistance required
-                  </option>
-                  <option value="emergency">Emergency listing</option>
-                  <option value="program-support">
-                    Program support initiative
-                  </option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                <div>
+                  <label htmlFor="reason" style={labelStyle}>
+                    Reason for Government Upload *
+                  </label>
+                  <select
+                    id="reason"
+                    name="reason"
+                    required
+                    value={formData.reason}
+                    onChange={handleInputChange}
+                    style={inputStyle}
+                  >
+                    <option value="">Select reason</option>
+                    <option value="no-internet">
+                      Vendor lacks internet access
+                    </option>
+                    <option value="technical-assistance">
+                      Technical assistance required
+                    </option>
+                    <option value="emergency">Emergency listing</option>
+                    <option value="program-support">
+                      Program support initiative
+                    </option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
 
-              <div>
-                <label
-                  htmlFor="notes"
-                  className="block text-sm font-medium text-[color:var(--secondary-black)] mb-2"
-                >
-                  Additional Notes
-                </label>
-                <textarea
-                  id="notes"
-                  name="notes"
-                  rows={4}
-                  placeholder="Any additional information about this product..."
-                  value={formData.notes}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-2.5 rounded-lg border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
-                />
+                <div>
+                  <label htmlFor="notes" style={labelStyle}>
+                    Additional Notes
+                  </label>
+                  <textarea
+                    id="notes"
+                    name="notes"
+                    rows={4}
+                    placeholder="Any additional information about this product..."
+                    value={formData.notes}
+                    onChange={handleInputChange}
+                    style={{
+                      ...inputStyle,
+                      resize: "vertical" as const,
+                    }}
+                  />
+                </div>
               </div>
             </div>
 
             {/* Submit Buttons */}
-            <div className="flex items-center justify-between gap-4">
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 16,
+              }}
+            >
               <Link
                 href={
                   preselectedVendorId
                     ? `/government/vendors/${preselectedVendorId}`
                     : "/government/vendors"
                 }
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full border border-[color:var(--secondary-soft-highlight)] text-[color:var(--secondary-black)] text-sm font-medium hover:bg-gray-50 transition-colors"
+                onMouseEnter={() => setHoveredCancel(true)}
+                onMouseLeave={() => setHoveredCancel(false)}
+                style={{
+                  ...govPillButton,
+                  background: hoveredCancel ? govHoverBg : GOV.cardBg,
+                  transition: "background .15s",
+                }}
               >
                 Cancel
               </Link>
 
               <button
                 type="submit"
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-[var(--primary-accent2)] text-white text-sm font-medium hover:bg-[var(--primary-accent3)] transition-colors"
+                onMouseEnter={() => setHoveredSubmit(true)}
+                onMouseLeave={() => setHoveredSubmit(false)}
+                style={{
+                  ...govPrimaryButton,
+                  background: hoveredSubmit ? GOV.accentHover : GOV.accent,
+                  transition: "background .15s",
+                }}
               >
-                <PlusIcon className="h-5 w-5" />
+                <PlusIcon style={{ width: 18, height: 18 }} />
                 Upload Product
               </button>
             </div>
           </div>
         </form>
-      </main>
+      </div>
     </div>
   );
 }

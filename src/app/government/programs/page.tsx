@@ -19,10 +19,29 @@ import {
   selectProgramsStatus,
   selectProgramStats,
 } from "@/store/slices/governmentProgramsSlice";
+import {
+  GOV,
+  govCard,
+  govCardPadded,
+  govSectionHeader,
+  govViewAllLink,
+  govKpiLabel,
+  govKpiValue,
+  govKpiSub,
+  govPageTitle,
+  govPageSubtitle,
+  govPillButton,
+  govPrimaryButton,
+  govStatusPillStyle,
+  govStatusLabel,
+  govHoverBg,
+} from "../styles";
 
 export default function ProgramsPage() {
   const dispatch = useAppDispatch();
   const [selectedProgram, setSelectedProgram] = useState<string | null>(null);
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
+  const [hoveredAction, setHoveredAction] = useState<string | null>(null);
 
   // Redux state
   const programs = useAppSelector(selectPrograms);
@@ -178,121 +197,115 @@ export default function ProgramsPage() {
     { vendor: "Coastal Farms Group", programs: 4, performance: "excellent" },
   ];
 
-  const getStatusConfig = (status: string) => {
-    switch (status) {
-      case "active":
-        return {
-          label: "Active",
-          color: "bg-[var(--primary-base)]/10 text-[color:var(--primary-base)]",
-        };
-      case "planning":
-        return {
-          label: "Planning",
-          color: "bg-yellow-100 text-yellow-800",
-        };
-      case "completed":
-        return {
-          label: "Completed",
-          color: "bg-gray-100 text-gray-800",
-        };
-      default:
-        return {
-          label: "Unknown",
-          color: "bg-gray-100 text-gray-800",
-        };
-    }
-  };
-
   const selectedProgramData = displayPrograms.find(
     (p) => p.id === selectedProgram
   );
 
+  const getPerformanceColor = (perf: string) => {
+    switch (perf) {
+      case "excellent":
+        return GOV.success;
+      case "good":
+        return GOV.accent;
+      default:
+        return GOV.muted;
+    }
+  };
+
+  const getProgressColor = (pct: number) => {
+    if (pct >= 90) return GOV.accent;
+    if (pct >= 70) return GOV.warning;
+    return GOV.brand;
+  };
+
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16">
+    <div style={{ minHeight: "100vh", background: GOV.bg, color: GOV.text }}>
+      <main style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 24px 80px" }}>
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
           <div>
-            <h1 className="text-3xl font-semibold text-[color:var(--secondary-black)]">
-              Programs Management
-            </h1>
-            <p className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
+            <h1 style={govPageTitle}>Programs Management</h1>
+            <p style={govPageSubtitle}>
               Manage government incentive programs and track participation
-              {programsStatus === "loading" && " • Loading..."}
+              {programsStatus === "loading" && " \u2022 Loading..."}
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <button
               onClick={handleRefresh}
               disabled={programsStatus === "loading"}
-              className="inline-flex items-center gap-2 rounded-full bg-white border border-[color:var(--secondary-soft-highlight)] text-[color:var(--secondary-black)] px-4 py-2.5 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                ...govPillButton,
+                opacity: programsStatus === "loading" ? 0.5 : 1,
+                cursor: programsStatus === "loading" ? "not-allowed" : "pointer",
+              }}
             >
               <ArrowPathIcon
-                className={`h-5 w-5 ${
-                  programsStatus === "loading" ? "animate-spin" : ""
-                }`}
+                style={{
+                  width: 16,
+                  height: 16,
+                  animation: programsStatus === "loading" ? "spin 1s linear infinite" : "none",
+                }}
               />
               Refresh
             </button>
             <Link
               href="/government/programs/new"
-              className="inline-flex items-center gap-2 rounded-full bg-[var(--primary-accent2)] text-white px-5 py-2.5 text-sm font-medium hover:bg-[var(--primary-accent3)] transition-colors"
+              style={govPrimaryButton}
             >
-              <PlusIcon className="h-5 w-5" />
+              <PlusIcon style={{ width: 16, height: 16 }} />
               Create New Program
             </Link>
           </div>
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-            <div className="flex items-center gap-2 mb-2">
-              <AcademicCapIcon className="h-5 w-5 text-[color:var(--secondary-muted-edge)]" />
-              <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)]">
-                Active Programs
-              </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 28 }}>
+          <div style={govCardPadded}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+              <AcademicCapIcon style={{ width: 15, height: 15, color: GOV.muted }} />
+              <div style={govKpiLabel}>Active Programs</div>
             </div>
-            <div className="text-3xl font-semibold text-[color:var(--secondary-black)]">
+            <div style={govKpiValue}>
               {programsStatus === "loading"
                 ? "..."
                 : enrollmentStats.active || 0}
             </div>
+            <div style={govKpiSub}>of {enrollmentStats.total || 0} total</div>
           </div>
-          <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-            <div className="flex items-center gap-2 mb-2">
-              <UserGroupIcon className="h-5 w-5 text-[color:var(--secondary-muted-edge)]" />
-              <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)]">
-                Total Enrollments
-              </div>
+
+          <div style={govCardPadded}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+              <UserGroupIcon style={{ width: 15, height: 15, color: GOV.muted }} />
+              <div style={govKpiLabel}>Total Enrollments</div>
             </div>
-            <div className="text-3xl font-semibold text-[color:var(--secondary-black)]">
+            <div style={govKpiValue}>
               {programsStatus === "loading"
                 ? "..."
                 : enrollmentStats.totalEnrollments || 0}
             </div>
+            <div style={govKpiSub}>across all programs</div>
           </div>
-          <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-            <div className="flex items-center gap-2 mb-2">
-              <BanknotesIcon className="h-5 w-5 text-[color:var(--secondary-muted-edge)]" />
-              <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)]">
-                Total Budget
-              </div>
+
+          <div style={govCardPadded}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+              <BanknotesIcon style={{ width: 15, height: 15, color: GOV.muted }} />
+              <div style={govKpiLabel}>Total Budget</div>
             </div>
-            <div className="text-3xl font-semibold text-[color:var(--secondary-black)]">
+            <div style={govKpiValue}>
               {programsStatus === "loading"
                 ? "..."
                 : `$${(enrollmentStats.totalBudget / 1000000).toFixed(1)}M`}
             </div>
+            <div style={govKpiSub}>allocated funds</div>
           </div>
-          <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-            <div className="flex items-center gap-2 mb-2">
-              <ChartBarIcon className="h-5 w-5 text-[color:var(--secondary-muted-edge)]" />
-              <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)]">
-                Budget Used
-              </div>
+
+          <div style={govCardPadded}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+              <ChartBarIcon style={{ width: 15, height: 15, color: GOV.muted }} />
+              <div style={govKpiLabel}>Budget Used</div>
             </div>
-            <div className="text-3xl font-semibold text-[color:var(--primary-base)]">
+            <div style={{ ...govKpiValue, color: GOV.brand }}>
               {programsStatus === "loading"
                 ? "..."
                 : `${Math.round(
@@ -300,85 +313,104 @@ export default function ProgramsPage() {
                       100
                   )}%`}
             </div>
+            <div style={govKpiSub}>utilization rate</div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 24 }}>
           {/* Left Column - Programs List */}
-          <div className="lg:col-span-2 space-y-4">
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {displayPrograms.map((program) => {
-              const statusConfig = getStatusConfig(program.status);
+              const isSelected = selectedProgram === program.id;
+              const isHovered = hoveredCard === program.id;
               return (
                 <div
                   key={program.id}
-                  className={`rounded-2xl border bg-white p-6 transition-all cursor-pointer ${
-                    selectedProgram === program.id
-                      ? "border-[var(--primary-accent2)] shadow-md"
-                      : "border-[color:var(--secondary-soft-highlight)] hover:border-[var(--primary-accent2)]/50 hover:shadow-sm"
-                  }`}
+                  style={{
+                    ...govCard,
+                    padding: "20px 22px",
+                    cursor: "pointer",
+                    borderColor: isSelected
+                      ? GOV.accent
+                      : isHovered
+                        ? GOV.accent
+                        : GOV.border,
+                    background: isHovered && !isSelected ? GOV.bg : GOV.cardBg,
+                    transition: "border-color .15s, background .15s",
+                  }}
                   onClick={() => setSelectedProgram(program.id)}
+                  onMouseEnter={() => setHoveredCard(program.id)}
+                  onMouseLeave={() => setHoveredCard(null)}
                 >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h2 className="text-lg font-semibold text-[color:var(--secondary-black)]">
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                        <h2 style={{ fontSize: 16, fontWeight: 700, color: GOV.text, margin: 0 }}>
                           {program.name}
                         </h2>
-                        <span
-                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${statusConfig.color}`}
-                        >
-                          {statusConfig.label}
+                        <span style={govStatusPillStyle(program.status)}>
+                          {govStatusLabel(program.status)}
                         </span>
                       </div>
-                      <p className="text-sm text-[color:var(--secondary-muted-edge)]">
+                      <p style={{ fontSize: 13, color: GOV.textSecondary, margin: 0, lineHeight: 1.45 }}>
                         {program.description}
                       </p>
-                      <div className="inline-flex items-center rounded-full bg-[var(--primary-accent1)]/15 text-[color:var(--primary-accent3)] px-3 py-1 text-xs mt-2">
+                      <span
+                        style={{
+                          display: "inline-block",
+                          marginTop: 8,
+                          padding: "2px 10px",
+                          borderRadius: 99,
+                          fontSize: 11,
+                          fontWeight: 600,
+                          background: GOV.brandLight,
+                          color: GOV.brand,
+                        }}
+                      >
                         {program.category}
-                      </div>
+                      </span>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 14 }}>
                     <div>
-                      <div className="text-xs text-[color:var(--secondary-muted-edge)] mb-1">
+                      <div style={{ fontSize: 10.5, color: GOV.muted, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: ".04em", marginBottom: 3 }}>
                         Participants
                       </div>
-                      <div className="text-lg font-semibold text-[color:var(--secondary-black)]">
+                      <div style={{ fontSize: 18, fontWeight: 800, color: GOV.text }}>
                         {program.participants}
                       </div>
-                      <div className="text-xs text-[color:var(--secondary-muted-edge)]">
+                      <div style={{ fontSize: 11, color: GOV.lightMuted, fontWeight: 500 }}>
                         / {program.target_participants} target
                       </div>
                     </div>
                     <div>
-                      <div className="text-xs text-[color:var(--secondary-muted-edge)] mb-1">
+                      <div style={{ fontSize: 10.5, color: GOV.muted, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: ".04em", marginBottom: 3 }}>
                         Budget
                       </div>
-                      <div className="text-lg font-semibold text-[color:var(--secondary-black)]">
+                      <div style={{ fontSize: 18, fontWeight: 800, color: GOV.text }}>
                         ${(program.budget / 1000).toFixed(0)}K
                       </div>
                     </div>
                     <div>
-                      <div className="text-xs text-[color:var(--secondary-muted-edge)] mb-1">
+                      <div style={{ fontSize: 10.5, color: GOV.muted, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: ".04em", marginBottom: 3 }}>
                         Used
                       </div>
-                      <div className="text-lg font-semibold text-[color:var(--primary-base)]">
+                      <div style={{ fontSize: 18, fontWeight: 800, color: GOV.brand }}>
                         {program.budget_percentage}%
                       </div>
                     </div>
                     <div>
-                      <div className="text-xs text-[color:var(--secondary-muted-edge)] mb-1">
+                      <div style={{ fontSize: 10.5, color: GOV.muted, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: ".04em", marginBottom: 3 }}>
                         Performance
                       </div>
                       <div
-                        className={`text-sm font-medium capitalize ${
-                          program.performance === "excellent"
-                            ? "text-[color:var(--primary-base)]"
-                            : program.performance === "good"
-                              ? "text-[color:var(--primary-accent3)]"
-                              : "text-[color:var(--secondary-muted-edge)]"
-                        }`}
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 700,
+                          textTransform: "capitalize" as const,
+                          color: getPerformanceColor(program.performance),
+                        }}
                       >
                         {program.performance}
                       </div>
@@ -387,25 +419,31 @@ export default function ProgramsPage() {
 
                   {/* Budget Progress Bar */}
                   <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-[color:var(--secondary-muted-edge)]">
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
+                      <span style={{ fontSize: 10.5, color: GOV.muted, fontWeight: 600 }}>
                         Budget Utilization
                       </span>
-                      <span className="text-xs font-medium text-[color:var(--secondary-black)]">
+                      <span style={{ fontSize: 11, fontWeight: 700, color: GOV.text }}>
                         ${(program.budget_used / 1000).toFixed(1)}K / $
                         {(program.budget / 1000).toFixed(0)}K
                       </span>
                     </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      style={{
+                        height: 5,
+                        background: GOV.border,
+                        borderRadius: 99,
+                        overflow: "hidden",
+                      }}
+                    >
                       <div
-                        className={`h-full rounded-full transition-all ${
-                          program.budget_percentage >= 90
-                            ? "bg-[var(--primary-accent2)]"
-                            : program.budget_percentage >= 70
-                              ? "bg-yellow-500"
-                              : "bg-[var(--primary-base)]"
-                        }`}
-                        style={{ width: `${program.budget_percentage}%` }}
+                        style={{
+                          height: "100%",
+                          borderRadius: 99,
+                          width: `${program.budget_percentage}%`,
+                          background: getProgressColor(program.budget_percentage),
+                          transition: "width .3s ease",
+                        }}
                       />
                     </div>
                   </div>
@@ -415,23 +453,21 @@ export default function ProgramsPage() {
           </div>
 
           {/* Right Column - Program Details */}
-          <div className="space-y-6">
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {selectedProgramData ? (
               <>
                 {/* Program Details */}
-                <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white overflow-hidden">
-                  <div className="p-5 border-b border-[color:var(--secondary-soft-highlight)]">
-                    <h3 className="text-base font-semibold text-[color:var(--secondary-black)]">
-                      Program Details
-                    </h3>
+                <div style={{ ...govCard, overflow: "hidden" }}>
+                  <div style={{ padding: "14px 18px", borderBottom: `1px solid ${GOV.border}` }}>
+                    <h3 style={govSectionHeader}>Program Details</h3>
                   </div>
-                  <div className="p-5 space-y-4">
+                  <div style={{ padding: "16px 18px", display: "flex", flexDirection: "column", gap: 16 }}>
                     <div>
-                      <div className="text-xs text-[color:var(--secondary-muted-edge)] uppercase tracking-wider mb-2">
+                      <div style={{ ...govKpiLabel, marginBottom: 6 }}>
                         Duration
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-[color:var(--secondary-black)]">
-                        <ClockIcon className="h-4 w-4" />
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: GOV.text, fontWeight: 500 }}>
+                        <ClockIcon style={{ width: 14, height: 14, color: GOV.muted }} />
                         {new Date(
                           (selectedProgramData as any).start_date ??
                             (selectedProgramData as any).startDate
@@ -445,16 +481,16 @@ export default function ProgramsPage() {
                     </div>
 
                     <div>
-                      <div className="text-xs text-[color:var(--secondary-muted-edge)] uppercase tracking-wider mb-2">
+                      <div style={{ ...govKpiLabel, marginBottom: 8 }}>
                         Benefits
                       </div>
-                      <ul className="space-y-2">
+                      <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
                         {selectedProgramData.benefits.map((benefit, idx) => (
                           <li
                             key={idx}
-                            className="flex items-start gap-2 text-sm text-[color:var(--secondary-black)]"
+                            style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: 13, color: GOV.text }}
                           >
-                            <CheckCircleIcon className="h-4 w-4 text-[color:var(--primary-base)] mt-0.5 flex-shrink-0" />
+                            <CheckCircleIcon style={{ width: 14, height: 14, color: GOV.brand, marginTop: 2, flexShrink: 0 }} />
                             {benefit}
                           </li>
                         ))}
@@ -462,17 +498,17 @@ export default function ProgramsPage() {
                     </div>
 
                     <div>
-                      <div className="text-xs text-[color:var(--secondary-muted-edge)] uppercase tracking-wider mb-2">
+                      <div style={{ ...govKpiLabel, marginBottom: 8 }}>
                         Eligibility Criteria
                       </div>
-                      <ul className="space-y-2">
+                      <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
                         {selectedProgramData.eligibility.map(
                           (criterion, idx) => (
                             <li
                               key={idx}
-                              className="flex items-start gap-2 text-sm text-[color:var(--secondary-black)]"
+                              style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: 13, color: GOV.text }}
                             >
-                              <CheckCircleIcon className="h-4 w-4 text-[color:var(--secondary-muted-edge)] mt-0.5 flex-shrink-0" />
+                              <CheckCircleIcon style={{ width: 14, height: 14, color: GOV.muted, marginTop: 2, flexShrink: 0 }} />
                               {criterion}
                             </li>
                           )
@@ -480,10 +516,16 @@ export default function ProgramsPage() {
                       </ul>
                     </div>
 
-                    <div className="pt-4 border-t border-[color:var(--secondary-soft-highlight)]">
+                    <div style={{ paddingTop: 12, borderTop: `1px solid ${GOV.border}` }}>
                       <Link
                         href={`/government/programs/${selectedProgramData.id}/enroll`}
-                        className="block w-full text-center px-4 py-2.5 rounded-lg bg-[var(--primary-accent2)] text-white text-sm font-medium hover:bg-[var(--primary-accent3)] transition-colors"
+                        style={{
+                          ...govPrimaryButton,
+                          display: "flex",
+                          justifyContent: "center",
+                          width: "100%",
+                          padding: "10px 18px",
+                        }}
                       >
                         Enroll Vendors
                       </Link>
@@ -492,10 +534,10 @@ export default function ProgramsPage() {
                 </div>
               </>
             ) : (
-              <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-12">
-                <div className="text-center">
-                  <AcademicCapIcon className="h-12 w-12 mx-auto text-[color:var(--secondary-muted-edge)] mb-3" />
-                  <p className="text-sm text-[color:var(--secondary-muted-edge)]">
+              <div style={{ ...govCard, padding: "48px 20px" }}>
+                <div style={{ textAlign: "center" as const }}>
+                  <AcademicCapIcon style={{ width: 40, height: 40, margin: "0 auto 10px", color: GOV.lightMuted }} />
+                  <p style={{ fontSize: 13, color: GOV.muted, margin: 0, fontWeight: 500 }}>
                     Select a program to view details
                   </p>
                 </div>
@@ -503,35 +545,38 @@ export default function ProgramsPage() {
             )}
 
             {/* Top Performers */}
-            <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white overflow-hidden">
-              <div className="p-5 border-b border-[color:var(--secondary-soft-highlight)]">
-                <h3 className="text-base font-semibold text-[color:var(--secondary-black)]">
-                  Top Performers
-                </h3>
-                <p className="text-xs text-[color:var(--secondary-muted-edge)] mt-0.5">
+            <div style={{ ...govCard, overflow: "hidden" }}>
+              <div style={{ padding: "14px 18px", borderBottom: `1px solid ${GOV.border}` }}>
+                <h3 style={govSectionHeader}>Top Performers</h3>
+                <p style={{ fontSize: 11, color: GOV.muted, margin: "3px 0 0", fontWeight: 500 }}>
                   Most active program participants
                 </p>
               </div>
-              <div className="p-4 space-y-3">
+              <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
                 {topPerformers.map((performer, idx) => (
                   <div
                     key={idx}
-                    className="flex items-center justify-between p-3 rounded-lg border border-[color:var(--secondary-soft-highlight)]"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "10px 12px",
+                      borderRadius: 8,
+                      border: `1px solid ${GOV.border}`,
+                    }}
                   >
                     <div>
-                      <div className="text-sm font-medium text-[color:var(--secondary-black)]">
+                      <div style={{ fontSize: 13, fontWeight: 600, color: GOV.text }}>
                         {performer.vendor}
                       </div>
-                      <div className="text-xs text-[color:var(--secondary-muted-edge)] mt-0.5">
+                      <div style={{ fontSize: 11, color: GOV.muted, marginTop: 2, fontWeight: 500 }}>
                         {performer.programs} programs
                       </div>
                     </div>
                     <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
-                        performer.performance === "excellent"
-                          ? "bg-[var(--primary-base)]/10 text-[color:var(--primary-base)]"
-                          : "bg-[var(--primary-accent1)]/15 text-[color:var(--primary-accent3)]"
-                      }`}
+                      style={govStatusPillStyle(
+                        performer.performance === "excellent" ? "compliant" : "pending"
+                      )}
                     >
                       {performer.performance}
                     </span>
@@ -541,31 +586,36 @@ export default function ProgramsPage() {
             </div>
 
             {/* Quick Actions */}
-            <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white overflow-hidden">
-              <div className="p-5 border-b border-[color:var(--secondary-soft-highlight)]">
-                <h3 className="text-base font-semibold text-[color:var(--secondary-black)]">
-                  Quick Actions
-                </h3>
+            <div style={{ ...govCard, overflow: "hidden" }}>
+              <div style={{ padding: "14px 18px", borderBottom: `1px solid ${GOV.border}` }}>
+                <h3 style={govSectionHeader}>Quick Actions</h3>
               </div>
-              <div className="p-4 space-y-2">
-                <Link
-                  href="/government/reporting?type=program-participation"
-                  className="block px-4 py-2.5 rounded-lg hover:bg-gray-50 transition-colors text-sm text-[color:var(--secondary-black)]"
-                >
-                  Generate Program Report
-                </Link>
-                <Link
-                  href="/government/vendors"
-                  className="block px-4 py-2.5 rounded-lg hover:bg-gray-50 transition-colors text-sm text-[color:var(--secondary-black)]"
-                >
-                  View All Vendors
-                </Link>
-                <Link
-                  href="/government/data"
-                  className="block px-4 py-2.5 rounded-lg hover:bg-gray-50 transition-colors text-sm text-[color:var(--secondary-black)]"
-                >
-                  Export Program Data
-                </Link>
+              <div style={{ padding: "8px 10px", display: "flex", flexDirection: "column", gap: 2 }}>
+                {[
+                  { href: "/government/reporting?type=program-participation", label: "Generate Program Report", id: "report" },
+                  { href: "/government/vendors", label: "View All Vendors", id: "vendors" },
+                  { href: "/government/data", label: "Export Program Data", id: "export" },
+                ].map((action) => (
+                  <Link
+                    key={action.id}
+                    href={action.href}
+                    style={{
+                      display: "block",
+                      padding: "10px 14px",
+                      borderRadius: 8,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: hoveredAction === action.id ? GOV.accent : GOV.text,
+                      textDecoration: "none",
+                      background: hoveredAction === action.id ? govHoverBg : "transparent",
+                      transition: "background .15s, color .15s",
+                    }}
+                    onMouseEnter={() => setHoveredAction(action.id)}
+                    onMouseLeave={() => setHoveredAction(null)}
+                  >
+                    {action.label}
+                  </Link>
+                ))}
               </div>
             </div>
           </div>

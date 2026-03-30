@@ -4,14 +4,73 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
+import {
+  GOV,
+  govCard,
+  govPageTitle,
+  govPageSubtitle,
+  govPillButton,
+  govPrimaryButton,
+  govHoverBg,
+} from "../../styles";
+
+/* ── Reusable inline-style fragments ────────────────────────────────────────── */
+
+const inputStyle: React.CSSProperties = {
+  border: "1px solid #ebe7df",
+  borderRadius: 8,
+  padding: "10px 14px",
+  fontSize: 13,
+  width: "100%",
+  fontFamily: "inherit",
+  outline: "none",
+  color: "#1c2b23",
+  background: "#fff",
+};
+
+const labelStyle: React.CSSProperties = {
+  fontSize: 13,
+  fontWeight: 700,
+  color: "#1c2b23",
+  marginBottom: 6,
+  display: "block",
+};
+
+const sectionTitle: React.CSSProperties = {
+  fontSize: 18,
+  fontWeight: 800,
+  color: "#1c2b23",
+  margin: 0,
+};
+
+const row2: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
+  gap: 20,
+};
+
+const row3: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr 1fr",
+  gap: 20,
+};
+
+const vStack = (gap = 20): React.CSSProperties => ({
+  display: "flex",
+  flexDirection: "column",
+  gap,
+});
 
 export default function NewVendorPage() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
+  const [hoverPrev, setHoverPrev] = useState(false);
+  const [hoverNext, setHoverNext] = useState(false);
   const totalSteps = 4;
   const progressPercent = ((currentStep - 1) / (totalSteps - 1)) * 100;
 
-  // Form state
+  /* ── Form state ────────────────────────────────────────────────────────────── */
+
   const [formData, setFormData] = useState({
     // Personal Details
     vendorName: "",
@@ -73,83 +132,147 @@ export default function NewVendorPage() {
     }
   };
 
+  /* ── Step labels ───────────────────────────────────────────────────────────── */
+
+  const steps = ["Personal", "Land", "Farm", "Programs"];
+
+  /* ── Checkbox-row hover states ─────────────────────────────────────────────── */
+
+  const [hoveredCheckbox, setHoveredCheckbox] = useState<string | null>(null);
+
+  const checkboxRow = (
+    name: string,
+    label: string,
+    checked: boolean,
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  ) => (
+    <label
+      key={name}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "12px 14px",
+        borderRadius: 8,
+        border: "1px solid #ebe7df",
+        cursor: "pointer",
+        background: hoveredCheckbox === name ? govHoverBg : "#fff",
+        transition: "background .15s",
+      }}
+      onMouseEnter={() => setHoveredCheckbox(name)}
+      onMouseLeave={() => setHoveredCheckbox(null)}
+    >
+      <input
+        type="checkbox"
+        name={name}
+        checked={checked}
+        onChange={onChange}
+        style={{ accentColor: GOV.brand, width: 16, height: 16 }}
+      />
+      <span style={{ fontSize: 13, color: "#1c2b23" }}>{label}</span>
+    </label>
+  );
+
+  /* ── Render ────────────────────────────────────────────────────────────────── */
+
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16">
-        {/* Back Button */}
+    <div style={{ minHeight: "100vh", background: GOV.bg, color: GOV.text }}>
+      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 24px 80px" }}>
+        {/* Back link */}
         <Link
           href="/government/vendors"
-          className="inline-flex items-center gap-2 text-sm text-[color:var(--secondary-muted-edge)] hover:text-[color:var(--secondary-black)] mb-6"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: 13,
+            fontWeight: 600,
+            color: GOV.muted,
+            textDecoration: "none",
+            marginBottom: 20,
+          }}
         >
-          <ArrowLeftIcon className="h-4 w-4" />
+          <ArrowLeftIcon style={{ width: 14, height: 14 }} />
           Back to Vendors
         </Link>
 
-        {/* Header */}
-        <div className="rounded-3xl bg-[var(--secondary-highlight2)]/14 border border-[color:var(--secondary-soft-highlight)] px-6 sm:px-10 py-8 mb-8">
-          <h1 className="text-3xl font-semibold text-[color:var(--secondary-black)]">
-            Register New Vendor
-          </h1>
-          <p className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
+        {/* Header card */}
+        <div
+          style={{
+            ...govCard,
+            padding: "28px 32px",
+            marginBottom: 28,
+          }}
+        >
+          <h1 style={govPageTitle}>Register New Vendor</h1>
+          <p style={govPageSubtitle}>
             Complete the following steps to register a new agricultural vendor
           </p>
-          {/* Sleek Progress Bar */}
-          <div className="mt-6">
-            <div className="relative h-2 rounded-full bg-[color:var(--secondary-soft-highlight)]/60 overflow-hidden">
+
+          {/* Progress bar */}
+          <div style={{ marginTop: 22 }}>
+            <div
+              style={{
+                position: "relative",
+                height: 6,
+                borderRadius: 99,
+                background: "#ebe7df",
+                overflow: "hidden",
+              }}
+            >
               <div
-                className="absolute inset-y-0 left-0 bg-[var(--secondary-highlight2)] transition-all duration-300"
-                style={{ width: `${progressPercent}%` }}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  bottom: 0,
+                  width: `${progressPercent}%`,
+                  background: GOV.brand,
+                  borderRadius: 99,
+                  transition: "width .3s ease",
+                }}
               />
             </div>
-            <div className="mt-3 grid grid-cols-4 text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)]">
-              <div
-                className={`text-left ${
-                  currentStep >= 1 ? "text-[var(--secondary-highlight2)]" : ""
-                }`}
-              >
-                Personal
-              </div>
-              <div
-                className={`text-center ${
-                  currentStep >= 2 ? "text-[var(--secondary-highlight2)]" : ""
-                }`}
-              >
-                Land
-              </div>
-              <div
-                className={`text-center ${
-                  currentStep >= 3 ? "text-[var(--secondary-highlight2)]" : ""
-                }`}
-              >
-                Farm
-              </div>
-              <div
-                className={`text-right ${
-                  currentStep >= 4 ? "text-[var(--secondary-highlight2)]" : ""
-                }`}
-              >
-                Programs
-              </div>
+
+            {/* Step labels */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(4, 1fr)",
+                marginTop: 10,
+              }}
+            >
+              {steps.map((s, i) => (
+                <span
+                  key={s}
+                  style={{
+                    fontSize: 10.5,
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: ".06em",
+                    color: currentStep >= i + 1 ? GOV.brand : GOV.muted,
+                    textAlign:
+                      i === 0 ? "left" : i === steps.length - 1 ? "right" : "center",
+                  }}
+                >
+                  {s}
+                </span>
+              ))}
             </div>
           </div>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit}>
-          <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-8">
-            {/* Step 1: Personal Details */}
+          <div style={{ ...govCard, padding: 24 }}>
+            {/* ── Step 1: Personal Details ─────────────────────────────────── */}
             {currentStep === 1 && (
-              <div className="space-y-6">
-                <h2 className="text-xl font-semibold text-[color:var(--secondary-black)]">
-                  Personal & Contact Details
-                </h2>
+              <div style={vStack(20)}>
+                <h2 style={sectionTitle}>Personal &amp; Contact Details</h2>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div style={row2}>
                   <div>
-                    <label
-                      htmlFor="vendorName"
-                      className="block text-sm font-medium text-[color:var(--secondary-black)] mb-2"
-                    >
+                    <label htmlFor="vendorName" style={labelStyle}>
                       Vendor/Farm Name *
                     </label>
                     <input
@@ -159,15 +282,12 @@ export default function NewVendorPage() {
                       required
                       value={formData.vendorName}
                       onChange={handleInputChange}
-                      className="input w-full"
+                      style={inputStyle}
                     />
                   </div>
 
                   <div>
-                    <label
-                      htmlFor="contactPerson"
-                      className="block text-sm font-medium text-[color:var(--secondary-black)] mb-2"
-                    >
+                    <label htmlFor="contactPerson" style={labelStyle}>
                       Contact Person *
                     </label>
                     <input
@@ -177,15 +297,12 @@ export default function NewVendorPage() {
                       required
                       value={formData.contactPerson}
                       onChange={handleInputChange}
-                      className="input w-full"
+                      style={inputStyle}
                     />
                   </div>
 
                   <div>
-                    <label
-                      htmlFor="email"
-                      className="block text-sm font-medium text-[color:var(--secondary-black)] mb-2"
-                    >
+                    <label htmlFor="email" style={labelStyle}>
                       Email Address *
                     </label>
                     <input
@@ -195,15 +312,12 @@ export default function NewVendorPage() {
                       required
                       value={formData.email}
                       onChange={handleInputChange}
-                      className="input w-full"
+                      style={inputStyle}
                     />
                   </div>
 
                   <div>
-                    <label
-                      htmlFor="phone"
-                      className="block text-sm font-medium text-[color:var(--secondary-black)] mb-2"
-                    >
+                    <label htmlFor="phone" style={labelStyle}>
                       Phone Number *
                     </label>
                     <input
@@ -213,16 +327,13 @@ export default function NewVendorPage() {
                       required
                       value={formData.phone}
                       onChange={handleInputChange}
-                      className="input w-full"
+                      style={inputStyle}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label
-                    htmlFor="address"
-                    className="block text-sm font-medium text-[color:var(--secondary-black)] mb-2"
-                  >
+                  <label htmlFor="address" style={labelStyle}>
                     Farm Location/Address *
                   </label>
                   <textarea
@@ -232,16 +343,13 @@ export default function NewVendorPage() {
                     rows={3}
                     value={formData.address}
                     onChange={handleInputChange}
-                    className="input w-full"
+                    style={{ ...inputStyle, resize: "vertical" }}
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div style={row2}>
                   <div>
-                    <label
-                      htmlFor="gpsLat"
-                      className="block text-sm font-medium text-[color:var(--secondary-black)] mb-2"
-                    >
+                    <label htmlFor="gpsLat" style={labelStyle}>
                       GPS Latitude *
                     </label>
                     <input
@@ -252,15 +360,12 @@ export default function NewVendorPage() {
                       placeholder="e.g., 18.0179"
                       value={formData.gpsLat}
                       onChange={handleInputChange}
-                      className="input w-full"
+                      style={inputStyle}
                     />
                   </div>
 
                   <div>
-                    <label
-                      htmlFor="gpsLng"
-                      className="block text-sm font-medium text-[color:var(--secondary-black)] mb-2"
-                    >
+                    <label htmlFor="gpsLng" style={labelStyle}>
                       GPS Longitude *
                     </label>
                     <input
@@ -271,26 +376,21 @@ export default function NewVendorPage() {
                       placeholder="e.g., -76.8099"
                       value={formData.gpsLng}
                       onChange={handleInputChange}
-                      className="input w-full"
+                      style={inputStyle}
                     />
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Step 2: Land Details */}
+            {/* ── Step 2: Land Details ─────────────────────────────────────── */}
             {currentStep === 2 && (
-              <div className="space-y-6">
-                <h2 className="text-xl font-semibold text-[color:var(--secondary-black)]">
-                  Land Details
-                </h2>
+              <div style={vStack(20)}>
+                <h2 style={sectionTitle}>Land Details</h2>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div style={row2}>
                   <div>
-                    <label
-                      htmlFor="totalAcreage"
-                      className="block text-sm font-medium text-[color:var(--secondary-black)] mb-2"
-                    >
+                    <label htmlFor="totalAcreage" style={labelStyle}>
                       Total Acreage *
                     </label>
                     <input
@@ -302,15 +402,12 @@ export default function NewVendorPage() {
                       step="0.1"
                       value={formData.totalAcreage}
                       onChange={handleInputChange}
-                      className="input w-full"
+                      style={inputStyle}
                     />
                   </div>
 
                   <div>
-                    <label
-                      htmlFor="utilizedAcreage"
-                      className="block text-sm font-medium text-[color:var(--secondary-black)] mb-2"
-                    >
+                    <label htmlFor="utilizedAcreage" style={labelStyle}>
                       Currently Utilized Acreage *
                     </label>
                     <input
@@ -322,16 +419,23 @@ export default function NewVendorPage() {
                       step="0.1"
                       value={formData.utilizedAcreage}
                       onChange={handleInputChange}
-                      className="input w-full"
+                      style={inputStyle}
                     />
                   </div>
                 </div>
 
                 {formData.totalAcreage && formData.utilizedAcreage && (
-                  <div className="p-4 rounded-2xl bg-[var(--secondary-highlight2)]/10 border border-[color:var(--secondary-soft-highlight)]">
-                    <div className="text-sm text-[color:var(--secondary-black)]">
+                  <div
+                    style={{
+                      padding: "14px 18px",
+                      borderRadius: 10,
+                      background: GOV.brandLight,
+                      border: "1px solid #ebe7df",
+                    }}
+                  >
+                    <div style={{ fontSize: 13, color: "#1c2b23" }}>
                       Available acreage:{" "}
-                      <span className="font-semibold">
+                      <span style={{ fontWeight: 700 }}>
                         {(
                           parseFloat(formData.totalAcreage) -
                           parseFloat(formData.utilizedAcreage)
@@ -339,7 +443,13 @@ export default function NewVendorPage() {
                         acres
                       </span>
                     </div>
-                    <div className="text-xs text-[color:var(--secondary-muted-edge)] mt-1">
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: GOV.muted,
+                        marginTop: 4,
+                      }}
+                    >
                       {(
                         (parseFloat(formData.utilizedAcreage) /
                           parseFloat(formData.totalAcreage)) *
@@ -352,52 +462,32 @@ export default function NewVendorPage() {
               </div>
             )}
 
-            {/* Step 3: Farm Details */}
+            {/* ── Step 3: Farm Details ─────────────────────────────────────── */}
             {currentStep === 3 && (
-              <div className="space-y-6">
-                <h2 className="text-xl font-semibold text-[color:var(--secondary-black)]">
-                  Farm Infrastructure & Details
-                </h2>
+              <div style={vStack(20)}>
+                <h2 style={sectionTitle}>Farm Infrastructure &amp; Details</h2>
 
                 <div>
-                  <label className="block text-sm font-medium text-[color:var(--secondary-black)] mb-2">
-                    Infrastructure
-                  </label>
-                  <div className="space-y-3">
-                    <label className="flex items-center gap-3 p-3 rounded-lg border border-[color:var(--secondary-soft-highlight)] hover:bg-gray-50 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        name="irrigation"
-                        checked={formData.irrigation}
-                        onChange={handleInputChange}
-                        className="h-4 w-4 text-[var(--secondary-highlight2)] focus:ring-[color:var(--primary-base)] rounded"
-                      />
-                      <span className="text-sm text-[color:var(--secondary-black)]">
-                        Irrigation System
-                      </span>
-                    </label>
-
-                    <label className="flex items-center gap-3 p-3 rounded-lg border border-[color:var(--secondary-soft-highlight)] hover:bg-gray-50 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        name="rainwaterHarvesting"
-                        checked={formData.rainwaterHarvesting}
-                        onChange={handleInputChange}
-                        className="h-4 w-4 text-[var(--secondary-highlight2)] focus:ring-[color:var(--primary-base)] rounded"
-                      />
-                      <span className="text-sm text-[color:var(--secondary-black)]">
-                        Rainwater Harvesting System
-                      </span>
-                    </label>
+                  <span style={labelStyle}>Infrastructure</span>
+                  <div style={vStack(10)}>
+                    {checkboxRow(
+                      "irrigation",
+                      "Irrigation System",
+                      formData.irrigation,
+                      handleInputChange
+                    )}
+                    {checkboxRow(
+                      "rainwaterHarvesting",
+                      "Rainwater Harvesting System",
+                      formData.rainwaterHarvesting,
+                      handleInputChange
+                    )}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div style={row3}>
                   <div>
-                    <label
-                      htmlFor="ponds"
-                      className="block text-sm font-medium text-[color:var(--secondary-black)] mb-2"
-                    >
+                    <label htmlFor="ponds" style={labelStyle}>
                       Number of Ponds
                     </label>
                     <input
@@ -407,15 +497,12 @@ export default function NewVendorPage() {
                       min="0"
                       value={formData.ponds}
                       onChange={handleInputChange}
-                      className="input w-full"
+                      style={inputStyle}
                     />
                   </div>
 
                   <div>
-                    <label
-                      htmlFor="greenhouses"
-                      className="block text-sm font-medium text-[color:var(--secondary-black)] mb-2"
-                    >
+                    <label htmlFor="greenhouses" style={labelStyle}>
                       Number of Greenhouses
                     </label>
                     <input
@@ -425,15 +512,12 @@ export default function NewVendorPage() {
                       min="0"
                       value={formData.greenhouses}
                       onChange={handleInputChange}
-                      className="input w-full"
+                      style={inputStyle}
                     />
                   </div>
 
                   <div>
-                    <label
-                      htmlFor="shadeHouses"
-                      className="block text-sm font-medium text-[color:var(--secondary-black)] mb-2"
-                    >
+                    <label htmlFor="shadeHouses" style={labelStyle}>
                       Number of Shade Houses
                     </label>
                     <input
@@ -443,16 +527,13 @@ export default function NewVendorPage() {
                       min="0"
                       value={formData.shadeHouses}
                       onChange={handleInputChange}
-                      className="input w-full"
+                      style={inputStyle}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label
-                    htmlFor="transportation"
-                    className="block text-sm font-medium text-[color:var(--secondary-black)] mb-2"
-                  >
+                  <label htmlFor="transportation" style={labelStyle}>
                     Transportation Availability
                   </label>
                   <textarea
@@ -462,24 +543,30 @@ export default function NewVendorPage() {
                     placeholder="e.g., 2 trucks, 1 van"
                     value={formData.transportation}
                     onChange={handleInputChange}
-                    className="input w-full"
+                    style={{ ...inputStyle, resize: "vertical" }}
                   />
                 </div>
               </div>
             )}
 
-            {/* Step 4: Programs */}
+            {/* ── Step 4: Programs ────────────────────────────────────────── */}
             {currentStep === 4 && (
-              <div className="space-y-6">
-                <h2 className="text-xl font-semibold text-[color:var(--secondary-black)]">
-                  Government Programs (Optional)
-                </h2>
-                <p className="text-sm text-[color:var(--secondary-muted-edge)]">
-                  Select which government incentive programs this vendor should
-                  be enrolled in
-                </p>
+              <div style={vStack(20)}>
+                <div>
+                  <h2 style={sectionTitle}>Government Programs (Optional)</h2>
+                  <p
+                    style={{
+                      fontSize: 13,
+                      color: GOV.muted,
+                      marginTop: 6,
+                    }}
+                  >
+                    Select which government incentive programs this vendor should
+                    be enrolled in
+                  </p>
+                </div>
 
-                <div className="space-y-3">
+                <div style={vStack(10)}>
                   {[
                     "Irrigation Support Program",
                     "Organic Certification",
@@ -489,7 +576,20 @@ export default function NewVendorPage() {
                   ].map((program) => (
                     <label
                       key={program}
-                      className="flex items-start gap-3 p-4 rounded-lg border border-[color:var(--secondary-soft-highlight)] hover:bg-gray-50 cursor-pointer"
+                      style={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: 12,
+                        padding: "14px 16px",
+                        borderRadius: 8,
+                        border: "1px solid #ebe7df",
+                        cursor: "pointer",
+                        background:
+                          hoveredCheckbox === program ? govHoverBg : "#fff",
+                        transition: "background .15s",
+                      }}
+                      onMouseEnter={() => setHoveredCheckbox(program)}
+                      onMouseLeave={() => setHoveredCheckbox(null)}
                     >
                       <input
                         type="checkbox"
@@ -510,13 +610,30 @@ export default function NewVendorPage() {
                             }));
                           }
                         }}
-                        className="mt-0.5 h-4 w-4 text-[var(--secondary-highlight2)] focus:ring-[color:var(--primary-base)] rounded"
+                        style={{
+                          accentColor: GOV.brand,
+                          width: 16,
+                          height: 16,
+                          marginTop: 2,
+                        }}
                       />
-                      <div className="flex-1">
-                        <div className="text-sm font-medium text-[color:var(--secondary-black)]">
+                      <div style={{ flex: 1 }}>
+                        <div
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 700,
+                            color: "#1c2b23",
+                          }}
+                        >
                           {program}
                         </div>
-                        <div className="text-xs text-[color:var(--secondary-muted-edge)] mt-1">
+                        <div
+                          style={{
+                            fontSize: 11,
+                            color: GOV.muted,
+                            marginTop: 4,
+                          }}
+                        >
                           Program description and benefits
                         </div>
                       </div>
@@ -526,13 +643,32 @@ export default function NewVendorPage() {
               </div>
             )}
 
-            {/* Navigation Buttons */}
-            <div className="flex items-center justify-between mt-8 pt-6 border-t border-[color:var(--secondary-soft-highlight)]">
+            {/* ── Navigation Buttons ──────────────────────────────────────── */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginTop: 28,
+                paddingTop: 20,
+                borderTop: "1px solid #ebe7df",
+              }}
+            >
               <button
                 type="button"
                 onClick={prevStep}
                 disabled={currentStep === 1}
-                className="btn btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
+                onMouseEnter={() => setHoverPrev(true)}
+                onMouseLeave={() => setHoverPrev(false)}
+                style={{
+                  ...govPillButton,
+                  opacity: currentStep === 1 ? 0.45 : 1,
+                  cursor: currentStep === 1 ? "not-allowed" : "pointer",
+                  background:
+                    hoverPrev && currentStep !== 1
+                      ? govHoverBg
+                      : govPillButton.background,
+                }}
               >
                 Previous
               </button>
@@ -541,14 +677,28 @@ export default function NewVendorPage() {
                 <button
                   type="button"
                   onClick={nextStep}
-                  className="btn bg-[var(--secondary-highlight2)] text-white hover:brightness-95"
+                  onMouseEnter={() => setHoverNext(true)}
+                  onMouseLeave={() => setHoverNext(false)}
+                  style={{
+                    ...govPrimaryButton,
+                    background: hoverNext
+                      ? GOV.accentHover
+                      : govPrimaryButton.background,
+                  }}
                 >
                   Next
                 </button>
               ) : (
                 <button
                   type="submit"
-                  className="btn bg-[var(--secondary-highlight2)] text-white hover:brightness-95"
+                  onMouseEnter={() => setHoverNext(true)}
+                  onMouseLeave={() => setHoverNext(false)}
+                  style={{
+                    ...govPrimaryButton,
+                    background: hoverNext
+                      ? GOV.accentHover
+                      : govPrimaryButton.background,
+                  }}
                 >
                   Register Vendor
                 </button>
@@ -556,7 +706,7 @@ export default function NewVendorPage() {
             </div>
           </div>
         </form>
-      </main>
+      </div>
     </div>
   );
 }

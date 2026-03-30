@@ -9,6 +9,141 @@ import {
   ShieldCheckIcon,
   DocumentTextIcon,
 } from "@heroicons/react/24/outline";
+import {
+  GOV,
+  govCard,
+  govPageTitle,
+  govPageSubtitle,
+  govPillButton,
+  govPrimaryButton,
+  govHoverBg,
+} from "../styles";
+
+/* ── Toggle switch (pure inline, no Tailwind) ─────────────────────────────── */
+
+function Toggle({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: () => void;
+}) {
+  return (
+    <button
+      role="switch"
+      aria-checked={checked}
+      onClick={onChange}
+      style={{
+        position: "relative",
+        width: 44,
+        height: 24,
+        borderRadius: 999,
+        border: "none",
+        background: checked ? GOV.brand : "#ccc",
+        cursor: "pointer",
+        transition: "background .2s",
+        flexShrink: 0,
+        padding: 0,
+      }}
+    >
+      <span
+        style={{
+          position: "absolute",
+          top: 2,
+          left: checked ? 22 : 2,
+          width: 20,
+          height: 20,
+          borderRadius: "50%",
+          background: "#fff",
+          transition: "left .2s",
+          boxShadow: "0 1px 3px rgba(0,0,0,.15)",
+        }}
+      />
+    </button>
+  );
+}
+
+/* ── Shared inline-style fragments ────────────────────────────────────────── */
+
+const sectionHeaderWrap: React.CSSProperties = {
+  padding: "18px 20px",
+  borderBottom: `1px solid ${GOV.border}`,
+  background: GOV.bg,
+};
+
+const sectionBody: React.CSSProperties = {
+  padding: "20px 20px",
+  display: "flex",
+  flexDirection: "column",
+  gap: 14,
+};
+
+const rowCard: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  padding: "14px 16px",
+  borderRadius: 8,
+  border: `1px solid ${GOV.border}`,
+};
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  border: `1px solid #ebe7df`,
+  borderRadius: 8,
+  padding: "10px 14px",
+  fontSize: 13,
+  color: GOV.text,
+  background: "#fff",
+  fontFamily: "inherit",
+  outline: "none",
+  appearance: "none",
+  WebkitAppearance: "none",
+};
+
+const labelStyle: React.CSSProperties = {
+  fontSize: 13,
+  fontWeight: 600,
+  color: GOV.text,
+  marginBottom: 8,
+  display: "block",
+};
+
+const titleSm: React.CSSProperties = {
+  fontSize: 13,
+  fontWeight: 600,
+  color: GOV.text,
+  margin: 0,
+};
+
+const descSm: React.CSSProperties = {
+  fontSize: 12,
+  color: GOV.muted,
+  margin: 0,
+  marginTop: 2,
+};
+
+const sectionTitle: React.CSSProperties = {
+  fontSize: 15,
+  fontWeight: 700,
+  color: GOV.text,
+  margin: 0,
+};
+
+const sectionDesc: React.CSSProperties = {
+  fontSize: 12,
+  color: GOV.muted,
+  marginTop: 2,
+};
+
+const iconStyle: React.CSSProperties = {
+  width: 18,
+  height: 18,
+  color: GOV.muted,
+  flexShrink: 0,
+};
+
+/* ── Page ──────────────────────────────────────────────────────────────────── */
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState({
@@ -32,6 +167,8 @@ export default function SettingsPage() {
     dataSharing: false,
   });
 
+  const [hovered, setHovered] = useState<string | null>(null);
+
   const handleToggle = (key: keyof typeof settings) => {
     setSettings((prev) => ({
       ...prev,
@@ -46,127 +183,134 @@ export default function SettingsPage() {
     }));
   };
 
+  const notifyItems: {
+    key: "vendorRegistrations" | "complianceAlerts" | "productUploads" | "weeklyReports";
+    label: string;
+    desc: string;
+  }[] = [
+    {
+      key: "vendorRegistrations",
+      label: "Vendor Registrations",
+      desc: "New vendor sign-ups",
+    },
+    {
+      key: "complianceAlerts",
+      label: "Compliance Alerts",
+      desc: "Important compliance notifications",
+    },
+    {
+      key: "productUploads",
+      label: "Product Uploads",
+      desc: "New product listings",
+    },
+    {
+      key: "weeklyReports",
+      label: "Weekly Reports",
+      desc: "Summary of weekly activities",
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16">
+    <div style={{ minHeight: "100vh", background: GOV.bg, color: GOV.text }}>
+      <main style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 24px 80px" }}>
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-semibold text-[color:var(--secondary-black)]">
-            Settings
-          </h1>
-          <p className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
+        <div style={{ marginBottom: 28 }}>
+          <h1 style={govPageTitle}>Settings</h1>
+          <p style={govPageSubtitle}>
             Manage your account preferences and notification settings
           </p>
         </div>
 
-        <div className="space-y-6">
-          {/* Notifications Section */}
-          <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white overflow-hidden">
-            <div className="p-5 border-b border-[color:var(--secondary-soft-highlight)] bg-gray-50/50">
-              <div className="flex items-center gap-2">
-                <BellIcon className="h-5 w-5 text-[color:var(--secondary-muted-edge)]" />
-                <h2 className="text-lg font-semibold text-[color:var(--secondary-black)]">
-                  Notifications
-                </h2>
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          {/* ── Notifications Section ─────────────────────────────────────── */}
+          <div style={{ ...govCard, overflow: "hidden" }}>
+            <div style={sectionHeaderWrap}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <BellIcon style={iconStyle} />
+                <h2 style={sectionTitle}>Notifications</h2>
               </div>
-              <p className="text-xs text-[color:var(--secondary-muted-edge)] mt-1">
+              <p style={sectionDesc}>
                 Choose how you want to be notified about updates
               </p>
             </div>
-            <div className="p-5 space-y-4">
+
+            <div style={sectionBody}>
               {/* Email Notifications */}
-              <div className="flex items-center justify-between p-4 rounded-lg border border-[color:var(--secondary-soft-highlight)]">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <EnvelopeIcon className="h-4 w-4 text-[color:var(--secondary-muted-edge)]" />
-                    <div className="text-sm font-medium text-[color:var(--secondary-black)]">
-                      Email Notifications
-                    </div>
+              <div style={rowCard}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                    <EnvelopeIcon style={{ width: 15, height: 15, color: GOV.muted }} />
+                    <p style={titleSm}>Email Notifications</p>
                   </div>
-                  <div className="text-xs text-[color:var(--secondary-muted-edge)]">
+                  <p style={descSm}>
                     Receive email updates about important activities
-                  </div>
+                  </p>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={settings.emailNotifications}
-                    onChange={() => handleToggle("emailNotifications")}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[var(--primary-base)]/20 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary-base)]"></div>
-                </label>
+                <Toggle
+                  checked={settings.emailNotifications as boolean}
+                  onChange={() => handleToggle("emailNotifications")}
+                />
               </div>
 
               {/* Push Notifications */}
-              <div className="flex items-center justify-between p-4 rounded-lg border border-[color:var(--secondary-soft-highlight)]">
-                <div className="flex-1">
-                  <div className="text-sm font-medium text-[color:var(--secondary-black)] mb-1">
-                    Push Notifications
-                  </div>
-                  <div className="text-xs text-[color:var(--secondary-muted-edge)]">
-                    Receive browser push notifications
-                  </div>
+              <div style={rowCard}>
+                <div style={{ flex: 1 }}>
+                  <p style={{ ...titleSm, marginBottom: 2 }}>Push Notifications</p>
+                  <p style={descSm}>Receive browser push notifications</p>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={settings.pushNotifications}
-                    onChange={() => handleToggle("pushNotifications")}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[var(--primary-base)]/20 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary-base)]"></div>
-                </label>
+                <Toggle
+                  checked={settings.pushNotifications as boolean}
+                  onChange={() => handleToggle("pushNotifications")}
+                />
               </div>
 
-              <div className="pt-4 border-t border-[color:var(--secondary-soft-highlight)]">
-                <div className="text-sm font-medium text-[color:var(--secondary-black)] mb-3">
+              {/* Divider + "Notify me about:" */}
+              <div
+                style={{
+                  paddingTop: 14,
+                  borderTop: `1px solid ${GOV.border}`,
+                }}
+              >
+                <p
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: GOV.text,
+                    marginBottom: 10,
+                  }}
+                >
                   Notify me about:
-                </div>
-                <div className="space-y-3">
-                  {[
-                    {
-                      key: "vendorRegistrations" as const,
-                      label: "Vendor Registrations",
-                      desc: "New vendor sign-ups",
-                    },
-                    {
-                      key: "complianceAlerts" as const,
-                      label: "Compliance Alerts",
-                      desc: "Important compliance notifications",
-                    },
-                    {
-                      key: "productUploads" as const,
-                      label: "Product Uploads",
-                      desc: "New product listings",
-                    },
-                    {
-                      key: "weeklyReports" as const,
-                      label: "Weekly Reports",
-                      desc: "Summary of weekly activities",
-                    },
-                  ].map((item) => (
+                </p>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {notifyItems.map((item) => (
                     <div
                       key={item.key}
-                      className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50"
+                      onMouseEnter={() => setHovered(item.key)}
+                      onMouseLeave={() => setHovered(null)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "10px 14px",
+                        borderRadius: 8,
+                        background:
+                          hovered === item.key ? govHoverBg : "transparent",
+                        transition: "background .15s",
+                      }}
                     >
                       <div>
-                        <div className="text-sm text-[color:var(--secondary-black)]">
+                        <p style={{ fontSize: 13, color: GOV.text, margin: 0 }}>
                           {item.label}
-                        </div>
-                        <div className="text-xs text-[color:var(--secondary-muted-edge)]">
+                        </p>
+                        <p style={{ fontSize: 12, color: GOV.muted, margin: 0, marginTop: 1 }}>
                           {item.desc}
-                        </div>
+                        </p>
                       </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={settings[item.key]}
-                          onChange={() => handleToggle(item.key)}
-                          className="sr-only peer"
-                        />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[var(--primary-base)]/20 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary-base)]"></div>
-                      </label>
+                      <Toggle
+                        checked={settings[item.key] as boolean}
+                        onChange={() => handleToggle(item.key)}
+                      />
                     </div>
                   ))}
                 </div>
@@ -174,55 +318,47 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Preferences Section */}
-          <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white overflow-hidden">
-            <div className="p-5 border-b border-[color:var(--secondary-soft-highlight)] bg-gray-50/50">
-              <div className="flex items-center gap-2">
-                <GlobeAltIcon className="h-5 w-5 text-[color:var(--secondary-muted-edge)]" />
-                <h2 className="text-lg font-semibold text-[color:var(--secondary-black)]">
-                  Preferences
-                </h2>
+          {/* ── Preferences Section ───────────────────────────────────────── */}
+          <div style={{ ...govCard, overflow: "hidden" }}>
+            <div style={sectionHeaderWrap}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <GlobeAltIcon style={iconStyle} />
+                <h2 style={sectionTitle}>Preferences</h2>
               </div>
-              <p className="text-xs text-[color:var(--secondary-muted-edge)] mt-1">
-                Customize your experience
-              </p>
+              <p style={sectionDesc}>Customize your experience</p>
             </div>
-            <div className="p-5 space-y-4">
+
+            <div style={sectionBody}>
               {/* Dark Mode */}
-              <div className="flex items-center justify-between p-4 rounded-lg border border-[color:var(--secondary-soft-highlight)]">
-                <div className="flex items-center gap-2">
-                  <MoonIcon className="h-5 w-5 text-[color:var(--secondary-muted-edge)]" />
+              <div style={rowCard}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <MoonIcon style={{ width: 18, height: 18, color: GOV.muted }} />
                   <div>
-                    <div className="text-sm font-medium text-[color:var(--secondary-black)]">
-                      Dark Mode
-                    </div>
-                    <div className="text-xs text-[color:var(--secondary-muted-edge)]">
-                      Use dark theme
-                    </div>
+                    <p style={titleSm}>Dark Mode</p>
+                    <p style={descSm}>Use dark theme</p>
                   </div>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={settings.darkMode}
-                    onChange={() => handleToggle("darkMode")}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[var(--primary-base)]/20 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary-base)]"></div>
-                </label>
+                <Toggle
+                  checked={settings.darkMode as boolean}
+                  onChange={() => handleToggle("darkMode")}
+                />
               </div>
 
               {/* Language */}
-              <div className="p-4 rounded-lg border border-[color:var(--secondary-soft-highlight)]">
-                <label className="text-sm font-medium text-[color:var(--secondary-black)] mb-2 block">
-                  Language
-                </label>
+              <div
+                style={{
+                  padding: "14px 16px",
+                  borderRadius: 8,
+                  border: `1px solid ${GOV.border}`,
+                }}
+              >
+                <label style={labelStyle}>Language</label>
                 <select
                   value={settings.language}
                   onChange={(e) =>
                     handleSelectChange("language", e.target.value)
                   }
-                  className="w-full px-5 py-2.5 rounded-full border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm transition-all duration-200 shadow-sm focus:shadow-md"
+                  style={inputStyle}
                 >
                   <option value="en">English</option>
                   <option value="es">Spanish</option>
@@ -231,16 +367,20 @@ export default function SettingsPage() {
               </div>
 
               {/* Timezone */}
-              <div className="p-4 rounded-lg border border-[color:var(--secondary-soft-highlight)]">
-                <label className="text-sm font-medium text-[color:var(--secondary-black)] mb-2 block">
-                  Timezone
-                </label>
+              <div
+                style={{
+                  padding: "14px 16px",
+                  borderRadius: 8,
+                  border: `1px solid ${GOV.border}`,
+                }}
+              >
+                <label style={labelStyle}>Timezone</label>
                 <select
                   value={settings.timezone}
                   onChange={(e) =>
                     handleSelectChange("timezone", e.target.value)
                   }
-                  className="w-full px-5 py-2.5 rounded-full border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm transition-all duration-200 shadow-sm focus:shadow-md"
+                  style={inputStyle}
                 >
                   <option value="America/Grenada">
                     Atlantic Standard Time (Grenada)
@@ -256,16 +396,20 @@ export default function SettingsPage() {
               </div>
 
               {/* Date Format */}
-              <div className="p-4 rounded-lg border border-[color:var(--secondary-soft-highlight)]">
-                <label className="text-sm font-medium text-[color:var(--secondary-black)] mb-2 block">
-                  Date Format
-                </label>
+              <div
+                style={{
+                  padding: "14px 16px",
+                  borderRadius: 8,
+                  border: `1px solid ${GOV.border}`,
+                }}
+              >
+                <label style={labelStyle}>Date Format</label>
                 <select
                   value={settings.dateFormat}
                   onChange={(e) =>
                     handleSelectChange("dateFormat", e.target.value)
                   }
-                  className="w-full px-5 py-2.5 rounded-full border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm transition-all duration-200 shadow-sm focus:shadow-md"
+                  style={inputStyle}
                 >
                   <option value="MM/DD/YYYY">MM/DD/YYYY</option>
                   <option value="DD/MM/YYYY">DD/MM/YYYY</option>
@@ -275,31 +419,32 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Privacy Section */}
-          <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white overflow-hidden">
-            <div className="p-5 border-b border-[color:var(--secondary-soft-highlight)] bg-gray-50/50">
-              <div className="flex items-center gap-2">
-                <ShieldCheckIcon className="h-5 w-5 text-[color:var(--secondary-muted-edge)]" />
-                <h2 className="text-lg font-semibold text-[color:var(--secondary-black)]">
-                  Privacy & Data
-                </h2>
+          {/* ── Privacy & Data Section ────────────────────────────────────── */}
+          <div style={{ ...govCard, overflow: "hidden" }}>
+            <div style={sectionHeaderWrap}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <ShieldCheckIcon style={iconStyle} />
+                <h2 style={sectionTitle}>Privacy & Data</h2>
               </div>
-              <p className="text-xs text-[color:var(--secondary-muted-edge)] mt-1">
-                Control your privacy settings
-              </p>
+              <p style={sectionDesc}>Control your privacy settings</p>
             </div>
-            <div className="p-5 space-y-4">
+
+            <div style={sectionBody}>
               {/* Profile Visibility */}
-              <div className="p-4 rounded-lg border border-[color:var(--secondary-soft-highlight)]">
-                <label className="text-sm font-medium text-[color:var(--secondary-black)] mb-2 block">
-                  Profile Visibility
-                </label>
+              <div
+                style={{
+                  padding: "14px 16px",
+                  borderRadius: 8,
+                  border: `1px solid ${GOV.border}`,
+                }}
+              >
+                <label style={labelStyle}>Profile Visibility</label>
                 <select
                   value={settings.profileVisibility}
                   onChange={(e) =>
                     handleSelectChange("profileVisibility", e.target.value)
                   }
-                  className="w-full px-5 py-2.5 rounded-full border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm transition-all duration-200 shadow-sm focus:shadow-md"
+                  style={inputStyle}
                 >
                   <option value="public">Public</option>
                   <option value="organization">Organization Only</option>
@@ -308,70 +453,91 @@ export default function SettingsPage() {
               </div>
 
               {/* Activity Tracking */}
-              <div className="flex items-center justify-between p-4 rounded-lg border border-[color:var(--secondary-soft-highlight)]">
+              <div style={rowCard}>
                 <div>
-                  <div className="text-sm font-medium text-[color:var(--secondary-black)] mb-1">
-                    Activity Tracking
-                  </div>
-                  <div className="text-xs text-[color:var(--secondary-muted-edge)]">
+                  <p style={{ ...titleSm, marginBottom: 2 }}>Activity Tracking</p>
+                  <p style={descSm}>
                     Allow system to track your activity for analytics
-                  </div>
+                  </p>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={settings.activityTracking}
-                    onChange={() => handleToggle("activityTracking")}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[var(--primary-base)]/20 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary-base)]"></div>
-                </label>
+                <Toggle
+                  checked={settings.activityTracking as boolean}
+                  onChange={() => handleToggle("activityTracking")}
+                />
               </div>
 
               {/* Data Sharing */}
-              <div className="flex items-center justify-between p-4 rounded-lg border border-[color:var(--secondary-soft-highlight)]">
+              <div style={rowCard}>
                 <div>
-                  <div className="text-sm font-medium text-[color:var(--secondary-black)] mb-1">
-                    Data Sharing
-                  </div>
-                  <div className="text-xs text-[color:var(--secondary-muted-edge)]">
+                  <p style={{ ...titleSm, marginBottom: 2 }}>Data Sharing</p>
+                  <p style={descSm}>
                     Share anonymized data for research purposes
-                  </div>
+                  </p>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={settings.dataSharing}
-                    onChange={() => handleToggle("dataSharing")}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[var(--primary-base)]/20 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary-base)]"></div>
-                </label>
+                <Toggle
+                  checked={settings.dataSharing as boolean}
+                  onChange={() => handleToggle("dataSharing")}
+                />
               </div>
             </div>
           </div>
 
-          {/* Data Export */}
-          <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-            <div className="flex items-start gap-3">
-              <DocumentTextIcon className="h-6 w-6 text-[color:var(--secondary-muted-edge)] mt-1" />
-              <div className="flex-1">
-                <h3 className="text-base font-semibold text-[color:var(--secondary-black)] mb-1">
+          {/* ── Data Export Card ───────────────────────────────────────────── */}
+          <div style={{ ...govCard, padding: "22px 24px" }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+              <DocumentTextIcon
+                style={{ width: 22, height: 22, color: GOV.muted, marginTop: 2, flexShrink: 0 }}
+              />
+              <div style={{ flex: 1 }}>
+                <h3
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: GOV.text,
+                    margin: 0,
+                    marginBottom: 4,
+                  }}
+                >
                   Export Your Data
                 </h3>
-                <p className="text-sm text-[color:var(--secondary-muted-edge)] mb-4">
+                <p
+                  style={{
+                    fontSize: 13,
+                    color: GOV.muted,
+                    margin: 0,
+                    marginBottom: 14,
+                  }}
+                >
                   Download a copy of your account data and activity history
                 </p>
-                <button className="px-5 py-2 rounded-full border border-[color:var(--secondary-soft-highlight)] text-sm font-medium text-[color:var(--secondary-black)] hover:bg-gray-50 transition-all duration-200 shadow-sm hover:shadow-md">
+                <button
+                  onMouseEnter={() => setHovered("export")}
+                  onMouseLeave={() => setHovered(null)}
+                  style={{
+                    ...govPillButton,
+                    background: hovered === "export" ? govHoverBg : GOV.cardBg,
+                    transition: "background .15s",
+                  }}
+                >
                   Request Data Export
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Save Button */}
-          <div className="flex justify-end">
-            <button className="px-6 py-3 rounded-full bg-[var(--secondary-highlight2)] text-white text-sm font-medium hover:bg-[var(--primary-accent3)] transition-all duration-200 shadow-lg hover:shadow-xl">
+          {/* ── Save Button ───────────────────────────────────────────────── */}
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <button
+              onMouseEnter={() => setHovered("save")}
+              onMouseLeave={() => setHovered(null)}
+              style={{
+                ...govPrimaryButton,
+                padding: "11px 28px",
+                fontSize: 14,
+                background: hovered === "save" ? GOV.accentHover : GOV.accent,
+                transition: "background .15s",
+              }}
+            >
               Save All Settings
             </button>
           </div>

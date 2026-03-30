@@ -3,6 +3,7 @@ import Script from "next/script";
 import "./globals.css";
 import StoreProvider from "@/store/StoreProvider";
 import { I18nProvider } from "@/lib/i18n/I18nProvider";
+import BuyerAssistantBot from "@/components/bot/BuyerAssistantBot";
 
 const GA_MEASUREMENT_ID = "G-0W1025KKQ3";
 
@@ -132,7 +133,10 @@ export default function RootLayout({
       </head>
       <body className="antialiased">
         <StoreProvider>
-          <I18nProvider>{children}</I18nProvider>
+          <I18nProvider>
+            {children}
+            <BuyerAssistantBot />
+          </I18nProvider>
         </StoreProvider>
       </body>
     </html>

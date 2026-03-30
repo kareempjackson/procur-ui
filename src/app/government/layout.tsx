@@ -5,7 +5,7 @@ import AuthGuard from "@/components/AuthGuard";
 import GovernmentTopNavigation from "@/components/navigation/GovernmentTopNavigation";
 import GovernmentSideNavigation from "@/components/navigation/GovernmentSideNavigation";
 import GovernmentMobileSideNav from "@/components/navigation/GovernmentMobileSideNav";
-import Footer from "@/components/footer/Footer";
+import ProcurFooter from "@/components/footer/ProcurFooter";
 import { ToastProvider } from "@/components/ui/Toast";
 
 export default function GovernmentLayout({
@@ -13,38 +13,44 @@ export default function GovernmentLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [panelOpen, setPanelOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   return (
     <ToastProvider>
       <AuthGuard allowAccountTypes={["government"]}>
-        <div className="flex min-h-screen bg-[var(--primary-background)]">
-          {/* Desktop Side Navigation */}
+        <div
+          className="gov-theme"
+          style={{
+            minHeight: "100vh",
+            background: "#faf8f4",
+            fontFamily: "'Urbanist', system-ui, sans-serif",
+          }}
+        >
+          {/* Icon rail + slide-out panel (fixed, floats over everything) */}
           <GovernmentSideNavigation
-            collapsed={sidebarCollapsed}
-            onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+            collapsed={!panelOpen}
+            onToggle={() => setPanelOpen(!panelOpen)}
           />
 
-          {/* Mobile Side Navigation Drawer */}
+          {/* Mobile drawer */}
           <GovernmentMobileSideNav
             isOpen={mobileNavOpen}
             onClose={() => setMobileNavOpen(false)}
           />
 
-          {/* Main Content Area */}
-          <div className="flex-1 flex flex-col min-w-0">
-            {/* Top Navigation */}
-            <GovernmentTopNavigation
-              onMobileMenuToggle={() => setMobileNavOpen(true)}
-            />
+          {/* Full-width top nav */}
+          <GovernmentTopNavigation
+            onMobileMenuToggle={() => setMobileNavOpen(true)}
+          />
 
-            {/* Page Content */}
-            <main className="flex-1">{children}</main>
+          {/* Page content — padded left on desktop to clear icon rail */}
+          <main className="gov-main-content" style={{ flex: 1 }}>
+            {children}
+          </main>
 
-            {/* Footer */}
-            <Footer />
-          </div>
+          {/* Full-width footer */}
+          <ProcurFooter />
         </div>
       </AuthGuard>
     </ToastProvider>

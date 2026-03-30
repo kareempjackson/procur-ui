@@ -3,15 +3,8 @@
 import { useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
-  UserGroupIcon,
-  MapIcon,
-  ShoppingBagIcon,
-  ChartBarIcon,
-  ExclamationTriangleIcon,
-  DocumentTextIcon,
-  ArrowTrendingUpIcon,
-  ArrowTrendingDownIcon,
   ArrowPathIcon,
+  DocumentTextIcon,
 } from "@heroicons/react/24/outline";
 import { useAppDispatch, useAppSelector } from "@/store";
 import {
@@ -26,905 +19,322 @@ import {
   selectProgramsStatus,
   selectProgramStats,
 } from "@/store/slices/governmentProgramsSlice";
+import { selectAuthUser } from "@/store/slices/authSlice";
+import {
+  GOV,
+  govCard,
+  govStatusPillStyle,
+  govStatusLabel,
+  govHoverBg,
+} from "./styles";
+
+/* ── tiny inline helpers ──────────────────────────────────────────────────── */
+
+const lbl: React.CSSProperties = { fontSize: 10, fontWeight: 700, color: GOV.muted, textTransform: "uppercase", letterSpacing: ".07em" };
+const val: React.CSSProperties = { fontSize: 20, fontWeight: 800, color: GOV.text, letterSpacing: "-.3px", lineHeight: 1, marginTop: 6 };
+const sub: React.CSSProperties = { fontSize: 10.5, color: GOV.lightMuted, marginTop: 4 };
+const hdr: React.CSSProperties = { fontSize: 12, fontWeight: 800, color: GOV.text, margin: 0 };
+const lnk: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: GOV.accent, textDecoration: "none" };
+const kpiIcon = (
+  <svg viewBox="0 0 24 24" fill="none" stroke={GOV.accent} strokeWidth="1.75" strokeLinecap="round" width={16} height={16}>
+    <path d="M18 20V10M12 20V4M6 20v-6" />
+  </svg>
+);
 
 export default function GovernmentPage() {
   const dispatch = useAppDispatch();
-
-  // Redux state
   const vendors = useAppSelector(selectVendors);
   const vendorsStatus = useAppSelector(selectVendorsStatus);
   const vendorStats = useAppSelector(selectVendorStats);
-
   const programs = useAppSelector(selectPrograms);
   const programsStatus = useAppSelector(selectProgramsStatus);
   const programStats = useAppSelector(selectProgramStats);
+  const authUser = useAppSelector(selectAuthUser);
 
-  // Fetch data on mount
-  useEffect(() => {
-    if (vendorsStatus === "idle") {
-      dispatch(fetchVendors({ page: 1, limit: 100 }));
-    }
-  }, [vendorsStatus, dispatch]);
+  const firstName = (
+    authUser?.fullname?.trim() || authUser?.email?.split("@")[0] || "Admin"
+  ).split(" ")[0];
 
-  useEffect(() => {
-    if (programsStatus === "idle") {
-      dispatch(fetchPrograms({ page: 1, limit: 20 }));
-    }
-  }, [programsStatus, dispatch]);
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening";
 
-  // Calculate active crops from vendor data
+  useEffect(() => { if (vendorsStatus === "idle") dispatch(fetchVendors({ page: 1, limit: 100 })); }, [vendorsStatus, dispatch]);
+  useEffect(() => { if (programsStatus === "idle") dispatch(fetchPrograms({ page: 1, limit: 20 })); }, [programsStatus, dispatch]);
+
   const activeCrops = useMemo(() => {
-    if (vendors.length === 0) return 0;
-    const uniqueCrops = new Set<string>();
-    vendors.forEach((vendor) => {
-      // Safety check: ensure crops exists and is an array
-      if (vendor.crops && Array.isArray(vendor.crops)) {
-        vendor.crops.forEach((crop) => uniqueCrops.add(crop));
-      }
-    });
-    return uniqueCrops.size;
+    const s = new Set<string>();
+    vendors.forEach((v) => { if (Array.isArray(v.crops)) v.crops.forEach((c) => s.add(c)); });
+    return s.size;
   }, [vendors]);
 
-  // Calculate available acreage
-  const availableAcreage = useMemo(() => {
-    if (!vendorStats) return 0;
-    return vendorStats.totalAcreage - vendorStats.utilizedAcreage;
-  }, [vendorStats]);
+  const availableAcreage = useMemo(() => vendorStats ? vendorStats.totalAcreage - vendorStats.utilizedAcreage : 0, [vendorStats]);
+  const loading = vendorsStatus === "loading" || programsStatus === "loading";
+  const v = (n: string | number) => loading ? "…" : String(n);
+  const alertCount = (vendorStats?.warning || 0) + (vendorStats?.alert || 0);
 
-  // Build KPIs from real data
-  const kpis = useMemo(
-    () => [
-      {
-        label: "Registered Vendors",
-        value:
-          vendorsStatus === "loading"
-            ? "..."
-            : (vendorStats?.total || 0).toString(),
-        change: "+12%",
-        trend: "up" as const,
-        icon: UserGroupIcon,
-      },
-      {
-        label: "Total Acreage",
-        value:
-          vendorsStatus === "loading"
-            ? "..."
-            : (vendorStats?.totalAcreage || 0).toLocaleString(),
-        subtext: "acres under cultivation",
-        change: "+5%",
-        trend: "up" as const,
-        icon: MapIcon,
-      },
-      {
-        label: "Available Acreage",
-        value:
-          vendorsStatus === "loading"
-            ? "..."
-            : availableAcreage.toLocaleString(),
-        subtext: "acres not planted",
-        change: availableAcreage > 0 ? "-3%" : "0%",
-        trend: "down" as const,
-        icon: MapIcon,
-      },
-      {
-        label: "Active Crops",
-        value: vendorsStatus === "loading" ? "..." : activeCrops.toString(),
-        subtext: "varieties in season",
-        icon: ShoppingBagIcon,
-      },
-      {
-        label: "Active Programs",
-        value:
-          programsStatus === "loading"
-            ? "..."
-            : (programStats?.active || 0).toString(),
-        subtext: `${programStats?.total || 0} total`,
-        change: "+18%",
-        trend: "up" as const,
-        icon: ChartBarIcon,
-      },
-      {
-        label: "Compliance Alerts",
-        value:
-          vendorsStatus === "loading"
-            ? "..."
-            : (
-                (vendorStats?.warning || 0) + (vendorStats?.alert || 0)
-              ).toString(),
-        subtext: "requires attention",
-        urgent: (vendorStats?.warning || 0) + (vendorStats?.alert || 0) > 0,
-        icon: ExclamationTriangleIcon,
-      },
-    ],
-    [
-      vendorsStatus,
-      vendorStats,
-      programsStatus,
-      programStats,
-      activeCrops,
-      availableAcreage,
-    ]
-  );
-
-  const quickActions = [
-    {
-      label: "Register New Vendor",
-      href: "/government/vendors/new",
-      primary: true,
-    },
-    {
-      label: "Upload Product",
-      href: "/government/products/upload",
-      primary: false,
-    },
-    { label: "Generate Report", href: "/government/reporting", primary: false },
-    {
-      label: "View Compliance",
-      href: "/government/compliance",
-      primary: false,
-    },
-  ];
-
-  const recentActivity = [
-    {
-      type: "vendor",
-      message: "New vendor registered: Green Valley Farms",
-      time: "2 hours ago",
-    },
-    {
-      type: "harvest",
-      message: "Harvest completed: 500kg Tomatoes - Sunrise Farm",
-      time: "5 hours ago",
-    },
-    {
-      type: "compliance",
-      message: "Compliance alert: Chemical usage report overdue",
-      time: "1 day ago",
-      urgent: true,
-    },
-    {
-      type: "program",
-      message: "15 vendors enrolled in Irrigation Support Program",
-      time: "2 days ago",
-    },
-    {
-      type: "market",
-      message: "Market demand spike: Organic Lettuce",
-      time: "3 days ago",
-    },
-  ];
-
-  // Get top 3 programs by participants
   const topPrograms = useMemo(() => {
-    if (programs.length === 0) {
-      // Fallback mock data
-      return [
-        {
-          name: "Irrigation Support Program",
-          participants: 234,
-          budget: "85%",
-          status: "active",
-        },
-        {
-          name: "Organic Certification",
-          participants: 156,
-          budget: "62%",
-          status: "active",
-        },
-        {
-          name: "Youth Farmer Initiative",
-          participants: 89,
-          budget: "45%",
-          status: "active",
-        },
-      ];
-    }
-
-    return programs
-      .filter((p) => p.status === "active")
-      .sort((a, b) => b.participants - a.participants)
-      .slice(0, 3)
-      .map((p) => ({
-        name: p.name,
-        participants: p.participants,
-        budget: `${p.budget_percentage}%`,
-        status: p.status,
-      }));
+    if (programs.length === 0) return [
+      { name: "Irrigation Support", participants: 234, budget: "85%", status: "active" },
+      { name: "Organic Certification", participants: 156, budget: "62%", status: "active" },
+      { name: "Youth Farmer Initiative", participants: 89, budget: "45%", status: "active" },
+    ];
+    return programs.filter((p) => p.status === "active").sort((a, b) => b.participants - a.participants).slice(0, 3)
+      .map((p) => ({ name: p.name, participants: p.participants, budget: `${p.budget_percentage}%`, status: p.status }));
   }, [programs]);
 
-  // Refresh handler
-  const handleRefresh = () => {
-    dispatch(fetchVendors({ page: 1, limit: 100 }));
-    dispatch(fetchPrograms({ page: 1, limit: 20 }));
-  };
+  const handleRefresh = () => { dispatch(fetchVendors({ page: 1, limit: 100 })); dispatch(fetchPrograms({ page: 1, limit: 20 })); };
+
+  /* shared card with tighter radius */
+  const card: React.CSSProperties = { ...govCard, borderRadius: 10 };
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16">
-        {/* Hero Section */}
-        <section className="rounded-3xl bg-[var(--primary-accent1)]/14 border border-[color:var(--secondary-soft-highlight)] px-6 sm:px-10 py-10 sm:py-14">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)] mb-3">
-                Government Portal
-                {(vendorsStatus === "loading" ||
-                  programsStatus === "loading") &&
-                  " • Loading..."}
-              </div>
-              <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight text-[color:var(--secondary-black)]">
-                Agricultural Oversight Dashboard
-              </h1>
-              <p className="mt-2 text-sm text-[color:var(--secondary-muted-edge)] max-w-prose">
-                Monitor agricultural data, track compliance, and access
-                reporting tools.
-              </p>
-            </div>
+    <div style={{ background: GOV.bg, color: GOV.text }}>
+      <div style={{ maxWidth: 1060, margin: "0 auto", padding: "20px 20px 48px" }}>
 
-            <button
-              onClick={handleRefresh}
-              disabled={
-                vendorsStatus === "loading" || programsStatus === "loading"
-              }
-              className="flex-shrink-0 inline-flex items-center gap-2 rounded-full bg-white border border-[color:var(--secondary-soft-highlight)] text-[color:var(--secondary-black)] px-4 py-2.5 text-sm font-medium hover:bg-gray-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ArrowPathIcon
-                className={`h-5 w-5 ${
-                  vendorsStatus === "loading" || programsStatus === "loading"
-                    ? "animate-spin"
-                    : ""
-                }`}
-              />
-              <span className="hidden sm:inline">Refresh</span>
-            </button>
+        {/* ── Header row ─────────────────────────────────────────────── */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <div>
+            <span style={{ fontSize: 11, color: GOV.muted }}>Good {greeting},</span>
+            <h1 style={{ fontSize: 20, fontWeight: 800, color: GOV.text, margin: "2px 0 0", letterSpacing: "-.2px" }}>
+              {firstName}
+            </h1>
           </div>
+          <button
+            onClick={handleRefresh}
+            disabled={loading}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 4, padding: "5px 12px",
+              background: GOV.cardBg, border: `1px solid ${GOV.border}`, borderRadius: 999,
+              fontSize: 11, fontWeight: 600, color: GOV.text, cursor: loading ? "not-allowed" : "pointer",
+              opacity: loading ? 0.5 : 1, fontFamily: "inherit",
+            }}
+          >
+            <ArrowPathIcon style={{ width: 12, height: 12, animation: loading ? "_spin .8s linear infinite" : "none" }} />
+            Refresh
+          </button>
+        </div>
 
-          {/* Quick Actions */}
-          <div className="mt-6 flex flex-wrap gap-3">
-            {quickActions.map((action) => (
-              <Link
-                key={action.label}
-                href={action.href}
-                className={`inline-flex items-center justify-center rounded-full px-5 py-2.5 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:ring-offset-2 ${
-                  action.primary
-                    ? "bg-[var(--secondary-highlight2)] text-white hover:bg-[var(--secondary-muted-edge)]"
-                    : "border border-[color:var(--secondary-soft-highlight)] bg-transparent text-[color:var(--secondary-black)] hover:bg-white/50"
-                }`}
-              >
-                {action.label}
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        {/* KPI Cards Grid */}
-        <section className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {kpis.map((kpi) => (
+        {/* ── 6-col KPI row ──────────────────────────────────────────── */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 8, marginBottom: 12 }}>
+          {[
+            { l: "Vendors", v: v(vendorStats?.total || 0) },
+            { l: "Acreage", v: v((vendorStats?.totalAcreage || 0).toLocaleString()) },
+            { l: "Available", v: v(availableAcreage.toLocaleString()) },
+            { l: "Crops", v: v(activeCrops) },
+            { l: "Programs", v: v(programStats?.active || 0) },
+            { l: "Alerts", v: v(alertCount), warn: alertCount > 0 },
+          ].map((k) => (
             <div
-              key={kpi.label}
-              className={`rounded-2xl border bg-white p-6 hover:shadow-sm transition-shadow ${
-                kpi.urgent
-                  ? "border-[var(--secondary-highlight2)]/30 bg-[var(--secondary-highlight2)]/5"
-                  : "border-[color:var(--secondary-soft-highlight)]"
-              }`}
+              key={k.l}
+              style={{
+                ...card,
+                padding: "12px 14px",
+                background: k.warn ? "rgba(212,120,60,.04)" : GOV.cardBg,
+                borderColor: k.warn ? "rgba(212,120,60,.25)" : GOV.border,
+              }}
             >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)]">
-                    {kpi.label}
-                  </div>
-                  <div className="mt-2 text-3xl font-semibold text-[color:var(--secondary-black)]">
-                    {kpi.value}
-                  </div>
-                  {kpi.subtext && (
-                    <div className="mt-1 text-xs text-[color:var(--secondary-muted-edge)]">
-                      {kpi.subtext}
-                    </div>
-                  )}
-                  {kpi.change && (
-                    <div className="mt-2 flex items-center gap-1">
-                      {kpi.trend === "up" ? (
-                        <ArrowTrendingUpIcon className="h-4 w-4 text-[color:var(--primary-base)]" />
-                      ) : (
-                        <ArrowTrendingDownIcon className="h-4 w-4 text-[color:var(--secondary-highlight2)]" />
-                      )}
-                      <span
-                        className={`text-sm font-medium ${
-                          kpi.trend === "up"
-                            ? "text-[color:var(--primary-base)]"
-                            : "text-[color:var(--secondary-highlight2)]"
-                        }`}
-                      >
-                        {kpi.change}
-                      </span>
-                      <span className="text-xs text-[color:var(--secondary-muted-edge)]">
-                        vs last period
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <kpi.icon
-                  className={`h-8 w-8 ${
-                    kpi.urgent
-                      ? "text-[var(--secondary-highlight2)]"
-                      : "text-[color:var(--secondary-muted-edge)]"
-                  }`}
-                />
-              </div>
+              <div style={lbl}>{k.l}</div>
+              <div style={{ ...val, color: k.warn ? GOV.accent : GOV.text }}>{k.v}</div>
             </div>
           ))}
-        </section>
+        </div>
 
-        {/* Main Content Grid */}
-        <div className="mt-10 grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Recent Activity */}
-          <div className="lg:col-span-2 space-y-8">
+        {/* ── Body: 2 cols ───────────────────────────────────────────── */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 260px", gap: 10, alignItems: "start" }}>
+
+          {/* LEFT */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+
             {/* Recent Activity */}
-            <section className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white overflow-hidden">
-              <div className="p-5 border-b border-[color:var(--secondary-soft-highlight)]">
-                <h2 className="text-base font-semibold text-[color:var(--secondary-black)]">
-                  Recent Activity
-                </h2>
-                <p className="text-xs text-[color:var(--secondary-muted-edge)] mt-0.5">
-                  Latest updates across the platform
-                </p>
+            <div style={card}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px 8px" }}>
+                <h2 style={hdr}>Recent Activity</h2>
+                <Link href="/government/notifications" style={lnk}>View all →</Link>
               </div>
-              <div className="divide-y divide-[color:var(--secondary-soft-highlight)]/30">
-                {recentActivity.map((activity, idx) => (
-                  <div
-                    key={idx}
-                    className={`p-4 hover:bg-gray-50/50 transition-colors ${
-                      activity.urgent
-                        ? "bg-[var(--secondary-highlight2)]/5"
-                        : ""
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div
-                        className={`h-2 w-2 rounded-full mt-2 ${
-                          activity.urgent
-                            ? "bg-[var(--secondary-highlight2)]"
-                            : "bg-[var(--primary-base)]"
-                        }`}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-[color:var(--secondary-black)]">
-                          {activity.message}
-                        </p>
-                        <p className="text-xs text-[color:var(--secondary-muted-edge)] mt-1">
-                          {activity.time}
-                        </p>
-                      </div>
-                    </div>
+              {recentActivity.map((a, i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: "flex", alignItems: "flex-start", gap: 8,
+                    padding: "8px 14px",
+                    background: a.urgent ? "rgba(212,120,60,.03)" : "transparent",
+                    cursor: "pointer",
+                  }}
+                  onMouseEnter={(e) => { if (!a.urgent) e.currentTarget.style.background = govHoverBg; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = a.urgent ? "rgba(212,120,60,.03)" : "transparent"; }}
+                >
+                  <span style={{ width: 5, height: 5, borderRadius: 99, marginTop: 5, flexShrink: 0, background: a.urgent ? GOV.accent : GOV.brand }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: GOV.text, lineHeight: 1.4 }}>{a.message}</div>
+                    <div style={{ fontSize: 10, color: GOV.lightMuted, marginTop: 1 }}>{a.time}</div>
+                  </div>
+                </div>
+              ))}
+              <div style={{ height: 4 }} />
+            </div>
+
+            {/* Chart */}
+            <div style={{ ...card, padding: "14px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                <div>
+                  <h2 style={hdr}>Supply vs Demand</h2>
+                  <div style={{ fontSize: 10.5, color: GOV.muted, marginTop: 1 }}>kg per week</div>
+                </div>
+                <Link href="/government/market" style={lnk}>Details →</Link>
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginBottom: 8 }}>
+                {[{ c: GOV.brand, l: "Supply" }, { c: GOV.accent, l: "Demand" }].map((x) => (
+                  <div key={x.l} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: 2, background: x.c }} />
+                    <span style={{ fontSize: 10, color: GOV.muted }}>{x.l}</span>
                   </div>
                 ))}
               </div>
-              <div className="p-4 border-t border-[color:var(--secondary-soft-highlight)]">
-                <Link
-                  href="/government/activity"
-                  className="text-sm text-[color:var(--secondary-highlight2)] hover:text-[color:var(--secondary-muted-edge)] font-medium"
-                >
-                  View all activity →
-                </Link>
-              </div>
-            </section>
-
-            {/* Supply vs Demand Chart */}
-            <section className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-base font-semibold text-[color:var(--secondary-black)]">
-                    Supply vs Demand
-                  </h2>
-                  <p className="text-xs text-[color:var(--secondary-muted-edge)] mt-0.5">
-                    Market balance overview (kg per week)
-                  </p>
-                </div>
-                <Link
-                  href="/government/market"
-                  className="text-xs text-[color:var(--secondary-highlight2)] hover:text-[color:var(--secondary-muted-edge)] font-medium"
-                >
-                  View details →
-                </Link>
-              </div>
-              <div className="flex items-center justify-end gap-4 mb-4 text-xs">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded bg-[var(--primary-base)]"></div>
-                  <span className="text-[color:var(--secondary-muted-edge)]">
-                    Supply
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded bg-[var(--secondary-highlight2)]"></div>
-                  <span className="text-[color:var(--secondary-muted-edge)]">
-                    Demand
-                  </span>
-                </div>
-              </div>
-              <div className="h-80 relative">
-                <svg viewBox="0 0 800 300" className="w-full h-full">
-                  {/* Grid lines */}
-                  <line
-                    x1="60"
-                    y1="0"
-                    x2="60"
-                    y2="240"
-                    stroke="#e5e7eb"
-                    strokeWidth="1"
-                  />
-                  <line
-                    x1="60"
-                    y1="240"
-                    x2="780"
-                    y2="240"
-                    stroke="#e5e7eb"
-                    strokeWidth="2"
-                  />
-
-                  {/* Horizontal grid lines */}
-                  <line
-                    x1="60"
-                    y1="0"
-                    x2="780"
-                    y2="0"
-                    stroke="#f3f4f6"
-                    strokeWidth="1"
-                    strokeDasharray="4"
-                  />
-                  <line
-                    x1="60"
-                    y1="60"
-                    x2="780"
-                    y2="60"
-                    stroke="#f3f4f6"
-                    strokeWidth="1"
-                    strokeDasharray="4"
-                  />
-                  <line
-                    x1="60"
-                    y1="120"
-                    x2="780"
-                    y2="120"
-                    stroke="#f3f4f6"
-                    strokeWidth="1"
-                    strokeDasharray="4"
-                  />
-                  <line
-                    x1="60"
-                    y1="180"
-                    x2="780"
-                    y2="180"
-                    stroke="#f3f4f6"
-                    strokeWidth="1"
-                    strokeDasharray="4"
-                  />
-
-                  {/* Y-axis labels */}
-                  <text
-                    x="50"
-                    y="245"
-                    textAnchor="end"
-                    className="text-[10px] fill-[var(--secondary-muted-edge)]"
-                  >
-                    0
-                  </text>
-                  <text
-                    x="50"
-                    y="185"
-                    textAnchor="end"
-                    className="text-[10px] fill-[var(--secondary-muted-edge)]"
-                  >
-                    2,500
-                  </text>
-                  <text
-                    x="50"
-                    y="125"
-                    textAnchor="end"
-                    className="text-[10px] fill-[var(--secondary-muted-edge)]"
-                  >
-                    5,000
-                  </text>
-                  <text
-                    x="50"
-                    y="65"
-                    textAnchor="end"
-                    className="text-[10px] fill-[var(--secondary-muted-edge)]"
-                  >
-                    7,500
-                  </text>
-                  <text
-                    x="50"
-                    y="5"
-                    textAnchor="end"
-                    className="text-[10px] fill-[var(--secondary-muted-edge)]"
-                  >
-                    10,000
-                  </text>
-
-                  {/* Tomatoes */}
-                  <rect
-                    x="80"
-                    y="72"
-                    width="35"
-                    height="168"
-                    fill="#2D7A3E"
-                    rx="4"
-                  />
-                  <rect
-                    x="120"
-                    y="96"
-                    width="35"
-                    height="144"
-                    fill="#DC2626"
-                    rx="4"
-                  />
-                  <text
-                    x="117.5"
-                    y="270"
-                    textAnchor="middle"
-                    className="text-[11px] fill-[var(--secondary-black)]"
-                  >
-                    Tomatoes
-                  </text>
-
-                  {/* Lettuce */}
-                  <rect
-                    x="200"
-                    y="120"
-                    width="35"
-                    height="120"
-                    fill="#2D7A3E"
-                    rx="4"
-                  />
-                  <rect
-                    x="240"
-                    y="144"
-                    width="35"
-                    height="96"
-                    fill="#DC2626"
-                    rx="4"
-                  />
-                  <text
-                    x="237.5"
-                    y="270"
-                    textAnchor="middle"
-                    className="text-[11px] fill-[var(--secondary-black)]"
-                  >
-                    Lettuce
-                  </text>
-
-                  {/* Carrots */}
-                  <rect
-                    x="320"
-                    y="144"
-                    width="35"
-                    height="96"
-                    fill="#2D7A3E"
-                    rx="4"
-                  />
-                  <rect
-                    x="360"
-                    y="120"
-                    width="35"
-                    height="120"
-                    fill="#DC2626"
-                    rx="4"
-                  />
-                  <text
-                    x="357.5"
-                    y="270"
-                    textAnchor="middle"
-                    className="text-[11px] fill-[var(--secondary-black)]"
-                  >
-                    Carrots
-                  </text>
-
-                  {/* Peppers */}
-                  <rect
-                    x="440"
-                    y="168"
-                    width="35"
-                    height="72"
-                    fill="#2D7A3E"
-                    rx="4"
-                  />
-                  <rect
-                    x="480"
-                    y="192"
-                    width="35"
-                    height="48"
-                    fill="#DC2626"
-                    rx="4"
-                  />
-                  <text
-                    x="477.5"
-                    y="270"
-                    textAnchor="middle"
-                    className="text-[11px] fill-[var(--secondary-black)]"
-                  >
-                    Peppers
-                  </text>
-
-                  {/* Cucumbers */}
-                  <rect
-                    x="560"
-                    y="96"
-                    width="35"
-                    height="144"
-                    fill="#2D7A3E"
-                    rx="4"
-                  />
-                  <rect
-                    x="600"
-                    y="108"
-                    width="35"
-                    height="132"
-                    fill="#DC2626"
-                    rx="4"
-                  />
-                  <text
-                    x="597.5"
-                    y="270"
-                    textAnchor="middle"
-                    className="text-[11px] fill-[var(--secondary-black)]"
-                  >
-                    Cucumbers
-                  </text>
-
-                  {/* Cabbage */}
-                  <rect
-                    x="680"
-                    y="180"
-                    width="35"
-                    height="60"
-                    fill="#2D7A3E"
-                    rx="4"
-                  />
-                  <rect
-                    x="720"
-                    y="204"
-                    width="35"
-                    height="36"
-                    fill="#DC2626"
-                    rx="4"
-                  />
-                  <text
-                    x="717.5"
-                    y="270"
-                    textAnchor="middle"
-                    className="text-[11px] fill-[var(--secondary-black)]"
-                  >
-                    Cabbage
-                  </text>
-
-                  {/* Value labels */}
-                  <text
-                    x="97.5"
-                    y="67"
-                    textAnchor="middle"
-                    className="text-[10px] fill-[var(--secondary-black)] font-medium"
-                  >
-                    7,000
-                  </text>
-                  <text
-                    x="137.5"
-                    y="91"
-                    textAnchor="middle"
-                    className="text-[10px] fill-white font-medium"
-                  >
-                    6,000
-                  </text>
-                  <text
-                    x="217.5"
-                    y="115"
-                    textAnchor="middle"
-                    className="text-[10px] fill-white font-medium"
-                  >
-                    5,000
-                  </text>
-                  <text
-                    x="257.5"
-                    y="139"
-                    textAnchor="middle"
-                    className="text-[10px] fill-white font-medium"
-                  >
-                    4,000
-                  </text>
-                  <text
-                    x="337.5"
-                    y="139"
-                    textAnchor="middle"
-                    className="text-[10px] fill-white font-medium"
-                  >
-                    4,000
-                  </text>
-                  <text
-                    x="377.5"
-                    y="115"
-                    textAnchor="middle"
-                    className="text-[10px] fill-white font-medium"
-                  >
-                    5,000
-                  </text>
-                  <text
-                    x="457.5"
-                    y="163"
-                    textAnchor="middle"
-                    className="text-[10px] fill-white font-medium"
-                  >
-                    3,000
-                  </text>
-                  <text
-                    x="497.5"
-                    y="187"
-                    textAnchor="middle"
-                    className="text-[10px] fill-white font-medium"
-                  >
-                    2,000
-                  </text>
-                  <text
-                    x="577.5"
-                    y="91"
-                    textAnchor="middle"
-                    className="text-[10px] fill-white font-medium"
-                  >
-                    6,000
-                  </text>
-                  <text
-                    x="617.5"
-                    y="103"
-                    textAnchor="middle"
-                    className="text-[10px] fill-white font-medium"
-                  >
-                    5,500
-                  </text>
-                  <text
-                    x="697.5"
-                    y="175"
-                    textAnchor="middle"
-                    className="text-[10px] fill-white font-medium"
-                  >
-                    2,500
-                  </text>
-                  <text
-                    x="737.5"
-                    y="199"
-                    textAnchor="middle"
-                    className="text-[10px] fill-white font-medium"
-                  >
-                    1,500
-                  </text>
+              <div style={{ height: 180 }}>
+                <svg viewBox="0 0 800 300" style={{ width: "100%", height: "100%" }}>
+                  <line x1="60" y1="240" x2="780" y2="240" stroke="#ebe7df" strokeWidth="1" />
+                  {[0, 60, 120, 180].map((y) => (
+                    <line key={y} x1="60" y1={y} x2="780" y2={y} stroke="#f4f1ec" strokeWidth="1" strokeDasharray="3" />
+                  ))}
+                  {["0", "2.5k", "5k", "7.5k", "10k"].map((l, i) => (
+                    <text key={i} x="52" y={245 - i * 60} textAnchor="end" fontSize="9" fill={GOV.muted}>{l}</text>
+                  ))}
+                  {[
+                    { x: 90, s: 168, d: 144, l: "Tomatoes" },
+                    { x: 210, s: 120, d: 96, l: "Lettuce" },
+                    { x: 330, s: 96, d: 120, l: "Carrots" },
+                    { x: 450, s: 72, d: 48, l: "Peppers" },
+                    { x: 570, s: 144, d: 132, l: "Cucumbers" },
+                    { x: 690, s: 60, d: 36, l: "Cabbage" },
+                  ].map((g) => (
+                    <g key={g.l}>
+                      <rect x={g.x} y={240 - g.s} width="30" height={g.s} fill={GOV.brand} rx="3" />
+                      <rect x={g.x + 34} y={240 - g.d} width="30" height={g.d} fill={GOV.accent} rx="3" />
+                      <text x={g.x + 32} y="268" textAnchor="middle" fontSize="9.5" fill={GOV.muted}>{g.l}</text>
+                    </g>
+                  ))}
                 </svg>
               </div>
-              <div className="mt-4 pt-4 border-t border-[color:var(--secondary-soft-highlight)] grid grid-cols-3 gap-4 text-xs">
-                <div>
-                  <div className="text-[color:var(--secondary-muted-edge)]">
-                    Highest Supply
+              <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                {[
+                  { l: "Top Supply", v: "Tomatoes 7k" },
+                  { l: "Top Demand", v: "Tomatoes 6k" },
+                  { l: "Gap", v: "+1k surplus", c: GOV.brand },
+                ].map((s) => (
+                  <div key={s.l}>
+                    <div style={{ fontSize: 10, color: GOV.muted }}>{s.l}</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: s.c || GOV.text, marginTop: 2 }}>{s.v}</div>
                   </div>
-                  <div className="font-medium text-[color:var(--secondary-black)] mt-1">
-                    Tomatoes (7,000 kg)
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[color:var(--secondary-muted-edge)]">
-                    Highest Demand
-                  </div>
-                  <div className="font-medium text-[color:var(--secondary-black)] mt-1">
-                    Tomatoes (6,000 kg)
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[color:var(--secondary-muted-edge)]">
-                    Supply Gap
-                  </div>
-                  <div className="font-medium text-[color:var(--primary-base)] mt-1">
-                    +1,000 kg surplus
-                  </div>
-                </div>
+                ))}
               </div>
-            </section>
+            </div>
           </div>
 
-          {/* Right Column - Programs & Quick Links */}
-          <div className="space-y-8">
-            {/* Government Programs */}
-            <section className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white overflow-hidden">
-              <div className="p-5 border-b border-[color:var(--secondary-soft-highlight)]">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-base font-semibold text-[color:var(--secondary-black)]">
-                      Active Programs
-                    </h2>
-                    <p className="text-xs text-[color:var(--secondary-muted-edge)] mt-0.5">
-                      Government incentive programs
-                    </p>
-                  </div>
-                  {programsStatus === "loading" && (
-                    <span className="text-xs text-[color:var(--secondary-muted-edge)]">
-                      Loading...
-                    </span>
-                  )}
-                </div>
+          {/* RIGHT */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+
+            {/* Quick Actions */}
+            <div style={card}>
+              <div style={{ padding: "12px 14px 6px" }}>
+                <h2 style={hdr}>Quick Actions</h2>
               </div>
-              <div className="p-4 space-y-4">
-                {topPrograms.map((program) => (
-                  <div
-                    key={program.name}
-                    className="rounded-xl border border-[color:var(--secondary-soft-highlight)] p-4 bg-gray-50/50"
+              <div style={{ padding: "0 10px 10px" }}>
+                {[
+                  { label: "Register Vendor", href: "/government/vendors/new", primary: true },
+                  { label: "Upload Product", href: "/government/products/upload" },
+                  { label: "Generate Report", href: "/government/reporting" },
+                  { label: "View Compliance", href: "/government/compliance" },
+                ].map((a) => (
+                  <Link
+                    key={a.label}
+                    href={a.href}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 7, padding: "7px 6px",
+                      borderRadius: 6, fontSize: 12, fontWeight: 600, color: GOV.text, textDecoration: "none",
+                      transition: "background 0.1s",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = govHoverBg)}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                   >
-                    <div className="flex items-start justify-between mb-2">
-                      <h3 className="text-sm font-medium text-[color:var(--secondary-black)]">
-                        {program.name}
-                      </h3>
-                      <span className="inline-flex items-center rounded-full bg-[var(--primary-base)]/10 text-[color:var(--primary-base)] px-2 py-0.5 text-[10px] font-medium">
-                        {program.status}
-                      </span>
+                    <span style={{
+                      width: 24, height: 24, borderRadius: 6,
+                      background: a.primary ? GOV.accent : "rgba(45,74,62,.05)",
+                      display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                    }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke={a.primary ? "#fff" : GOV.accent} strokeWidth="2.5" width={11} height={11}>
+                        <path d="M5 12h14M12 5v14" />
+                      </svg>
+                    </span>
+                    {a.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            {/* Programs */}
+            <div style={card}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px 6px" }}>
+                <h2 style={hdr}>Programs</h2>
+                <Link href="/government/programs" style={lnk}>All →</Link>
+              </div>
+              <div style={{ padding: "0 10px 10px" }}>
+                {topPrograms.map((p) => (
+                  <div key={p.name} style={{ padding: "7px 4px" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: GOV.text }}>{p.name}</span>
+                      <span style={{ ...govStatusPillStyle(p.status), fontSize: 9, padding: "1px 6px" }}>{govStatusLabel(p.status)}</span>
                     </div>
-                    <div className="flex items-center justify-between text-xs text-[color:var(--secondary-muted-edge)]">
-                      <span>{program.participants} participants</span>
-                      <span>{program.budget} budget used</span>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: GOV.muted, marginTop: 3 }}>
+                      <span>{p.participants} enrolled</span>
+                      <span>{p.budget} used</span>
                     </div>
                   </div>
                 ))}
               </div>
-              <div className="p-4 border-t border-[color:var(--secondary-soft-highlight)]">
-                <Link
-                  href="/government/programs"
-                  className="text-sm text-[color:var(--secondary-highlight2)] hover:text-[color:var(--secondary-muted-edge)] font-medium"
-                >
-                  Manage programs →
-                </Link>
-              </div>
-            </section>
+            </div>
 
-            {/* Quick Reports */}
-            <section className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white overflow-hidden">
-              <div className="p-5 border-b border-[color:var(--secondary-soft-highlight)]">
-                <h2 className="text-base font-semibold text-[color:var(--secondary-black)]">
-                  Quick Reports
-                </h2>
+            {/* Reports */}
+            <div style={card}>
+              <div style={{ padding: "12px 14px 6px" }}>
+                <h2 style={hdr}>Reports</h2>
               </div>
-              <div className="p-4 space-y-2">
-                <Link
-                  href="/government/reporting?type=market-requirements"
-                  className="block px-4 py-3 rounded-lg hover:bg-gray-50 transition-colors text-sm text-[color:var(--secondary-black)]"
-                >
-                  <div className="flex items-center gap-2">
-                    <DocumentTextIcon className="h-4 w-4 text-[color:var(--secondary-muted-edge)]" />
-                    Market Requirements
-                  </div>
-                </Link>
-                <Link
-                  href="/government/reporting?type=quarterly-sales"
-                  className="block px-4 py-3 rounded-lg hover:bg-gray-50 transition-colors text-sm text-[color:var(--secondary-black)]"
-                >
-                  <div className="flex items-center gap-2">
-                    <DocumentTextIcon className="h-4 w-4 text-[color:var(--secondary-muted-edge)]" />
-                    Quarterly Sales Report
-                  </div>
-                </Link>
-                <Link
-                  href="/government/reporting?type=available-acreage"
-                  className="block px-4 py-3 rounded-lg hover:bg-gray-50 transition-colors text-sm text-[color:var(--secondary-black)]"
-                >
-                  <div className="flex items-center gap-2">
-                    <DocumentTextIcon className="h-4 w-4 text-[color:var(--secondary-muted-edge)]" />
-                    Available Acreage
-                  </div>
-                </Link>
-                <Link
-                  href="/government/reporting?type=vendor-performance"
-                  className="block px-4 py-3 rounded-lg hover:bg-gray-50 transition-colors text-sm text-[color:var(--secondary-black)]"
-                >
-                  <div className="flex items-center gap-2">
-                    <DocumentTextIcon className="h-4 w-4 text-[color:var(--secondary-muted-edge)]" />
-                    Vendor Performance
-                  </div>
-                </Link>
+              <div style={{ padding: "0 8px 8px" }}>
+                {[
+                  { l: "Market Requirements", h: "/government/reporting?type=market-requirements" },
+                  { l: "Quarterly Sales", h: "/government/reporting?type=quarterly-sales" },
+                  { l: "Available Acreage", h: "/government/reporting?type=available-acreage" },
+                  { l: "Vendor Performance", h: "/government/reporting?type=vendor-performance" },
+                ].map((r) => (
+                  <Link
+                    key={r.l}
+                    href={r.h}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 6, padding: "6px 6px",
+                      borderRadius: 5, fontSize: 12, fontWeight: 500, color: GOV.text, textDecoration: "none",
+                      transition: "background 0.1s",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = govHoverBg)}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <DocumentTextIcon style={{ width: 13, height: 13, color: GOV.muted, flexShrink: 0 }} />
+                    {r.l}
+                  </Link>
+                ))}
               </div>
-            </section>
+            </div>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
+
+/* ── Static data ──────────────────────────────────────────────────────────── */
+
+const recentActivity = [
+  { message: "New vendor registered: Green Valley Farms", time: "2h ago", urgent: false },
+  { message: "Harvest completed: 500kg Tomatoes – Sunrise Farm", time: "5h ago", urgent: false },
+  { message: "Compliance alert: Chemical usage report overdue", time: "1d ago", urgent: true },
+  { message: "15 vendors enrolled in Irrigation Support Program", time: "2d ago", urgent: false },
+  { message: "Market demand spike: Organic Lettuce", time: "3d ago", urgent: false },
+];

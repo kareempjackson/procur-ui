@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect } from "react";
+import { Fragment, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -14,46 +14,30 @@ import {
   ChevronDownIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
-import { useState } from "react";
 
-interface NavChild {
-  label: string;
-  href: string;
-  description?: string;
-}
+interface NavChild { label: string; href: string; }
+interface NavItem { id: string; label: string; icon?: any; href?: string; section?: string; children?: NavChild[]; separator?: boolean; }
+interface Props { isOpen: boolean; onClose: () => void; }
 
-interface NavItem {
-  id: string;
-  label: string;
-  icon?: any;
-  href?: string;
-  section?: string;
-  children?: NavChild[];
-  separator?: boolean;
-}
-
-interface Props {
-  isOpen: boolean;
-  onClose: () => void;
-}
+const C = {
+  bg: "#faf8f4",
+  border: "#ebe7df",
+  text: "#1c2b23",
+  muted: "#8a9e92",
+  accent: "#d4783c",
+  brand: "#2d4a3e",
+  hoverBg: "rgba(45,74,62,.04)",
+  activeBg: "rgba(45,74,62,.07)",
+} as const;
 
 export default function GovernmentMobileSideNav({ isOpen, onClose }: Props) {
   const pathname = usePathname();
   const [expandedSections, setExpandedSections] = useState<string[]>([]);
 
   const navigationItems: NavItem[] = [
+    { id: "overview", label: "Overview", icon: HomeIcon, href: "/government", section: "main" },
     {
-      id: "overview",
-      label: "Overview",
-      icon: HomeIcon,
-      href: "/government",
-      section: "main",
-    },
-    {
-      id: "vendors-operations",
-      label: "Vendors & Operations",
-      icon: BuildingOffice2Icon,
-      section: "main",
+      id: "vendors-operations", label: "Vendors & Ops", icon: BuildingOffice2Icon, section: "main",
       children: [
         { label: "All Vendors", href: "/government/vendors" },
         { label: "Register New", href: "/government/vendors/new" },
@@ -63,203 +47,107 @@ export default function GovernmentMobileSideNav({ isOpen, onClose }: Props) {
       ],
     },
     {
-      id: "insights",
-      label: "Market & Insights",
-      icon: ChartBarIcon,
-      section: "main",
+      id: "insights", label: "Market & Insights", icon: ChartBarIcon, section: "main",
       children: [
         { label: "Market Analysis", href: "/government/market" },
         { label: "Data Explorer", href: "/government/data" },
       ],
     },
     {
-      id: "compliance",
-      label: "Compliance & Reports",
-      icon: ShieldCheckIcon,
-      section: "main",
+      id: "compliance", label: "Compliance", icon: ShieldCheckIcon, section: "main",
       children: [
         { label: "Compliance", href: "/government/compliance" },
         { label: "Reporting", href: "/government/reporting" },
       ],
     },
-    {
-      id: "programs",
-      label: "Programs",
-      icon: AcademicCapIcon,
-      href: "/government/programs",
-      section: "main",
-    },
+    { id: "programs", label: "Programs", icon: AcademicCapIcon, href: "/government/programs", section: "main" },
     { separator: true } as NavItem,
-    {
-      id: "settings",
-      label: "Settings",
-      icon: Cog6ToothIcon,
-      href: "/government/settings",
-      section: "footer",
-    },
-    {
-      id: "support",
-      label: "Help & Support",
-      icon: QuestionMarkCircleIcon,
-      href: "/government/support",
-      section: "footer",
-    },
+    { id: "settings", label: "Settings", icon: Cog6ToothIcon, href: "/government/settings", section: "footer" },
+    { id: "support", label: "Support", icon: QuestionMarkCircleIcon, href: "/government/support", section: "footer" },
   ];
 
-  const toggleSection = (sectionId: string) => {
-    setExpandedSections((prev) =>
-      prev.includes(sectionId)
-        ? prev.filter((id) => id !== sectionId)
-        : [...prev, sectionId]
-    );
+  const toggleSection = (id: string) => {
+    setExpandedSections((prev) => prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]);
   };
 
   const isActive = (href: string) => {
-    if (href === "/government") {
-      return pathname === "/government";
-    }
+    if (href === "/government") return pathname === "/government";
     return pathname?.startsWith(href);
   };
 
   const isSectionActive = (item: NavItem) => {
     if (item.href) return isActive(item.href);
-    if (item.children) {
-      return item.children.some((child) => child.href && isActive(child.href));
-    }
+    if (item.children) return item.children.some((c) => c.href && isActive(c.href));
     return false;
   };
 
-  // Close on escape key
   useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     if (isOpen) {
-      document.addEventListener("keydown", handleEscape);
+      document.addEventListener("keydown", h);
       document.body.style.overflow = "hidden";
     }
-
-    return () => {
-      document.removeEventListener("keydown", handleEscape);
-      document.body.style.overflow = "";
-    };
+    return () => { document.removeEventListener("keydown", h); document.body.style.overflow = ""; };
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
   return (
     <>
-      {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+        style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", zIndex: 40 }}
+        className="lg:hidden"
         onClick={onClose}
       />
-
-      {/* Drawer */}
-      <aside className="fixed top-0 left-0 h-screen w-72 bg-[var(--primary-background)] z-50 lg:hidden">
-        <div className="flex flex-col h-full">
-          {/* Header */}
-          <div className="h-20 flex items-center justify-between px-4">
-            <div className="text-sm font-semibold text-[color:var(--secondary-black)]">
-              Navigation
-            </div>
-            <button
-              onClick={onClose}
-              className="p-2.5 rounded-xl hover:bg-white transition-all duration-200 group"
-              aria-label="Close navigation"
-            >
-              <XMarkIcon className="h-5 w-5 text-[color:var(--secondary-muted-edge)] group-hover:text-[var(--secondary-highlight2)] transition-colors" />
+      <aside
+        style={{ position: "fixed", top: 0, left: 0, height: "100vh", width: 260, background: C.bg, boxShadow: "4px 0 20px rgba(0,0,0,.06)", zIndex: 50 }}
+        className="lg:hidden"
+      >
+        <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+          <div style={{ height: 56, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 14px" }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>Menu</span>
+            <button onClick={onClose} style={{ padding: 6, borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", color: C.muted }} aria-label="Close">
+              <XMarkIcon style={{ width: 16, height: 16 }} />
             </button>
           </div>
-
-          {/* Navigation Items */}
-          <nav className="flex-1 overflow-y-auto py-4 px-2">
-            <div className="space-y-1">
+          <nav style={{ flex: 1, overflowY: "auto", padding: "6px 6px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
               {navigationItems.map((item, index) => {
-                if (item.separator) {
-                  return <div key={`separator-${index}`} className="my-3" />;
-                }
-
+                if (item.separator) return <div key={`sep-${index}`} style={{ height: 8 }} />;
                 const Icon = item.icon;
                 const hasChildren = item.children && item.children.length > 0;
                 const isExpanded = expandedSections.includes(item.id);
                 const active = isSectionActive(item);
-
+                const base: React.CSSProperties = {
+                  display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 6, border: "none",
+                  background: active ? C.activeBg : "transparent", color: active ? C.text : C.muted,
+                  cursor: "pointer", textDecoration: "none", fontSize: 12.5, fontWeight: active ? 700 : 500,
+                  width: "100%", fontFamily: "inherit", transition: "background 0.12s",
+                };
                 return (
                   <Fragment key={item.id}>
-                    {/* Parent Item */}
                     {item.href && !hasChildren ? (
-                      <Link
-                        href={item.href}
-                        onClick={onClose}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 ${
-                          isActive(item.href)
-                            ? "bg-white text-[var(--secondary-highlight2)] shadow-sm"
-                            : "text-gray-700 hover:bg-white/60"
-                        }`}
-                      >
-                        {Icon && (
-                          <Icon
-                            className={`h-5 w-5 flex-shrink-0 ${
-                              isActive(item.href)
-                                ? "text-[var(--secondary-highlight2)]"
-                                : "text-gray-600"
-                            }`}
-                          />
-                        )}
-                        <span className="text-sm font-medium">
-                          {item.label}
-                        </span>
+                      <Link href={item.href} style={base} onClick={onClose}>
+                        {Icon && <Icon style={{ width: 16, height: 16, flexShrink: 0, color: active ? C.accent : "inherit" }} />}
+                        <span>{item.label}</span>
                       </Link>
                     ) : (
-                      <button
-                        onClick={() => hasChildren && toggleSection(item.id)}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 ${
-                          active
-                            ? "bg-white/80 text-[var(--secondary-highlight2)]"
-                            : "text-gray-700 hover:bg-white/60"
-                        }`}
-                      >
-                        {Icon && (
-                          <Icon
-                            className={`h-5 w-5 flex-shrink-0 ${
-                              active
-                                ? "text-[var(--secondary-highlight2)]"
-                                : "text-gray-600"
-                            }`}
-                          />
-                        )}
-                        <span className="flex-1 text-left text-sm font-medium">
-                          {item.label}
-                        </span>
-                        {hasChildren && (
-                          <ChevronDownIcon
-                            className={`h-4 w-4 transition-transform duration-200 ${
-                              isExpanded ? "rotate-180" : ""
-                            }`}
-                          />
-                        )}
+                      <button onClick={() => hasChildren && toggleSection(item.id)} style={base}>
+                        {Icon && <Icon style={{ width: 16, height: 16, flexShrink: 0, color: active ? C.accent : "inherit" }} />}
+                        <span style={{ flex: 1, textAlign: "left" }}>{item.label}</span>
+                        {hasChildren && <ChevronDownIcon style={{ width: 12, height: 12, transform: isExpanded ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s", opacity: 0.5 }} />}
                       </button>
                     )}
-
-                    {/* Child Items */}
                     {hasChildren && isExpanded && (
-                      <div className="ml-8 mt-1 space-y-1">
-                        {item.children!.map((child, childIndex) => (
-                          <Link
-                            key={childIndex}
-                            href={child.href}
-                            onClick={onClose}
-                            className={`block px-3 py-2 rounded-xl text-sm transition-all duration-200 ${
-                              isActive(child.href)
-                                ? "bg-white text-[var(--secondary-highlight2)] font-medium shadow-sm"
-                                : "text-gray-600 hover:bg-white/60 hover:text-gray-900"
-                            }`}
-                          >
-                            {child.label}
-                          </Link>
-                        ))}
+                      <div style={{ marginLeft: 24, display: "flex", flexDirection: "column", gap: 0 }}>
+                        {item.children!.map((child, ci) => {
+                          const ca = isActive(child.href);
+                          return (
+                            <Link key={ci} href={child.href} onClick={onClose} style={{ display: "block", padding: "5px 10px", borderRadius: 5, fontSize: 12, fontWeight: ca ? 700 : 500, color: ca ? C.accent : C.muted, textDecoration: "none", background: ca ? C.activeBg : "transparent" }}>
+                              {child.label}
+                            </Link>
+                          );
+                        })}
                       </div>
                     )}
                   </Fragment>

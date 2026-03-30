@@ -22,6 +22,71 @@ import {
   setCurrentVendor,
   clearCurrentVendor,
 } from "@/store/slices/governmentVendorsSlice";
+import {
+  GOV,
+  govCard,
+  govCardPadded,
+  govSectionHeader,
+  govViewAllLink,
+  govKpiLabel,
+  govKpiValue,
+  govKpiSub,
+  govPageTitle,
+  govPageSubtitle,
+  govPillButton,
+  govPrimaryButton,
+  govStatusPillStyle,
+  govStatusLabel,
+  govHoverBg,
+} from "../../styles";
+
+/* ── Inline style helpers ─────────────────────────────────────────────────── */
+
+const fieldLabel: React.CSSProperties = {
+  fontSize: 10.5,
+  fontWeight: 700,
+  color: GOV.muted,
+  textTransform: "uppercase",
+  letterSpacing: ".06em",
+};
+
+const fieldValue: React.CSSProperties = {
+  fontSize: 13,
+  color: GOV.text,
+  marginTop: 4,
+  fontWeight: 500,
+};
+
+const sectionTitle: React.CSSProperties = {
+  fontSize: 15,
+  fontWeight: 700,
+  color: GOV.text,
+  margin: 0,
+  marginBottom: 14,
+};
+
+const infoRow: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  fontSize: 12.5,
+  color: GOV.textSecondary,
+};
+
+const listRow: React.CSSProperties = {
+  ...govCard,
+  padding: "14px 18px",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  transition: "background .15s",
+};
+
+const linkStyle: React.CSSProperties = {
+  color: "#d4783c",
+  fontWeight: 600,
+  textDecoration: "none",
+};
 
 export default function VendorDetailPage({
   params,
@@ -34,6 +99,8 @@ export default function VendorDetailPage({
   const [activeTab, setActiveTab] = useState<
     "personal" | "farm" | "production" | "programs" | "market" | "products"
   >("personal");
+
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
 
   // Redux state
   const vendors = useAppSelector(selectVendors);
@@ -76,17 +143,34 @@ export default function VendorDetailPage({
   // Loading state
   if (vendorsStatus === "loading" || !vendor) {
     return (
-      <div className="min-h-screen bg-[var(--primary-background)]">
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16">
-          <div className="flex items-center justify-center py-20">
-            <div className="text-center">
-              <ArrowPathIcon className="h-12 w-12 animate-spin text-[color:var(--secondary-muted-edge)] mx-auto mb-4" />
-              <p className="text-sm text-[color:var(--secondary-muted-edge)]">
+      <div style={{ minHeight: "100vh", background: GOV.bg, color: GOV.text }}>
+        <div
+          style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 24px 80px" }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "80px 0",
+            }}
+          >
+            <div style={{ textAlign: "center" }}>
+              <ArrowPathIcon
+                style={{
+                  width: 48,
+                  height: 48,
+                  color: GOV.muted,
+                  margin: "0 auto 16px",
+                  animation: "spin 1s linear infinite",
+                }}
+              />
+              <p style={{ fontSize: 13, color: GOV.muted }}>
                 Loading vendor details...
               </p>
             </div>
           </div>
-        </main>
+        </div>
       </div>
     );
   }
@@ -219,97 +303,147 @@ export default function VendorDetailPage({
   ];
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16">
+    <div style={{ minHeight: "100vh", background: GOV.bg, color: GOV.text }}>
+      <div
+        style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 24px 80px" }}
+      >
         {/* Back Button */}
         <Link
           href="/government/vendors"
-          className="inline-flex items-center gap-2 text-sm text-[color:var(--secondary-muted-edge)] hover:text-[color:var(--secondary-black)] mb-6"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: 12.5,
+            fontWeight: 600,
+            color: GOV.muted,
+            textDecoration: "none",
+            marginBottom: 20,
+          }}
         >
-          <ArrowLeftIcon className="h-4 w-4" />
+          <ArrowLeftIcon style={{ width: 14, height: 14 }} />
           Back to Vendors
         </Link>
 
-        {/* Header */}
-        <div className="rounded-3xl bg-[var(--primary-accent1)]/14 border border-[color:var(--secondary-soft-highlight)] px-6 sm:px-10 py-8 mb-8">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <div className="flex items-center gap-3">
-                <h1 className="text-3xl font-semibold text-[color:var(--secondary-black)]">
-                  {displayVendor.name}
-                </h1>
+        {/* Header Card */}
+        <div
+          style={{
+            ...govCard,
+            padding: "28px 32px",
+            marginBottom: 20,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: 16,
+            }}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  flexWrap: "wrap",
+                }}
+              >
+                <h1 style={govPageTitle}>{displayVendor.name}</h1>
                 <span
-                  className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${
+                  style={govStatusPillStyle(
                     displayVendor.compliance_status === "compliant"
-                      ? "bg-[var(--primary-base)]/10 text-[color:var(--primary-base)]"
-                      : "bg-[var(--primary-accent2)]/10 text-[color:var(--primary-accent2)]"
-                  }`}
+                      ? "compliant"
+                      : "alert"
+                  )}
                 >
-                  <CheckCircleIcon className="h-4 w-4" />
-                  {displayVendor.compliance_status === "compliant"
-                    ? "Compliant"
-                    : "Alert"}
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                    }}
+                  >
+                    <CheckCircleIcon style={{ width: 13, height: 13 }} />
+                    {govStatusLabel(
+                      displayVendor.compliance_status === "compliant"
+                        ? "compliant"
+                        : "alert"
+                    )}
+                  </span>
                 </span>
               </div>
-              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="flex items-center gap-2 text-sm text-[color:var(--secondary-muted-edge)]">
-                  <MapPinIcon className="h-5 w-5" />
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(auto-fit, minmax(180px, 1fr))",
+                  gap: 12,
+                  marginTop: 14,
+                }}
+              >
+                <div style={infoRow}>
+                  <MapPinIcon style={{ width: 15, height: 15, flexShrink: 0 }} />
                   {displayVendor.location}
                 </div>
-                <div className="flex items-center gap-2 text-sm text-[color:var(--secondary-muted-edge)]">
-                  <PhoneIcon className="h-5 w-5" />
+                <div style={infoRow}>
+                  <PhoneIcon style={{ width: 15, height: 15, flexShrink: 0 }} />
                   {displayVendor.phone}
                 </div>
-                <div className="flex items-center gap-2 text-sm text-[color:var(--secondary-muted-edge)]">
-                  <EnvelopeIcon className="h-5 w-5" />
+                <div style={infoRow}>
+                  <EnvelopeIcon
+                    style={{ width: 15, height: 15, flexShrink: 0 }}
+                  />
                   {displayVendor.email}
                 </div>
-                <div className="text-sm text-[color:var(--secondary-muted-edge)]">
+                <div style={{ ...infoRow }}>
                   Registered:{" "}
                   {new Date(displayVendor.created_at).toLocaleDateString()}
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleRefresh}
-                className="inline-flex items-center gap-2 rounded-full bg-white border border-[color:var(--secondary-soft-highlight)] text-[color:var(--secondary-black)] px-4 py-2.5 text-sm font-medium hover:bg-gray-50 transition-colors"
-              >
-                <ArrowPathIcon className="h-5 w-5" />
-                <span className="hidden sm:inline">Refresh</span>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button onClick={handleRefresh} style={govPillButton}>
+                <ArrowPathIcon style={{ width: 15, height: 15 }} />
+                Refresh
               </button>
               <Link
                 href={`/government/products/upload?vendorId=${vendorId}`}
-                className="inline-flex items-center gap-2 rounded-full bg-[var(--primary-accent2)] text-white px-5 py-2.5 text-sm font-medium hover:bg-[var(--primary-accent3)] transition-colors"
+                style={govPrimaryButton}
               >
-                <PlusIcon className="h-5 w-5" />
+                <PlusIcon style={{ width: 15, height: 15 }} />
                 Upload Product
               </Link>
             </div>
           </div>
         </div>
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
-          <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-            <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)]">
-              Total Acreage
-            </div>
-            <div className="mt-2 text-2xl font-semibold text-[color:var(--secondary-black)]">
+        {/* Quick Stats KPI Row */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+            gap: 12,
+            marginBottom: 20,
+          }}
+        >
+          <div style={govCardPadded}>
+            <div style={govKpiLabel}>Total Acreage</div>
+            <div style={{ ...govKpiValue, marginTop: 6 }}>
               {displayVendor.total_acreage}
             </div>
-            <div className="mt-1 text-xs text-[color:var(--secondary-muted-edge)]">
-              acres total
-            </div>
+            <div style={govKpiSub}>acres total</div>
           </div>
-          <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-            <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)]">
-              Utilized Acreage
-            </div>
-            <div className="mt-2 text-2xl font-semibold text-[color:var(--primary-base)]">
+          <div style={govCardPadded}>
+            <div style={govKpiLabel}>Utilized Acreage</div>
+            <div style={{ ...govKpiValue, marginTop: 6, color: GOV.brand }}>
               {displayVendor.utilized_acreage}
             </div>
-            <div className="mt-1 text-xs text-[color:var(--secondary-muted-edge)]">
+            <div style={govKpiSub}>
               {Math.round(
                 (displayVendor.utilized_acreage / displayVendor.total_acreage) *
                   100
@@ -317,101 +451,105 @@ export default function VendorDetailPage({
               % utilized
             </div>
           </div>
-          <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-            <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)]">
-              Available Acreage
-            </div>
-            <div className="mt-2 text-2xl font-semibold text-[color:var(--secondary-black)]">
+          <div style={govCardPadded}>
+            <div style={govKpiLabel}>Available Acreage</div>
+            <div style={{ ...govKpiValue, marginTop: 6 }}>
               {displayVendor.available_acreage}
             </div>
-            <div className="mt-1 text-xs text-[color:var(--secondary-muted-edge)]">
-              acres not planted
-            </div>
+            <div style={govKpiSub}>acres not planted</div>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="border-b border-[color:var(--secondary-soft-highlight)] mb-6">
-          <div className="flex flex-wrap gap-2">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
+        <div
+          style={{
+            borderBottom: `1px solid ${GOV.border}`,
+            marginBottom: 20,
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 0,
+          }}
+        >
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                padding: "12px 20px",
+                fontSize: 12.5,
+                fontWeight: 600,
+                background: "none",
+                border: "none",
+                borderBottom:
                   activeTab === tab.id
-                    ? "text-[var(--primary-accent2)] border-[var(--primary-accent2)]"
-                    : "text-[color:var(--secondary-muted-edge)] border-transparent hover:text-[color:var(--secondary-black)]"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+                    ? `2px solid ${GOV.accent}`
+                    : "2px solid transparent",
+                color: activeTab === tab.id ? GOV.accent : GOV.muted,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                transition: "color .15s, border-color .15s",
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
-        {/* Tab Content */}
-        <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-          {/* Personal Details Tab */}
+        {/* Tab Content Card */}
+        <div style={{ ...govCard, padding: "28px 28px" }}>
+          {/* ── Personal Details Tab ──────────────────────────────────── */}
           {activeTab === "personal" && (
-            <div className="space-y-6">
+            <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+              {/* Contact Information */}
               <div>
-                <h2 className="text-lg font-semibold text-[color:var(--secondary-black)] mb-4">
-                  Contact Information
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <h2 style={sectionTitle}>Contact Information</h2>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                    gap: 20,
+                  }}
+                >
                   <div>
-                    <label className="text-xs text-[color:var(--secondary-muted-edge)] uppercase tracking-wider">
-                      Contact Person
-                    </label>
-                    <div className="mt-1 text-sm text-[color:var(--secondary-black)]">
+                    <div style={fieldLabel}>Contact Person</div>
+                    <div style={fieldValue}>
                       {displayVendor.contact_person}
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs text-[color:var(--secondary-muted-edge)] uppercase tracking-wider">
-                      Email
-                    </label>
-                    <div className="mt-1 text-sm text-[color:var(--secondary-black)]">
-                      {displayVendor.email}
-                    </div>
+                    <div style={fieldLabel}>Email</div>
+                    <div style={fieldValue}>{displayVendor.email}</div>
                   </div>
                   <div>
-                    <label className="text-xs text-[color:var(--secondary-muted-edge)] uppercase tracking-wider">
-                      Phone
-                    </label>
-                    <div className="mt-1 text-sm text-[color:var(--secondary-black)]">
-                      {displayVendor.phone}
-                    </div>
+                    <div style={fieldLabel}>Phone</div>
+                    <div style={fieldValue}>{displayVendor.phone}</div>
                   </div>
                   <div>
-                    <label className="text-xs text-[color:var(--secondary-muted-edge)] uppercase tracking-wider">
-                      Registered Date
-                    </label>
-                    <div className="mt-1 text-sm text-[color:var(--secondary-black)]">
+                    <div style={fieldLabel}>Registered Date</div>
+                    <div style={fieldValue}>
                       {new Date(displayVendor.created_at).toLocaleDateString()}
                     </div>
                   </div>
                 </div>
               </div>
 
+              {/* Farm Location */}
               <div>
-                <h2 className="text-lg font-semibold text-[color:var(--secondary-black)] mb-4">
-                  Farm Location
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <h2 style={sectionTitle}>Farm Location</h2>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                    gap: 20,
+                  }}
+                >
                   <div>
-                    <label className="text-xs text-[color:var(--secondary-muted-edge)] uppercase tracking-wider">
-                      Address
-                    </label>
-                    <div className="mt-1 text-sm text-[color:var(--secondary-black)]">
-                      {displayVendor.location}
-                    </div>
+                    <div style={fieldLabel}>Address</div>
+                    <div style={fieldValue}>{displayVendor.location}</div>
                   </div>
                   <div>
-                    <label className="text-xs text-[color:var(--secondary-muted-edge)] uppercase tracking-wider">
-                      GPS Coordinates
-                    </label>
-                    <div className="mt-1 text-sm text-[color:var(--secondary-black)]">
+                    <div style={fieldLabel}>GPS Coordinates</div>
+                    <div style={fieldValue}>
                       {displayVendor.gps_coordinates?.lat &&
                       displayVendor.gps_coordinates?.lng
                         ? `${displayVendor.gps_coordinates.lat}, ${displayVendor.gps_coordinates.lng}`
@@ -420,42 +558,78 @@ export default function VendorDetailPage({
                   </div>
                 </div>
                 {/* Map Placeholder */}
-                <div className="mt-4 h-64 rounded-xl bg-gray-100 flex items-center justify-center border border-[color:var(--secondary-soft-highlight)]">
-                  <div className="text-center">
-                    <MapPinIcon className="h-12 w-12 mx-auto text-[color:var(--secondary-muted-edge)] mb-2" />
-                    <div className="text-sm text-[color:var(--secondary-muted-edge)]">
+                <div
+                  style={{
+                    marginTop: 16,
+                    height: 240,
+                    borderRadius: 10,
+                    background: GOV.bg,
+                    border: `1px solid ${GOV.border}`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <div style={{ textAlign: "center" }}>
+                    <MapPinIcon
+                      style={{
+                        width: 40,
+                        height: 40,
+                        margin: "0 auto 8px",
+                        color: GOV.lightMuted,
+                      }}
+                    />
+                    <div style={{ fontSize: 12, color: GOV.muted }}>
                       Map visualization
                     </div>
                   </div>
                 </div>
               </div>
 
+              {/* Land Overview */}
               <div>
-                <h2 className="text-lg font-semibold text-[color:var(--secondary-black)] mb-4">
-                  Land Overview
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <h2 style={sectionTitle}>Land Overview</h2>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                    gap: 20,
+                  }}
+                >
                   <div>
-                    <label className="text-xs text-[color:var(--secondary-muted-edge)] uppercase tracking-wider">
-                      Total Acreage
-                    </label>
-                    <div className="mt-1 text-2xl font-semibold text-[color:var(--secondary-black)]">
+                    <div style={fieldLabel}>Total Acreage</div>
+                    <div
+                      style={{
+                        ...govKpiValue,
+                        fontSize: 22,
+                        marginTop: 4,
+                      }}
+                    >
                       {displayVendor.total_acreage}
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs text-[color:var(--secondary-muted-edge)] uppercase tracking-wider">
-                      Utilized
-                    </label>
-                    <div className="mt-1 text-2xl font-semibold text-[color:var(--primary-base)]">
+                    <div style={fieldLabel}>Utilized</div>
+                    <div
+                      style={{
+                        ...govKpiValue,
+                        fontSize: 22,
+                        marginTop: 4,
+                        color: GOV.brand,
+                      }}
+                    >
                       {displayVendor.utilized_acreage}
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs text-[color:var(--secondary-muted-edge)] uppercase tracking-wider">
-                      Available
-                    </label>
-                    <div className="mt-1 text-2xl font-semibold text-[color:var(--secondary-black)]">
+                    <div style={fieldLabel}>Available</div>
+                    <div
+                      style={{
+                        ...govKpiValue,
+                        fontSize: 22,
+                        marginTop: 4,
+                      }}
+                    >
                       {displayVendor.available_acreage}
                     </div>
                   </div>
@@ -464,15 +638,20 @@ export default function VendorDetailPage({
             </div>
           )}
 
-          {/* Farm Details Tab */}
+          {/* ── Farm Details Tab ──────────────────────────────────────── */}
           {activeTab === "farm" && (
-            <div className="space-y-6">
+            <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+              {/* Crop Types */}
               <div>
-                <h2 className="text-lg font-semibold text-[color:var(--secondary-black)] mb-4">
-                  Crop Types
-                </h2>
-                <div className="space-y-3">
-                  {(displayVendor.crops ?? []).map((crop: any, idx) => {
+                <h2 style={sectionTitle}>Crop Types</h2>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8,
+                  }}
+                >
+                  {(displayVendor.crops ?? []).map((crop: any, idx: number) => {
                     const name =
                       typeof crop === "string"
                         ? crop
@@ -481,26 +660,49 @@ export default function VendorDetailPage({
                       typeof crop === "string" ? undefined : crop?.variety;
                     const acreage =
                       typeof crop === "string" ? undefined : crop?.acreage;
+                    const key = `crop-${idx}`;
                     return (
                       <div
                         key={idx}
-                        className="flex items-center justify-between p-4 rounded-xl bg-gray-50 border border-[color:var(--secondary-soft-highlight)]"
+                        style={{
+                          ...listRow,
+                          background:
+                            hoveredCard === key ? govHoverBg : GOV.cardBg,
+                        }}
+                        onMouseEnter={() => setHoveredCard(key)}
+                        onMouseLeave={() => setHoveredCard(null)}
                       >
                         <div>
-                          <div className="font-medium text-sm text-[color:var(--secondary-black)]">
+                          <div
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 600,
+                              color: GOV.text,
+                            }}
+                          >
                             {name}
                           </div>
                           {variety && (
-                            <div className="text-xs text-[color:var(--secondary-muted-edge)] mt-0.5">
+                            <div
+                              style={{
+                                fontSize: 11.5,
+                                color: GOV.muted,
+                                marginTop: 2,
+                              }}
+                            >
                               Variety: {variety}
                             </div>
                           )}
                         </div>
                         {acreage !== undefined && (
-                          <div className="text-right">
-                            <div className="font-semibold text-sm text-[color:var(--secondary-black)]">
-                              {acreage} acres
-                            </div>
+                          <div
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 700,
+                              color: GOV.text,
+                            }}
+                          >
+                            {acreage} acres
                           </div>
                         )}
                       </div>
@@ -509,317 +711,520 @@ export default function VendorDetailPage({
                 </div>
               </div>
 
+              {/* Infrastructure */}
               <div>
-                <h2 className="text-lg font-semibold text-[color:var(--secondary-black)] mb-4">
-                  Infrastructure
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50 border border-[color:var(--secondary-soft-highlight)]">
-                    <span className="text-sm text-[color:var(--secondary-black)]">
-                      Irrigation System
-                    </span>
-                    <span
-                      className={`text-sm font-medium ${
-                        vendorInfra?.irrigation
-                          ? "text-[color:var(--primary-base)]"
-                          : "text-[color:var(--secondary-muted-edge)]"
-                      }`}
-                    >
-                      {vendorInfra?.irrigation ? "Yes" : "No"}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50 border border-[color:var(--secondary-soft-highlight)]">
-                    <span className="text-sm text-[color:var(--secondary-black)]">
-                      Rainwater Harvesting
-                    </span>
-                    <span
-                      className={`text-sm font-medium ${
-                        vendorInfra?.rainwaterHarvesting
-                          ? "text-[color:var(--primary-base)]"
-                          : "text-[color:var(--secondary-muted-edge)]"
-                      }`}
-                    >
-                      {vendorInfra?.rainwaterHarvesting ? "Yes" : "No"}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50 border border-[color:var(--secondary-soft-highlight)]">
-                    <span className="text-sm text-[color:var(--secondary-black)]">
-                      Ponds
-                    </span>
-                    <span className="text-sm font-medium text-[color:var(--secondary-black)]">
-                      {vendorInfra?.ponds ?? "N/A"}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50 border border-[color:var(--secondary-soft-highlight)]">
-                    <span className="text-sm text-[color:var(--secondary-black)]">
-                      Greenhouses
-                    </span>
-                    <span className="text-sm font-medium text-[color:var(--secondary-black)]">
-                      {vendorInfra?.greenhouses ?? "N/A"}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50 border border-[color:var(--secondary-soft-highlight)]">
-                    <span className="text-sm text-[color:var(--secondary-black)]">
-                      Shade Houses
-                    </span>
-                    <span className="text-sm font-medium text-[color:var(--secondary-black)]">
-                      {vendorInfra?.shadeHouses ?? "N/A"}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50 border border-[color:var(--secondary-soft-highlight)]">
-                    <span className="text-sm text-[color:var(--secondary-black)]">
-                      Transportation
-                    </span>
-                    <span className="text-sm font-medium text-[color:var(--secondary-black)]">
-                      {vendorInfra?.transportation ?? "N/A"}
-                    </span>
-                  </div>
+                <h2 style={sectionTitle}>Infrastructure</h2>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+                    gap: 8,
+                  }}
+                >
+                  {[
+                    {
+                      label: "Irrigation System",
+                      value: vendorInfra?.irrigation ? "Yes" : "No",
+                      highlight: !!vendorInfra?.irrigation,
+                    },
+                    {
+                      label: "Rainwater Harvesting",
+                      value: vendorInfra?.rainwaterHarvesting ? "Yes" : "No",
+                      highlight: !!vendorInfra?.rainwaterHarvesting,
+                    },
+                    {
+                      label: "Ponds",
+                      value: vendorInfra?.ponds ?? "N/A",
+                      highlight: false,
+                    },
+                    {
+                      label: "Greenhouses",
+                      value: vendorInfra?.greenhouses ?? "N/A",
+                      highlight: false,
+                    },
+                    {
+                      label: "Shade Houses",
+                      value: vendorInfra?.shadeHouses ?? "N/A",
+                      highlight: false,
+                    },
+                    {
+                      label: "Transportation",
+                      value: vendorInfra?.transportation ?? "N/A",
+                      highlight: false,
+                    },
+                  ].map((item, idx) => {
+                    const key = `infra-${idx}`;
+                    return (
+                      <div
+                        key={idx}
+                        style={{
+                          ...listRow,
+                          background:
+                            hoveredCard === key ? govHoverBg : GOV.cardBg,
+                        }}
+                        onMouseEnter={() => setHoveredCard(key)}
+                        onMouseLeave={() => setHoveredCard(null)}
+                      >
+                        <span
+                          style={{
+                            fontSize: 13,
+                            color: GOV.text,
+                          }}
+                        >
+                          {item.label}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: item.highlight ? GOV.success : GOV.text,
+                          }}
+                        >
+                          {item.value}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
           )}
 
-          {/* Production Tab */}
+          {/* ── Production Tab ────────────────────────────────────────── */}
           {activeTab === "production" && (
-            <div className="space-y-6">
-              <h2 className="text-lg font-semibold text-[color:var(--secondary-black)]">
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              <h2 style={{ ...sectionTitle, marginBottom: 0 }}>
                 Current Production Cycles
               </h2>
-              {vendorProduction.map((prod) => (
-                <div
-                  key={prod.id}
-                  className="border border-[color:var(--secondary-soft-highlight)] rounded-xl p-6 space-y-4"
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="font-semibold text-[color:var(--secondary-black)]">
-                        {prod.crop} - {prod.variety}
-                      </h3>
-                      <p className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
-                        {prod.acreage} acres
-                      </p>
-                    </div>
-                    <span className="inline-flex items-center rounded-full bg-[var(--primary-accent1)]/15 text-[color:var(--primary-accent3)] px-3 py-1 text-xs font-medium">
-                      In Progress
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-xs text-[color:var(--secondary-muted-edge)] uppercase tracking-wider">
-                        Date Planted
-                      </label>
-                      <div className="mt-1 text-sm text-[color:var(--secondary-black)]">
-                        {new Date(prod.datePlanted).toLocaleDateString()}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-xs text-[color:var(--secondary-muted-edge)] uppercase tracking-wider">
-                        Expected Harvest
-                      </label>
-                      <div className="mt-1 text-sm text-[color:var(--secondary-black)]">
-                        {new Date(prod.expectedHarvest).toLocaleDateString()}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-xs text-[color:var(--secondary-muted-edge)] uppercase tracking-wider">
-                        Expected Amount
-                      </label>
-                      <div className="mt-1 text-sm text-[color:var(--secondary-black)]">
-                        {prod.expectedAmount}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-xs text-[color:var(--secondary-muted-edge)] uppercase tracking-wider">
-                        Post-Harvest Storage
-                      </label>
-                      <div className="mt-1 text-sm text-[color:var(--secondary-black)]">
-                        {prod.storage}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs text-[color:var(--secondary-muted-edge)] uppercase tracking-wider mb-2 block">
-                      Chemical Usage
-                    </label>
-                    <div className="space-y-2">
-                      {(prod.chemicals ?? []).map((chem: any, idx: number) => (
+              {vendorProduction.map((prod) => {
+                const key = `prod-${prod.id}`;
+                return (
+                  <div
+                    key={prod.id}
+                    style={{
+                      ...govCard,
+                      padding: "22px 24px",
+                      background:
+                        hoveredCard === key ? govHoverBg : GOV.cardBg,
+                    }}
+                    onMouseEnter={() => setHoveredCard(key)}
+                    onMouseLeave={() => setHoveredCard(null)}
+                  >
+                    {/* Production Header */}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        justifyContent: "space-between",
+                        marginBottom: 16,
+                      }}
+                    >
+                      <div>
                         <div
-                          key={idx}
-                          className="flex items-center justify-between p-3 rounded-lg bg-gray-50"
+                          style={{
+                            fontSize: 14,
+                            fontWeight: 700,
+                            color: GOV.text,
+                          }}
                         >
-                          <div>
-                            <div className="text-sm font-medium text-[color:var(--secondary-black)]">
-                              {chem.name}
-                            </div>
-                            <div className="text-xs text-[color:var(--secondary-muted-edge)]">
-                              Dose: {chem.dose}
-                            </div>
-                          </div>
-                          <div className="text-xs text-[color:var(--secondary-muted-edge)]">
-                            {new Date(chem.date).toLocaleDateString()}
-                          </div>
+                          {prod.crop} - {prod.variety}
                         </div>
-                      ))}
+                        <div
+                          style={{
+                            fontSize: 12,
+                            color: GOV.muted,
+                            marginTop: 2,
+                          }}
+                        >
+                          {prod.acreage} acres
+                        </div>
+                      </div>
+                      <span style={govStatusPillStyle("in_progress")}>
+                        {govStatusLabel("in_progress")}
+                      </span>
+                    </div>
+
+                    {/* Production Details Grid */}
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns:
+                          "repeat(auto-fit, minmax(180px, 1fr))",
+                        gap: 16,
+                        marginBottom: 16,
+                      }}
+                    >
+                      <div>
+                        <div style={fieldLabel}>Date Planted</div>
+                        <div style={fieldValue}>
+                          {new Date(prod.datePlanted).toLocaleDateString()}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={fieldLabel}>Expected Harvest</div>
+                        <div style={fieldValue}>
+                          {new Date(prod.expectedHarvest).toLocaleDateString()}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={fieldLabel}>Expected Amount</div>
+                        <div style={fieldValue}>{prod.expectedAmount}</div>
+                      </div>
+                      <div>
+                        <div style={fieldLabel}>Post-Harvest Storage</div>
+                        <div style={fieldValue}>{prod.storage}</div>
+                      </div>
+                    </div>
+
+                    {/* Chemical Usage */}
+                    <div>
+                      <div style={{ ...fieldLabel, marginBottom: 8 }}>
+                        Chemical Usage
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 6,
+                        }}
+                      >
+                        {(prod.chemicals ?? []).map(
+                          (chem: any, idx: number) => (
+                            <div
+                              key={idx}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                padding: "10px 14px",
+                                borderRadius: 8,
+                                background: GOV.bg,
+                              }}
+                            >
+                              <div>
+                                <div
+                                  style={{
+                                    fontSize: 12.5,
+                                    fontWeight: 600,
+                                    color: GOV.text,
+                                  }}
+                                >
+                                  {chem.name}
+                                </div>
+                                <div
+                                  style={{
+                                    fontSize: 11,
+                                    color: GOV.muted,
+                                    marginTop: 1,
+                                  }}
+                                >
+                                  Dose: {chem.dose}
+                                </div>
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: 11,
+                                  color: GOV.muted,
+                                }}
+                              >
+                                {new Date(chem.date).toLocaleDateString()}
+                              </div>
+                            </div>
+                          )
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
-          {/* Programs Tab */}
+          {/* ── Programs Tab ──────────────────────────────────────────── */}
           {activeTab === "programs" && (
-            <div className="space-y-6">
-              <h2 className="text-lg font-semibold text-[color:var(--secondary-black)]">
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              <h2 style={{ ...sectionTitle, marginBottom: 0 }}>
                 Enrolled Programs
               </h2>
-              <div className="space-y-4">
-                {vendorPrograms.map((program) => (
-                  <div
-                    key={program.id}
-                    className="flex items-center justify-between p-5 rounded-xl border border-[color:var(--secondary-soft-highlight)] bg-gray-50/50"
-                  >
-                    <div className="flex-1">
-                      <h3 className="font-medium text-[color:var(--secondary-black)]">
-                        {program.name}
-                      </h3>
-                      <div className="flex items-center gap-4 mt-2 text-xs text-[color:var(--secondary-muted-edge)]">
-                        <span>
-                          Enrolled:{" "}
-                          {new Date(program.enrolledDate).toLocaleDateString()}
-                        </span>
-                        <span className="inline-flex items-center gap-1">
-                          Performance:{" "}
-                          <span
-                            className={`font-medium ${
-                              program.performance === "excellent"
-                                ? "text-[color:var(--primary-base)]"
-                                : "text-[color:var(--primary-accent3)]"
-                            }`}
-                          >
-                            {program.performance}
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                }}
+              >
+                {vendorPrograms.map((program: any) => {
+                  const key = `prog-${program.id}`;
+                  return (
+                    <div
+                      key={program.id}
+                      style={{
+                        ...listRow,
+                        padding: "16px 20px",
+                        background:
+                          hoveredCard === key ? govHoverBg : GOV.cardBg,
+                      }}
+                      onMouseEnter={() => setHoveredCard(key)}
+                      onMouseLeave={() => setHoveredCard(null)}
+                    >
+                      <div style={{ flex: 1 }}>
+                        <div
+                          style={{
+                            fontSize: 13.5,
+                            fontWeight: 600,
+                            color: GOV.text,
+                          }}
+                        >
+                          {program.name}
+                        </div>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 14,
+                            marginTop: 6,
+                            fontSize: 11.5,
+                            color: GOV.muted,
+                          }}
+                        >
+                          <span>
+                            Enrolled:{" "}
+                            {new Date(
+                              program.enrolledDate
+                            ).toLocaleDateString()}
                           </span>
-                        </span>
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 4,
+                            }}
+                          >
+                            Performance:{" "}
+                            <span
+                              style={{
+                                fontWeight: 600,
+                                color:
+                                  program.performance === "excellent"
+                                    ? GOV.success
+                                    : GOV.accent,
+                              }}
+                            >
+                              {program.performance}
+                            </span>
+                          </span>
+                        </div>
                       </div>
+                      <span style={govStatusPillStyle(program.status)}>
+                        {govStatusLabel(program.status)}
+                      </span>
                     </div>
-                    <span className="inline-flex items-center rounded-full bg-[var(--primary-base)]/10 text-[color:var(--primary-base)] px-3 py-1 text-xs font-medium">
-                      {program.status}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
 
-          {/* Market Activity Tab */}
+          {/* ── Market Activity Tab ───────────────────────────────────── */}
           {activeTab === "market" && (
-            <div className="space-y-6">
+            <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+              {/* Purchase Requirements */}
               <div>
-                <h2 className="text-lg font-semibold text-[color:var(--secondary-black)] mb-4">
-                  Purchase Requirements
-                </h2>
-                <div className="space-y-3">
+                <h2 style={sectionTitle}>Purchase Requirements</h2>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8,
+                  }}
+                >
                   {(vendorMarket.requirements ?? []).map(
-                    (req: any, idx: number) => (
-                      <div
-                        key={idx}
-                        className="p-4 rounded-xl border border-[color:var(--secondary-soft-highlight)] bg-gray-50/50"
-                      >
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <div className="font-medium text-[color:var(--secondary-black)]">
-                              {req.crop}
-                            </div>
-                            <div className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
-                              Quantity: {req.quantity} · Frequency:{" "}
-                              {req.frequency}
-                            </div>
-                            <div className="text-xs text-[color:var(--secondary-muted-edge)] mt-1">
-                              Preferred: {req.preferredVariety}
-                            </div>
+                    (req: any, idx: number) => {
+                      const key = `req-${idx}`;
+                      return (
+                        <div
+                          key={idx}
+                          style={{
+                            ...govCard,
+                            padding: "16px 20px",
+                            background:
+                              hoveredCard === key ? govHoverBg : GOV.cardBg,
+                          }}
+                          onMouseEnter={() => setHoveredCard(key)}
+                          onMouseLeave={() => setHoveredCard(null)}
+                        >
+                          <div
+                            style={{
+                              fontSize: 13.5,
+                              fontWeight: 600,
+                              color: GOV.text,
+                            }}
+                          >
+                            {req.crop}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 12,
+                              color: GOV.muted,
+                              marginTop: 4,
+                            }}
+                          >
+                            Quantity: {req.quantity} · Frequency: {req.frequency}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 11,
+                              color: GOV.lightMuted,
+                              marginTop: 3,
+                            }}
+                          >
+                            Preferred: {req.preferredVariety}
                           </div>
                         </div>
-                      </div>
-                    )
+                      );
+                    }
                   )}
                 </div>
               </div>
 
+              {/* Recent Transactions */}
               <div>
-                <h2 className="text-lg font-semibold text-[color:var(--secondary-black)] mb-4">
-                  Recent Transactions
-                </h2>
-                <div className="space-y-3">
+                <h2 style={sectionTitle}>Recent Transactions</h2>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8,
+                  }}
+                >
                   {(vendorMarket.transactions ?? []).map(
-                    (trans: any, idx: number) => (
-                      <div
-                        key={idx}
-                        className="flex items-center justify-between p-4 rounded-xl border border-[color:var(--secondary-soft-highlight)]"
-                      >
-                        <div>
-                          <div className="font-medium text-[color:var(--secondary-black)]">
-                            {trans.crop} - {trans.quantity}
+                    (trans: any, idx: number) => {
+                      const key = `trans-${idx}`;
+                      return (
+                        <div
+                          key={idx}
+                          style={{
+                            ...listRow,
+                            padding: "16px 20px",
+                            background:
+                              hoveredCard === key ? govHoverBg : GOV.cardBg,
+                          }}
+                          onMouseEnter={() => setHoveredCard(key)}
+                          onMouseLeave={() => setHoveredCard(null)}
+                        >
+                          <div>
+                            <div
+                              style={{
+                                fontSize: 13.5,
+                                fontWeight: 600,
+                                color: GOV.text,
+                              }}
+                            >
+                              {trans.crop} - {trans.quantity}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: 12,
+                                color: GOV.muted,
+                                marginTop: 3,
+                              }}
+                            >
+                              {trans.buyer} ·{" "}
+                              {new Date(trans.date).toLocaleDateString()}
+                            </div>
                           </div>
-                          <div className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
-                            {trans.buyer} ·{" "}
-                            {new Date(trans.date).toLocaleDateString()}
+                          <div
+                            style={{
+                              fontSize: 14,
+                              fontWeight: 700,
+                              color: GOV.brand,
+                            }}
+                          >
+                            {trans.amount}
                           </div>
                         </div>
-                        <div className="font-semibold text-[color:var(--primary-base)]">
-                          {trans.amount}
-                        </div>
-                      </div>
-                    )
+                      );
+                    }
                   )}
                 </div>
               </div>
             </div>
           )}
 
-          {/* Products Tab */}
+          {/* ── Products Tab ──────────────────────────────────────────── */}
           {activeTab === "products" && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-[color:var(--secondary-black)]">
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <h2 style={{ ...sectionTitle, marginBottom: 0 }}>
                   Listed Products
                 </h2>
                 <Link
                   href={`/government/products/upload?vendorId=${vendorId}`}
-                  className="inline-flex items-center gap-2 rounded-full bg-[var(--primary-accent2)] text-white px-4 py-2 text-sm font-medium hover:bg-[var(--primary-accent3)] transition-colors"
+                  style={govPrimaryButton}
                 >
-                  <PlusIcon className="h-4 w-4" />
+                  <PlusIcon style={{ width: 14, height: 14 }} />
                   Upload Product
                 </Link>
               </div>
-              <div className="space-y-3">
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                }}
+              >
                 {displayProducts.map((product) => {
                   const isAvailable = product.harvest_date
                     ? new Date(product.harvest_date) <= new Date()
                     : true;
-                  const statusLabel = isAvailable ? "available" : "reserved";
+                  const statusLabel = isAvailable ? "active" : "pending";
+                  const key = `prod-item-${product.id}`;
                   return (
                     <div
                       key={product.id}
-                      className="flex items-center justify-between p-5 rounded-xl border border-[color:var(--secondary-soft-highlight)] bg-gray-50/50"
+                      style={{
+                        ...listRow,
+                        padding: "16px 20px",
+                        background:
+                          hoveredCard === key ? govHoverBg : GOV.cardBg,
+                      }}
+                      onMouseEnter={() => setHoveredCard(key)}
+                      onMouseLeave={() => setHoveredCard(null)}
                     >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3">
-                          <h3 className="font-medium text-[color:var(--secondary-black)]">
-                            {product.name}
-                          </h3>
+                      <div style={{ flex: 1 }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                          }}
+                        >
                           <span
-                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                              statusLabel === "available"
-                                ? "bg-[var(--primary-base)]/10 text-[color:var(--primary-base)]"
-                                : "bg-gray-200 text-gray-700"
-                            }`}
+                            style={{
+                              fontSize: 13.5,
+                              fontWeight: 600,
+                              color: GOV.text,
+                            }}
                           >
-                            {statusLabel}
+                            {product.name}
+                          </span>
+                          <span style={govStatusPillStyle(statusLabel)}>
+                            {isAvailable ? "Available" : "Reserved"}
                           </span>
                         </div>
-                        <div className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
+                        <div
+                          style={{
+                            fontSize: 12,
+                            color: GOV.muted,
+                            marginTop: 4,
+                          }}
+                        >
                           {product.quantity_available}{" "}
                           {product.unit_of_measurement} · Harvest:{" "}
                           {product.harvest_date
@@ -829,7 +1234,14 @@ export default function VendorDetailPage({
                             : "TBD"}
                         </div>
                         {product.price_per_unit !== undefined && (
-                          <div className="text-xs text-[color:var(--secondary-black)] mt-1">
+                          <div
+                            style={{
+                              fontSize: 11.5,
+                              color: GOV.text,
+                              marginTop: 3,
+                              fontWeight: 500,
+                            }}
+                          >
                             Price: ${product.price_per_unit?.toFixed(2)} per{" "}
                             {product.unit_of_measurement}
                           </div>
@@ -842,7 +1254,7 @@ export default function VendorDetailPage({
             </div>
           )}
         </div>
-      </main>
+      </div>
     </div>
   );
 }

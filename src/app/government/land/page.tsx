@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   MapPinIcon,
-  MapIcon,
   ChartPieIcon,
   ArrowTrendingUpIcon,
   FunnelIcon,
@@ -19,12 +18,40 @@ import {
 } from "@/store/slices/governmentVendorsSlice";
 import { safeNumber, safeArray, safePercentage } from "@/lib/utils/dataHelpers";
 import LandMap from "@/components/maps/LandMap";
+import {
+  GOV,
+  govCard,
+  govCardPadded,
+  govSectionHeader,
+  govKpiLabel,
+  govKpiValue,
+  govKpiSub,
+  govPageTitle,
+  govPageSubtitle,
+  govPillButton,
+  govHoverBg,
+} from "../styles";
+
+/* ── utilization-rate colour helpers ─────────────────────────────────────── */
+
+const utilizationPill = (
+  rate: number
+): { bg: string; color: string } => {
+  if (rate >= 80) return { bg: GOV.successBg, color: GOV.success };
+  if (rate >= 60) return { bg: GOV.warningBg, color: GOV.warning };
+  return { bg: "#fef9c3", color: "#854d0e" };
+};
+
+/* ── page ────────────────────────────────────────────────────────────────── */
 
 export default function LandManagementPage() {
   const dispatch = useAppDispatch();
   const router = useRouter();
   const [filterRegion, setFilterRegion] = useState<string>("all");
   const [filterUtilization, setFilterUtilization] = useState<string>("all");
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
+  const [hoveredRegion, setHoveredRegion] = useState<string | null>(null);
+  const [hoveredAction, setHoveredAction] = useState<string | null>(null);
 
   // Redux state
   const vendors = useAppSelector(selectVendors);
@@ -192,97 +219,159 @@ export default function LandManagementPage() {
     });
   }, [displayLandData, filterRegion, filterUtilization]);
 
+  /* ── shared inline fragments ──────────────────────────────────────────── */
+
+  const selectStyle: React.CSSProperties = {
+    flex: 1,
+    padding: "9px 14px",
+    borderRadius: 8,
+    border: `1px solid ${GOV.border}`,
+    fontSize: 13,
+    fontWeight: 500,
+    color: GOV.text,
+    background: GOV.cardBg,
+    outline: "none",
+    fontFamily: "inherit",
+  };
+
+  const progressTrack: React.CSSProperties = {
+    height: 6,
+    background: GOV.border,
+    borderRadius: 99,
+    overflow: "hidden",
+  };
+
+  const progressFill = (pct: number): React.CSSProperties => ({
+    height: "100%",
+    width: `${pct}%`,
+    background: GOV.brand,
+    borderRadius: 99,
+    transition: "width .3s ease",
+  });
+
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+    <div style={{ minHeight: "100vh", background: GOV.bg, color: GOV.text }}>
+      <main style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 24px 80px" }}>
+        {/* ── Header ─────────────────────────────────────────────────────── */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 28,
+          }}
+        >
           <div>
-            <h1 className="text-3xl font-semibold text-[color:var(--secondary-black)]">
-              Land Management
-            </h1>
-            <p className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
-              Monitor land utilization, availability, and geographic
-              distribution
-              {vendorsStatus === "loading" && " • Loading..."}
+            <h1 style={govPageTitle}>Land Management</h1>
+            <p style={govPageSubtitle}>
+              Monitor land utilization, availability, and geographic distribution
+              {vendorsStatus === "loading" && " \u00b7 Loading..."}
             </p>
           </div>
           <button
             onClick={handleRefresh}
             disabled={vendorsStatus === "loading"}
-            className="inline-flex items-center gap-2 rounded-full bg-white border border-[color:var(--secondary-soft-highlight)] text-[color:var(--secondary-black)] px-4 py-2.5 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              ...govPillButton,
+              opacity: vendorsStatus === "loading" ? 0.5 : 1,
+              cursor:
+                vendorsStatus === "loading" ? "not-allowed" : "pointer",
+            }}
           >
             <ArrowPathIcon
-              className={`h-5 w-5 ${
-                vendorsStatus === "loading" ? "animate-spin" : ""
-              }`}
+              style={{
+                width: 18,
+                height: 18,
+                animation:
+                  vendorsStatus === "loading"
+                    ? "spin 1s linear infinite"
+                    : "none",
+              }}
             />
             Refresh
           </button>
         </div>
 
-        {/* Overall Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-            <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)] mb-2">
-              Total Acreage
-            </div>
-            <div className="text-3xl font-semibold text-[color:var(--secondary-black)]">
+        {/* ── KPI row ────────────────────────────────────────────────────── */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4, 1fr)",
+            gap: 12,
+            marginBottom: 28,
+          }}
+        >
+          {/* Total Acreage */}
+          <div style={govCardPadded}>
+            <div style={govKpiLabel}>Total Acreage</div>
+            <div style={{ ...govKpiValue, marginTop: 6 }}>
               {vendorsStatus === "loading"
                 ? "..."
                 : overallStats.totalAcreage.toLocaleString()}
             </div>
-            <div className="text-xs text-[color:var(--secondary-muted-edge)] mt-1">
-              across all vendors
-            </div>
+            <div style={govKpiSub}>across all vendors</div>
           </div>
-          <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-            <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)] mb-2">
-              Utilized
-            </div>
-            <div className="text-3xl font-semibold text-[color:var(--primary-base)]">
+
+          {/* Utilized */}
+          <div style={govCardPadded}>
+            <div style={govKpiLabel}>Utilized</div>
+            <div style={{ ...govKpiValue, marginTop: 6, color: GOV.brand }}>
               {vendorsStatus === "loading"
                 ? "..."
                 : overallStats.totalUtilized.toLocaleString()}
             </div>
-            <div className="text-xs text-[color:var(--secondary-muted-edge)] mt-1">
+            <div style={govKpiSub}>
               {vendorsStatus === "loading"
                 ? "..."
                 : `${overallStats.avgUtilization.toFixed(1)}% of total`}
             </div>
           </div>
-          <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-            <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)] mb-2">
-              Available
-            </div>
-            <div className="text-3xl font-semibold text-[color:var(--primary-accent2)]">
+
+          {/* Available */}
+          <div style={govCardPadded}>
+            <div style={govKpiLabel}>Available</div>
+            <div style={{ ...govKpiValue, marginTop: 6, color: GOV.accent }}>
               {vendorsStatus === "loading"
                 ? "..."
                 : overallStats.totalAvailable.toLocaleString()}
             </div>
-            <div className="text-xs text-[color:var(--secondary-muted-edge)] mt-1">
-              ready for cultivation
-            </div>
+            <div style={govKpiSub}>ready for cultivation</div>
           </div>
-          <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-            <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)] mb-2">
-              Avg Utilization
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="text-3xl font-semibold text-[color:var(--secondary-black)]">
+
+          {/* Avg Utilization */}
+          <div style={govCardPadded}>
+            <div style={govKpiLabel}>Avg Utilization</div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginTop: 6,
+              }}
+            >
+              <span style={govKpiValue}>
                 {overallStats.avgUtilization.toFixed(1)}%
-              </div>
-              <ArrowTrendingUpIcon className="h-6 w-6 text-[color:var(--primary-base)]" />
+              </span>
+              <ArrowTrendingUpIcon
+                style={{ width: 22, height: 22, color: GOV.brand }}
+              />
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Map & Vendor List */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Interactive Map */}
-            <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-              <h2 className="text-lg font-semibold text-[color:var(--secondary-black)] mb-4">
+        {/* ── Main grid: 2-col left + sidebar right ─────────────────────── */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "2fr 1fr",
+            gap: 24,
+          }}
+        >
+          {/* Left Column */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            {/* Map */}
+            <div style={{ ...govCard, padding: 20 }}>
+              <h2 style={{ ...govSectionHeader, marginBottom: 14 }}>
                 Geographic Distribution
               </h2>
               <LandMap
@@ -294,13 +383,17 @@ export default function LandManagementPage() {
             </div>
 
             {/* Filters */}
-            <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-              <div className="flex items-center gap-4">
-                <FunnelIcon className="h-5 w-5 text-[color:var(--secondary-muted-edge)]" />
+            <div style={{ ...govCard, padding: "14px 20px" }}>
+              <div
+                style={{ display: "flex", alignItems: "center", gap: 12 }}
+              >
+                <FunnelIcon
+                  style={{ width: 18, height: 18, color: GOV.muted }}
+                />
                 <select
                   value={filterRegion}
                   onChange={(e) => setFilterRegion(e.target.value)}
-                  className="flex-1 px-4 py-2 rounded-lg border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
+                  style={selectStyle}
                 >
                   <option value="all">All Regions</option>
                   {[...new Set(displayLandData.map((item) => item.region))].map(
@@ -314,7 +407,7 @@ export default function LandManagementPage() {
                 <select
                   value={filterUtilization}
                   onChange={(e) => setFilterUtilization(e.target.value)}
-                  className="flex-1 px-4 py-2 rounded-lg border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
+                  style={selectStyle}
                 >
                   <option value="all">All Utilization Rates</option>
                   <option value="high">High (80%+)</option>
@@ -324,183 +417,348 @@ export default function LandManagementPage() {
               </div>
             </div>
 
-            {/* Vendor Land List */}
-            <div className="space-y-4">
-              {filteredLandData.map((item) => (
+            {/* Vendor Land Cards */}
+            {filteredLandData.map((item) => {
+              const pill = utilizationPill(item.utilization_rate);
+              const isHovered = hoveredCard === item.vendorId;
+
+              return (
                 <div
                   key={item.vendorId}
-                  className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6"
+                  style={{
+                    ...govCard,
+                    padding: 20,
+                    background: isHovered ? govHoverBg : GOV.cardBg,
+                    transition: "background .15s ease",
+                  }}
+                  onMouseEnter={() => setHoveredCard(item.vendorId)}
+                  onMouseLeave={() => setHoveredCard(null)}
                 >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
+                  {/* top row */}
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      justifyContent: "space-between",
+                      marginBottom: 14,
+                    }}
+                  >
+                    <div style={{ flex: 1 }}>
                       <Link
                         href={`/government/vendors/${item.vendorId}`}
-                        className="text-lg font-semibold text-[color:var(--secondary-black)] hover:text-[var(--primary-accent2)]"
+                        style={{
+                          fontSize: 15,
+                          fontWeight: 700,
+                          color: GOV.text,
+                          textDecoration: "none",
+                        }}
                       >
                         {item.vendor}
                       </Link>
-                      <div className="flex items-center gap-2 text-sm text-[color:var(--secondary-muted-edge)] mt-1">
-                        <MapPinIcon className="h-4 w-4" />
-                        {item.region} · {item.gps.lat}, {item.gps.lng}
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          fontSize: 12,
+                          color: GOV.muted,
+                          marginTop: 4,
+                        }}
+                      >
+                        <MapPinIcon style={{ width: 14, height: 14 }} />
+                        {item.region} &middot; {item.gps.lat}, {item.gps.lng}
                       </div>
                     </div>
                     <span
-                      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${
-                        item.utilization_rate >= 80
-                          ? "bg-[var(--primary-base)]/10 text-[color:var(--primary-base)]"
-                          : item.utilization_rate >= 60
-                          ? "bg-[var(--primary-accent1)]/15 text-[color:var(--primary-accent3)]"
-                          : "bg-yellow-100 text-yellow-800"
-                      }`}
+                      style={{
+                        display: "inline-block",
+                        padding: "3px 10px",
+                        borderRadius: 99,
+                        fontSize: 11,
+                        fontWeight: 700,
+                        background: pill.bg,
+                        color: pill.color,
+                        whiteSpace: "nowrap",
+                      }}
                     >
                       {item.utilization_rate}% utilized
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4 mb-4">
+                  {/* 3-col stats */}
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(3, 1fr)",
+                      gap: 12,
+                      marginBottom: 14,
+                    }}
+                  >
                     <div>
-                      <div className="text-xs text-[color:var(--secondary-muted-edge)] uppercase tracking-wider mb-1">
-                        Total
-                      </div>
-                      <div className="text-xl font-semibold text-[color:var(--secondary-black)]">
+                      <div style={govKpiLabel}>Total</div>
+                      <div
+                        style={{
+                          fontSize: 20,
+                          fontWeight: 800,
+                          color: GOV.text,
+                          marginTop: 2,
+                        }}
+                      >
                         {item.total_acreage}
                       </div>
-                      <div className="text-xs text-[color:var(--secondary-muted-edge)]">
+                      <div style={{ fontSize: 11, color: GOV.lightMuted }}>
                         acres
                       </div>
                     </div>
                     <div>
-                      <div className="text-xs text-[color:var(--secondary-muted-edge)] uppercase tracking-wider mb-1">
-                        Utilized
-                      </div>
-                      <div className="text-xl font-semibold text-[color:var(--primary-base)]">
+                      <div style={govKpiLabel}>Utilized</div>
+                      <div
+                        style={{
+                          fontSize: 20,
+                          fontWeight: 800,
+                          color: GOV.brand,
+                          marginTop: 2,
+                        }}
+                      >
                         {item.utilized_acreage}
                       </div>
-                      <div className="text-xs text-[color:var(--secondary-muted-edge)]">
+                      <div style={{ fontSize: 11, color: GOV.lightMuted }}>
                         acres
                       </div>
                     </div>
                     <div>
-                      <div className="text-xs text-[color:var(--secondary-muted-edge)] uppercase tracking-wider mb-1">
-                        Available
-                      </div>
-                      <div className="text-xl font-semibold text-[color:var(--primary-accent2)]">
+                      <div style={govKpiLabel}>Available</div>
+                      <div
+                        style={{
+                          fontSize: 20,
+                          fontWeight: 800,
+                          color: GOV.accent,
+                          marginTop: 2,
+                        }}
+                      >
                         {item.available_acreage}
                       </div>
-                      <div className="text-xs text-[color:var(--secondary-muted-edge)]">
+                      <div style={{ fontSize: 11, color: GOV.lightMuted }}>
                         acres
                       </div>
                     </div>
                   </div>
 
                   {/* Progress Bar */}
-                  <div className="mb-3">
-                    <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-[var(--primary-base)] rounded-full transition-all"
-                        style={{ width: `${item.utilization_rate}%` }}
-                      />
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={progressTrack}>
+                      <div style={progressFill(item.utilization_rate)} />
                     </div>
                   </div>
 
-                  {/* Crops */}
-                  <div className="flex flex-wrap gap-2">
+                  {/* Crop tags */}
+                  <div
+                    style={{ display: "flex", flexWrap: "wrap", gap: 6 }}
+                  >
                     {item.crops.map((crop) => (
                       <span
                         key={crop}
-                        className="inline-flex items-center rounded-full bg-[var(--primary-accent1)]/15 text-[color:var(--primary-accent3)] px-3 py-1 text-xs"
+                        style={{
+                          display: "inline-block",
+                          padding: "3px 10px",
+                          borderRadius: 99,
+                          fontSize: 11,
+                          fontWeight: 600,
+                          background: GOV.brandLight,
+                          color: GOV.brand,
+                        }}
                       >
                         {crop}
                       </span>
                     ))}
                   </div>
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
 
-          {/* Right Column - Regional Summary */}
-          <div className="space-y-6">
-            {/* Regional Breakdown */}
-            <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white overflow-hidden">
-              <div className="p-5 border-b border-[color:var(--secondary-soft-highlight)]">
-                <h2 className="text-base font-semibold text-[color:var(--secondary-black)]">
-                  Regional Summary
-                </h2>
-                <p className="text-xs text-[color:var(--secondary-muted-edge)] mt-0.5">
+          {/* ── Right Column ─────────────────────────────────────────────── */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            {/* Regional Summary */}
+            <div style={{ ...govCard, overflow: "hidden" }}>
+              <div
+                style={{
+                  padding: "16px 20px",
+                  borderBottom: `1px solid ${GOV.border}`,
+                }}
+              >
+                <h2 style={govSectionHeader}>Regional Summary</h2>
+                <p
+                  style={{
+                    fontSize: 11.5,
+                    color: GOV.muted,
+                    marginTop: 2,
+                    fontWeight: 500,
+                  }}
+                >
                   Land distribution by region
                 </p>
               </div>
-              <div className="p-4 space-y-4">
-                {regionalSummary.map((region) => (
-                  <div
-                    key={region.region}
-                    className="p-4 rounded-lg border border-[color:var(--secondary-soft-highlight)] hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <h3 className="font-medium text-sm text-[color:var(--secondary-black)]">
-                          {region.region}
-                        </h3>
-                        <div className="text-xs text-[color:var(--secondary-muted-edge)] mt-0.5">
-                          {region.vendors} vendors
-                        </div>
-                      </div>
-                      <span className="text-xs font-medium text-[color:var(--primary-base)]">
-                        {region.utilization_rate}%
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 text-xs mb-2">
-                      <div>
-                        <div className="text-[color:var(--secondary-muted-edge)]">
-                          Total
-                        </div>
-                        <div className="font-medium text-[color:var(--secondary-black)]">
-                          {region.total_acreage.toLocaleString()}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-[color:var(--secondary-muted-edge)]">
-                          Used
-                        </div>
-                        <div className="font-medium text-[color:var(--primary-base)]">
-                          {region.utilized.toLocaleString()}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-[color:var(--secondary-muted-edge)]">
-                          Free
-                        </div>
-                        <div className="font-medium text-[color:var(--primary-accent2)]">
-                          {region.available.toLocaleString()}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                style={{
+                  padding: 16,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 12,
+                }}
+              >
+                {regionalSummary.map((region) => {
+                  const isHovered = hoveredRegion === region.region;
+                  return (
+                    <div
+                      key={region.region}
+                      style={{
+                        padding: 14,
+                        borderRadius: 8,
+                        border: `1px solid ${GOV.border}`,
+                        background: isHovered ? govHoverBg : "transparent",
+                        transition: "background .15s ease",
+                      }}
+                      onMouseEnter={() => setHoveredRegion(region.region)}
+                      onMouseLeave={() => setHoveredRegion(null)}
+                    >
                       <div
-                        className="h-full bg-[var(--primary-base)] rounded-full"
-                        style={{ width: `${region.utilization_rate}%` }}
-                      />
+                        style={{
+                          display: "flex",
+                          alignItems: "flex-start",
+                          justifyContent: "space-between",
+                          marginBottom: 8,
+                        }}
+                      >
+                        <div>
+                          <h3
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 700,
+                              color: GOV.text,
+                              margin: 0,
+                            }}
+                          >
+                            {region.region}
+                          </h3>
+                          <div
+                            style={{
+                              fontSize: 11,
+                              color: GOV.muted,
+                              marginTop: 2,
+                            }}
+                          >
+                            {region.vendors} vendors
+                          </div>
+                        </div>
+                        <span
+                          style={{
+                            fontSize: 12,
+                            fontWeight: 700,
+                            color: GOV.brand,
+                          }}
+                        >
+                          {region.utilization_rate}%
+                        </span>
+                      </div>
+
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(3, 1fr)",
+                          gap: 8,
+                          fontSize: 11,
+                          marginBottom: 10,
+                        }}
+                      >
+                        <div>
+                          <div style={{ color: GOV.muted }}>Total</div>
+                          <div
+                            style={{
+                              fontWeight: 700,
+                              color: GOV.text,
+                              marginTop: 1,
+                            }}
+                          >
+                            {region.total_acreage.toLocaleString()}
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ color: GOV.muted }}>Used</div>
+                          <div
+                            style={{
+                              fontWeight: 700,
+                              color: GOV.brand,
+                              marginTop: 1,
+                            }}
+                          >
+                            {region.utilized.toLocaleString()}
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ color: GOV.muted }}>Free</div>
+                          <div
+                            style={{
+                              fontWeight: 700,
+                              color: GOV.accent,
+                              marginTop: 1,
+                            }}
+                          >
+                            {region.available.toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={progressTrack}>
+                        <div style={progressFill(region.utilization_rate)} />
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
             {/* Land Use Efficiency */}
-            <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <ChartPieIcon className="h-5 w-5 text-[color:var(--secondary-muted-edge)]" />
-                <h3 className="text-base font-semibold text-[color:var(--secondary-black)]">
-                  Land Use Efficiency
-                </h3>
+            <div style={{ ...govCard, padding: 20 }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  marginBottom: 14,
+                }}
+              >
+                <ChartPieIcon
+                  style={{ width: 18, height: 18, color: GOV.muted }}
+                />
+                <h3 style={govSectionHeader}>Land Use Efficiency</h3>
               </div>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[color:var(--secondary-black)]">
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <span
+                    style={{ fontSize: 13, fontWeight: 500, color: GOV.text }}
+                  >
                     High Efficiency (&gt;80%)
                   </span>
-                  <span className="text-sm font-medium text-[color:var(--primary-base)]">
+                  <span
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: GOV.success,
+                    }}
+                  >
                     {
                       displayLandData.filter(
                         (item) => item.utilization_rate >= 80
@@ -509,11 +767,25 @@ export default function LandManagementPage() {
                     vendors
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[color:var(--secondary-black)]">
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <span
+                    style={{ fontSize: 13, fontWeight: 500, color: GOV.text }}
+                  >
                     Medium Efficiency (60-80%)
                   </span>
-                  <span className="text-sm font-medium text-[color:var(--primary-accent3)]">
+                  <span
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: GOV.warning,
+                    }}
+                  >
                     {
                       displayLandData.filter(
                         (item) =>
@@ -524,11 +796,25 @@ export default function LandManagementPage() {
                     vendors
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[color:var(--secondary-black)]">
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <span
+                    style={{ fontSize: 13, fontWeight: 500, color: GOV.text }}
+                  >
                     Low Efficiency (&lt;60%)
                   </span>
-                  <span className="text-sm font-medium text-yellow-600">
+                  <span
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: "#854d0e",
+                    }}
+                  >
                     {
                       displayLandData.filter(
                         (item) => item.utilization_rate < 60
@@ -541,31 +827,63 @@ export default function LandManagementPage() {
             </div>
 
             {/* Quick Actions */}
-            <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white overflow-hidden">
-              <div className="p-5 border-b border-[color:var(--secondary-soft-highlight)]">
-                <h3 className="text-base font-semibold text-[color:var(--secondary-black)]">
-                  Quick Actions
-                </h3>
+            <div style={{ ...govCard, overflow: "hidden" }}>
+              <div
+                style={{
+                  padding: "16px 20px",
+                  borderBottom: `1px solid ${GOV.border}`,
+                }}
+              >
+                <h3 style={govSectionHeader}>Quick Actions</h3>
               </div>
-              <div className="p-4 space-y-2">
-                <Link
-                  href="/government/reporting?type=available-acreage"
-                  className="block px-4 py-2.5 rounded-lg hover:bg-gray-50 transition-colors text-sm text-[color:var(--secondary-black)]"
-                >
-                  Generate Acreage Report
-                </Link>
-                <Link
-                  href="/government/vendors"
-                  className="block px-4 py-2.5 rounded-lg hover:bg-gray-50 transition-colors text-sm text-[color:var(--secondary-black)]"
-                >
-                  View All Vendors
-                </Link>
-                <Link
-                  href="/government/data"
-                  className="block px-4 py-2.5 rounded-lg hover:bg-gray-50 transition-colors text-sm text-[color:var(--secondary-black)]"
-                >
-                  Export Land Data
-                </Link>
+              <div
+                style={{
+                  padding: 12,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 2,
+                }}
+              >
+                {[
+                  {
+                    href: "/government/reporting?type=available-acreage",
+                    label: "Generate Acreage Report",
+                    key: "report",
+                  },
+                  {
+                    href: "/government/vendors",
+                    label: "View All Vendors",
+                    key: "vendors",
+                  },
+                  {
+                    href: "/government/data",
+                    label: "Export Land Data",
+                    key: "export",
+                  },
+                ].map((action) => (
+                  <Link
+                    key={action.key}
+                    href={action.href}
+                    style={{
+                      display: "block",
+                      padding: "10px 14px",
+                      borderRadius: 8,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: GOV.text,
+                      textDecoration: "none",
+                      background:
+                        hoveredAction === action.key
+                          ? govHoverBg
+                          : "transparent",
+                      transition: "background .15s ease",
+                    }}
+                    onMouseEnter={() => setHoveredAction(action.key)}
+                    onMouseLeave={() => setHoveredAction(null)}
+                  >
+                    {action.label}
+                  </Link>
+                ))}
               </div>
             </div>
           </div>

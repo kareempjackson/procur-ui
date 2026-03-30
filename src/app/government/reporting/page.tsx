@@ -19,6 +19,23 @@ import {
   selectGenerateStatus,
   selectGenerateError,
 } from "@/store/slices/governmentReportsSlice";
+import {
+  GOV,
+  govCard,
+  govCardPadded,
+  govSectionHeader,
+  govViewAllLink,
+  govKpiLabel,
+  govKpiValue,
+  govKpiSub,
+  govPageTitle,
+  govPageSubtitle,
+  govPillButton,
+  govPrimaryButton,
+  govStatusPillStyle,
+  govStatusLabel,
+  govHoverBg,
+} from "../styles";
 
 type ReportType =
   | "market-requirements"
@@ -54,6 +71,9 @@ export default function ReportingPage() {
     complianceStatus: "all",
   });
   const [generatedReport, setGeneratedReport] = useState<any>(null);
+  const [hoveredReportId, setHoveredReportId] = useState<string | null>(null);
+  const [hoveredExport, setHoveredExport] = useState<string | null>(null);
+  const [hoveredRow, setHoveredRow] = useState<number | null>(null);
 
   // Fetch reports on mount
   useEffect(() => {
@@ -283,46 +303,105 @@ export default function ReportingPage() {
     }
   };
 
+  /* ── Shared inline-style fragments ─────────────────────────────────────── */
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "9px 12px 9px 36px",
+    border: `1px solid ${GOV.border}`,
+    borderRadius: 8,
+    fontSize: 13,
+    fontWeight: 500,
+    color: GOV.text,
+    background: GOV.cardBg,
+    outline: "none",
+    fontFamily: "inherit",
+  };
+
+  const selectStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "9px 12px",
+    border: `1px solid ${GOV.border}`,
+    borderRadius: 8,
+    fontSize: 13,
+    fontWeight: 500,
+    color: GOV.text,
+    background: GOV.cardBg,
+    outline: "none",
+    fontFamily: "inherit",
+    cursor: "pointer",
+  };
+
+  const exportBtnBase: React.CSSProperties = {
+    ...govPillButton,
+    gap: 5,
+    padding: "7px 14px",
+    fontSize: 12,
+  };
+
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16">
+    <div style={{ minHeight: "100vh", background: GOV.bg, color: GOV.text }}>
+      <main style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 24px 80px" }}>
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 28,
+          }}
+        >
           <div>
-            <h1 className="text-3xl font-semibold text-[color:var(--secondary-black)]">
-              Reporting & Analytics
-            </h1>
-            <p className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
+            <h1 style={govPageTitle}>Reporting &amp; Analytics</h1>
+            <p style={govPageSubtitle}>
               Generate comprehensive reports on vendors, production, and market
               activity
-              {reportsStatus === "loading" && " • Loading..."}
-              {generateStatus === "generating" && " • Generating report..."}
+              {reportsStatus === "loading" && " \u2022 Loading..."}
+              {generateStatus === "generating" && " \u2022 Generating report..."}
             </p>
           </div>
           <button
             onClick={handleRefresh}
             disabled={reportsStatus === "loading"}
-            className="inline-flex items-center gap-2 rounded-full bg-white border border-[color:var(--secondary-soft-highlight)] text-[color:var(--secondary-black)] px-4 py-2.5 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              ...govPillButton,
+              opacity: reportsStatus === "loading" ? 0.5 : 1,
+              cursor:
+                reportsStatus === "loading" ? "not-allowed" : "pointer",
+            }}
           >
             <ArrowPathIcon
-              className={`h-5 w-5 ${
-                reportsStatus === "loading" ? "animate-spin" : ""
-              }`}
+              style={{
+                width: 18,
+                height: 18,
+                animation:
+                  reportsStatus === "loading"
+                    ? "spin 1s linear infinite"
+                    : "none",
+              }}
             />
             Refresh
           </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 2fr",
+            gap: 24,
+          }}
+        >
           {/* Left Column - Report Selection */}
-          <div className="lg:col-span-1 space-y-6">
-            <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-              <h2 className="text-lg font-semibold text-[color:var(--secondary-black)] mb-4">
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            <div style={{ ...govCard, padding: "20px 20px 24px" }}>
+              <h2 style={{ ...govSectionHeader, fontSize: 15, marginBottom: 14 }}>
                 Select Report Type
               </h2>
-              <div className="space-y-2">
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {reportTypes.map((report) => {
                   const Icon = report.icon;
+                  const isSelected = selectedReport === report.id;
+                  const isHovered = hoveredReportId === report.id;
                   return (
                     <button
                       key={report.id}
@@ -330,36 +409,72 @@ export default function ReportingPage() {
                         setSelectedReport(report.id);
                         setGeneratedReport(null);
                       }}
-                      className={`w-full text-left p-4 rounded-lg border transition-all ${
-                        selectedReport === report.id
-                          ? "border-[var(--primary-accent2)] bg-[var(--primary-accent1)]/10"
-                          : "border-[color:var(--secondary-soft-highlight)] hover:border-[var(--primary-accent2)]/50 hover:bg-gray-50"
-                      }`}
+                      onMouseEnter={() => setHoveredReportId(report.id)}
+                      onMouseLeave={() => setHoveredReportId(null)}
+                      style={{
+                        width: "100%",
+                        textAlign: "left" as const,
+                        padding: "12px 14px",
+                        borderRadius: 8,
+                        border: isSelected
+                          ? `1.5px solid ${GOV.accent}`
+                          : `1px solid ${isHovered ? GOV.accent + "60" : GOV.border}`,
+                        background: isSelected
+                          ? GOV.accent + "0a"
+                          : isHovered
+                            ? govHoverBg
+                            : GOV.cardBg,
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                        transition: "border-color .15s, background .15s",
+                      }}
                     >
-                      <div className="flex items-start gap-3">
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "flex-start",
+                          gap: 10,
+                        }}
+                      >
                         <Icon
-                          className={`h-5 w-5 mt-0.5 ${
-                            selectedReport === report.id
-                              ? "text-[var(--primary-accent2)]"
-                              : "text-[color:var(--secondary-muted-edge)]"
-                          }`}
+                          style={{
+                            width: 18,
+                            height: 18,
+                            marginTop: 1,
+                            color: isSelected ? GOV.accent : GOV.muted,
+                            flexShrink: 0,
+                          }}
                         />
-                        <div className="flex-1">
+                        <div style={{ flex: 1 }}>
                           <div
-                            className={`text-sm font-medium ${
-                              selectedReport === report.id
-                                ? "text-[var(--primary-accent2)]"
-                                : "text-[color:var(--secondary-black)]"
-                            }`}
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 600,
+                              color: isSelected ? GOV.accent : GOV.text,
+                            }}
                           >
                             {report.name}
                           </div>
-                          <div className="text-xs text-[color:var(--secondary-muted-edge)] mt-1">
+                          <div
+                            style={{
+                              fontSize: 11.5,
+                              color: GOV.muted,
+                              marginTop: 3,
+                              fontWeight: 500,
+                            }}
+                          >
                             {report.description}
                           </div>
                         </div>
-                        {selectedReport === report.id && (
-                          <CheckCircleIcon className="h-5 w-5 text-[var(--primary-accent2)]" />
+                        {isSelected && (
+                          <CheckCircleIcon
+                            style={{
+                              width: 18,
+                              height: 18,
+                              color: GOV.accent,
+                              flexShrink: 0,
+                            }}
+                          />
                         )}
                       </div>
                     </button>
@@ -370,19 +485,45 @@ export default function ReportingPage() {
 
             {/* Report Parameters */}
             {selectedReport && (
-              <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-                <h2 className="text-lg font-semibold text-[color:var(--secondary-black)] mb-4">
+              <div style={{ ...govCard, padding: "20px 20px 24px" }}>
+                <h2 style={{ ...govSectionHeader, fontSize: 15, marginBottom: 14 }}>
                   Report Parameters
                 </h2>
-                <div className="space-y-4">
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 16 }}
+                >
                   {/* Date Range */}
                   <div>
-                    <label className="block text-sm font-medium text-[color:var(--secondary-black)] mb-2">
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: GOV.text,
+                        marginBottom: 8,
+                      }}
+                    >
                       Date Range
                     </label>
-                    <div className="space-y-2">
-                      <div className="relative">
-                        <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[color:var(--secondary-muted-edge)]" />
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 8,
+                      }}
+                    >
+                      <div style={{ position: "relative" }}>
+                        <CalendarIcon
+                          style={{
+                            position: "absolute",
+                            left: 10,
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            width: 18,
+                            height: 18,
+                            color: GOV.muted,
+                          }}
+                        />
                         <input
                           type="date"
                           value={dateRange.startDate}
@@ -392,11 +533,21 @@ export default function ReportingPage() {
                               startDate: e.target.value,
                             }))
                           }
-                          className="w-full pl-10 pr-4 py-2 rounded-lg border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
+                          style={inputStyle}
                         />
                       </div>
-                      <div className="relative">
-                        <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[color:var(--secondary-muted-edge)]" />
+                      <div style={{ position: "relative" }}>
+                        <CalendarIcon
+                          style={{
+                            position: "absolute",
+                            left: 10,
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            width: 18,
+                            height: 18,
+                            color: GOV.muted,
+                          }}
+                        />
                         <input
                           type="date"
                           value={dateRange.endDate}
@@ -406,7 +557,7 @@ export default function ReportingPage() {
                               endDate: e.target.value,
                             }))
                           }
-                          className="w-full pl-10 pr-4 py-2 rounded-lg border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
+                          style={inputStyle}
                         />
                       </div>
                     </div>
@@ -414,11 +565,27 @@ export default function ReportingPage() {
 
                   {/* Filters */}
                   <div>
-                    <label className="flex items-center gap-2 text-sm font-medium text-[color:var(--secondary-black)] mb-2">
-                      <FunnelIcon className="h-4 w-4" />
+                    <label
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: GOV.text,
+                        marginBottom: 8,
+                      }}
+                    >
+                      <FunnelIcon style={{ width: 14, height: 14 }} />
                       Filters
                     </label>
-                    <div className="space-y-2">
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 8,
+                      }}
+                    >
                       <select
                         value={filters.location}
                         onChange={(e) =>
@@ -427,10 +594,10 @@ export default function ReportingPage() {
                             location: e.target.value,
                           }))
                         }
-                        className="w-full px-3 py-2 rounded-lg border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
+                        style={selectStyle}
                       >
                         <option value="all">All Locations</option>
-                        <option value="st-georges">St. George's</option>
+                        <option value="st-georges">St. George&apos;s</option>
                         <option value="grenville">Grenville</option>
                         <option value="gouyave">Gouyave</option>
                         <option value="sauteurs">Sauteurs</option>
@@ -444,7 +611,7 @@ export default function ReportingPage() {
                             cropType: e.target.value,
                           }))
                         }
-                        className="w-full px-3 py-2 rounded-lg border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
+                        style={selectStyle}
                       >
                         <option value="all">All Crops</option>
                         <option value="tomatoes">Tomatoes</option>
@@ -458,10 +625,26 @@ export default function ReportingPage() {
                   <button
                     onClick={handleGenerateReport}
                     disabled={generateStatus === "generating"}
-                    className="w-full px-4 py-2.5 rounded-full bg-[var(--primary-accent2)] text-white text-sm font-medium hover:bg-[var(--primary-accent3)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+                    style={{
+                      ...govPrimaryButton,
+                      width: "100%",
+                      justifyContent: "center",
+                      padding: "11px 18px",
+                      opacity: generateStatus === "generating" ? 0.5 : 1,
+                      cursor:
+                        generateStatus === "generating"
+                          ? "not-allowed"
+                          : "pointer",
+                    }}
                   >
                     {generateStatus === "generating" && (
-                      <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                      <ArrowPathIcon
+                        style={{
+                          width: 18,
+                          height: 18,
+                          animation: "spin 1s linear infinite",
+                        }}
+                      />
                     )}
                     {generateStatus === "generating"
                       ? "Generating..."
@@ -470,8 +653,22 @@ export default function ReportingPage() {
 
                   {/* Generation Error */}
                   {generateError && (
-                    <div className="rounded-lg border border-red-200 bg-red-50 p-3">
-                      <p className="text-xs text-red-800">
+                    <div
+                      style={{
+                        borderRadius: 8,
+                        border: `1px solid ${GOV.dangerBg}`,
+                        background: GOV.dangerBg,
+                        padding: "10px 14px",
+                      }}
+                    >
+                      <p
+                        style={{
+                          fontSize: 12,
+                          color: GOV.danger,
+                          fontWeight: 600,
+                          margin: 0,
+                        }}
+                      >
                         Error: {generateError}
                       </p>
                     </div>
@@ -482,101 +679,179 @@ export default function ReportingPage() {
           </div>
 
           {/* Right Column - Report Preview */}
-          <div className="lg:col-span-2">
+          <div>
             {!generatedReport ? (
-              <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-12">
-                <div className="text-center">
-                  <DocumentTextIcon className="h-16 w-16 mx-auto text-[color:var(--secondary-muted-edge)] mb-4" />
-                  <h3 className="text-lg font-semibold text-[color:var(--secondary-black)] mb-2">
-                    No Report Generated
-                  </h3>
-                  <p className="text-sm text-[color:var(--secondary-muted-edge)]">
-                    Select a report type and configure parameters to generate a
-                    report
-                  </p>
-                </div>
+              <div
+                style={{
+                  ...govCard,
+                  padding: "64px 32px",
+                  textAlign: "center" as const,
+                }}
+              >
+                <DocumentTextIcon
+                  style={{
+                    width: 56,
+                    height: 56,
+                    margin: "0 auto 16px",
+                    color: GOV.lightMuted,
+                  }}
+                />
+                <h3
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 700,
+                    color: GOV.text,
+                    margin: "0 0 6px",
+                  }}
+                >
+                  No Report Generated
+                </h3>
+                <p
+                  style={{
+                    fontSize: 13,
+                    color: GOV.muted,
+                    fontWeight: 500,
+                    margin: 0,
+                  }}
+                >
+                  Select a report type and configure parameters to generate a
+                  report
+                </p>
               </div>
             ) : (
-              <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white overflow-hidden">
+              <div style={{ ...govCard, overflow: "hidden" }}>
                 {/* Report Header */}
-                <div className="p-6 border-b border-[color:var(--secondary-soft-highlight)] bg-gray-50/50">
-                  <div className="flex items-start justify-between">
+                <div
+                  style={{
+                    padding: "18px 22px",
+                    borderBottom: `1px solid ${GOV.border}`,
+                    background: GOV.bg,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      justifyContent: "space-between",
+                    }}
+                  >
                     <div>
-                      <h2 className="text-xl font-semibold text-[color:var(--secondary-black)]">
+                      <h2
+                        style={{
+                          fontSize: 18,
+                          fontWeight: 800,
+                          color: GOV.text,
+                          margin: 0,
+                          letterSpacing: "-.3px",
+                        }}
+                      >
                         {generatedReport.title}
                       </h2>
-                      <p className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
+                      <p
+                        style={{
+                          fontSize: 12,
+                          color: GOV.muted,
+                          fontWeight: 500,
+                          marginTop: 4,
+                        }}
+                      >
                         Generated on {new Date().toLocaleDateString()} at{" "}
                         {new Date().toLocaleTimeString()}
                       </p>
                     </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleExport("pdf")}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[color:var(--secondary-soft-highlight)] text-[color:var(--secondary-black)] text-sm hover:bg-gray-50 transition-colors"
-                      >
-                        <ArrowDownTrayIcon className="h-4 w-4" />
-                        PDF
-                      </button>
-                      <button
-                        onClick={() => handleExport("excel")}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[color:var(--secondary-soft-highlight)] text-[color:var(--secondary-black)] text-sm hover:bg-gray-50 transition-colors"
-                      >
-                        <ArrowDownTrayIcon className="h-4 w-4" />
-                        Excel
-                      </button>
-                      <button
-                        onClick={() => handleExport("csv")}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[color:var(--secondary-soft-highlight)] text-[color:var(--secondary-black)] text-sm hover:bg-gray-50 transition-colors"
-                      >
-                        <ArrowDownTrayIcon className="h-4 w-4" />
-                        CSV
-                      </button>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      {(["pdf", "excel", "csv"] as const).map((fmt) => (
+                        <button
+                          key={fmt}
+                          onClick={() => handleExport(fmt)}
+                          onMouseEnter={() => setHoveredExport(fmt)}
+                          onMouseLeave={() => setHoveredExport(null)}
+                          style={{
+                            ...exportBtnBase,
+                            background:
+                              hoveredExport === fmt ? govHoverBg : GOV.cardBg,
+                          }}
+                        >
+                          <ArrowDownTrayIcon
+                            style={{ width: 14, height: 14 }}
+                          />
+                          {fmt.toUpperCase()}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </div>
 
                 {/* Report Content */}
-                <div className="p-6">
+                <div style={{ padding: "22px 22px 28px" }}>
                   {selectedReport === "available-acreage" &&
                     generatedReport.summary && (
-                      <div className="grid grid-cols-3 gap-4 mb-6">
-                        <div className="p-4 rounded-lg bg-[var(--primary-accent1)]/10 border border-[color:var(--secondary-soft-highlight)]">
-                          <div className="text-xs text-[color:var(--secondary-muted-edge)] uppercase tracking-wider">
-                            Total Acreage
-                          </div>
-                          <div className="text-2xl font-semibold text-[color:var(--secondary-black)] mt-1">
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(3, 1fr)",
+                          gap: 12,
+                          marginBottom: 22,
+                        }}
+                      >
+                        <div style={govCardPadded}>
+                          <div style={govKpiLabel}>Total Acreage</div>
+                          <div style={{ ...govKpiValue, marginTop: 6 }}>
                             {generatedReport.summary.totalAcreage.toLocaleString()}
                           </div>
+                          <div style={govKpiSub}>across all vendors</div>
                         </div>
-                        <div className="p-4 rounded-lg bg-[var(--primary-base)]/10 border border-[color:var(--secondary-soft-highlight)]">
-                          <div className="text-xs text-[color:var(--secondary-muted-edge)] uppercase tracking-wider">
-                            Utilized
-                          </div>
-                          <div className="text-2xl font-semibold text-[color:var(--primary-base)] mt-1">
+                        <div style={govCardPadded}>
+                          <div style={govKpiLabel}>Utilized</div>
+                          <div
+                            style={{
+                              ...govKpiValue,
+                              marginTop: 6,
+                              color: GOV.brand,
+                            }}
+                          >
                             {generatedReport.summary.utilizedAcreage.toLocaleString()}
                           </div>
+                          <div style={govKpiSub}>currently planted</div>
                         </div>
-                        <div className="p-4 rounded-lg bg-[var(--primary-accent2)]/10 border border-[color:var(--secondary-soft-highlight)]">
-                          <div className="text-xs text-[color:var(--secondary-muted-edge)] uppercase tracking-wider">
-                            Available
-                          </div>
-                          <div className="text-2xl font-semibold text-[color:var(--primary-accent2)] mt-1">
+                        <div style={govCardPadded}>
+                          <div style={govKpiLabel}>Available</div>
+                          <div
+                            style={{
+                              ...govKpiValue,
+                              marginTop: 6,
+                              color: GOV.accent,
+                            }}
+                          >
                             {generatedReport.summary.availableAcreage.toLocaleString()}
                           </div>
+                          <div style={govKpiSub}>ready for planting</div>
                         </div>
                       </div>
                     )}
 
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="border-b border-[color:var(--secondary-soft-highlight)]">
-                        <tr>
+                  <div style={{ overflowX: "auto" }}>
+                    <table
+                      style={{
+                        width: "100%",
+                        borderCollapse: "collapse",
+                      }}
+                    >
+                      <thead>
+                        <tr
+                          style={{
+                            borderBottom: `1.5px solid ${GOV.border}`,
+                          }}
+                        >
                           {Object.keys(generatedReport.data[0] || {}).map(
                             (key) => (
                               <th
                                 key={key}
-                                className="px-4 py-3 text-left text-xs font-medium text-[color:var(--secondary-muted-edge)] uppercase tracking-wider"
+                                style={{
+                                  ...govKpiLabel,
+                                  padding: "10px 14px",
+                                  textAlign: "left" as const,
+                                }}
                               >
                                 {key}
                               </th>
@@ -584,14 +859,32 @@ export default function ReportingPage() {
                           )}
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-[color:var(--secondary-soft-highlight)]/30">
+                      <tbody>
                         {generatedReport.data.map((row: any, idx: number) => (
-                          <tr key={idx} className="hover:bg-gray-50/50">
+                          <tr
+                            key={idx}
+                            onMouseEnter={() => setHoveredRow(idx)}
+                            onMouseLeave={() => setHoveredRow(null)}
+                            style={{
+                              borderBottom:
+                                idx < generatedReport.data.length - 1
+                                  ? `1px solid ${GOV.border}40`
+                                  : "none",
+                              background:
+                                hoveredRow === idx ? govHoverBg : "transparent",
+                              transition: "background .12s",
+                            }}
+                          >
                             {Object.values(row).map(
                               (value: any, cellIdx: number) => (
                                 <td
                                   key={cellIdx}
-                                  className="px-4 py-3 text-sm text-[color:var(--secondary-black)]"
+                                  style={{
+                                    padding: "11px 14px",
+                                    fontSize: 13,
+                                    fontWeight: 500,
+                                    color: GOV.text,
+                                  }}
                                 >
                                   {value}
                                 </td>

@@ -16,6 +16,106 @@ import {
   ShieldCheckIcon,
   UsersIcon,
 } from "@heroicons/react/24/outline";
+import {
+  GOV,
+  govCard,
+  govPageTitle,
+  govPageSubtitle,
+  govPillButton,
+  govPrimaryButton,
+  govHoverBg,
+} from "../styles";
+
+/* ── Inline style helpers ─────────────────────────────────────────────────── */
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  border: "1px solid #ebe7df",
+  borderRadius: 8,
+  padding: "10px 14px",
+  fontSize: 13,
+  color: GOV.text,
+  background: "#fff",
+  outline: "none",
+  fontFamily: "inherit",
+};
+
+const readOnlyFieldStyle: React.CSSProperties = {
+  padding: "10px 14px",
+  fontSize: 13,
+  color: GOV.text,
+  background: GOV.bg,
+  borderRadius: 8,
+  border: "1px solid transparent",
+};
+
+const labelStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 6,
+  fontSize: 12,
+  fontWeight: 600,
+  color: GOV.text,
+  marginBottom: 6,
+};
+
+const labelPlainStyle: React.CSSProperties = {
+  display: "block",
+  fontSize: 12,
+  fontWeight: 600,
+  color: GOV.text,
+  marginBottom: 6,
+};
+
+const iconMutedStyle: React.CSSProperties = {
+  width: 16,
+  height: 16,
+  color: "#8a9e92",
+};
+
+const statRowStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  padding: "6px 0",
+};
+
+const roleBadge = (role: string): React.CSSProperties => {
+  const map: Record<string, { bg: string; color: string }> = {
+    admin: { bg: "#f3e8ff", color: "#7c3aed" },
+    officer: { bg: "#dbeafe", color: "#1d4ed8" },
+    viewer: { bg: "#f5f1ea", color: "#8a9e92" },
+  };
+  const s = map[role] ?? map.viewer;
+  return {
+    display: "inline-block",
+    padding: "2px 8px",
+    borderRadius: 4,
+    fontSize: 10.5,
+    fontWeight: 700,
+    background: s.bg,
+    color: s.color,
+    textTransform: "capitalize",
+  };
+};
+
+const statusBadge = (status: string): React.CSSProperties => {
+  const map: Record<string, { bg: string; color: string }> = {
+    active: { bg: "#d1fae5", color: "#065f46" },
+    pending: { bg: "#fef3c7", color: "#92400e" },
+  };
+  const s = map[status] ?? { bg: "#f5f1ea", color: "#8a9e92" };
+  return {
+    display: "inline-block",
+    padding: "2px 8px",
+    borderRadius: 4,
+    fontSize: 10.5,
+    fontWeight: 700,
+    background: s.bg,
+    color: s.color,
+    textTransform: "capitalize",
+  };
+};
 
 export default function ProfilePage() {
   const authUser = useAppSelector(selectAuthUser);
@@ -25,6 +125,10 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [showAddUserForm, setShowAddUserForm] = useState(false);
   const { show } = useToast();
+
+  /* hover states for interactive rows */
+  const [hoveredRow, setHoveredRow] = useState<string | null>(null);
+  const [hoveredBtn, setHoveredBtn] = useState<string | null>(null);
 
   // Mock profile data - will be replaced with real data
   const [formData, setFormData] = useState({
@@ -122,7 +226,7 @@ export default function ProfilePage() {
 
   const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(
     formData.fullName
-  )}&background=1e3a8a&color=fff&size=200`;
+  )}&background=2d4a3e&color=fff&size=200`;
 
   const tabs = [
     { id: "profile" as const, name: "Profile", icon: UserCircleIcon },
@@ -131,135 +235,197 @@ export default function ProfilePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16">
+    <div style={{ minHeight: "100vh", background: GOV.bg, color: GOV.text }}>
+      <main style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 24px 80px" }}>
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-semibold text-[color:var(--secondary-black)]">
-            Profile Settings
-          </h1>
-          <p className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
+        <div style={{ marginBottom: 28 }}>
+          <h1 style={govPageTitle}>Profile Settings</h1>
+          <p style={govPageSubtitle}>
             Manage your account information and preferences
           </p>
         </div>
 
         {/* Tabs */}
-        <div className="mb-8">
-          <div className="border-b border-[color:var(--secondary-soft-highlight)]">
-            <nav className="-mb-px flex space-x-8">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`group inline-flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-all duration-200 ${
-                    activeTab === tab.id
-                      ? "border-[var(--secondary-highlight2)] text-[var(--secondary-highlight2)]"
-                      : "border-transparent text-[color:var(--secondary-muted-edge)] hover:text-[color:var(--secondary-black)] hover:border-gray-300"
-                  }`}
-                >
-                  <tab.icon
-                    className={`h-5 w-5 ${
-                      activeTab === tab.id
-                        ? "text-[var(--secondary-highlight2)]"
-                        : "text-[color:var(--secondary-muted-edge)] group-hover:text-[color:var(--secondary-black)]"
-                    }`}
-                  />
-                  {tab.name}
-                </button>
-              ))}
+        <div style={{ marginBottom: 28 }}>
+          <div style={{ borderBottom: `1px solid ${GOV.border}` }}>
+            <nav style={{ display: "flex", gap: 28, marginBottom: -1 }}>
+              {tabs.map((tab) => {
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    onMouseEnter={() => setHoveredBtn(`tab-${tab.id}`)}
+                    onMouseLeave={() => setHoveredBtn(null)}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 7,
+                      padding: "12px 2px",
+                      background: "none",
+                      border: "none",
+                      borderBottom: isActive
+                        ? `2px solid ${GOV.accent}`
+                        : "2px solid transparent",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: isActive
+                        ? GOV.accent
+                        : hoveredBtn === `tab-${tab.id}`
+                          ? GOV.text
+                          : "#8a9e92",
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                      transition: "color .15s, border-color .15s",
+                    }}
+                  >
+                    <tab.icon
+                      style={{
+                        width: 18,
+                        height: 18,
+                        color: isActive
+                          ? GOV.accent
+                          : hoveredBtn === `tab-${tab.id}`
+                            ? GOV.text
+                            : "#8a9e92",
+                      }}
+                    />
+                    {tab.name}
+                  </button>
+                );
+              })}
             </nav>
           </div>
         </div>
 
-        {/* Profile Tab Content */}
+        {/* ── Profile Tab ───────────────────────────────────────────────── */}
         {activeTab === "profile" && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left Column - Profile Picture */}
-            <div className="space-y-6">
-              <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-                <div className="text-center">
-                  <div className="relative inline-block mb-4">
-                    <img
-                      src={avatarUrl}
-                      alt={formData.fullName}
-                      className="h-32 w-32 rounded-full border-4 border-gray-200"
-                    />
-                    <button className="absolute bottom-0 right-0 h-10 w-10 rounded-full bg-[var(--secondary-highlight2)] text-white flex items-center justify-center hover:bg-[var(--secondary-muted-edge)] transition-all duration-200 shadow-lg hover:shadow-xl">
-                      <PencilIcon className="h-5 w-5" />
-                    </button>
-                  </div>
-                  <h2 className="text-xl font-semibold text-[color:var(--secondary-black)]">
-                    {formData.fullName}
-                  </h2>
-                  <p className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
-                    {formData.position}
-                  </p>
-                  <p className="text-xs text-[color:var(--secondary-muted-edge)] mt-0.5">
-                    {formData.organization}
-                  </p>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 2fr",
+              gap: 24,
+            }}
+          >
+            {/* Left Column - Profile Picture + Stats */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              <div style={{ ...govCard, padding: "24px 20px", textAlign: "center" }}>
+                <div style={{ position: "relative", display: "inline-block", marginBottom: 14 }}>
+                  <img
+                    src={avatarUrl}
+                    alt={formData.fullName}
+                    style={{
+                      width: 110,
+                      height: 110,
+                      borderRadius: "50%",
+                      border: "3px solid #ebe7df",
+                      objectFit: "cover",
+                    }}
+                  />
+                  <button
+                    onMouseEnter={() => setHoveredBtn("avatar-edit")}
+                    onMouseLeave={() => setHoveredBtn(null)}
+                    style={{
+                      position: "absolute",
+                      bottom: 0,
+                      right: 0,
+                      width: 34,
+                      height: 34,
+                      borderRadius: "50%",
+                      background: hoveredBtn === "avatar-edit" ? GOV.accentHover : GOV.accent,
+                      color: "#fff",
+                      border: "none",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: "pointer",
+                      transition: "background .15s",
+                    }}
+                  >
+                    <PencilIcon style={{ width: 16, height: 16 }} />
+                  </button>
                 </div>
+                <h2 style={{ fontSize: 18, fontWeight: 700, color: GOV.text, margin: 0 }}>
+                  {formData.fullName}
+                </h2>
+                <p style={{ fontSize: 12, color: "#8a9e92", marginTop: 3 }}>
+                  {formData.position}
+                </p>
+                <p style={{ fontSize: 11, color: "#8a9e92", marginTop: 1 }}>
+                  {formData.organization}
+                </p>
               </div>
 
               {/* Quick Stats */}
-              <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-                <h3 className="text-sm font-semibold text-[color:var(--secondary-black)] mb-4">
+              <div style={{ ...govCard, padding: "18px 20px" }}>
+                <h3 style={{ fontSize: 13, fontWeight: 700, color: GOV.text, margin: "0 0 14px" }}>
                   Activity Summary
                 </h3>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-[color:var(--secondary-muted-edge)]">
-                      Vendors Registered
-                    </span>
-                    <span className="text-sm font-medium text-[color:var(--secondary-black)]">
-                      45
-                    </span>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={statRowStyle}>
+                    <span style={{ fontSize: 12, color: "#8a9e92" }}>Vendors Registered</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: GOV.text }}>45</span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-[color:var(--secondary-muted-edge)]">
-                      Products Uploaded
-                    </span>
-                    <span className="text-sm font-medium text-[color:var(--secondary-black)]">
-                      12
-                    </span>
+                  <div style={statRowStyle}>
+                    <span style={{ fontSize: 12, color: "#8a9e92" }}>Products Uploaded</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: GOV.text }}>12</span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-[color:var(--secondary-muted-edge)]">
-                      Reports Generated
-                    </span>
-                    <span className="text-sm font-medium text-[color:var(--secondary-black)]">
-                      28
-                    </span>
+                  <div style={statRowStyle}>
+                    <span style={{ fontSize: 12, color: "#8a9e92" }}>Reports Generated</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: GOV.text }}>28</span>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Right Column - Profile Form */}
-            <div className="lg:col-span-2">
-              <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-lg font-semibold text-[color:var(--secondary-black)]">
+            <div>
+              <div style={{ ...govCard, padding: "24px 24px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: 24,
+                  }}
+                >
+                  <h2 style={{ fontSize: 16, fontWeight: 700, color: GOV.text, margin: 0 }}>
                     Personal Information
                   </h2>
                   {!isEditing ? (
                     <button
                       onClick={() => setIsEditing(true)}
-                      className="inline-flex items-center gap-2 px-5 py-2 rounded-full border border-[color:var(--secondary-soft-highlight)] text-sm font-medium text-[color:var(--secondary-black)] hover:bg-gray-50 transition-all duration-200 shadow-sm hover:shadow-md"
+                      onMouseEnter={() => setHoveredBtn("edit")}
+                      onMouseLeave={() => setHoveredBtn(null)}
+                      style={{
+                        ...govPillButton,
+                        background: hoveredBtn === "edit" ? govHoverBg : GOV.cardBg,
+                      }}
                     >
-                      <PencilIcon className="h-4 w-4" />
+                      <PencilIcon style={{ width: 14, height: 14 }} />
                       Edit
                     </button>
                   ) : (
-                    <div className="flex gap-2">
+                    <div style={{ display: "flex", gap: 8 }}>
                       <button
                         onClick={() => setIsEditing(false)}
-                        className="px-5 py-2 rounded-full border border-[color:var(--secondary-soft-highlight)] text-sm font-medium text-[color:var(--secondary-black)] hover:bg-gray-50 transition-all duration-200 shadow-sm hover:shadow-md"
+                        onMouseEnter={() => setHoveredBtn("cancel")}
+                        onMouseLeave={() => setHoveredBtn(null)}
+                        style={{
+                          ...govPillButton,
+                          background: hoveredBtn === "cancel" ? govHoverBg : GOV.cardBg,
+                        }}
                       >
                         Cancel
                       </button>
                       <button
                         onClick={handleSave}
-                        className="px-5 py-2 rounded-full bg-[var(--secondary-highlight2)] text-white text-sm font-medium hover:bg-[var(--secondary-muted-edge)] transition-all duration-200 shadow-lg hover:shadow-xl"
+                        onMouseEnter={() => setHoveredBtn("save")}
+                        onMouseLeave={() => setHoveredBtn(null)}
+                        style={{
+                          ...govPrimaryButton,
+                          background: hoveredBtn === "save" ? GOV.accentHover : GOV.accent,
+                        }}
                       >
                         Save Changes
                       </button>
@@ -267,11 +433,11 @@ export default function ProfilePage() {
                   )}
                 </div>
 
-                <div className="space-y-6">
+                <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
                   {/* Full Name */}
                   <div>
-                    <label className="flex items-center gap-2 text-sm font-medium text-[color:var(--secondary-black)] mb-2">
-                      <UserCircleIcon className="h-5 w-5 text-[color:var(--secondary-muted-edge)]" />
+                    <label style={labelStyle}>
+                      <UserCircleIcon style={iconMutedStyle} />
                       Full Name
                     </label>
                     {isEditing ? (
@@ -280,19 +446,17 @@ export default function ProfilePage() {
                         name="fullName"
                         value={formData.fullName}
                         onChange={handleInputChange}
-                        className="w-full px-5 py-2.5 rounded-full border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm transition-all duration-200 shadow-sm focus:shadow-md"
+                        style={inputStyle}
                       />
                     ) : (
-                      <div className="px-5 py-2.5 text-sm text-[color:var(--secondary-black)] bg-gray-50/50 rounded-full border border-transparent">
-                        {formData.fullName}
-                      </div>
+                      <div style={readOnlyFieldStyle}>{formData.fullName}</div>
                     )}
                   </div>
 
                   {/* Email */}
                   <div>
-                    <label className="flex items-center gap-2 text-sm font-medium text-[color:var(--secondary-black)] mb-2">
-                      <EnvelopeIcon className="h-5 w-5 text-[color:var(--secondary-muted-edge)]" />
+                    <label style={labelStyle}>
+                      <EnvelopeIcon style={iconMutedStyle} />
                       Email Address
                     </label>
                     {isEditing ? (
@@ -301,19 +465,17 @@ export default function ProfilePage() {
                         name="email"
                         value={formData.email}
                         onChange={handleInputChange}
-                        className="w-full px-5 py-2.5 rounded-full border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm transition-all duration-200 shadow-sm focus:shadow-md"
+                        style={inputStyle}
                       />
                     ) : (
-                      <div className="px-5 py-2.5 text-sm text-[color:var(--secondary-black)] bg-gray-50/50 rounded-full border border-transparent">
-                        {formData.email}
-                      </div>
+                      <div style={readOnlyFieldStyle}>{formData.email}</div>
                     )}
                   </div>
 
                   {/* Phone */}
                   <div>
-                    <label className="flex items-center gap-2 text-sm font-medium text-[color:var(--secondary-black)] mb-2">
-                      <PhoneIcon className="h-5 w-5 text-[color:var(--secondary-muted-edge)]" />
+                    <label style={labelStyle}>
+                      <PhoneIcon style={iconMutedStyle} />
                       Phone Number
                     </label>
                     {isEditing ? (
@@ -322,19 +484,17 @@ export default function ProfilePage() {
                         name="phone"
                         value={formData.phone}
                         onChange={handleInputChange}
-                        className="w-full px-5 py-2.5 rounded-full border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm transition-all duration-200 shadow-sm focus:shadow-md"
+                        style={inputStyle}
                       />
                     ) : (
-                      <div className="px-5 py-2.5 text-sm text-[color:var(--secondary-black)] bg-gray-50/50 rounded-full border border-transparent">
-                        {formData.phone}
-                      </div>
+                      <div style={readOnlyFieldStyle}>{formData.phone}</div>
                     )}
                   </div>
 
                   {/* Organization */}
                   <div>
-                    <label className="flex items-center gap-2 text-sm font-medium text-[color:var(--secondary-black)] mb-2">
-                      <BuildingOfficeIcon className="h-5 w-5 text-[color:var(--secondary-muted-edge)]" />
+                    <label style={labelStyle}>
+                      <BuildingOfficeIcon style={iconMutedStyle} />
                       Organization
                     </label>
                     {isEditing ? (
@@ -343,59 +503,49 @@ export default function ProfilePage() {
                         name="organization"
                         value={formData.organization}
                         onChange={handleInputChange}
-                        className="w-full px-5 py-2.5 rounded-full border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm transition-all duration-200 shadow-sm focus:shadow-md"
+                        style={inputStyle}
                       />
                     ) : (
-                      <div className="px-5 py-2.5 text-sm text-[color:var(--secondary-black)] bg-gray-50/50 rounded-full border border-transparent">
-                        {formData.organization}
-                      </div>
+                      <div style={readOnlyFieldStyle}>{formData.organization}</div>
                     )}
                   </div>
 
                   {/* Department */}
                   <div>
-                    <label className="text-sm font-medium text-[color:var(--secondary-black)] mb-2 block">
-                      Department
-                    </label>
+                    <label style={labelPlainStyle}>Department</label>
                     {isEditing ? (
                       <input
                         type="text"
                         name="department"
                         value={formData.department}
                         onChange={handleInputChange}
-                        className="w-full px-5 py-2.5 rounded-full border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm transition-all duration-200 shadow-sm focus:shadow-md"
+                        style={inputStyle}
                       />
                     ) : (
-                      <div className="px-5 py-2.5 text-sm text-[color:var(--secondary-black)] bg-gray-50/50 rounded-full border border-transparent">
-                        {formData.department}
-                      </div>
+                      <div style={readOnlyFieldStyle}>{formData.department}</div>
                     )}
                   </div>
 
                   {/* Position */}
                   <div>
-                    <label className="text-sm font-medium text-[color:var(--secondary-black)] mb-2 block">
-                      Position/Title
-                    </label>
+                    <label style={labelPlainStyle}>Position/Title</label>
                     {isEditing ? (
                       <input
                         type="text"
                         name="position"
                         value={formData.position}
                         onChange={handleInputChange}
-                        className="w-full px-5 py-2.5 rounded-full border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm transition-all duration-200 shadow-sm focus:shadow-md"
+                        style={inputStyle}
                       />
                     ) : (
-                      <div className="px-5 py-2.5 text-sm text-[color:var(--secondary-black)] bg-gray-50/50 rounded-full border border-transparent">
-                        {formData.position}
-                      </div>
+                      <div style={readOnlyFieldStyle}>{formData.position}</div>
                     )}
                   </div>
 
                   {/* Location */}
                   <div>
-                    <label className="flex items-center gap-2 text-sm font-medium text-[color:var(--secondary-black)] mb-2">
-                      <MapPinIcon className="h-5 w-5 text-[color:var(--secondary-muted-edge)]" />
+                    <label style={labelStyle}>
+                      <MapPinIcon style={iconMutedStyle} />
                       Location
                     </label>
                     {isEditing ? (
@@ -404,30 +554,35 @@ export default function ProfilePage() {
                         name="location"
                         value={formData.location}
                         onChange={handleInputChange}
-                        className="w-full px-5 py-2.5 rounded-full border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm transition-all duration-200 shadow-sm focus:shadow-md"
+                        style={inputStyle}
                       />
                     ) : (
-                      <div className="px-5 py-2.5 text-sm text-[color:var(--secondary-black)] bg-gray-50/50 rounded-full border border-transparent">
-                        {formData.location}
-                      </div>
+                      <div style={readOnlyFieldStyle}>{formData.location}</div>
                     )}
                   </div>
 
                   {/* Bio */}
                   <div>
-                    <label className="text-sm font-medium text-[color:var(--secondary-black)] mb-2 block">
-                      Bio
-                    </label>
+                    <label style={labelPlainStyle}>Bio</label>
                     {isEditing ? (
                       <textarea
                         name="bio"
                         value={formData.bio}
                         onChange={handleInputChange}
                         rows={4}
-                        className="w-full px-5 py-2.5 rounded-full border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm transition-all duration-200 shadow-sm focus:shadow-md"
+                        style={{
+                          ...inputStyle,
+                          borderRadius: 10,
+                          resize: "vertical",
+                        }}
                       />
                     ) : (
-                      <div className="px-5 py-2.5 text-sm text-[color:var(--secondary-black)] bg-gray-50/50 rounded-full border border-transparent">
+                      <div
+                        style={{
+                          ...readOnlyFieldStyle,
+                          lineHeight: 1.6,
+                        }}
+                      >
                         {formData.bio}
                       </div>
                     )}
@@ -438,37 +593,80 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Security Tab Content */}
+        {/* ── Security Tab ──────────────────────────────────────────────── */}
         {activeTab === "security" && (
-          <div className="max-w-3xl mx-auto">
-            <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-              <h2 className="text-lg font-semibold text-[color:var(--secondary-black)] mb-6">
+          <div style={{ maxWidth: 720, margin: "0 auto" }}>
+            <div style={{ ...govCard, padding: "24px 24px" }}>
+              <h2 style={{ fontSize: 16, fontWeight: 700, color: GOV.text, margin: "0 0 22px" }}>
                 Security
               </h2>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 rounded-lg border border-[color:var(--secondary-soft-highlight)]">
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {/* Password Row */}
+                <div
+                  onMouseEnter={() => setHoveredRow("sec-pw")}
+                  onMouseLeave={() => setHoveredRow(null)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "14px 16px",
+                    borderRadius: 8,
+                    border: `1px solid ${GOV.border}`,
+                    background: hoveredRow === "sec-pw" ? govHoverBg : "transparent",
+                    transition: "background .15s",
+                  }}
+                >
                   <div>
-                    <div className="text-sm font-medium text-[color:var(--secondary-black)]">
+                    <div style={{ fontSize: 13, fontWeight: 600, color: GOV.text }}>
                       Password
                     </div>
-                    <div className="text-xs text-[color:var(--secondary-muted-edge)] mt-0.5">
+                    <div style={{ fontSize: 11, color: "#8a9e92", marginTop: 2 }}>
                       Last changed 3 months ago
                     </div>
                   </div>
-                  <button className="px-5 py-2 rounded-full border border-[color:var(--secondary-soft-highlight)] text-sm font-medium text-[color:var(--secondary-black)] hover:bg-gray-50 transition-all duration-200 shadow-sm hover:shadow-md">
+                  <button
+                    onMouseEnter={() => setHoveredBtn("chg-pw")}
+                    onMouseLeave={() => setHoveredBtn(null)}
+                    style={{
+                      ...govPillButton,
+                      background: hoveredBtn === "chg-pw" ? govHoverBg : GOV.cardBg,
+                    }}
+                  >
                     Change Password
                   </button>
                 </div>
-                <div className="flex items-center justify-between p-4 rounded-lg border border-[color:var(--secondary-soft-highlight)]">
+
+                {/* 2FA Row */}
+                <div
+                  onMouseEnter={() => setHoveredRow("sec-2fa")}
+                  onMouseLeave={() => setHoveredRow(null)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "14px 16px",
+                    borderRadius: 8,
+                    border: `1px solid ${GOV.border}`,
+                    background: hoveredRow === "sec-2fa" ? govHoverBg : "transparent",
+                    transition: "background .15s",
+                  }}
+                >
                   <div>
-                    <div className="text-sm font-medium text-[color:var(--secondary-black)]">
+                    <div style={{ fontSize: 13, fontWeight: 600, color: GOV.text }}>
                       Two-Factor Authentication
                     </div>
-                    <div className="text-xs text-[color:var(--secondary-muted-edge)] mt-0.5">
+                    <div style={{ fontSize: 11, color: "#8a9e92", marginTop: 2 }}>
                       Add an extra layer of security
                     </div>
                   </div>
-                  <button className="px-5 py-2 rounded-full bg-[var(--secondary-highlight2)] text-white text-sm font-medium hover:bg-[var(--secondary-muted-edge)] transition-all duration-200 shadow-lg hover:shadow-xl">
+                  <button
+                    onMouseEnter={() => setHoveredBtn("enable-2fa")}
+                    onMouseLeave={() => setHoveredBtn(null)}
+                    style={{
+                      ...govPrimaryButton,
+                      background: hoveredBtn === "enable-2fa" ? GOV.accentHover : GOV.accent,
+                    }}
+                  >
                     Enable
                   </button>
                 </div>
@@ -477,24 +675,36 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Government Users Tab Content */}
+        {/* ── Government Users Tab ──────────────────────────────────────── */}
         {activeTab === "users" && (
-          <div className="max-w-5xl mx-auto">
-            <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-              <div className="flex items-center justify-between mb-6">
+          <div style={{ maxWidth: 960, margin: "0 auto" }}>
+            <div style={{ ...govCard, padding: "24px 24px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: 22,
+                }}
+              >
                 <div>
-                  <h2 className="text-lg font-semibold text-[color:var(--secondary-black)]">
+                  <h2 style={{ fontSize: 16, fontWeight: 700, color: GOV.text, margin: 0 }}>
                     Government Users
                   </h2>
-                  <p className="text-xs text-[color:var(--secondary-muted-edge)] mt-1">
+                  <p style={{ fontSize: 12, color: "#8a9e92", marginTop: 3 }}>
                     Manage access for government portal users
                   </p>
                 </div>
                 <button
                   onClick={() => setShowAddUserForm(!showAddUserForm)}
-                  className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-[var(--secondary-highlight2)] text-white text-sm font-medium hover:bg-[var(--secondary-muted-edge)] transition-all duration-200 shadow-lg hover:shadow-xl"
+                  onMouseEnter={() => setHoveredBtn("add-user")}
+                  onMouseLeave={() => setHoveredBtn(null)}
+                  style={{
+                    ...govPrimaryButton,
+                    background: hoveredBtn === "add-user" ? GOV.accentHover : GOV.accent,
+                  }}
                 >
-                  <UserPlusIcon className="h-4 w-4" />
+                  <UserPlusIcon style={{ width: 15, height: 15 }} />
                   Add User
                 </button>
               </div>
@@ -503,14 +713,26 @@ export default function ProfilePage() {
               {showAddUserForm && (
                 <form
                   onSubmit={handleAddUser}
-                  className="mb-6 p-5 rounded-xl bg-blue-50/50 border border-blue-100"
+                  style={{
+                    marginBottom: 22,
+                    padding: "18px 20px",
+                    borderRadius: 10,
+                    background: GOV.bg,
+                    border: `1px solid ${GOV.border}`,
+                  }}
                 >
-                  <h3 className="text-sm font-semibold text-[color:var(--secondary-black)] mb-4">
+                  <h3 style={{ fontSize: 13, fontWeight: 700, color: GOV.text, margin: "0 0 14px" }}>
                     Invite New Government User
                   </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: 14,
+                    }}
+                  >
                     <div>
-                      <label className="text-xs font-medium text-[color:var(--secondary-black)] mb-1 block">
+                      <label style={{ fontSize: 11, fontWeight: 600, color: GOV.text, display: "block", marginBottom: 4 }}>
                         Full Name *
                       </label>
                       <input
@@ -519,12 +741,12 @@ export default function ProfilePage() {
                         value={newUser.fullName}
                         onChange={handleNewUserChange}
                         required
-                        className="w-full px-4 py-2 rounded-full border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm transition-all duration-200 shadow-sm focus:shadow-md"
                         placeholder="Enter full name"
+                        style={inputStyle}
                       />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-[color:var(--secondary-black)] mb-1 block">
+                      <label style={{ fontSize: 11, fontWeight: 600, color: GOV.text, display: "block", marginBottom: 4 }}>
                         Email Address *
                       </label>
                       <input
@@ -533,12 +755,12 @@ export default function ProfilePage() {
                         value={newUser.email}
                         onChange={handleNewUserChange}
                         required
-                        className="w-full px-4 py-2 rounded-full border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm transition-all duration-200 shadow-sm focus:shadow-md"
                         placeholder="user@gov.gd"
+                        style={inputStyle}
                       />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-[color:var(--secondary-black)] mb-1 block">
+                      <label style={{ fontSize: 11, fontWeight: 600, color: GOV.text, display: "block", marginBottom: 4 }}>
                         Phone Number
                       </label>
                       <input
@@ -546,12 +768,12 @@ export default function ProfilePage() {
                         name="phone"
                         value={newUser.phone}
                         onChange={handleNewUserChange}
-                        className="w-full px-4 py-2 rounded-full border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm transition-all duration-200 shadow-sm focus:shadow-md"
                         placeholder="+1 473-XXX-XXXX"
+                        style={inputStyle}
                       />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-[color:var(--secondary-black)] mb-1 block">
+                      <label style={{ fontSize: 11, fontWeight: 600, color: GOV.text, display: "block", marginBottom: 4 }}>
                         Department *
                       </label>
                       <input
@@ -560,12 +782,12 @@ export default function ProfilePage() {
                         value={newUser.department}
                         onChange={handleNewUserChange}
                         required
-                        className="w-full px-4 py-2 rounded-full border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm transition-all duration-200 shadow-sm focus:shadow-md"
                         placeholder="Enter department"
+                        style={inputStyle}
                       />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-[color:var(--secondary-black)] mb-1 block">
+                      <label style={{ fontSize: 11, fontWeight: 600, color: GOV.text, display: "block", marginBottom: 4 }}>
                         Position/Title *
                       </label>
                       <input
@@ -574,19 +796,22 @@ export default function ProfilePage() {
                         value={newUser.position}
                         onChange={handleNewUserChange}
                         required
-                        className="w-full px-4 py-2 rounded-full border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm transition-all duration-200 shadow-sm focus:shadow-md"
                         placeholder="Enter position"
+                        style={inputStyle}
                       />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-[color:var(--secondary-black)] mb-1 block">
+                      <label style={{ fontSize: 11, fontWeight: 600, color: GOV.text, display: "block", marginBottom: 4 }}>
                         Role *
                       </label>
                       <select
                         name="role"
                         value={newUser.role}
                         onChange={handleNewUserChange}
-                        className="w-full px-4 py-2 rounded-full border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm transition-all duration-200 shadow-sm focus:shadow-md"
+                        style={{
+                          ...inputStyle,
+                          appearance: "auto" as React.CSSProperties["appearance"],
+                        }}
                       >
                         <option value="officer">Officer</option>
                         <option value="admin">Administrator</option>
@@ -594,17 +819,27 @@ export default function ProfilePage() {
                       </select>
                     </div>
                   </div>
-                  <div className="flex gap-2 mt-4">
+                  <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
                     <button
                       type="submit"
-                      className="px-5 py-2 rounded-full bg-[var(--secondary-highlight2)] text-white text-sm font-medium hover:bg-[var(--secondary-muted-edge)] transition-all duration-200 shadow-lg hover:shadow-xl"
+                      onMouseEnter={() => setHoveredBtn("send-inv")}
+                      onMouseLeave={() => setHoveredBtn(null)}
+                      style={{
+                        ...govPrimaryButton,
+                        background: hoveredBtn === "send-inv" ? GOV.accentHover : GOV.accent,
+                      }}
                     >
                       Send Invitation
                     </button>
                     <button
                       type="button"
                       onClick={() => setShowAddUserForm(false)}
-                      className="px-5 py-2 rounded-full border border-[color:var(--secondary-soft-highlight)] text-sm font-medium text-[color:var(--secondary-black)] hover:bg-gray-50 transition-all duration-200 shadow-sm hover:shadow-md"
+                      onMouseEnter={() => setHoveredBtn("cancel-inv")}
+                      onMouseLeave={() => setHoveredBtn(null)}
+                      style={{
+                        ...govPillButton,
+                        background: hoveredBtn === "cancel-inv" ? govHoverBg : GOV.cardBg,
+                      }}
                     >
                       Cancel
                     </button>
@@ -613,69 +848,84 @@ export default function ProfilePage() {
               )}
 
               {/* Users List */}
-              <div className="space-y-3">
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {governmentUsers.map((user) => (
                   <div
                     key={user.id}
-                    className="flex items-center justify-between p-4 rounded-lg border border-[color:var(--secondary-soft-highlight)] hover:bg-gray-50/50 transition-colors"
+                    onMouseEnter={() => setHoveredRow(user.id)}
+                    onMouseLeave={() => setHoveredRow(null)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "12px 14px",
+                      borderRadius: 8,
+                      border: `1px solid ${GOV.border}`,
+                      background: hoveredRow === user.id ? govHoverBg : "transparent",
+                      transition: "background .15s",
+                    }}
                   >
-                    <div className="flex items-center gap-3 flex-1">
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
                       <img
                         src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
                           user.fullName
-                        )}&background=1e3a8a&color=fff`}
+                        )}&background=2d4a3e&color=fff`}
                         alt={user.fullName}
-                        className="h-10 w-10 rounded-full border-2 border-gray-200"
+                        style={{
+                          width: 38,
+                          height: 38,
+                          borderRadius: "50%",
+                          border: "2px solid #ebe7df",
+                          objectFit: "cover",
+                        }}
                       />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-[color:var(--secondary-black)]">
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: GOV.text }}>
                             {user.fullName}
                           </span>
-                          <span
-                            className={`px-2 py-0.5 rounded text-xs font-medium ${
-                              user.role === "admin"
-                                ? "bg-purple-100 text-purple-700"
-                                : user.role === "officer"
-                                  ? "bg-blue-100 text-blue-700"
-                                  : "bg-gray-100 text-gray-700"
-                            }`}
-                          >
-                            {user.role}
-                          </span>
-                          <span
-                            className={`px-2 py-0.5 rounded text-xs font-medium ${
-                              user.status === "active"
-                                ? "bg-green-100 text-green-700"
-                                : "bg-yellow-100 text-yellow-700"
-                            }`}
-                          >
-                            {user.status}
-                          </span>
+                          <span style={roleBadge(user.role)}>{user.role}</span>
+                          <span style={statusBadge(user.status)}>{user.status}</span>
                         </div>
-                        <div className="text-xs text-[color:var(--secondary-muted-edge)] mt-0.5">
+                        <div style={{ fontSize: 11, color: "#8a9e92", marginTop: 2 }}>
                           {user.email}
                         </div>
-                        <div className="text-xs text-[color:var(--secondary-muted-edge)]">
-                          {user.department} • {user.position}
+                        <div style={{ fontSize: 11, color: "#8a9e92" }}>
+                          {user.department} &bull; {user.position}
                         </div>
                       </div>
                     </div>
                     <button
                       onClick={() => handleRemoveUser(user.id)}
-                      className="p-2 rounded-full text-red-600 hover:bg-red-50 transition-all duration-200 shadow-sm hover:shadow-md"
+                      onMouseEnter={() => setHoveredBtn(`del-${user.id}`)}
+                      onMouseLeave={() => setHoveredBtn(null)}
                       title="Remove user"
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: "50%",
+                        border: "none",
+                        background: hoveredBtn === `del-${user.id}` ? GOV.dangerBg : "transparent",
+                        color: GOV.danger,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        transition: "background .15s",
+                      }}
                     >
-                      <TrashIcon className="h-4 w-4" />
+                      <TrashIcon style={{ width: 15, height: 15 }} />
                     </button>
                   </div>
                 ))}
               </div>
 
               {governmentUsers.length === 0 && (
-                <div className="text-center py-8">
-                  <UserCircleIcon className="h-12 w-12 text-[color:var(--secondary-muted-edge)] mx-auto mb-2" />
-                  <p className="text-sm text-[color:var(--secondary-muted-edge)]">
+                <div style={{ textAlign: "center", padding: "32px 0" }}>
+                  <UserCircleIcon
+                    style={{ width: 44, height: 44, color: "#8a9e92", margin: "0 auto 8px" }}
+                  />
+                  <p style={{ fontSize: 13, color: "#8a9e92" }}>
                     No government users yet. Add your first user to get started.
                   </p>
                 </div>

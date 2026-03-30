@@ -13,6 +13,15 @@ import {
   ChevronUpIcon,
 } from "@heroicons/react/24/outline";
 import { useToast } from "@/components/ui/Toast";
+import {
+  GOV,
+  govCard,
+  govPageTitle,
+  govPageSubtitle,
+  govPillButton,
+  govPrimaryButton,
+  govHoverBg,
+} from "../styles";
 
 interface FAQ {
   question: string;
@@ -30,6 +39,9 @@ export default function SupportPage() {
     message: "",
     priority: "normal",
   });
+  const [hoveredAction, setHoveredAction] = useState<number | null>(null);
+  const [hoveredFAQ, setHoveredFAQ] = useState<number | null>(null);
+  const [hoveredContact, setHoveredContact] = useState<string | null>(null);
   const { show } = useToast();
 
   const categories = [
@@ -124,142 +136,317 @@ export default function SupportPage() {
     });
   };
 
+  const quickActions = [
+    {
+      icon: DocumentTextIcon,
+      title: "Documentation",
+      desc: "Browse user guides",
+      iconBg: GOV.infoBg,
+      iconColor: GOV.info,
+    },
+    {
+      icon: VideoCameraIcon,
+      title: "Video Tutorials",
+      desc: "Watch how-to videos",
+      iconBg: "#f3e8ff",
+      iconColor: "#7c3aed",
+    },
+    {
+      icon: ChatBubbleLeftRightIcon,
+      title: "Live Chat",
+      desc: "Chat with support",
+      iconBg: GOV.successBg,
+      iconColor: GOV.success,
+    },
+    {
+      icon: QuestionMarkCircleIcon,
+      title: "FAQs",
+      desc: "Common questions",
+      iconBg: "#fff7ed",
+      iconColor: GOV.accent,
+    },
+  ];
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "9px 16px",
+    borderRadius: 999,
+    border: `1px solid ${GOV.border}`,
+    fontSize: 13,
+    fontFamily: "inherit",
+    color: GOV.text,
+    outline: "none",
+    background: GOV.cardBg,
+  };
+
+  const textareaStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "10px 16px",
+    borderRadius: 12,
+    border: `1px solid ${GOV.border}`,
+    fontSize: 13,
+    fontFamily: "inherit",
+    color: GOV.text,
+    outline: "none",
+    background: GOV.cardBg,
+    resize: "none" as const,
+  };
+
+  const labelStyle: React.CSSProperties = {
+    display: "block",
+    fontSize: 11,
+    fontWeight: 700,
+    color: GOV.text,
+    marginBottom: 4,
+  };
+
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16">
+    <div style={{ minHeight: "100vh", background: GOV.bg, color: GOV.text }}>
+      <main style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 24px 80px" }}>
         {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-semibold text-[color:var(--secondary-black)] mb-3">
-            How can we help you?
-          </h1>
-          <p className="text-base text-[color:var(--secondary-muted-edge)]">
+        <div style={{ textAlign: "center", marginBottom: 40 }}>
+          <h1 style={govPageTitle}>How can we help you?</h1>
+          <p style={govPageSubtitle}>
             Find answers, get support, and explore resources
           </p>
         </div>
 
         {/* Search Bar */}
-        <div className="max-w-2xl mx-auto mb-12">
-          <div className="relative">
-            <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[color:var(--secondary-muted-edge)]" />
+        <div style={{ maxWidth: 640, margin: "0 auto 40px" }}>
+          <div style={{ position: "relative" }}>
+            <MagnifyingGlassIcon
+              style={{
+                position: "absolute",
+                left: 16,
+                top: "50%",
+                transform: "translateY(-50%)",
+                height: 18,
+                width: 18,
+                color: GOV.muted,
+              }}
+            />
             <input
               type="text"
               placeholder="Search for help articles, guides, or FAQs..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-4 rounded-full border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm transition-all duration-200 shadow-sm focus:shadow-md"
+              style={{
+                ...inputStyle,
+                paddingLeft: 44,
+                paddingTop: 14,
+                paddingBottom: 14,
+              }}
             />
           </div>
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
-          {[
-            {
-              icon: DocumentTextIcon,
-              title: "Documentation",
-              desc: "Browse user guides",
-              color: "bg-blue-50",
-              iconColor: "text-blue-600",
-            },
-            {
-              icon: VideoCameraIcon,
-              title: "Video Tutorials",
-              desc: "Watch how-to videos",
-              color: "bg-purple-50",
-              iconColor: "text-purple-600",
-            },
-            {
-              icon: ChatBubbleLeftRightIcon,
-              title: "Live Chat",
-              desc: "Chat with support",
-              color: "bg-green-50",
-              iconColor: "text-green-600",
-            },
-            {
-              icon: QuestionMarkCircleIcon,
-              title: "FAQs",
-              desc: "Common questions",
-              color: "bg-orange-50",
-              iconColor: "text-orange-600",
-            },
-          ].map((action, index) => (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4, 1fr)",
+            gap: 14,
+            marginBottom: 40,
+          }}
+        >
+          {quickActions.map((action, index) => (
             <button
               key={index}
-              className="p-6 rounded-xl border border-[color:var(--secondary-soft-highlight)] bg-white hover:shadow-lg transition-all duration-200 text-left"
+              onMouseEnter={() => setHoveredAction(index)}
+              onMouseLeave={() => setHoveredAction(null)}
+              style={{
+                ...govCard,
+                padding: "20px 18px",
+                textAlign: "left" as const,
+                cursor: "pointer",
+                background:
+                  hoveredAction === index ? govHoverBg : GOV.cardBg,
+                transition: "background .15s",
+              }}
             >
               <div
-                className={`inline-flex p-3 rounded-lg ${action.color} mb-3`}
+                style={{
+                  display: "inline-flex",
+                  padding: 10,
+                  borderRadius: 8,
+                  background: action.iconBg,
+                  marginBottom: 10,
+                }}
               >
-                <action.icon className={`h-6 w-6 ${action.iconColor}`} />
+                <action.icon
+                  style={{ height: 20, width: 20, color: action.iconColor }}
+                />
               </div>
-              <div className="text-sm font-semibold text-[color:var(--secondary-black)] mb-1">
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: GOV.text,
+                  marginBottom: 2,
+                }}
+              >
                 {action.title}
               </div>
-              <div className="text-xs text-[color:var(--secondary-muted-edge)]">
+              <div style={{ fontSize: 11.5, color: GOV.muted, fontWeight: 500 }}>
                 {action.desc}
               </div>
             </button>
           ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "2fr 1fr",
+            gap: 24,
+            alignItems: "start",
+          }}
+        >
           {/* Left Column - FAQs */}
-          <div className="lg:col-span-2">
-            <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white overflow-hidden">
-              <div className="p-6 border-b border-[color:var(--secondary-soft-highlight)] bg-gray-50/50">
-                <h2 className="text-xl font-semibold text-[color:var(--secondary-black)] mb-4">
+          <div>
+            <div style={{ ...govCard, overflow: "hidden" }}>
+              <div
+                style={{
+                  padding: "18px 20px",
+                  borderBottom: `1px solid ${GOV.border}`,
+                  background: GOV.bg,
+                }}
+              >
+                <h2
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 800,
+                    color: GOV.text,
+                    margin: "0 0 14px",
+                  }}
+                >
                   Frequently Asked Questions
                 </h2>
                 {/* Category Filter */}
-                <div className="flex flex-wrap gap-2">
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   {categories.map((category) => (
                     <button
                       key={category.id}
                       onClick={() => setSelectedCategory(category.id)}
-                      className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md ${
+                      style={
                         selectedCategory === category.id
-                          ? "bg-[var(--secondary-highlight2)] text-white shadow-lg"
-                          : "bg-white text-[color:var(--secondary-black)] border border-[color:var(--secondary-soft-highlight)] hover:bg-gray-50"
-                      }`}
+                          ? {
+                              ...govPrimaryButton,
+                              padding: "7px 16px",
+                              fontSize: 12,
+                              background: GOV.brand,
+                            }
+                          : {
+                              ...govPillButton,
+                              padding: "7px 16px",
+                              fontSize: 12,
+                            }
+                      }
                     >
                       {category.name}
                     </button>
                   ))}
                 </div>
               </div>
-              <div className="p-6">
+              <div style={{ padding: "18px 20px" }}>
                 {filteredFAQs.length === 0 ? (
-                  <div className="text-center py-12">
-                    <QuestionMarkCircleIcon className="h-12 w-12 text-[color:var(--secondary-muted-edge)] mx-auto mb-3" />
-                    <p className="text-sm text-[color:var(--secondary-muted-edge)]">
+                  <div
+                    style={{
+                      textAlign: "center",
+                      padding: "48px 0",
+                    }}
+                  >
+                    <QuestionMarkCircleIcon
+                      style={{
+                        height: 40,
+                        width: 40,
+                        color: GOV.lightMuted,
+                        margin: "0 auto 10px",
+                        display: "block",
+                      }}
+                    />
+                    <p style={{ fontSize: 13, color: GOV.muted }}>
                       No FAQs found matching your search
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                     {filteredFAQs.map((faq, index) => (
                       <div
                         key={index}
-                        className="rounded-lg border border-[color:var(--secondary-soft-highlight)] overflow-hidden"
+                        style={{
+                          borderRadius: 8,
+                          border: `1px solid ${GOV.border}`,
+                          overflow: "hidden",
+                        }}
                       >
                         <button
                           onClick={() =>
                             setExpandedFAQ(expandedFAQ === index ? null : index)
                           }
-                          className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                          onMouseEnter={() => setHoveredFAQ(index)}
+                          onMouseLeave={() => setHoveredFAQ(null)}
+                          style={{
+                            width: "100%",
+                            padding: "12px 16px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            background:
+                              hoveredFAQ === index ? govHoverBg : "transparent",
+                            border: "none",
+                            cursor: "pointer",
+                            fontFamily: "inherit",
+                            transition: "background .15s",
+                          }}
                         >
-                          <span className="text-sm font-medium text-[color:var(--secondary-black)] text-left">
+                          <span
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 600,
+                              color: GOV.text,
+                              textAlign: "left" as const,
+                            }}
+                          >
                             {faq.question}
                           </span>
                           {expandedFAQ === index ? (
-                            <ChevronUpIcon className="h-5 w-5 text-[color:var(--secondary-muted-edge)] flex-shrink-0" />
+                            <ChevronUpIcon
+                              style={{
+                                height: 16,
+                                width: 16,
+                                color: GOV.muted,
+                                flexShrink: 0,
+                              }}
+                            />
                           ) : (
-                            <ChevronDownIcon className="h-5 w-5 text-[color:var(--secondary-muted-edge)] flex-shrink-0" />
+                            <ChevronDownIcon
+                              style={{
+                                height: 16,
+                                width: 16,
+                                color: GOV.muted,
+                                flexShrink: 0,
+                              }}
+                            />
                           )}
                         </button>
                         {expandedFAQ === index && (
-                          <div className="px-4 pb-4 pt-0 border-t border-[color:var(--secondary-soft-highlight)] bg-gray-50/50">
-                            <p className="text-sm text-[color:var(--secondary-black)] leading-relaxed">
+                          <div
+                            style={{
+                              padding: "0 16px 14px",
+                              borderTop: `1px solid ${GOV.border}`,
+                              background: GOV.bg,
+                            }}
+                          >
+                            <p
+                              style={{
+                                fontSize: 13,
+                                color: GOV.textSecondary,
+                                lineHeight: 1.6,
+                                marginTop: 12,
+                                fontWeight: 500,
+                              }}
+                            >
                               {faq.answer}
                             </p>
                           </div>
@@ -273,17 +460,25 @@ export default function SupportPage() {
           </div>
 
           {/* Right Column - Contact & Resources */}
-          <div className="space-y-6">
+          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
             {/* Contact Support */}
-            <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-              <h3 className="text-lg font-semibold text-[color:var(--secondary-black)] mb-4">
+            <div style={{ ...govCard, padding: "18px 20px" }}>
+              <h3
+                style={{
+                  fontSize: 14,
+                  fontWeight: 800,
+                  color: GOV.text,
+                  margin: "0 0 14px",
+                }}
+              >
                 Contact Support
               </h3>
-              <form onSubmit={handleSubmitContact} className="space-y-4">
+              <form
+                onSubmit={handleSubmitContact}
+                style={{ display: "flex", flexDirection: "column", gap: 12 }}
+              >
                 <div>
-                  <label className="text-xs font-medium text-[color:var(--secondary-black)] mb-1 block">
-                    Subject
-                  </label>
+                  <label style={labelStyle}>Subject</label>
                   <input
                     type="text"
                     name="subject"
@@ -291,19 +486,17 @@ export default function SupportPage() {
                     onChange={handleContactFormChange}
                     placeholder="Brief description"
                     required
-                    className="w-full px-4 py-2 rounded-full border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm transition-all duration-200 shadow-sm focus:shadow-md"
+                    style={inputStyle}
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium text-[color:var(--secondary-black)] mb-1 block">
-                    Category
-                  </label>
+                  <label style={labelStyle}>Category</label>
                   <select
                     name="category"
                     value={contactForm.category}
                     onChange={handleContactFormChange}
-                    className="w-full px-4 py-2 rounded-full border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm transition-all duration-200 shadow-sm focus:shadow-md"
+                    style={inputStyle}
                   >
                     <option value="general">General Inquiry</option>
                     <option value="technical">Technical Issue</option>
@@ -313,14 +506,12 @@ export default function SupportPage() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium text-[color:var(--secondary-black)] mb-1 block">
-                    Priority
-                  </label>
+                  <label style={labelStyle}>Priority</label>
                   <select
                     name="priority"
                     value={contactForm.priority}
                     onChange={handleContactFormChange}
-                    className="w-full px-4 py-2 rounded-full border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm transition-all duration-200 shadow-sm focus:shadow-md"
+                    style={inputStyle}
                   >
                     <option value="low">Low</option>
                     <option value="normal">Normal</option>
@@ -330,9 +521,7 @@ export default function SupportPage() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium text-[color:var(--secondary-black)] mb-1 block">
-                    Message
-                  </label>
+                  <label style={labelStyle}>Message</label>
                   <textarea
                     name="message"
                     value={contactForm.message}
@@ -340,37 +529,74 @@ export default function SupportPage() {
                     placeholder="Describe your issue or question"
                     required
                     rows={4}
-                    className="w-full px-4 py-3 rounded-2xl border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm resize-none transition-all duration-200 shadow-sm focus:shadow-md"
+                    style={textareaStyle}
                   />
                 </div>
 
-                <button
-                  type="submit"
-                  className="w-full px-4 py-2.5 rounded-full bg-[var(--secondary-highlight2)] text-white text-sm font-medium hover:bg-[var(--primary-accent3)] transition-all duration-200 shadow-lg hover:shadow-xl"
-                >
+                <button type="submit" style={{ ...govPrimaryButton, justifyContent: "center", width: "100%" }}>
                   Send Message
                 </button>
               </form>
             </div>
 
             {/* Direct Contact */}
-            <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-              <h3 className="text-lg font-semibold text-[color:var(--secondary-black)] mb-4">
+            <div style={{ ...govCard, padding: "18px 20px" }}>
+              <h3
+                style={{
+                  fontSize: 14,
+                  fontWeight: 800,
+                  color: GOV.text,
+                  margin: "0 0 14px",
+                }}
+              >
                 Direct Contact
               </h3>
-              <div className="space-y-3">
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <a
                   href="mailto:support@procur.gov.gd"
-                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+                  onMouseEnter={() => setHoveredContact("email")}
+                  onMouseLeave={() => setHoveredContact(null)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: 10,
+                    borderRadius: 8,
+                    textDecoration: "none",
+                    background:
+                      hoveredContact === "email" ? govHoverBg : "transparent",
+                    transition: "background .15s",
+                  }}
                 >
-                  <div className="flex-shrink-0 h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center">
-                    <EnvelopeIcon className="h-5 w-5 text-blue-600" />
+                  <div
+                    style={{
+                      flexShrink: 0,
+                      height: 36,
+                      width: 36,
+                      borderRadius: "50%",
+                      background: GOV.infoBg,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <EnvelopeIcon
+                      style={{ height: 16, width: 16, color: GOV.info }}
+                    />
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-[color:var(--secondary-black)]">
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: GOV.text,
+                      }}
+                    >
                       Email Support
                     </div>
-                    <div className="text-xs text-[color:var(--secondary-muted-edge)]">
+                    <div
+                      style={{ fontSize: 11, color: GOV.muted, fontWeight: 500 }}
+                    >
                       support@procur.gov.gd
                     </div>
                   </div>
@@ -378,24 +604,65 @@ export default function SupportPage() {
 
                 <a
                   href="tel:+14734402708"
-                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+                  onMouseEnter={() => setHoveredContact("phone")}
+                  onMouseLeave={() => setHoveredContact(null)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: 10,
+                    borderRadius: 8,
+                    textDecoration: "none",
+                    background:
+                      hoveredContact === "phone" ? govHoverBg : "transparent",
+                    transition: "background .15s",
+                  }}
                 >
-                  <div className="flex-shrink-0 h-10 w-10 rounded-full bg-green-50 flex items-center justify-center">
-                    <PhoneIcon className="h-5 w-5 text-green-600" />
+                  <div
+                    style={{
+                      flexShrink: 0,
+                      height: 36,
+                      width: 36,
+                      borderRadius: "50%",
+                      background: GOV.successBg,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <PhoneIcon
+                      style={{ height: 16, width: 16, color: GOV.success }}
+                    />
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-[color:var(--secondary-black)]">
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: GOV.text,
+                      }}
+                    >
                       Phone Support
                     </div>
-                    <div className="text-xs text-[color:var(--secondary-muted-edge)]">
+                    <div
+                      style={{ fontSize: 11, color: GOV.muted, fontWeight: 500 }}
+                    >
                       +1 473-440-2708
                     </div>
                   </div>
                 </a>
               </div>
 
-              <div className="mt-4 p-3 rounded-lg bg-blue-50 border border-blue-100">
-                <p className="text-xs text-blue-800">
+              <div
+                style={{
+                  marginTop: 14,
+                  padding: "10px 12px",
+                  borderRadius: 8,
+                  background: GOV.infoBg,
+                  border: `1px solid #bfdbfe`,
+                }}
+              >
+                <p style={{ fontSize: 11, color: GOV.info, fontWeight: 600, margin: 0 }}>
                   <strong>Business Hours:</strong> Monday - Friday, 8:00 AM -
                   4:30 PM AST
                 </p>
@@ -403,11 +670,18 @@ export default function SupportPage() {
             </div>
 
             {/* System Status */}
-            <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-              <h3 className="text-lg font-semibold text-[color:var(--secondary-black)] mb-4">
+            <div style={{ ...govCard, padding: "18px 20px" }}>
+              <h3
+                style={{
+                  fontSize: 14,
+                  fontWeight: 800,
+                  color: GOV.text,
+                  margin: "0 0 14px",
+                }}
+              >
                 System Status
               </h3>
-              <div className="space-y-2">
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {[
                   { service: "API Services", status: "Operational" },
                   { service: "Database", status: "Operational" },
@@ -416,13 +690,34 @@ export default function SupportPage() {
                 ].map((item, index) => (
                   <div
                     key={index}
-                    className="flex items-center justify-between"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                    }}
                   >
-                    <span className="text-sm text-[color:var(--secondary-black)]">
+                    <span style={{ fontSize: 13, color: GOV.text, fontWeight: 500 }}>
                       {item.service}
                     </span>
-                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-700">
-                      <span className="h-2 w-2 rounded-full bg-green-500"></span>
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 5,
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: GOV.success,
+                      }}
+                    >
+                      <span
+                        style={{
+                          height: 7,
+                          width: 7,
+                          borderRadius: "50%",
+                          background: "#22c55e",
+                          display: "inline-block",
+                        }}
+                      />
                       {item.status}
                     </span>
                   </div>

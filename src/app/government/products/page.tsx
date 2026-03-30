@@ -19,12 +19,29 @@ import {
 } from "@/store/slices/governmentVendorsSlice";
 import { safeNumber } from "@/lib/utils/dataHelpers";
 import { VendorProduct } from "@/types";
+import {
+  GOV,
+  govCard,
+  govCardPadded,
+  govSectionHeader,
+  govViewAllLink,
+  govKpiLabel,
+  govKpiValue,
+  govKpiSub,
+  govPageTitle,
+  govPageSubtitle,
+  govPillButton,
+  govPrimaryButton,
+  govStatusPillStyle,
+  govStatusLabel,
+  govHoverBg,
+} from "../styles";
 
 export default function ProductsPage() {
   const dispatch = useAppDispatch();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [filterUploadedBy, setFilterUploadedBy] = useState<string>("all");
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
 
   // Redux state
   const products = useAppSelector(selectAllProducts);
@@ -172,119 +189,152 @@ export default function ProductsPage() {
         (filterStatus === "available" && isAvailable) ||
         (filterStatus === "reserved" && !isAvailable);
 
-      // Note: API doesn't have uploadedBy field, so we'll skip that filter for now
-      // const matchesUploadedBy =
-      //   filterUploadedBy === "all" || product.uploadedBy === filterUploadedBy;
-
       return matchesSearch && matchesStatus;
     });
   }, [displayProducts, searchQuery, filterStatus, vendorMap]);
 
-  const getStatusConfig = (status: string) => {
-    switch (status) {
-      case "available":
-        return {
-          label: "Available",
-          color: "bg-[var(--primary-base)]/10 text-[color:var(--primary-base)]",
-        };
-      case "reserved":
-        return {
-          label: "Reserved",
-          color: "bg-yellow-100 text-yellow-800",
-        };
-      case "sold":
-        return {
-          label: "Sold",
-          color: "bg-gray-100 text-gray-800",
-        };
-      default:
-        return {
-          label: "Unknown",
-          color: "bg-gray-100 text-gray-800",
-        };
-    }
+  const getProductStatus = (product: VendorProduct) => {
+    const isAvailable = product.harvest_date
+      ? new Date(product.harvest_date) <= new Date()
+      : true;
+    return isAvailable ? "active" : "pending";
+  };
+
+  /* ── Input style ────────────────────────────────────────────────────────── */
+  const inputPill: React.CSSProperties = {
+    border: `1px solid ${GOV.border}`,
+    borderRadius: 999,
+    padding: "8px 14px",
+    fontSize: 13,
+    fontFamily: "inherit",
+    color: GOV.text,
+    background: GOV.cardBg,
+    outline: "none",
+  };
+
+  /* ── Small stat cell inside product card ────────────────────────────────── */
+  const miniStatBox: React.CSSProperties = {
+    background: GOV.bg,
+    borderRadius: 8,
+    padding: "10px 12px",
+  };
+
+  /* ── Tag / badge base ───────────────────────────────────────────────────── */
+  const tagBase: React.CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 4,
+    borderRadius: 6,
+    padding: "3px 8px",
+    fontSize: 11,
+    fontWeight: 600,
   };
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+    <div style={{ minHeight: "100vh", background: GOV.bg, color: GOV.text }}>
+      <main style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 24px 80px" }}>
+        {/* ── Header ─────────────────────────────────────────────────────── */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 28,
+          }}
+        >
           <div>
-            <h1 className="text-3xl font-semibold text-[color:var(--secondary-black)]">
-              Products Management
-            </h1>
-            <p className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
+            <h1 style={govPageTitle}>Products Management</h1>
+            <p style={govPageSubtitle}>
               Monitor and manage product listings across all vendors
-              {productsStatus === "loading" && " • Loading..."}
-              {productsError && " • Error loading data"}
+              {productsStatus === "loading" && " \u00b7 Loading..."}
+              {productsError && " \u00b7 Error loading data"}
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <button
               onClick={handleRefresh}
               disabled={productsStatus === "loading"}
-              className="inline-flex items-center gap-2 rounded-full bg-white border border-[color:var(--secondary-soft-highlight)] text-[color:var(--secondary-black)] px-4 py-2.5 text-sm font-medium hover:bg-gray-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                ...govPillButton,
+                opacity: productsStatus === "loading" ? 0.5 : 1,
+                cursor:
+                  productsStatus === "loading" ? "not-allowed" : "pointer",
+              }}
             >
               <ArrowPathIcon
-                className={`h-5 w-5 ${
-                  productsStatus === "loading" ? "animate-spin" : ""
-                }`}
+                style={{
+                  width: 16,
+                  height: 16,
+                  animation:
+                    productsStatus === "loading"
+                      ? "spin 1s linear infinite"
+                      : undefined,
+                }}
               />
               Refresh
             </button>
             <Link
               href="/government/products/upload"
-              className="inline-flex items-center gap-2 rounded-full bg-[var(--primary-accent2)] text-white px-5 py-2.5 text-sm font-medium hover:bg-[var(--primary-accent3)] transition-colors focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] focus:ring-offset-2"
+              style={govPrimaryButton}
             >
-              <PlusIcon className="h-5 w-5" />
+              <PlusIcon style={{ width: 16, height: 16 }} />
               Upload Product
             </Link>
           </div>
         </div>
 
-        {/* Error Message */}
+        {/* ── Error ──────────────────────────────────────────────────────── */}
         {productsError && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 mb-6">
-            <p className="text-sm text-red-800">
+          <div
+            style={{
+              ...govCard,
+              background: GOV.dangerBg,
+              borderColor: "#fca5a5",
+              padding: "14px 18px",
+              marginBottom: 20,
+            }}
+          >
+            <p style={{ fontSize: 13, color: GOV.danger, margin: 0 }}>
               Error loading products: {productsError}
             </p>
           </div>
         )}
 
-        {/* Stats Overview */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-            <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)] mb-2">
-              Total Products
-            </div>
-            <div className="text-3xl font-semibold text-[color:var(--secondary-black)]">
+        {/* ── Stats Overview ─────────────────────────────────────────────── */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4, 1fr)",
+            gap: 12,
+            marginBottom: 24,
+          }}
+        >
+          <div style={govCardPadded}>
+            <div style={govKpiLabel}>Total Products</div>
+            <div style={{ ...govKpiValue, marginTop: 6 }}>
               {productsStatus === "loading" ? "..." : stats.total}
             </div>
+            <div style={govKpiSub}>All listed items</div>
           </div>
-          <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-            <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)] mb-2">
-              Available
-            </div>
-            <div className="text-3xl font-semibold text-[color:var(--primary-base)]">
+          <div style={govCardPadded}>
+            <div style={govKpiLabel}>Available</div>
+            <div style={{ ...govKpiValue, marginTop: 6, color: GOV.success }}>
               {productsStatus === "loading" ? "..." : stats.available}
             </div>
+            <div style={govKpiSub}>Ready for procurement</div>
           </div>
-          <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-            <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)] mb-2">
-              Total Quantity
-            </div>
-            <div className="text-3xl font-semibold text-[color:var(--secondary-black)]">
+          <div style={govCardPadded}>
+            <div style={govKpiLabel}>Total Quantity</div>
+            <div style={{ ...govKpiValue, marginTop: 6 }}>
               {productsStatus === "loading"
                 ? "..."
                 : stats.totalQuantity.toLocaleString()}
             </div>
+            <div style={govKpiSub}>Units across vendors</div>
           </div>
-          <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-            <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)] mb-2">
-              Total Value
-            </div>
-            <div className="text-3xl font-semibold text-[color:var(--secondary-black)]">
+          <div style={govCardPadded}>
+            <div style={govKpiLabel}>Total Value</div>
+            <div style={{ ...govKpiValue, marginTop: 6 }}>
               $
               {productsStatus === "loading"
                 ? "..."
@@ -293,120 +343,179 @@ export default function ProductsPage() {
                     maximumFractionDigits: 2,
                   })}
             </div>
+            <div style={govKpiSub}>Estimated market value</div>
           </div>
         </div>
 
-        {/* Search and Filters */}
-        <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6 mb-6">
-          <div className="flex flex-col lg:flex-row gap-4">
-            {/* Search */}
-            <div className="flex-1">
-              <div className="relative">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[color:var(--secondary-muted-edge)]" />
-                <input
-                  type="text"
-                  placeholder="Search products by name or vendor..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-full border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
-                />
-              </div>
-            </div>
+        {/* ── Search & Filters ───────────────────────────────────────────── */}
+        <div
+          style={{
+            ...govCardPadded,
+            marginBottom: 20,
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            flexWrap: "wrap",
+          }}
+        >
+          {/* Search */}
+          <div style={{ flex: 1, minWidth: 220, position: "relative" }}>
+            <MagnifyingGlassIcon
+              style={{
+                width: 16,
+                height: 16,
+                position: "absolute",
+                left: 14,
+                top: "50%",
+                transform: "translateY(-50%)",
+                color: GOV.muted,
+                pointerEvents: "none",
+              }}
+            />
+            <input
+              type="text"
+              placeholder="Search products by name or vendor..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                ...inputPill,
+                width: "100%",
+                paddingLeft: 38,
+              }}
+            />
+          </div>
 
-            {/* Filters */}
-            <div className="flex flex-wrap gap-3">
-              <div className="flex items-center gap-2">
-                <FunnelIcon className="h-5 w-5 text-[color:var(--secondary-muted-edge)]" />
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="rounded-full border border-[color:var(--secondary-soft-highlight)] px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)]"
-                >
-                  <option value="all">All Status</option>
-                  <option value="available">Available</option>
-                  <option value="reserved">Expected Soon</option>
-                </select>
-              </div>
-            </div>
+          {/* Status filter */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <FunnelIcon style={{ width: 16, height: 16, color: GOV.muted }} />
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              style={inputPill}
+            >
+              <option value="all">All Status</option>
+              <option value="available">Available</option>
+              <option value="reserved">Expected Soon</option>
+            </select>
           </div>
         </div>
 
-        {/* Products Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* ── Products Grid ──────────────────────────────────────────────── */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: 16,
+          }}
+        >
           {filteredProducts.map((product) => {
-            // Compute status from harvest date
-            const isAvailable = product.harvest_date
-              ? new Date(product.harvest_date) <= new Date()
-              : true;
-            const productStatus = isAvailable ? "available" : "reserved";
-            const statusConfig = getStatusConfig(productStatus);
-
-            // Get vendor name
+            const status = getProductStatus(product);
             const vendorName =
               vendorMap.get(product.vendor_id) || "Unknown Vendor";
+            const isHovered = hoveredCard === product.id;
 
             return (
               <div
                 key={product.id}
-                className="group rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white overflow-hidden transition-all duration-300 hover:shadow-2xl hover:scale-[1.02] hover:-translate-y-1"
+                style={{
+                  ...govCard,
+                  overflow: "hidden",
+                  transition: "box-shadow .15s, transform .15s",
+                  background: isHovered ? govHoverBg : GOV.cardBg,
+                  transform: isHovered ? "translateY(-2px)" : undefined,
+                  boxShadow: isHovered
+                    ? "0 4px 16px rgba(0,0,0,.06)"
+                    : undefined,
+                }}
+                onMouseEnter={() => setHoveredCard(product.id)}
+                onMouseLeave={() => setHoveredCard(null)}
               >
-                {/* Product Image Placeholder - Sleeker */}
-                <div className="relative h-48 bg-gradient-to-br from-[var(--primary-accent1)]/30 via-[var(--primary-accent2)]/20 to-[var(--primary-background)] overflow-hidden">
-                  {/* Decorative pattern overlay */}
-                  <div className="absolute inset-0 opacity-5">
+                {/* Image placeholder area */}
+                <div
+                  style={{
+                    height: 160,
+                    background: `linear-gradient(135deg, ${GOV.bg} 0%, ${GOV.border} 100%)`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    position: "relative",
+                  }}
+                >
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: 40, marginBottom: 6 }}>
+                      {product.organic_certified ? "\ud83c\udf31" : "\ud83c\udf3e"}
+                    </div>
                     <div
-                      className="absolute inset-0"
                       style={{
-                        backgroundImage:
-                          "radial-gradient(circle at 2px 2px, currentColor 1px, transparent 0)",
-                        backgroundSize: "20px 20px",
+                        fontSize: 10,
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        letterSpacing: ".06em",
+                        color: GOV.text,
+                        background: "rgba(255,255,255,.85)",
+                        padding: "3px 10px",
+                        borderRadius: 999,
+                        display: "inline-block",
                       }}
-                    ></div>
-                  </div>
-
-                  <div className="relative h-full flex items-center justify-center">
-                    <div className="text-center transform transition-transform duration-300 group-hover:scale-110">
-                      <div className="text-5xl mb-3 filter drop-shadow-lg">
-                        {product.organic_certified ? "🌱" : "🌾"}
-                      </div>
-                      <div className="text-xs font-semibold uppercase tracking-wider text-[color:var(--secondary-black)] bg-white/80 backdrop-blur-sm px-3 py-1 rounded-full inline-block">
-                        {product.category || "Product"}
-                      </div>
+                    >
+                      {product.category || "Product"}
                     </div>
                   </div>
 
-                  {/* Status Badge - Absolute positioned */}
-                  <div className="absolute top-3 right-3">
-                    <span
-                      className={`inline-flex items-center rounded-xl px-3 py-1.5 text-xs font-semibold backdrop-blur-md ${statusConfig.color} shadow-lg`}
-                    >
-                      {statusConfig.label}
+                  {/* Status badge */}
+                  <div style={{ position: "absolute", top: 10, right: 10 }}>
+                    <span style={govStatusPillStyle(status)}>
+                      {govStatusLabel(status)}
                     </span>
                   </div>
                 </div>
 
-                {/* Product Details - Sleeker */}
-                <div className="p-6">
-                  <div className="mb-3">
-                    <h3 className="text-lg font-bold text-[color:var(--secondary-black)] mb-1 line-clamp-2 leading-tight">
+                {/* Product details */}
+                <div style={{ padding: "16px 18px 18px" }}>
+                  <div style={{ marginBottom: 8 }}>
+                    <h3
+                      style={{
+                        fontSize: 15,
+                        fontWeight: 700,
+                        color: GOV.text,
+                        margin: 0,
+                        lineHeight: 1.3,
+                      }}
+                    >
                       {product.name}
-                      {product.variety && (
-                        <span className="block text-xs font-normal text-[color:var(--secondary-muted-edge)] mt-1">
-                          Variety: {product.variety}
-                        </span>
-                      )}
                     </h3>
+                    {product.variety && (
+                      <span
+                        style={{
+                          fontSize: 11,
+                          color: GOV.muted,
+                          fontWeight: 500,
+                          display: "block",
+                          marginTop: 2,
+                        }}
+                      >
+                        Variety: {product.variety}
+                      </span>
+                    )}
                   </div>
 
                   <Link
                     href={`/government/vendors/${product.vendor_id}`}
-                    className="inline-flex items-center gap-1.5 text-sm text-[color:var(--primary-accent2)] hover:text-[var(--primary-accent3)] font-medium mb-4 group/link transition-colors"
+                    style={{
+                      color: GOV.accent,
+                      fontWeight: 600,
+                      fontSize: 13,
+                      textDecoration: "none",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                      marginBottom: 12,
+                    }}
                   >
-                    <span className="group-hover/link:underline">
-                      {vendorName}
-                    </span>
+                    {vendorName}
                     <svg
-                      className="w-3 h-3 transition-transform group-hover/link:translate-x-0.5"
+                      width="10"
+                      height="10"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -420,52 +529,117 @@ export default function ProductsPage() {
                     </svg>
                   </Link>
 
-                  {/* Stats Grid - Sleeker */}
-                  <div className="grid grid-cols-2 gap-3 mb-4">
-                    <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-xl p-3 border border-gray-100">
-                      <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)] mb-1 font-semibold">
+                  {/* Stats mini-grid */}
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: 8,
+                      marginBottom: 12,
+                    }}
+                  >
+                    <div style={miniStatBox}>
+                      <div style={{ ...govKpiLabel, marginBottom: 2 }}>
                         Quantity
                       </div>
-                      <div className="text-sm font-bold text-[color:var(--secondary-black)]">
+                      <div
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 700,
+                          color: GOV.text,
+                        }}
+                      >
                         {product.quantity_available}
                       </div>
-                      <div className="text-[10px] text-[color:var(--secondary-muted-edge)]">
+                      <div
+                        style={{
+                          fontSize: 10,
+                          color: GOV.lightMuted,
+                          marginTop: 1,
+                        }}
+                      >
                         {product.unit_of_measurement || "units"}
                       </div>
                     </div>
 
                     {product.price_per_unit !== undefined &&
                       product.price_per_unit !== null && (
-                        <div className="bg-gradient-to-br from-green-50 to-emerald-100/50 rounded-xl p-3 border border-green-100">
-                          <div className="text-[10px] uppercase tracking-wider text-green-700 mb-1 font-semibold">
+                        <div style={{ ...miniStatBox, background: GOV.successBg }}>
+                          <div
+                            style={{
+                              ...govKpiLabel,
+                              marginBottom: 2,
+                              color: GOV.success,
+                            }}
+                          >
                             Price
                           </div>
-                          <div className="text-sm font-bold text-green-900">
+                          <div
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 700,
+                              color: GOV.success,
+                            }}
+                          >
                             ${safeNumber(product.price_per_unit).toFixed(2)}
                           </div>
-                          <div className="text-[10px] text-green-600">
+                          <div
+                            style={{
+                              fontSize: 10,
+                              color: GOV.success,
+                              opacity: 0.7,
+                              marginTop: 1,
+                            }}
+                          >
                             per {product.unit_of_measurement || "unit"}
                           </div>
                         </div>
                       )}
 
                     {product.quality_grade && !product.price_per_unit && (
-                      <div className="bg-gradient-to-br from-blue-50 to-indigo-100/50 rounded-xl p-3 border border-blue-100">
-                        <div className="text-[10px] uppercase tracking-wider text-blue-700 mb-1 font-semibold">
+                      <div style={{ ...miniStatBox, background: GOV.infoBg }}>
+                        <div
+                          style={{
+                            ...govKpiLabel,
+                            marginBottom: 2,
+                            color: GOV.info,
+                          }}
+                        >
                           Quality
                         </div>
-                        <div className="text-sm font-bold text-blue-900">
+                        <div
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 700,
+                            color: GOV.info,
+                          }}
+                        >
                           {product.quality_grade}
                         </div>
                       </div>
                     )}
                   </div>
 
-                  {/* Footer Section - Sleeker */}
-                  <div className="pt-4 border-t border-gray-100 flex flex-wrap items-center gap-2">
+                  {/* Footer tags */}
+                  <div
+                    style={{
+                      borderTop: `1px solid ${GOV.border}`,
+                      paddingTop: 12,
+                      display: "flex",
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                      gap: 6,
+                    }}
+                  >
                     {product.harvest_date && (
-                      <div className="inline-flex items-center gap-1.5 text-xs text-[color:var(--secondary-muted-edge)] bg-gray-50 px-2.5 py-1.5 rounded-lg">
-                        <CalendarIcon className="h-3.5 w-3.5" />
+                      <div
+                        style={{
+                          ...tagBase,
+                          background: GOV.bg,
+                          color: GOV.muted,
+                        }}
+                      >
+                        <CalendarIcon style={{ width: 12, height: 12 }} />
                         <span>
                           {new Date(product.harvest_date).toLocaleDateString(
                             "en-US",
@@ -479,9 +653,16 @@ export default function ProductsPage() {
                       </div>
                     )}
                     {product.organic_certified && (
-                      <span className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 px-2.5 py-1.5 text-xs font-semibold border border-green-200 shadow-sm">
+                      <span
+                        style={{
+                          ...tagBase,
+                          background: GOV.successBg,
+                          color: GOV.success,
+                        }}
+                      >
                         <svg
-                          className="w-3 h-3"
+                          width="10"
+                          height="10"
                           fill="currentColor"
                           viewBox="0 0 20 20"
                         >
@@ -495,7 +676,13 @@ export default function ProductsPage() {
                       </span>
                     )}
                     {product.quality_grade && product.price_per_unit && (
-                      <span className="inline-flex items-center rounded-lg bg-gradient-to-r from-purple-50 to-pink-50 text-purple-700 px-2.5 py-1.5 text-xs font-semibold border border-purple-100">
+                      <span
+                        style={{
+                          ...tagBase,
+                          background: GOV.infoBg,
+                          color: GOV.info,
+                        }}
+                      >
                         {product.quality_grade}
                       </span>
                     )}
@@ -506,13 +693,18 @@ export default function ProductsPage() {
           })}
         </div>
 
+        {/* ── Empty state ────────────────────────────────────────────────── */}
         {filteredProducts.length === 0 && (
-          <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-12">
-            <div className="text-center">
-              <p className="text-sm text-[color:var(--secondary-muted-edge)]">
-                No products found matching your criteria.
-              </p>
-            </div>
+          <div
+            style={{
+              ...govCardPadded,
+              padding: "48px 24px",
+              textAlign: "center",
+            }}
+          >
+            <p style={{ fontSize: 13, color: GOV.muted, margin: 0 }}>
+              No products found matching your criteria.
+            </p>
           </div>
         )}
       </main>

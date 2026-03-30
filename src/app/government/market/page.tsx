@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   ChartBarIcon,
@@ -25,6 +25,22 @@ import {
   selectSelectedPeriod,
   setSelectedPeriod as setReduxSelectedPeriod,
 } from "@/store/slices/governmentMarketSlice";
+import {
+  GOV,
+  govCard,
+  govCardPadded,
+  govSectionHeader,
+  govViewAllLink,
+  govKpiLabel,
+  govKpiValue,
+  govKpiSub,
+  govPageTitle,
+  govPageSubtitle,
+  govPillButton,
+  govStatusPillStyle,
+  govStatusLabel,
+  govHoverBg,
+} from "../styles";
 
 export default function MarketPage() {
   const dispatch = useAppDispatch();
@@ -41,6 +57,11 @@ export default function MarketPage() {
   const [selectedPeriod, setSelectedPeriod] = useState<
     "week" | "month" | "quarter" | "year"
   >(reduxSelectedPeriod);
+
+  // Hover states
+  const [hoveredRow, setHoveredRow] = useState<string | null>(null);
+  const [hoveredAction, setHoveredAction] = useState<string | null>(null);
+  const [hoveredSdItem, setHoveredSdItem] = useState<string | null>(null);
 
   // Fetch data on mount and when period changes
   useEffect(() => {
@@ -221,32 +242,48 @@ export default function MarketPage() {
     transactionsStatus === "loading" ||
     marketStatsStatus === "loading";
 
+  /* ── chart‑bar colors ─────────────────────────────────────────────────── */
+  const supplyColor = "#2d4a3e";
+  const demandColor = "#d4783c";
+
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+    <div style={{ minHeight: "100vh", background: GOV.bg, color: GOV.text }}>
+      <main style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 24px 80px" }}>
+        {/* ── Header ───────────────────────────────────────────────────────── */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 28,
+          }}
+        >
           <div>
-            <h1 className="text-3xl font-semibold text-[color:var(--secondary-black)]">
-              Market Intelligence
-            </h1>
-            <p className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
+            <h1 style={govPageTitle}>Market Intelligence</h1>
+            <p style={govPageSubtitle}>
               Monitor supply, demand, pricing trends, and market transactions
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {/* Refresh Button */}
             <button
               onClick={handleRefresh}
               disabled={isLoading}
-              className="p-2 rounded-lg border border-[color:var(--secondary-soft-highlight)] hover:bg-gray-50 transition-colors disabled:opacity-50"
+              style={{
+                ...govPillButton,
+                padding: "9px 12px",
+                opacity: isLoading ? 0.5 : 1,
+              }}
               title="Refresh data"
             >
               <ArrowPathIcon
-                className={`h-5 w-5 text-[color:var(--secondary-muted-edge)] ${
-                  isLoading ? "animate-spin" : ""
-                }`}
+                style={{
+                  width: 18,
+                  height: 18,
+                  color: GOV.muted,
+                  animation: isLoading ? "spin 1s linear infinite" : undefined,
+                }}
               />
             </button>
 
@@ -258,7 +295,11 @@ export default function MarketPage() {
                   e.target.value as "week" | "month" | "quarter" | "year"
                 )
               }
-              className="px-4 py-2 rounded-lg border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm"
+              style={{
+                ...govPillButton,
+                appearance: "auto" as React.CSSProperties["appearance"],
+                paddingRight: 12,
+              }}
             >
               <option value="week">This Week</option>
               <option value="month">This Month</option>
@@ -268,161 +309,226 @@ export default function MarketPage() {
           </div>
         </div>
 
-        {/* Market Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-          <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-            <div className="flex items-center gap-2 mb-2">
-              <ShoppingBagIcon className="h-5 w-5 text-[color:var(--secondary-muted-edge)]" />
-              <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)]">
-                Transactions
-              </div>
+        {/* ── Market Stats (4‑col grid) ────────────────────────────────────── */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4, 1fr)",
+            gap: 12,
+            marginBottom: 28,
+          }}
+        >
+          {/* Transactions */}
+          <div style={govCardPadded}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+              <ShoppingBagIcon style={{ width: 16, height: 16, color: GOV.muted }} />
+              <span style={govKpiLabel}>Transactions</span>
             </div>
-            <div className="text-2xl font-semibold text-[color:var(--secondary-black)]">
-              {displayMarketStats.totalTransactions}
-            </div>
+            <div style={govKpiValue}>{displayMarketStats.totalTransactions}</div>
           </div>
-          <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-            <div className="flex items-center gap-2 mb-2">
-              <BanknotesIcon className="h-5 w-5 text-[color:var(--secondary-muted-edge)]" />
-              <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)]">
-                Total Value
-              </div>
+
+          {/* Total Value */}
+          <div style={govCardPadded}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+              <BanknotesIcon style={{ width: 16, height: 16, color: GOV.muted }} />
+              <span style={govKpiLabel}>Total Value</span>
             </div>
-            <div className="text-2xl font-semibold text-[color:var(--secondary-black)]">
+            <div style={govKpiValue}>
               ${((displayMarketStats.totalValue ?? 0) / 1000).toFixed(0)}K
             </div>
           </div>
-          <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-            <div className="flex items-center gap-2 mb-2">
-              <ScaleIcon className="h-5 w-5 text-[color:var(--secondary-muted-edge)]" />
-              <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)]">
-                Avg Transaction
-              </div>
+
+          {/* Avg Transaction */}
+          <div style={govCardPadded}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+              <ScaleIcon style={{ width: 16, height: 16, color: GOV.muted }} />
+              <span style={govKpiLabel}>Avg Transaction</span>
             </div>
-            <div className="text-2xl font-semibold text-[color:var(--secondary-black)]">
-              $
-              {(
-                displayMarketStats.averageTransactionValue ?? 0
-              ).toLocaleString()}
+            <div style={govKpiValue}>
+              ${(displayMarketStats.averageTransactionValue ?? 0).toLocaleString()}
             </div>
           </div>
-          <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-            <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)] mb-2">
-              Top Crop
-            </div>
-            <div className="text-2xl font-semibold text-[color:var(--secondary-black)]">
-              {displayMarketStats.topCrop}
-            </div>
-          </div>
-          <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-            <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)] mb-2">
-              Supply Deficit
-            </div>
-            <div className="flex items-center gap-2">
-              <div
-                className={`text-2xl font-semibold ${
-                  displayMarketStats.supplyDeficit < 0
-                    ? "text-red-600"
-                    : "text-green-600"
-                }`}
+
+          {/* Supply Deficit */}
+          <div style={govCardPadded}>
+            <span style={govKpiLabel}>Supply Deficit</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+              <span
+                style={{
+                  ...govKpiValue,
+                  color:
+                    displayMarketStats.supplyDeficit < 0 ? GOV.danger : GOV.success,
+                }}
               >
                 {displayMarketStats.supplyDeficitCount} crops
-              </div>
+              </span>
               {displayMarketStats.supplyDeficit < 0 ? (
-                <ArrowTrendingDownIcon className="h-5 w-5 text-red-600" />
+                <ArrowTrendingDownIcon style={{ width: 18, height: 18, color: GOV.danger }} />
               ) : (
-                <ArrowTrendingUpIcon className="h-5 w-5 text-green-600" />
+                <ArrowTrendingUpIcon style={{ width: 18, height: 18, color: GOV.success }} />
               )}
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Supply & Demand */}
-          <div className="lg:col-span-2 space-y-6">
+        {/* ── Two‑column body ──────────────────────────────────────────────── */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "2fr 1fr",
+            gap: 20,
+            alignItems: "start",
+          }}
+        >
+          {/* ── Left Column ────────────────────────────────────────────────── */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             {/* Supply vs Demand */}
-            <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white overflow-hidden">
-              <div className="p-5 border-b border-[color:var(--secondary-soft-highlight)]">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-semibold text-[color:var(--secondary-black)]">
-                      Supply vs Demand Analysis
-                    </h2>
-                    <p className="text-xs text-[color:var(--secondary-muted-edge)] mt-0.5">
-                      Market balance by crop type
-                    </p>
-                  </div>
-                  <Link
-                    href="/government/reporting?type=market-requirements"
-                    className="text-xs text-[color:var(--primary-accent2)] hover:text-[color:var(--primary-accent3)] font-medium"
-                  >
-                    Generate Report →
-                  </Link>
+            <div style={{ ...govCard, overflow: "hidden" }}>
+              <div
+                style={{
+                  padding: "16px 20px",
+                  borderBottom: `1px solid ${GOV.border}`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <div>
+                  <h2 style={govSectionHeader}>Supply vs Demand Analysis</h2>
+                  <p style={{ fontSize: 11.5, color: GOV.muted, marginTop: 2, fontWeight: 500 }}>
+                    Market balance by crop type
+                  </p>
                 </div>
+                <Link
+                  href="/government/reporting?type=market-requirements"
+                  style={govViewAllLink}
+                >
+                  Generate Report &rarr;
+                </Link>
               </div>
 
-              <div className="divide-y divide-[color:var(--secondary-soft-highlight)]/30">
-                {displaySupplyDemand.map((item) => (
-                  <div key={item.crop} className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-[color:var(--secondary-black)]">
+              {/* Legend */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 16,
+                  padding: "10px 20px",
+                  borderBottom: `1px solid ${GOV.border}`,
+                }}
+              >
+                <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: GOV.muted, fontWeight: 600 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: 2, background: supplyColor, display: "inline-block" }} />
+                  Supply
+                </span>
+                <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: GOV.muted, fontWeight: 600 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: 2, background: demandColor, display: "inline-block" }} />
+                  Demand
+                </span>
+              </div>
+
+              {displaySupplyDemand.map((item, idx) => {
+                const isLast = idx === displaySupplyDemand.length - 1;
+                const isHovered = hoveredSdItem === item.crop;
+                return (
+                  <div
+                    key={item.crop}
+                    onMouseEnter={() => setHoveredSdItem(item.crop)}
+                    onMouseLeave={() => setHoveredSdItem(null)}
+                    style={{
+                      padding: "18px 20px",
+                      borderBottom: isLast ? "none" : `1px solid ${GOV.border}`,
+                      background: isHovered ? govHoverBg : "transparent",
+                      transition: "background .15s",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        justifyContent: "space-between",
+                        marginBottom: 12,
+                      }}
+                    >
+                      <div style={{ flex: 1 }}>
+                        <h3
+                          style={{
+                            fontSize: 14,
+                            fontWeight: 700,
+                            color: GOV.text,
+                            margin: 0,
+                          }}
+                        >
                           {item.crop}
                         </h3>
-                        <div className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
+                        <div
+                          style={{
+                            fontSize: 12,
+                            color: GOV.muted,
+                            marginTop: 2,
+                          }}
+                        >
                           Average Price: {item.avgPrice}
                         </div>
                       </div>
                       <span
-                        className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${
-                          item.gap < 0
-                            ? "bg-[var(--primary-accent2)]/10 text-[color:var(--primary-accent2)]"
-                            : item.gap > 5000
-                            ? "bg-yellow-100 text-yellow-800"
-                            : "bg-[var(--primary-base)]/10 text-[color:var(--primary-base)]"
-                        }`}
+                        style={{
+                          ...govStatusPillStyle(
+                            item.gap < 0 ? "critical" : item.gap > 5000 ? "warning" : "active"
+                          ),
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
                       >
                         {item.gap < 0 ? (
                           <>
-                            <ArrowTrendingDownIcon className="h-3.5 w-3.5" />
+                            <ArrowTrendingDownIcon style={{ width: 12, height: 12 }} />
                             Shortage
                           </>
                         ) : (
                           <>
-                            <ArrowTrendingUpIcon className="h-3.5 w-3.5" />
+                            <ArrowTrendingUpIcon style={{ width: 12, height: 12 }} />
                             Surplus
                           </>
                         )}
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4 mb-3">
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr 1fr",
+                        gap: 12,
+                        marginBottom: 10,
+                      }}
+                    >
                       <div>
-                        <div className="text-xs text-[color:var(--secondary-muted-edge)] mb-1">
+                        <div style={{ fontSize: 10.5, color: GOV.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".04em", marginBottom: 2 }}>
                           Supply
                         </div>
-                        <div className="text-sm font-medium text-[color:var(--secondary-black)]">
+                        <div style={{ fontSize: 13, fontWeight: 700, color: GOV.text }}>
                           {item.supply.toLocaleString()} kg
                         </div>
                       </div>
                       <div>
-                        <div className="text-xs text-[color:var(--secondary-muted-edge)] mb-1">
+                        <div style={{ fontSize: 10.5, color: GOV.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".04em", marginBottom: 2 }}>
                           Demand
                         </div>
-                        <div className="text-sm font-medium text-[color:var(--secondary-black)]">
+                        <div style={{ fontSize: 13, fontWeight: 700, color: GOV.text }}>
                           {item.demand.toLocaleString()} kg
                         </div>
                       </div>
                       <div>
-                        <div className="text-xs text-[color:var(--secondary-muted-edge)] mb-1">
+                        <div style={{ fontSize: 10.5, color: GOV.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".04em", marginBottom: 2 }}>
                           Gap
                         </div>
                         <div
-                          className={`text-sm font-medium ${
-                            item.gap < 0
-                              ? "text-[color:var(--primary-accent2)]"
-                              : "text-[color:var(--primary-base)]"
-                          }`}
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 700,
+                            color: item.gap < 0 ? GOV.danger : GOV.success,
+                          }}
                         >
                           {item.gap > 0 ? "+" : ""}
                           {item.gap.toLocaleString()} kg
@@ -431,111 +537,164 @@ export default function MarketPage() {
                     </div>
 
                     {/* Visual Bar */}
-                    <div className="relative h-8 bg-gray-100 rounded-lg overflow-hidden">
+                    <div
+                      style={{
+                        position: "relative",
+                        height: 28,
+                        background: GOV.brandLight,
+                        borderRadius: 6,
+                        overflow: "hidden",
+                      }}
+                    >
                       <div
-                        className="absolute top-0 left-0 h-full bg-[var(--primary-base)]/30"
                         style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          height: "100%",
+                          borderRadius: 6,
+                          background: `${supplyColor}30`,
                           width: `${Math.min(
-                            (item.supply / Math.max(item.supply, item.demand)) *
-                              100,
+                            (item.supply / Math.max(item.supply, item.demand)) * 100,
                             100
                           )}%`,
                         }}
                       />
                       <div
-                        className="absolute top-0 left-0 h-full border-2 border-[var(--primary-accent2)]"
                         style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          height: "100%",
+                          borderRadius: 6,
+                          border: `2px solid ${demandColor}`,
+                          boxSizing: "border-box",
                           width: `${Math.min(
-                            (item.demand / Math.max(item.supply, item.demand)) *
-                              100,
+                            (item.demand / Math.max(item.supply, item.demand)) * 100,
                             100
                           )}%`,
                         }}
                       />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-xs font-medium text-[color:var(--secondary-black)]">
+                      <div
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            color: GOV.text,
+                          }}
+                        >
                           {item.gapPercentage > 0 ? "+" : ""}
                           {item.gapPercentage.toFixed(1)}%
                         </span>
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
+                );
+              })}
             </div>
 
-            {/* Recent Transactions */}
-            <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white overflow-hidden">
-              <div className="p-5 border-b border-[color:var(--secondary-soft-highlight)]">
-                <h2 className="text-lg font-semibold text-[color:var(--secondary-black)]">
-                  Recent Transactions
-                </h2>
-                <p className="text-xs text-[color:var(--secondary-muted-edge)] mt-0.5">
+            {/* ── Recent Transactions ────────────────────────────────────────── */}
+            <div style={{ ...govCard, overflow: "hidden" }}>
+              <div
+                style={{
+                  padding: "16px 20px",
+                  borderBottom: `1px solid ${GOV.border}`,
+                }}
+              >
+                <h2 style={govSectionHeader}>Recent Transactions</h2>
+                <p style={{ fontSize: 11.5, color: GOV.muted, marginTop: 2, fontWeight: 500 }}>
                   Latest market activity
                 </p>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50/50 border-b border-[color:var(--secondary-soft-highlight)]">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-[color:var(--secondary-muted-edge)] uppercase tracking-wider">
-                        Date
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-[color:var(--secondary-muted-edge)] uppercase tracking-wider">
-                        Seller
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-[color:var(--secondary-muted-edge)] uppercase tracking-wider">
-                        Buyer
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-[color:var(--secondary-muted-edge)] uppercase tracking-wider">
-                        Crop
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-[color:var(--secondary-muted-edge)] uppercase tracking-wider">
-                        Quantity
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-[color:var(--secondary-muted-edge)] uppercase tracking-wider">
-                        Value
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-[color:var(--secondary-muted-edge)] uppercase tracking-wider">
-                        Status
-                      </th>
+
+              <div style={{ overflowX: "auto" }}>
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    fontSize: 13,
+                  }}
+                >
+                  <thead>
+                    <tr
+                      style={{
+                        borderBottom: `1px solid ${GOV.border}`,
+                        background: GOV.brandLight,
+                      }}
+                    >
+                      {["Date", "Seller", "Buyer", "Crop", "Quantity", "Value", "Status"].map(
+                        (h) => (
+                          <th
+                            key={h}
+                            style={{
+                              padding: "10px 16px",
+                              textAlign: "left",
+                              fontSize: 10.5,
+                              fontWeight: 700,
+                              color: GOV.muted,
+                              textTransform: "uppercase",
+                              letterSpacing: ".04em",
+                            }}
+                          >
+                            {h}
+                          </th>
+                        )
+                      )}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[color:var(--secondary-soft-highlight)]/30">
+                  <tbody>
                     {displayTransactions.map((transaction) => (
-                      <tr key={transaction.id} className="hover:bg-gray-50/50">
-                        <td className="px-6 py-4 text-sm text-[color:var(--secondary-black)]">
+                      <tr
+                        key={transaction.id}
+                        onMouseEnter={() => setHoveredRow(transaction.id)}
+                        onMouseLeave={() => setHoveredRow(null)}
+                        style={{
+                          borderBottom: `1px solid ${GOV.border}`,
+                          background:
+                            hoveredRow === transaction.id ? govHoverBg : "transparent",
+                          transition: "background .15s",
+                        }}
+                      >
+                        <td style={{ padding: "12px 16px", color: GOV.text, fontWeight: 500 }}>
                           {new Date(transaction.date).toLocaleDateString()}
                         </td>
-                        <td className="px-6 py-4 text-sm">
+                        <td style={{ padding: "12px 16px" }}>
                           <Link
                             href={`/government/vendors/${transaction.sellerId}`}
-                            className="text-[color:var(--secondary-black)] hover:text-[var(--primary-accent2)]"
+                            style={{ color: GOV.accent, fontWeight: 600, textDecoration: "none" }}
                           >
                             {transaction.seller}
                           </Link>
                         </td>
-                        <td className="px-6 py-4 text-sm text-[color:var(--secondary-black)]">
+                        <td style={{ padding: "12px 16px", color: GOV.text, fontWeight: 500 }}>
                           {transaction.buyer}
                         </td>
-                        <td className="px-6 py-4 text-sm text-[color:var(--secondary-black)]">
+                        <td style={{ padding: "12px 16px", color: GOV.text, fontWeight: 500 }}>
                           {transaction.crop}
                         </td>
-                        <td className="px-6 py-4 text-sm text-[color:var(--secondary-black)]">
+                        <td style={{ padding: "12px 16px", color: GOV.text, fontWeight: 500 }}>
                           {transaction.quantity}
                         </td>
-                        <td className="px-6 py-4 text-sm font-medium text-[color:var(--primary-base)]">
+                        <td
+                          style={{
+                            padding: "12px 16px",
+                            fontWeight: 700,
+                            color: GOV.brand,
+                          }}
+                        >
                           {transaction.totalValue}
                         </td>
-                        <td className="px-6 py-4 text-sm">
-                          <span
-                            className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
-                              transaction.status === "completed"
-                                ? "bg-[var(--primary-base)]/10 text-[color:var(--primary-base)]"
-                                : "bg-yellow-100 text-yellow-800"
-                            }`}
-                          >
-                            {transaction.status}
+                        <td style={{ padding: "12px 16px" }}>
+                          <span style={govStatusPillStyle(transaction.status)}>
+                            {govStatusLabel(transaction.status)}
                           </span>
                         </td>
                       </tr>
@@ -546,59 +705,89 @@ export default function MarketPage() {
             </div>
           </div>
 
-          {/* Right Column - Price Trends & Insights */}
-          <div className="space-y-6">
+          {/* ── Right Column ───────────────────────────────────────────────── */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             {/* Price Trends */}
-            <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white overflow-hidden">
-              <div className="p-5 border-b border-[color:var(--secondary-soft-highlight)]">
-                <h2 className="text-base font-semibold text-[color:var(--secondary-black)]">
-                  Price Trends
-                </h2>
-                <p className="text-xs text-[color:var(--secondary-muted-edge)] mt-0.5">
+            <div style={{ ...govCard, overflow: "hidden" }}>
+              <div
+                style={{
+                  padding: "16px 20px",
+                  borderBottom: `1px solid ${GOV.border}`,
+                }}
+              >
+                <h2 style={govSectionHeader}>Price Trends</h2>
+                <p style={{ fontSize: 11.5, color: GOV.muted, marginTop: 2, fontWeight: 500 }}>
                   Month-over-month comparison
                 </p>
               </div>
-              <div className="p-4 space-y-4">
+
+              <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
                 {mockPriceHistory.map((item) => {
                   const isIncrease = item.change.startsWith("+");
                   return (
                     <div
                       key={item.crop}
-                      className="p-4 rounded-lg border border-[color:var(--secondary-soft-highlight)]"
+                      style={{
+                        ...govCardPadded,
+                        padding: "14px 16px",
+                      }}
                     >
-                      <div className="flex items-start justify-between mb-2">
-                        <h3 className="text-sm font-medium text-[color:var(--secondary-black)]">
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "flex-start",
+                          justifyContent: "space-between",
+                          marginBottom: 8,
+                        }}
+                      >
+                        <h3
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 700,
+                            color: GOV.text,
+                            margin: 0,
+                          }}
+                        >
                           {item.crop}
                         </h3>
                         <span
-                          className={`inline-flex items-center gap-1 text-xs font-medium ${
-                            isIncrease
-                              ? "text-[color:var(--primary-base)]"
-                              : "text-[color:var(--primary-accent2)]"
-                          }`}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 3,
+                            fontSize: 11.5,
+                            fontWeight: 700,
+                            color: isIncrease ? GOV.success : GOV.danger,
+                          }}
                         >
                           {isIncrease ? (
-                            <ArrowTrendingUpIcon className="h-3.5 w-3.5" />
+                            <ArrowTrendingUpIcon style={{ width: 13, height: 13 }} />
                           ) : (
-                            <ArrowTrendingDownIcon className="h-3.5 w-3.5" />
+                            <ArrowTrendingDownIcon style={{ width: 13, height: 13 }} />
                           )}
                           {item.change}
                         </span>
                       </div>
-                      <div className="flex items-center justify-between text-xs">
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                        }}
+                      >
                         <div>
-                          <div className="text-[color:var(--secondary-muted-edge)]">
+                          <div style={{ fontSize: 10.5, color: GOV.muted, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: ".04em" }}>
                             Last Month
                           </div>
-                          <div className="font-medium text-[color:var(--secondary-black)] mt-0.5">
+                          <div style={{ fontSize: 13, fontWeight: 700, color: GOV.text, marginTop: 2 }}>
                             {item.lastMonth}
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-[color:var(--secondary-muted-edge)]">
+                        <div style={{ textAlign: "right" as const }}>
+                          <div style={{ fontSize: 10.5, color: GOV.muted, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: ".04em" }}>
                             Current
                           </div>
-                          <div className="font-medium text-[color:var(--secondary-black)] mt-0.5">
+                          <div style={{ fontSize: 13, fontWeight: 700, color: GOV.text, marginTop: 2 }}>
                             {item.current}
                           </div>
                         </div>
@@ -610,33 +799,53 @@ export default function MarketPage() {
             </div>
 
             {/* Market Insights */}
-            <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-              <h3 className="text-base font-semibold text-[color:var(--secondary-black)] mb-4">
-                Market Insights
-              </h3>
-              <div className="space-y-4">
-                <div className="p-4 rounded-lg bg-[var(--primary-accent2)]/5 border border-[color:var(--secondary-soft-highlight)]">
-                  <div className="flex items-start gap-2">
-                    <ArrowTrendingDownIcon className="h-5 w-5 text-[color:var(--primary-accent2)] mt-0.5" />
+            <div style={govCardPadded}>
+              <h3 style={{ ...govSectionHeader, marginBottom: 14 }}>Market Insights</h3>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {/* Shortage alert */}
+                <div
+                  style={{
+                    padding: "14px 16px",
+                    borderRadius: 8,
+                    background: GOV.dangerBg,
+                    border: `1px solid ${GOV.border}`,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                    <ArrowTrendingDownIcon
+                      style={{ width: 18, height: 18, color: GOV.danger, flexShrink: 0, marginTop: 1 }}
+                    />
                     <div>
-                      <div className="text-sm font-medium text-[color:var(--secondary-black)]">
+                      <div style={{ fontSize: 13, fontWeight: 700, color: GOV.text }}>
                         Tomato Shortage Alert
                       </div>
-                      <div className="text-xs text-[color:var(--secondary-muted-edge)] mt-1">
-                        Demand exceeds supply by 6.3%. Consider incentive
-                        programs for increased production.
+                      <div style={{ fontSize: 11.5, color: GOV.textSecondary, marginTop: 3, lineHeight: 1.45 }}>
+                        Demand exceeds supply by 6.3%. Consider incentive programs
+                        for increased production.
                       </div>
                     </div>
                   </div>
                 </div>
-                <div className="p-4 rounded-lg bg-[var(--primary-base)]/5 border border-[color:var(--secondary-soft-highlight)]">
-                  <div className="flex items-start gap-2">
-                    <ArrowTrendingUpIcon className="h-5 w-5 text-[color:var(--primary-base)] mt-0.5" />
+
+                {/* Surplus insight */}
+                <div
+                  style={{
+                    padding: "14px 16px",
+                    borderRadius: 8,
+                    background: GOV.successBg,
+                    border: `1px solid ${GOV.border}`,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                    <ArrowTrendingUpIcon
+                      style={{ width: 18, height: 18, color: GOV.success, flexShrink: 0, marginTop: 1 }}
+                    />
                     <div>
-                      <div className="text-sm font-medium text-[color:var(--secondary-black)]">
+                      <div style={{ fontSize: 13, fontWeight: 700, color: GOV.text }}>
                         Sweet Potato Surplus
                       </div>
-                      <div className="text-xs text-[color:var(--secondary-muted-edge)] mt-1">
+                      <div style={{ fontSize: 11.5, color: GOV.textSecondary, marginTop: 3, lineHeight: 1.45 }}>
                         Supply exceeds demand. Explore export opportunities or
                         processing initiatives.
                       </div>
@@ -647,39 +856,52 @@ export default function MarketPage() {
             </div>
 
             {/* Quick Actions */}
-            <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white overflow-hidden">
-              <div className="p-5 border-b border-[color:var(--secondary-soft-highlight)]">
-                <h3 className="text-base font-semibold text-[color:var(--secondary-black)]">
-                  Quick Actions
-                </h3>
+            <div style={{ ...govCard, overflow: "hidden" }}>
+              <div
+                style={{
+                  padding: "16px 20px",
+                  borderBottom: `1px solid ${GOV.border}`,
+                }}
+              >
+                <h3 style={govSectionHeader}>Quick Actions</h3>
               </div>
-              <div className="p-4 space-y-2">
-                <Link
-                  href="/government/reporting?type=market-requirements"
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg hover:bg-gray-50 transition-colors text-sm text-[color:var(--secondary-black)]"
-                >
-                  <ChartBarIcon className="h-4 w-4 text-[color:var(--secondary-muted-edge)]" />
-                  Market Requirements Report
-                </Link>
-                <Link
-                  href="/government/reporting?type=quarterly-sales"
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg hover:bg-gray-50 transition-colors text-sm text-[color:var(--secondary-black)]"
-                >
-                  <ChartBarIcon className="h-4 w-4 text-[color:var(--secondary-muted-edge)]" />
-                  Quarterly Sales Report
-                </Link>
-                <Link
-                  href="/government/data"
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg hover:bg-gray-50 transition-colors text-sm text-[color:var(--secondary-black)]"
-                >
-                  <ChartBarIcon className="h-4 w-4 text-[color:var(--secondary-muted-edge)]" />
-                  Export Market Data
-                </Link>
+              <div style={{ padding: "8px 10px", display: "flex", flexDirection: "column", gap: 2 }}>
+                {[
+                  { href: "/government/reporting?type=market-requirements", label: "Market Requirements Report", key: "mrr" },
+                  { href: "/government/reporting?type=quarterly-sales", label: "Quarterly Sales Report", key: "qsr" },
+                  { href: "/government/data", label: "Export Market Data", key: "emd" },
+                ].map((action) => (
+                  <Link
+                    key={action.key}
+                    href={action.href}
+                    onMouseEnter={() => setHoveredAction(action.key)}
+                    onMouseLeave={() => setHoveredAction(null)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "10px 14px",
+                      borderRadius: 8,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: GOV.text,
+                      textDecoration: "none",
+                      background: hoveredAction === action.key ? govHoverBg : "transparent",
+                      transition: "background .15s",
+                    }}
+                  >
+                    <ChartBarIcon style={{ width: 16, height: 16, color: GOV.muted }} />
+                    {action.label}
+                  </Link>
+                ))}
               </div>
             </div>
           </div>
         </div>
       </main>
+
+      {/* spin keyframes for the refresh icon */}
+      <style>{`@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 }

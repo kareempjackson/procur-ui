@@ -26,12 +26,31 @@ import {
   selectStatsStatus,
   setFilters,
 } from "@/store/slices/governmentComplianceSlice";
+import {
+  GOV,
+  govCard,
+  govCardPadded,
+  govSectionHeader,
+  govViewAllLink,
+  govKpiLabel,
+  govKpiValue,
+  govKpiSub,
+  govPageTitle,
+  govPageSubtitle,
+  govPillButton,
+  govPrimaryButton,
+  govStatusPillStyle,
+  govStatusLabel,
+  govHoverBg,
+} from "../styles";
 
 export default function CompliancePage() {
   const dispatch = useAppDispatch();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [selectedVendor, setSelectedVendor] = useState<string | null>(null);
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
+  const [hoveredAction, setHoveredAction] = useState<string | null>(null);
 
   // Redux state
   const alerts = useAppSelector(selectAlerts);
@@ -88,25 +107,25 @@ export default function CompliancePage() {
           value: stats.compliantVendors?.toString() || "0",
           percentage: `${Math.round(stats.complianceRate || 0)}%`,
           trend: "up",
-          color: "text-[color:var(--primary-base)]",
+          color: GOV.success,
         },
         {
           label: "Pending Reviews",
           value: stats.pendingReviews?.toString() || "0",
           trend: "neutral",
-          color: "text-yellow-600",
+          color: GOV.warning,
         },
         {
           label: "Active Alerts",
           value: stats.activeAlerts?.toString() || "0",
           trend: "down",
-          color: "text-[color:var(--secondary-highlight2)]",
+          color: GOV.danger,
         },
         {
           label: "Inspections Due",
           value: stats.inspectionsDue?.toString() || "0",
           trend: "up",
-          color: "text-orange-600",
+          color: GOV.accent,
         },
       ];
     }
@@ -117,25 +136,25 @@ export default function CompliancePage() {
         value: "1,156",
         percentage: "94%",
         trend: "up",
-        color: "text-[color:var(--primary-base)]",
+        color: GOV.success,
       },
       {
         label: "Pending Reviews",
         value: "23",
         trend: "neutral",
-        color: "text-yellow-600",
+        color: GOV.warning,
       },
       {
         label: "Active Alerts",
         value: "7",
         trend: "down",
-        color: "text-[color:var(--secondary-highlight2)]",
+        color: GOV.danger,
       },
       {
         label: "Inspections Due",
         value: "12",
         trend: "up",
-        color: "text-orange-600",
+        color: GOV.accent,
       },
     ];
   }, [stats]);
@@ -296,72 +315,49 @@ export default function CompliancePage() {
     return matchesSearch && matchesStatus;
   });
 
-  const getStatusConfig = (status: string) => {
+  const getDocStatusStyle = (
+    status: string
+  ): { bg: string; color: string; symbol: string } => {
     switch (status) {
-      case "compliant":
-        return {
-          label: "Compliant",
-          color: "bg-[var(--primary-base)]/10 text-[color:var(--primary-base)]",
-          icon: CheckCircleIcon,
-        };
-      case "warning":
-        return {
-          label: "Warning",
-          color: "bg-yellow-100 text-yellow-800",
-          icon: ExclamationTriangleIcon,
-        };
-      case "alert":
-        return {
-          label: "Alert",
-          color:
-            "bg-[var(--secondary-highlight2)]/10 text-[color:var(--secondary-highlight2)]",
-          icon: ExclamationTriangleIcon,
-        };
+      case "up-to-date":
+        return { bg: GOV.successBg, color: GOV.success, symbol: "\u2713" };
+      case "expiring-soon":
+        return { bg: GOV.warningBg, color: GOV.warning, symbol: "\u26A0" };
+      case "overdue":
+        return { bg: GOV.dangerBg, color: GOV.danger, symbol: "\u2717" };
       default:
-        return {
-          label: "Unknown",
-          color: "bg-gray-100 text-gray-800",
-          icon: ClockIcon,
-        };
+        return { bg: "#f5f1ea", color: GOV.muted, symbol: "?" };
     }
   };
 
-  const getSeverityConfig = (severity: string) => {
+  const getSeverityIconColor = (severity: string): string => {
     switch (severity) {
       case "high":
-        return {
-          color:
-            "bg-[var(--secondary-highlight2)]/10 text-[color:var(--secondary-highlight2)]",
-          icon: ExclamationTriangleIcon,
-        };
+        return GOV.danger;
       case "medium":
-        return {
-          color: "bg-yellow-100 text-yellow-800",
-          icon: ExclamationTriangleIcon,
-        };
+        return GOV.warning;
       case "low":
-        return {
-          color: "bg-blue-100 text-blue-800",
-          icon: CheckCircleIcon,
-        };
+        return GOV.info;
       default:
-        return {
-          color: "bg-gray-100 text-gray-800",
-          icon: ClockIcon,
-        };
+        return GOV.muted;
     }
   };
 
   return (
-    <div className="min-h-screen bg-[var(--primary-background)]">
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16">
+    <div style={{ minHeight: "100vh", background: GOV.bg, color: GOV.text }}>
+      <main style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 24px 80px" }}>
         {/* Header */}
-        <div className="mb-8 flex items-center justify-between">
+        <div
+          style={{
+            marginBottom: 28,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
           <div>
-            <h1 className="text-3xl font-semibold text-[color:var(--secondary-black)]">
-              Compliance Monitoring
-            </h1>
-            <p className="text-sm text-[color:var(--secondary-muted-edge)] mt-1">
+            <h1 style={govPageTitle}>Compliance Monitoring</h1>
+            <p style={govPageSubtitle}>
               Track vendor compliance status, inspections, and regulatory
               requirements
             </p>
@@ -369,64 +365,131 @@ export default function CompliancePage() {
           <button
             onClick={handleRefresh}
             disabled={recordsStatus === "loading" || alertsStatus === "loading"}
-            className="p-2 rounded-full hover:bg-gray-100 transition-colors disabled:opacity-50"
+            style={{
+              ...govPillButton,
+              padding: 10,
+              opacity:
+                recordsStatus === "loading" || alertsStatus === "loading"
+                  ? 0.5
+                  : 1,
+            }}
             title="Refresh data"
           >
             <ArrowPathIcon
-              className={`h-5 w-5 text-gray-600 ${
-                recordsStatus === "loading" || alertsStatus === "loading"
-                  ? "animate-spin"
-                  : ""
-              }`}
+              style={{
+                width: 18,
+                height: 18,
+                color: GOV.muted,
+                animation:
+                  recordsStatus === "loading" || alertsStatus === "loading"
+                    ? "spin 1s linear infinite"
+                    : "none",
+              }}
             />
           </button>
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4, 1fr)",
+            gap: 12,
+            marginBottom: 28,
+          }}
+        >
           {complianceStatsData.map((stat) => (
-            <div
-              key={stat.label}
-              className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-[10px] uppercase tracking-wider text-[color:var(--secondary-muted-edge)]">
-                  {stat.label}
-                </div>
-                <ShieldCheckIcon className={`h-6 w-6 ${stat.color}`} />
+            <div key={stat.label} style={govCardPadded}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: 8,
+                }}
+              >
+                <div style={govKpiLabel}>{stat.label}</div>
+                <ShieldCheckIcon
+                  style={{ width: 20, height: 20, color: stat.color }}
+                />
               </div>
-              <div className={`text-3xl font-semibold ${stat.color}`}>
+              <div style={{ ...govKpiValue, color: stat.color }}>
                 {stat.value}
               </div>
               {stat.percentage && (
-                <div className="text-xs text-[color:var(--secondary-muted-edge)] mt-1">
-                  {stat.percentage} of total vendors
-                </div>
+                <div style={govKpiSub}>{stat.percentage} of total vendors</div>
               )}
             </div>
           ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "2fr 1fr",
+            gap: 24,
+          }}
+        >
           {/* Left Column - Vendor Compliance List */}
-          <div className="lg:col-span-2 space-y-6">
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {/* Search and Filter */}
-            <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white p-6">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-1 relative">
-                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[color:var(--secondary-muted-edge)]" />
+            <div style={govCardPadded}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 12,
+                  alignItems: "center",
+                }}
+              >
+                <div style={{ flex: 1, position: "relative" }}>
+                  <MagnifyingGlassIcon
+                    style={{
+                      position: "absolute",
+                      left: 14,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      width: 16,
+                      height: 16,
+                      color: GOV.muted,
+                    }}
+                  />
                   <input
                     type="text"
                     placeholder="Search vendors..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-full border border-[color:var(--secondary-soft-highlight)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] text-sm transition-all duration-200 shadow-sm focus:shadow-md"
+                    style={{
+                      width: "100%",
+                      paddingLeft: 38,
+                      paddingRight: 16,
+                      paddingTop: 10,
+                      paddingBottom: 10,
+                      borderRadius: 999,
+                      border: `1px solid ${GOV.border}`,
+                      fontSize: 13,
+                      fontWeight: 500,
+                      color: GOV.text,
+                      background: GOV.bg,
+                      outline: "none",
+                      fontFamily: "inherit",
+                    }}
                   />
                 </div>
                 <select
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value)}
-                  className="rounded-full border border-[color:var(--secondary-soft-highlight)] px-5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-base)] transition-all duration-200 shadow-sm focus:shadow-md bg-white"
+                  style={{
+                    borderRadius: 999,
+                    border: `1px solid ${GOV.border}`,
+                    padding: "10px 18px",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: GOV.text,
+                    background: GOV.cardBg,
+                    outline: "none",
+                    fontFamily: "inherit",
+                    cursor: "pointer",
+                  }}
                 >
                   <option value="all">All Status</option>
                   <option value="compliant">Compliant</option>
@@ -437,39 +500,70 @@ export default function CompliancePage() {
             </div>
 
             {/* Vendor Compliance Cards */}
-            <div className="space-y-4">
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: 10 }}
+            >
               {filteredVendors.map((vendor) => {
-                const statusConfig = getStatusConfig(vendor.status);
-                const StatusIcon = statusConfig.icon;
+                const isHovered = hoveredCard === vendor.id;
+                const isAlert = vendor.status === "alert";
 
                 return (
                   <div
                     key={vendor.id}
-                    className={`rounded-2xl border bg-white p-6 transition-all duration-200 hover:shadow-lg cursor-pointer ${
-                      vendor.status === "alert"
-                        ? "border-[var(--secondary-highlight2)]/30"
-                        : "border-[color:var(--secondary-soft-highlight)]"
-                    }`}
+                    style={{
+                      ...govCard,
+                      padding: "18px 20px",
+                      cursor: "pointer",
+                      transition: "background .15s",
+                      background: isHovered ? govHoverBg : GOV.cardBg,
+                      borderColor: isAlert
+                        ? "rgba(153,27,27,.2)"
+                        : GOV.border,
+                    }}
+                    onMouseEnter={() => setHoveredCard(vendor.id)}
+                    onMouseLeave={() => setHoveredCard(null)}
                     onClick={() => setSelectedVendor(vendor.id)}
                   >
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3">
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        justifyContent: "space-between",
+                        marginBottom: 14,
+                      }}
+                    >
+                      <div style={{ flex: 1 }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 10,
+                          }}
+                        >
                           <Link
                             href={`/government/vendors/${vendor.id}`}
-                            className="text-lg font-semibold text-[color:var(--secondary-black)] hover:text-[var(--secondary-highlight2)] transition-colors duration-200"
+                            style={{
+                              fontSize: 15,
+                              fontWeight: 700,
+                              color: GOV.text,
+                              textDecoration: "none",
+                            }}
                           >
                             {vendor.name}
                           </Link>
-                          <span
-                            className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${statusConfig.color}`}
-                          >
-                            <StatusIcon className="h-3.5 w-3.5" />
-                            {statusConfig.label}
+                          <span style={govStatusPillStyle(vendor.status)}>
+                            {govStatusLabel(vendor.status)}
                           </span>
                         </div>
                         {vendor.issues > 0 && (
-                          <div className="text-sm text-[color:var(--secondary-highlight2)] mt-1">
+                          <div
+                            style={{
+                              fontSize: 12,
+                              color: GOV.danger,
+                              fontWeight: 600,
+                              marginTop: 4,
+                            }}
+                          >
                             {vendor.issues} outstanding{" "}
                             {vendor.issues === 1 ? "issue" : "issues"}
                           </div>
@@ -477,54 +571,79 @@ export default function CompliancePage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: 16,
+                      }}
+                    >
                       <div>
-                        <div className="text-xs text-[color:var(--secondary-muted-edge)] uppercase tracking-wider mb-1">
-                          Last Inspection
-                        </div>
-                        <div className="text-sm text-[color:var(--secondary-black)]">
+                        <div style={govKpiLabel}>Last Inspection</div>
+                        <div
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: GOV.text,
+                            marginTop: 3,
+                          }}
+                        >
                           {new Date(vendor.lastInspection).toLocaleDateString()}
                         </div>
                       </div>
                       <div>
-                        <div className="text-xs text-[color:var(--secondary-muted-edge)] uppercase tracking-wider mb-1">
-                          Next Inspection
-                        </div>
-                        <div className="text-sm text-[color:var(--secondary-black)]">
+                        <div style={govKpiLabel}>Next Inspection</div>
+                        <div
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: GOV.text,
+                            marginTop: 3,
+                          }}
+                        >
                           {new Date(vendor.nextInspection).toLocaleDateString()}
                         </div>
                       </div>
                     </div>
 
-                    <div className="mt-4 pt-4 border-t border-[color:var(--secondary-soft-highlight)]">
-                      <div className="text-xs text-[color:var(--secondary-muted-edge)] uppercase tracking-wider mb-2">
+                    <div
+                      style={{
+                        marginTop: 14,
+                        paddingTop: 14,
+                        borderTop: `1px solid ${GOV.border}`,
+                      }}
+                    >
+                      <div style={{ ...govKpiLabel, marginBottom: 8 }}>
                         Document Status
                       </div>
-                      <div className="flex flex-wrap gap-2">
+                      <div
+                        style={{ display: "flex", flexWrap: "wrap", gap: 6 }}
+                      >
                         {Object.entries(vendor.documents).map(
-                          ([key, status]) => (
-                            <span
-                              key={key}
-                              className={`inline-flex items-center rounded-full px-3 py-1 text-xs ${
-                                status === "up-to-date"
-                                  ? "bg-[var(--primary-base)]/10 text-[color:var(--primary-base)]"
-                                  : status === "expiring-soon"
-                                  ? "bg-yellow-100 text-yellow-800"
-                                  : "bg-[var(--secondary-highlight2)]/10 text-[color:var(--secondary-highlight2)]"
-                              }`}
-                            >
-                              {key
-                                .replace(/([A-Z])/g, " $1")
-                                .trim()
-                                .replace(/^./, (str) => str.toUpperCase())}
-                              :{" "}
-                              {status === "up-to-date"
-                                ? "✓"
-                                : status === "expiring-soon"
-                                ? "⚠"
-                                : "✗"}
-                            </span>
-                          )
+                          ([key, status]) => {
+                            const ds = getDocStatusStyle(status);
+                            return (
+                              <span
+                                key={key}
+                                style={{
+                                  display: "inline-block",
+                                  padding: "3px 10px",
+                                  borderRadius: 99,
+                                  fontSize: 10.5,
+                                  fontWeight: 600,
+                                  background: ds.bg,
+                                  color: ds.color,
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {key
+                                  .replace(/([A-Z])/g, " $1")
+                                  .trim()
+                                  .replace(/^./, (str) => str.toUpperCase())}
+                                : {ds.symbol}
+                              </span>
+                            );
+                          }
                         )}
                       </div>
                     </div>
@@ -535,106 +654,283 @@ export default function CompliancePage() {
           </div>
 
           {/* Right Column - Recent Alerts & Quick Actions */}
-          <div className="space-y-6">
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {/* Recent Alerts */}
-            <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white overflow-hidden">
-              <div className="p-5 border-b border-[color:var(--secondary-soft-highlight)]">
-                <h2 className="text-base font-semibold text-[color:var(--secondary-black)]">
-                  Recent Alerts
-                </h2>
-                <p className="text-xs text-[color:var(--secondary-muted-edge)] mt-0.5">
-                  Latest compliance notifications
-                </p>
+            <div style={{ ...govCard, overflow: "hidden" }}>
+              <div
+                style={{
+                  padding: "16px 20px",
+                  borderBottom: `1px solid ${GOV.border}`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <div>
+                  <h2 style={govSectionHeader}>Recent Alerts</h2>
+                  <p
+                    style={{
+                      fontSize: 11,
+                      color: GOV.muted,
+                      marginTop: 2,
+                      fontWeight: 500,
+                    }}
+                  >
+                    Latest compliance notifications
+                  </p>
+                </div>
+                <span style={govViewAllLink}>View all</span>
               </div>
-              <div className="divide-y divide-[color:var(--secondary-soft-highlight)]/30">
-                {recentAlerts.map((alert) => {
-                  const severityConfig = getSeverityConfig(alert.severity);
-                  const SeverityIcon = severityConfig.icon;
-
-                  return (
+              <div>
+                {recentAlerts.map((alert, idx) => (
+                  <div
+                    key={alert.id}
+                    style={{
+                      padding: "14px 20px",
+                      borderBottom:
+                        idx < recentAlerts.length - 1
+                          ? `1px solid ${GOV.border}`
+                          : "none",
+                      background:
+                        alert.severity === "high"
+                          ? "rgba(212,120,60,.04)"
+                          : "transparent",
+                      transition: "background .15s",
+                    }}
+                  >
                     <div
-                      key={alert.id}
-                      className="p-4 hover:bg-gray-50/50 transition-colors duration-200"
+                      style={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: 10,
+                      }}
                     >
-                      <div className="flex items-start gap-3">
-                        <SeverityIcon
-                          className={`h-5 w-5 mt-0.5 ${
-                            alert.severity === "high"
-                              ? "text-[color:var(--secondary-highlight2)]"
-                              : alert.severity === "medium"
-                              ? "text-yellow-600"
-                              : "text-blue-600"
-                          }`}
+                      {alert.severity === "high" ? (
+                        <ExclamationTriangleIcon
+                          style={{
+                            width: 17,
+                            height: 17,
+                            marginTop: 1,
+                            color: getSeverityIconColor(alert.severity),
+                            flexShrink: 0,
+                          }}
                         />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <div className="text-sm font-medium text-[color:var(--secondary-black)]">
-                              {alert.type}
-                            </div>
-                            <span
-                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${severityConfig.color}`}
-                            >
-                              {alert.severity}
-                            </span>
-                          </div>
-                          <div className="text-xs text-[color:var(--secondary-muted-edge)]">
-                            {alert.vendor}
-                          </div>
-                          <div className="text-xs text-[color:var(--secondary-muted-edge)] mt-1">
-                            {alert.description}
-                          </div>
-                          <div className="text-xs text-[color:var(--secondary-muted-edge)] mt-2">
+                      ) : alert.severity === "medium" ? (
+                        <ExclamationTriangleIcon
+                          style={{
+                            width: 17,
+                            height: 17,
+                            marginTop: 1,
+                            color: getSeverityIconColor(alert.severity),
+                            flexShrink: 0,
+                          }}
+                        />
+                      ) : (
+                        <CheckCircleIcon
+                          style={{
+                            width: 17,
+                            height: 17,
+                            marginTop: 1,
+                            color: getSeverityIconColor(alert.severity),
+                            flexShrink: 0,
+                          }}
+                        />
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            marginBottom: 3,
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 700,
+                              color: GOV.text,
+                            }}
+                          >
+                            {alert.type}
+                          </span>
+                          <span style={govStatusPillStyle(alert.severity)}>
+                            {govStatusLabel(alert.severity)}
+                          </span>
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 11.5,
+                            color: GOV.muted,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {alert.vendor}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 11.5,
+                            color: GOV.lightMuted,
+                            marginTop: 3,
+                            fontWeight: 500,
+                          }}
+                        >
+                          {alert.description}
+                        </div>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            marginTop: 8,
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: 10.5,
+                              color: GOV.lightMuted,
+                              fontWeight: 500,
+                            }}
+                          >
                             {new Date(alert.date).toLocaleDateString()}
-                          </div>
+                          </span>
+                          {alert.severity === "high" && (
+                            <button
+                              onClick={() => handleResolveAlert(alert.id)}
+                              style={{
+                                ...govPrimaryButton,
+                                padding: "4px 12px",
+                                fontSize: 11,
+                              }}
+                            >
+                              Resolve
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             </div>
 
             {/* Quick Actions */}
-            <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white overflow-hidden">
-              <div className="p-5 border-b border-[color:var(--secondary-soft-highlight)]">
-                <h2 className="text-base font-semibold text-[color:var(--secondary-black)]">
-                  Quick Actions
-                </h2>
+            <div style={{ ...govCard, overflow: "hidden" }}>
+              <div
+                style={{
+                  padding: "16px 20px",
+                  borderBottom: `1px solid ${GOV.border}`,
+                }}
+              >
+                <h2 style={govSectionHeader}>Quick Actions</h2>
               </div>
-              <div className="p-4 space-y-2">
+              <div
+                style={{
+                  padding: "12px 16px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 4,
+                }}
+              >
                 <Link
                   href="/government/reporting?type=chemical-usage"
-                  className="flex items-center gap-3 px-5 py-3 rounded-full hover:bg-gray-50 transition-all duration-200 text-sm text-[color:var(--secondary-black)] font-medium shadow-sm hover:shadow-md"
+                  style={{
+                    ...govPillButton,
+                    width: "100%",
+                    textDecoration: "none",
+                    background:
+                      hoveredAction === "report" ? govHoverBg : GOV.cardBg,
+                    transition: "background .15s",
+                  }}
+                  onMouseEnter={() => setHoveredAction("report")}
+                  onMouseLeave={() => setHoveredAction(null)}
                 >
-                  <DocumentTextIcon className="h-5 w-5 text-[color:var(--secondary-muted-edge)]" />
-                  Generate Compliance Report
+                  <DocumentTextIcon
+                    style={{ width: 17, height: 17, color: GOV.muted }}
+                  />
+                  <span style={{ fontSize: 13, fontWeight: 600, color: GOV.text }}>
+                    Generate Compliance Report
+                  </span>
                 </Link>
-                <button className="w-full flex items-center gap-3 px-5 py-3 rounded-full hover:bg-gray-50 transition-all duration-200 text-sm text-[color:var(--secondary-black)] font-medium text-left shadow-sm hover:shadow-md">
-                  <ClockIcon className="h-5 w-5 text-[color:var(--secondary-muted-edge)]" />
-                  Schedule Inspections
+                <button
+                  style={{
+                    ...govPillButton,
+                    width: "100%",
+                    textAlign: "left" as const,
+                    background:
+                      hoveredAction === "schedule" ? govHoverBg : GOV.cardBg,
+                    transition: "background .15s",
+                  }}
+                  onMouseEnter={() => setHoveredAction("schedule")}
+                  onMouseLeave={() => setHoveredAction(null)}
+                >
+                  <ClockIcon
+                    style={{ width: 17, height: 17, color: GOV.muted }}
+                  />
+                  <span style={{ fontSize: 13, fontWeight: 600, color: GOV.text }}>
+                    Schedule Inspections
+                  </span>
                 </button>
-                <button className="w-full flex items-center gap-3 px-5 py-3 rounded-full hover:bg-gray-50 transition-all duration-200 text-sm text-[color:var(--secondary-black)] font-medium text-left shadow-sm hover:shadow-md">
-                  <ExclamationTriangleIcon className="h-5 w-5 text-[color:var(--secondary-muted-edge)]" />
-                  Send Compliance Reminder
+                <button
+                  style={{
+                    ...govPillButton,
+                    width: "100%",
+                    textAlign: "left" as const,
+                    background:
+                      hoveredAction === "remind" ? govHoverBg : GOV.cardBg,
+                    transition: "background .15s",
+                  }}
+                  onMouseEnter={() => setHoveredAction("remind")}
+                  onMouseLeave={() => setHoveredAction(null)}
+                >
+                  <ExclamationTriangleIcon
+                    style={{ width: 17, height: 17, color: GOV.muted }}
+                  />
+                  <span style={{ fontSize: 13, fontWeight: 600, color: GOV.text }}>
+                    Send Compliance Reminder
+                  </span>
                 </button>
                 <Link
                   href="/government/vendors"
-                  className="flex items-center gap-3 px-5 py-3 rounded-full hover:bg-gray-50 transition-all duration-200 text-sm text-[color:var(--secondary-black)] font-medium shadow-sm hover:shadow-md"
+                  style={{
+                    ...govPillButton,
+                    width: "100%",
+                    textDecoration: "none",
+                    background:
+                      hoveredAction === "vendors" ? govHoverBg : GOV.cardBg,
+                    transition: "background .15s",
+                  }}
+                  onMouseEnter={() => setHoveredAction("vendors")}
+                  onMouseLeave={() => setHoveredAction(null)}
                 >
-                  <ShieldCheckIcon className="h-5 w-5 text-[color:var(--secondary-muted-edge)]" />
-                  View All Vendors
+                  <ShieldCheckIcon
+                    style={{ width: 17, height: 17, color: GOV.muted }}
+                  />
+                  <span style={{ fontSize: 13, fontWeight: 600, color: GOV.text }}>
+                    View All Vendors
+                  </span>
                 </Link>
               </div>
             </div>
 
             {/* Compliance Checklist Template */}
-            <div className="rounded-2xl border border-[color:var(--secondary-soft-highlight)] bg-white overflow-hidden">
-              <div className="p-5 border-b border-[color:var(--secondary-soft-highlight)]">
-                <h2 className="text-base font-semibold text-[color:var(--secondary-black)]">
-                  Compliance Checklist
-                </h2>
+            <div style={{ ...govCard, overflow: "hidden" }}>
+              <div
+                style={{
+                  padding: "16px 20px",
+                  borderBottom: `1px solid ${GOV.border}`,
+                }}
+              >
+                <h2 style={govSectionHeader}>Compliance Checklist</h2>
               </div>
-              <div className="p-4 space-y-3">
+              <div
+                style={{
+                  padding: "14px 20px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                }}
+              >
                 {[
                   "Chemical usage reports",
                   "Organic certifications",
@@ -645,9 +941,23 @@ export default function CompliancePage() {
                 ].map((item) => (
                   <div
                     key={item}
-                    className="flex items-center gap-2 text-sm text-[color:var(--secondary-black)]"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      fontSize: 13,
+                      fontWeight: 500,
+                      color: GOV.text,
+                    }}
                   >
-                    <CheckCircleIcon className="h-4 w-4 text-[color:var(--secondary-muted-edge)]" />
+                    <CheckCircleIcon
+                      style={{
+                        width: 16,
+                        height: 16,
+                        color: GOV.muted,
+                        flexShrink: 0,
+                      }}
+                    />
                     {item}
                   </div>
                 ))}
