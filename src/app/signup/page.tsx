@@ -4,6 +4,7 @@ import React, { useState, useEffect, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAppDispatch } from "@/store";
+import { getApiClient } from "@/lib/apiClient";
 import { signup as signupThunk, devSignin } from "@/store/slices/authSlice";
 import { useRouter } from "next/navigation";
 import ProcurLoader from "@/components/ProcurLoader";
@@ -189,15 +190,7 @@ const BUSINESS_TYPES: Record<string, { value: string; label: string }[]> = {
   ],
 };
 
-const COUNTRIES = [
-  "Grenada",
-  "St. Vincent",
-  "Trinidad & Tobago",
-  "Barbados",
-  "St. Lucia",
-  "Panama",
-  "Colombia",
-];
+type CountryOption = { code: string; name: string };
 
 const SignUpPage: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -208,7 +201,7 @@ const SignUpPage: React.FC = () => {
     businessType: "",
     businessName: "",
     phoneNumber: "",
-    country: "Grenada",
+    country: "",
     website: "",
   });
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -216,7 +209,36 @@ const SignUpPage: React.FC = () => {
   const [error, setError] = useState<AuthError | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [availableCountries, setAvailableCountries] = useState<CountryOption[]>([]);
   const dispatch = useAppDispatch();
+
+  // Fetch active countries and auto-detect from cookie
+  useEffect(() => {
+    const api = getApiClient(() => null);
+    api.get("/countries").then(({ data }) => {
+      const list = (data.countries || []).map((c: { code: string; name: string }) => ({
+        code: c.code,
+        name: c.name,
+      }));
+      setAvailableCountries(list);
+
+      // Auto-detect: read country_code cookie set by middleware
+      const cookieMatch = document.cookie.match(/(?:^|;\s*)country_code=([^;]*)/);
+      const detected = cookieMatch?.[1] || "gda";
+      const match = list.find((c: CountryOption) => c.code === detected);
+      if (match && !formData.country) {
+        setFormData((prev) => ({ ...prev, country: match.code }));
+      } else if (list.length > 0 && !formData.country) {
+        setFormData((prev) => ({ ...prev, country: list[0].code }));
+      }
+    }).catch(() => {
+      // Fallback if API fails
+      setAvailableCountries([{ code: "gda", name: "Grenada" }]);
+      if (!formData.country) {
+        setFormData((prev) => ({ ...prev, country: "gda" }));
+      }
+    });
+  }, []);
   const router = useRouter();
 
   useEffect(() => {
@@ -281,6 +303,7 @@ const SignUpPage: React.FC = () => {
     // Field-level validation
     const errs: FieldErrors = {};
     if (!formData.fullname.trim()) errs.fullname = "Enter your full name.";
+    if (!formData.country) errs.country = "Select your country.";
     if (!formData.email.trim()) errs.email = "Enter your email address.";
     if (!formData.password) errs.password = "Create a password.";
     else if (formData.password.length < 8) errs.password = "Password must be at least 8 characters.";
@@ -319,7 +342,7 @@ const SignUpPage: React.FC = () => {
               ? formData.businessName
               : undefined,
           phoneNumber: formData.phoneNumber || undefined,
-          country: formData.country || undefined,
+          country: formData.country,
           website: formData.website || undefined,
           captchaToken,
         }),
@@ -746,12 +769,14 @@ const SignUpPage: React.FC = () => {
                           required
                           value={formData.country}
                           onChange={handleInputChange}
-                          style={SELECT}
+                          style={fieldErrors.country ? { ...SELECT, borderColor: "#dc2626" } : SELECT}
                         >
-                          {COUNTRIES.map((c) => (
-                            <option key={c} value={c}>{c}</option>
+                          <option value="" disabled>Select your country</option>
+                          {availableCountries.map((c) => (
+                            <option key={c.code} value={c.code}>{c.name}</option>
                           ))}
                         </select>
+                        <FieldError msg={fieldErrors.country} />
                         <svg viewBox="0 0 24 24" fill="none" stroke="#8a9e92" strokeWidth="2" width={14} height={14}
                           style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}
                         >

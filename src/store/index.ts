@@ -32,6 +32,7 @@ import governmentPermissionsReducer from "./slices/governmentPermissionsSlice";
 import governmentMarketReducer from "./slices/governmentMarketSlice";
 import governmentComplianceReducer from "./slices/governmentComplianceSlice";
 import governmentProductionReducer from "./slices/governmentProductionSlice";
+import countryReducer from "./slices/countrySlice";
 
 export const store = configureStore({
   reducer: {
@@ -66,6 +67,7 @@ export const store = configureStore({
     governmentMarket: governmentMarketReducer,
     governmentCompliance: governmentComplianceReducer,
     governmentProduction: governmentProductionReducer,
+    country: countryReducer,
   },
   devTools: process.env.NODE_ENV !== "production",
 });

@@ -52,7 +52,7 @@ type SignupPayload = {
   fullname: string;
   accountType: string; // 'buyer' | 'seller' etc.
   phoneNumber?: string;
-  country?: string;
+  country: string;
   businessType?: string;
   businessName?: string;
   website?: string;

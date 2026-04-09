@@ -155,6 +155,7 @@ export interface ProductFilters {
   tags?: string[];
   sort_by?: string;
   sort_order?: "asc" | "desc";
+  country_id?: string;
 }
 
 interface BuyerMarketplaceState {
@@ -284,7 +285,7 @@ export const fetchSellerProducts = createAsyncThunk(
 export const fetchSellers = createAsyncThunk(
   "buyerMarketplace/fetchSellers",
   async (
-    query: { page?: number; limit?: number; search?: string },
+    query: { page?: number; limit?: number; search?: string; country_id?: string },
     { rejectWithValue }
   ) => {
     try {

@@ -13,6 +13,25 @@ import {
   setSelectedCategory as setSelectedCategoryAction,
 } from "@/store/slices/buyerMarketplaceSlice";
 import { fetchCart, addToCartAsync } from "@/store/slices/buyerCartSlice";
+import {
+  fetchActiveCountries,
+  selectCountry,
+  selectCountries,
+  setCountry,
+} from "@/store/slices/countrySlice";
+
+function CountryFlag({ code, size = 20 }: { code: string; size?: number }) {
+  return (
+    <img
+      src={`https://flagcdn.com/w40/${code.toLowerCase()}.png`}
+      srcSet={`https://flagcdn.com/w80/${code.toLowerCase()}.png 2x`}
+      alt={code}
+      width={size}
+      height={Math.round(size * 0.75)}
+      style={{ borderRadius: 2, objectFit: "cover", display: "block" }}
+    />
+  );
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -91,6 +110,12 @@ export default function BuyerClient() {
   const { products, sellers, harvestUpdates, selectedCategory, status, pagination } =
     useAppSelector((s) => s.buyerMarketplace);
   const { cart, optimisticCount } = useAppSelector((s) => s.buyerCart);
+  const { code: activeCountryCode, name: activeCountryName } = useAppSelector(selectCountry);
+  const availableCountries = useAppSelector(selectCountries);
+
+  useEffect(() => {
+    dispatch(fetchActiveCountries());
+  }, [dispatch]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -125,11 +150,10 @@ export default function BuyerClient() {
   }, [sort]);
 
   useEffect(() => {
-    dispatch(fetchSellers({ page: 1, limit: 6 }));
+    dispatch(fetchSellers({ page: 1, limit: 6, country_id: activeCountryCode || undefined }));
     dispatch(fetchHarvestUpdates({ page: 1, limit: 12 }));
     dispatch(fetchMarketplaceStats());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [dispatch, activeCountryCode]);
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -140,11 +164,12 @@ export default function BuyerClient() {
         tags: selCerts.length ? selCerts : undefined,
         min_price: priceRange[0] !== 0 ? priceRange[0] : undefined,
         max_price: priceRange[1] !== 100 ? priceRange[1] : undefined,
+        country_id: activeCountryCode || undefined,
         ...sortQ, page: 1, limit: pagination.itemsPerPage || 20,
       }));
     }, 300);
     return () => clearTimeout(id);
-  }, [searchQuery, selectedCategory, selAvail, selCerts, priceRange, sortQ, pagination.itemsPerPage, dispatch]);
+  }, [searchQuery, selectedCategory, selAvail, selCerts, priceRange, sortQ, pagination.itemsPerPage, activeCountryCode, dispatch]);
 
   const currentQ = useMemo(() => ({
     search: searchQuery || undefined,
@@ -153,8 +178,9 @@ export default function BuyerClient() {
     tags: selCerts.length ? selCerts : undefined,
     min_price: priceRange[0] !== 0 ? priceRange[0] : undefined,
     max_price: priceRange[1] !== 100 ? priceRange[1] : undefined,
+    country_id: activeCountryCode || undefined,
     ...sortQ, limit: pagination.itemsPerPage || 20,
-  }), [searchQuery, selectedCategory, selAvail, selCerts, priceRange, sortQ, pagination.itemsPerPage]);
+  }), [searchQuery, selectedCategory, selAvail, selCerts, priceRange, sortQ, pagination.itemsPerPage, activeCountryCode]);
 
   const currentQKey = useMemo(() => JSON.stringify(currentQ), [currentQ]);
 
@@ -497,8 +523,8 @@ export default function BuyerClient() {
             </div>
           </div>
 
-          {/* Right: Featured Picks — 3-card CSS grid */}
-          <div className="hero-picks" style={{ flexShrink: 0, width: 320 }}>
+          {/* Right: Featured Picks — 3-card CSS grid (hidden when no products) */}
+          {(status === "loading" || products.length >= 3) && <div className="hero-picks" style={{ flexShrink: 0, width: 320 }}>
             {/* Header row */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
               <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".12em", color: "rgba(245,241,234,.45)", textTransform: "uppercase" }}>Featured picks</span>
@@ -562,7 +588,7 @@ export default function BuyerClient() {
                 <div className="skel" style={{ borderRadius: 12 }} />
               </div>
             )}
-          </div>
+          </div>}
         </div>
 
         {/* Slide dots */}
@@ -573,10 +599,96 @@ export default function BuyerClient() {
         </div>
       </div>
 
+      {/* ── Country filter pills ── */}
+      {availableCountries.length > 1 && (
+        <div style={{ maxWidth: 1300, margin: "0 auto", padding: "32px 20px 0" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, overflowX: "auto", scrollbarWidth: "none", paddingBottom: 4 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#8a9e92", flexShrink: 0, marginRight: 4 }}>Country</span>
+            {/* All countries toggle */}
+            <button
+              onClick={() => {
+                dispatch(setCountry({ code: "", name: "", currency: "XCD" }));
+              }}
+              style={{
+                padding: "7px 14px",
+                borderRadius: 999,
+                border: "none",
+                background: !activeCountryCode ? "#2d4a3e" : "rgba(0,0,0,.04)",
+                cursor: "pointer",
+                fontSize: 12.5,
+                fontWeight: 600,
+                color: !activeCountryCode ? "#fff" : "#3e5549",
+                flexShrink: 0,
+                transition: "all .15s",
+              }}
+            >
+              All Countries
+            </button>
+            {availableCountries.map((c) => {
+              const isActive = c.code === activeCountryCode;
+              return (
+                <button
+                  key={c.code}
+                  onClick={() => {
+                    dispatch(setCountry({ code: c.code, name: c.name, currency: c.currency }));
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 7,
+                    padding: "7px 14px",
+                    borderRadius: 999,
+                    border: "none",
+                    background: isActive ? "#2d4a3e" : "rgba(0,0,0,.04)",
+                    cursor: "pointer",
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    color: isActive ? "#fff" : "#3e5549",
+                    flexShrink: 0,
+                    transition: "all .15s",
+                  }}
+                >
+                  <CountryFlag code={c.country_code} size={18} />
+                  {c.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Empty state when no products ── */}
+      {status === "succeeded" && products.length === 0 && sellers.length === 0 && (
+        <div style={{ maxWidth: 1300, margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
+          <div style={{
+            width: 56,
+            height: 56,
+            borderRadius: 999,
+            background: "rgba(45,74,62,.06)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            margin: "0 auto 20px",
+          }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="#8a9e92" strokeWidth="1.5" strokeLinecap="round" width={26} height={26}>
+              <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" />
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+              <line x1="12" y1="22.08" x2="12" y2="12" />
+            </svg>
+          </div>
+          <h3 style={{ fontSize: 20, fontWeight: 700, color: "#1c2b23", margin: "0 0 8px" }}>
+            Nothing available{activeCountryName ? ` in ${activeCountryName}` : ""} at the moment
+          </h3>
+          <p style={{ fontSize: 14, color: "#8a9e92", maxWidth: 360, margin: "0 auto", lineHeight: 1.5 }}>
+            Check back soon or browse produce from other countries.
+          </p>
+        </div>
+      )}
+
       {/* ── Best of the Season ── */}
-      <div style={{ paddingTop: 48 }}>
+      {products.length > 0 && <div style={{ paddingTop: 28 }}>
         <div style={{ maxWidth: 1300, margin: "0 auto", padding: "0 20px" }}>
-          <SH title="Best of the season" linkText="Browse all" linkHref="/suppliers" />
+          <SH title={`Best of the season${activeCountryName ? ` in ${activeCountryName}` : ""}`} linkText="Browse all" linkHref="/suppliers" />
           {/* Scroll container with arrow buttons */}
           <div style={{ position: "relative" }}>
             {/* Left arrow */}
@@ -627,12 +739,12 @@ export default function BuyerClient() {
             </button>
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* ── Meet the Farmers ── */}
-      <div style={{ paddingTop: 48 }}>
+      {sellers.length > 0 && <div style={{ paddingTop: 48 }}>
         <div style={{ maxWidth: 1300, margin: "0 auto", padding: "0 20px" }}>
-          <SH title="Meet the farmers" linkText="All suppliers" linkHref="/suppliers" />
+          <SH title={`Meet the farmers${activeCountryName ? ` in ${activeCountryName}` : ""}`} linkText="All suppliers" linkHref="/suppliers" />
           <div className="v6-seller-grid">
             {status === "loading" && sellers.length === 0
               ? [...Array(4)].map((_, i) => <div key={i} className="skel" style={{ borderRadius: 12, height: 200 }} />)
@@ -662,16 +774,70 @@ export default function BuyerClient() {
                 ))}
           </div>
         </div>
-      </div>
+      </div>}
+
+      {/* ── Browse other countries ── */}
+      {availableCountries.length > 1 && activeCountryCode && (
+        <div style={{ paddingTop: 48 }}>
+          <div style={{ maxWidth: 1300, margin: "0 auto", padding: "0 20px" }}>
+            <SH title="Available in other countries" />
+            <div style={{ display: "flex", gap: 12, overflowX: "auto", scrollbarWidth: "none", paddingBottom: 8 }}>
+              {availableCountries.filter((c) => c.code !== activeCountryCode).map((c) => (
+                  <button
+                    key={c.code}
+                    onClick={() => {
+                      dispatch(setCountry({ code: c.code, name: c.name, currency: c.currency }));
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 14,
+                      padding: "16px 24px",
+                      borderRadius: 16,
+                      border: "none",
+                      background: "#f5f1ea",
+                      cursor: "pointer",
+                      flexShrink: 0,
+                      textAlign: "left",
+                      transition: "all .2s",
+                      minWidth: 200,
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "#ede9e0"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "#f5f1ea"; }}
+                  >
+                    <div style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 12,
+                      background: "rgba(45,74,62,.08)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                      overflow: "hidden",
+                    }}>
+                      <CountryFlag code={c.country_code} size={32} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 14.5, fontWeight: 650, color: "#1c2b23", lineHeight: 1.2 }}>{c.name}</div>
+                      <div style={{ fontSize: 11.5, color: "#8a9e92", marginTop: 3 }}>Browse produce in {c.currency}</div>
+                    </div>
+                  </button>
+                ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── All Harvests ── */}
-      <div id="all-harvests" style={{ paddingTop: 52, paddingBottom: 64 }}>
+      {(status === "loading" || products.length > 0) && <div id="all-harvests" style={{ paddingTop: 52, paddingBottom: 64 }}>
         <div style={{ maxWidth: 1300, margin: "0 auto", padding: "0 20px" }}>
           {/* Header row */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, gap: 12, flexWrap: "wrap" }}>
             <div>
               <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-.35px", margin: 0 }}>
-                {selectedCategory && selectedCategory !== "All Categories" ? selectedCategory : "All Harvests"}
+                {selectedCategory && selectedCategory !== "All Categories" ? selectedCategory : `All Harvests${activeCountryName ? ` in ${activeCountryName}` : ""}`}
               </h2>
               {pagination.totalItems > 0 && <p style={{ fontSize: 12, color: "#8a9e92", margin: "2px 0 0" }}>{Math.min(displayed.length, pagination.totalItems)} of {pagination.totalItems} products</p>}
             </div>
@@ -793,7 +959,7 @@ export default function BuyerClient() {
             )}
           </div>
         </div>
-      </div>
+      </div>}
 
     </div>
   );

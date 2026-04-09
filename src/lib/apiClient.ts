@@ -96,6 +96,13 @@ export function getApiClient(getToken?: () => string | null): AxiosInstance {
       (config.headers as AxiosRequestHeaders)["Authorization"] =
         `Bearer ${token}`;
     }
+    // Inject country context from cookie
+    if (typeof document !== "undefined") {
+      const match = document.cookie.match(/(?:^|;\s*)country_code=([^;]*)/);
+      if (match?.[1]) {
+        (config.headers as AxiosRequestHeaders)["X-Country-Code"] = match[1];
+      }
+    }
     return config;
   });
 

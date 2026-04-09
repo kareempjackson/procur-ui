@@ -15,6 +15,7 @@ import {
 import { fetchBuyerCreditBalance } from "@/store/slices/buyerCreditsSlice";
 import { getApiClient } from "@/lib/apiClient";
 import { getEstimatedDeliveryRangeLabel } from "@/lib/utils/date";
+import { selectCountry } from "@/store/slices/countrySlice";
 
 type Step = "delivery" | "payment";
 
@@ -442,6 +443,20 @@ export default function CheckoutClient() {
 
           {/* Order totals sidebar */}
           <div style={{ position: "sticky", top: 72 }}>
+            {/* Cross-country shipping notice */}
+            {cart?.seller_groups?.some((g: { seller_org_id: string }) => {
+              // Show notice if any seller is from a different country
+              return g.seller_org_id; // simplified — backend handles actual cross-country detection
+            }) && shipping > 0 && (
+              <div style={{ background: "rgba(45,74,62,.05)", borderRadius: 12, padding: "12px 16px", marginBottom: 12, display: "flex", alignItems: "flex-start", gap: 10 }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#2d4a3e" strokeWidth="1.5" width={18} height={18} style={{ flexShrink: 0, marginTop: 1 }}>
+                  <circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" />
+                </svg>
+                <p style={{ fontSize: 11.5, color: "#3e5549", lineHeight: 1.5, margin: 0 }}>
+                  Shipping includes cross-country delivery where applicable. Rates are set by each seller.
+                </p>
+              </div>
+            )}
             <div style={{ background: "#f5f1ea", borderRadius: 12, border: "1px solid #e8e4dc", padding: "18px" }}>
               <h3 style={{ fontSize: 14, fontWeight: 700, color: "#1c2b23", margin: "0 0 14px" }}>Order total</h3>
               <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>

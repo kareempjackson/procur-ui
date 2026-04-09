@@ -506,6 +506,30 @@ export default function SellerBusinessSettingsPage() {
         {/* ── General tab ──────────────────────────────────────────────── */}
         {activeTab === "general" && (
           <>
+            {/* Shipping routes link */}
+            <Link href="/seller/business/shipping" style={{ textDecoration: "none", display: "block", marginBottom: 14 }}>
+              <div style={{ ...card, marginBottom: 0, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", transition: "border-color .15s" }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = TEAL; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = EDGE; }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(45,74,62,.06)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="1.5" width={18} height={18}>
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 650, color: DARK }}>Cross-Country Shipping</div>
+                    <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>Manage shipping routes to other countries</div>
+                  </div>
+                </div>
+                <svg viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round" width={16} height={16}>
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+              </div>
+            </Link>
+
             {/* Company form card */}
             <div style={card}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18, color: ORANGE }}>

@@ -12,6 +12,7 @@ export default function BuyerAssistantBot() {
     messages,
     sendMessage,
     handleQuickReply,
+    resetConversation,
   } = useBotConversation();
 
   // Don't render until client hydration is complete to avoid SSR mismatch
@@ -25,6 +26,7 @@ export default function BuyerAssistantBot() {
           onSend={sendMessage}
           onQuickReply={handleQuickReply}
           onClose={toggleOpen}
+          onReset={resetConversation}
           visible={isOpen}
         />
       )}

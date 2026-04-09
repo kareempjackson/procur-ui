@@ -12,6 +12,7 @@ import {
 import ProcurLoader from "@/components/ProcurLoader";
 import { getApiClient } from "@/lib/apiClient";
 import { useToast } from "@/components/ui/Toast";
+import { fetchActiveCountries, selectCountries } from "@/store/slices/countrySlice";
 
 // Design tokens
 const T = {
@@ -54,6 +55,11 @@ export default function ProfileClient() {
   const dispatch = useAppDispatch();
   const { profile, preferences, organizationMembers, membersStatus } =
     useAppSelector((state) => state.profile);
+  const availableCountries = useAppSelector(selectCountries);
+
+  useEffect(() => {
+    dispatch(fetchActiveCountries());
+  }, [dispatch]);
 
   useEffect(() => {
     dispatch(fetchProfile());
@@ -514,17 +520,13 @@ export default function ProfileClient() {
                   <div>
                     <label style={labelStyle}>Country</label>
                     <select name="country" value={formData.country} onChange={handleInputChange} style={inputStyle}>
-                      {formData.country &&
-                        !["Jamaica", "Dominican Republic", "Barbados", "Trinidad and Tobago", "Bahamas", "Grenada", "Other"].includes(formData.country) && (
-                          <option value={formData.country}>{formData.country}</option>
-                        )}
-                      <option>Jamaica</option>
-                      <option>Dominican Republic</option>
-                      <option>Barbados</option>
-                      <option>Trinidad and Tobago</option>
-                      <option>Bahamas</option>
-                      <option>Grenada</option>
-                      <option>Other</option>
+                      <option value="">Select country</option>
+                      {availableCountries.map((c) => (
+                        <option key={c.code} value={c.name}>{c.name}</option>
+                      ))}
+                      {formData.country && !availableCountries.some((c) => c.name === formData.country) && (
+                        <option value={formData.country}>{formData.country}</option>
+                      )}
                     </select>
                   </div>
                 </div>

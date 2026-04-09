@@ -10,12 +10,16 @@ import {
   upsertFarmProfile,
   Certification,
 } from "@/store/slices/farmSlice";
+import { fetchActiveCountries, selectCountries } from "@/store/slices/countrySlice";
 
 export default function FarmProfilePage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const accessToken = useAppSelector((s) => s.auth.accessToken);
   const { profile, loading } = useAppSelector((s) => s.farm);
+  const availableCountries = useAppSelector(selectCountries);
+
+  useEffect(() => { dispatch(fetchActiveCountries()); }, [dispatch]);
 
   const [parish, setParish] = useState("");
   const [country, setCountry] = useState("GD");
@@ -125,14 +129,18 @@ export default function FarmProfilePage() {
                 <label className="block text-xs text-[color:var(--secondary-muted-edge)] mb-1">
                   Country
                 </label>
-                <input
-                  type="text"
+                <select
                   value={country}
-                  onChange={(e) => setCountry(e.target.value.toUpperCase())}
-                  placeholder="GD"
-                  maxLength={3}
+                  onChange={(e) => setCountry(e.target.value)}
                   className="w-full rounded-lg border border-[color:var(--secondary-soft-highlight)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-accent2)]/30"
-                />
+                >
+                  {availableCountries.map((c) => (
+                    <option key={c.code} value={c.country_code}>{c.name}</option>
+                  ))}
+                  {country && !availableCountries.some((c) => c.country_code === country) && (
+                    <option value={country}>{country}</option>
+                  )}
+                </select>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">

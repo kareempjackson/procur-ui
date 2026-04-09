@@ -13,6 +13,21 @@ import {
 } from "@/store/slices/notificationsSlice";
 import { useNotificationsSocket } from "@/hooks/useNotificationsSocket";
 import { fetchProfile } from "@/store/slices/profileSlice";
+import { fetchActiveCountries, selectCountry, selectCountries } from "@/store/slices/countrySlice";
+
+function CountryFlag({ code, size = 20 }: { code: string; size?: number }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`https://flagcdn.com/w40/${code.toLowerCase()}.png`}
+      srcSet={`https://flagcdn.com/w80/${code.toLowerCase()}.png 2x`}
+      alt={code}
+      width={size}
+      height={Math.round(size * 0.75)}
+      style={{ borderRadius: 2, objectFit: "cover", display: "block" }}
+    />
+  );
+}
 
 const NAV_H = 56;
 
@@ -82,6 +97,12 @@ const SellerTopNavigation: React.FC = () => {
   useEffect(() => {
     if (status === "idle") dispatch(fetchNotifications(undefined));
   }, [status, dispatch]);
+
+  // Country
+  const { code: activeCountryCode, name: activeCountryName } = useAppSelector(selectCountry);
+  const availableCountries = useAppSelector(selectCountries);
+  useEffect(() => { dispatch(fetchActiveCountries()); }, [dispatch]);
+  const sellerCountryIso = availableCountries.find((c) => c.code === activeCountryCode)?.country_code || "GD";
 
   // Profile
   const authUser = useAppSelector(selectAuthUser);
@@ -246,9 +267,15 @@ const SellerTopNavigation: React.FC = () => {
               lineHeight: 1,
               letterSpacing: ".04em",
               textTransform: "lowercase",
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
             }}
           >
             seller
+            <span style={{ display: "flex", alignItems: "center", gap: 4, color: "rgba(0,0,0,.35)", fontWeight: 600, textTransform: "none", letterSpacing: 0 }}>
+              · <CountryFlag code={sellerCountryIso} size={13} /> {activeCountryName || "Grenada"}
+            </span>
           </span>
         </Link>
 

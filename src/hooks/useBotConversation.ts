@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { useAppSelector, useAppDispatch } from "@/store";
-import { createRequest, CreateRequestDto } from "@/store/slices/buyerRequestsSlice";
+import { useAppSelector } from "@/store";
 import { getApiClient } from "@/lib/apiClient";
 
 // ── Step enum ──────────────────────────────────────────────────────────────────
@@ -141,7 +140,6 @@ function makeGreetingMessage(name: string): BotMessage {
 // ── Hook ───────────────────────────────────────────────────────────────────────
 
 export function useBotConversation() {
-  const dispatch = useAppDispatch();
   const user = useAppSelector((s) => s.auth.user);
   const isLoggedIn = !!user?.id;
 
@@ -261,6 +259,15 @@ export function useBotConversation() {
     setIsOpen((prev) => !prev);
   }, []);
 
+  // ── Reset conversation ──────────────────────────────────────────────────────
+
+  const resetConversation = useCallback(() => {
+    setMessages([]);
+    setDraft({});
+    didGreet.current = false;
+    setStep(BotStep.IDLE);
+  }, []);
+
   // ── Transition to next collection step ───────────────────────────────────────
 
   const goToStep = useCallback(
@@ -336,58 +343,37 @@ export function useBotConversation() {
     setStep(BotStep.SUBMITTING);
 
     try {
-      if (isLoggedIn) {
-        const requestDto: CreateRequestDto = {
-          product_name: draft.product_name!,
-          quantity: draft.quantity!,
-          unit_of_measurement: draft.unit_of_measurement!,
-          date_needed: draft.date_needed,
-          budget_range:
-            draft.budget_min != null && draft.budget_max != null
-              ? { min: draft.budget_min, max: draft.budget_max, currency: "XCD" }
-              : undefined,
-          description: draft.description,
-        };
-        const result = await dispatch(createRequest(requestDto)).unwrap();
-        setStep(BotStep.REQUEST_SUBMITTED);
-        botReply(
-          `Your request has been submitted! Our team will review it and get back to you soon.`,
-          {
-            submittedRequestNumber: result?.request_number,
-            quickReplies: [
-              { label: "New request", value: "restart" },
-              { label: "Close", value: "close" },
-            ],
-          }
-        );
-      } else {
-        const apiClient = getApiClient(() => null);
-        const payload = {
-          product_name: draft.product_name,
-          quantity: draft.quantity,
-          unit_of_measurement: draft.unit_of_measurement,
-          date_needed: draft.date_needed,
-          budget_range:
-            draft.budget_min != null && draft.budget_max != null
-              ? { min: draft.budget_min, max: draft.budget_max, currency: "XCD" }
-              : undefined,
-          description: draft.description,
-          guest_name: draft.guest_name,
-          guest_email: draft.guest_email,
-        };
-        const response = await apiClient.post("/marketplace/requests", payload);
-        setStep(BotStep.REQUEST_SUBMITTED);
-        botReply(
-          `Your request has been submitted! We'll reach out to ${draft.guest_email} once we've found what you need.`,
-          {
-            submittedRequestNumber: response.data?.request_number,
-            quickReplies: [
-              { label: "New request", value: "restart" },
-              { label: "Close", value: "close" },
-            ],
-          }
-        );
-      }
+      // Always use the public marketplace endpoint — works for all account types and guests
+      const guestName = isLoggedIn ? (user?.fullname || "Authenticated User") : draft.guest_name;
+      const guestEmail = isLoggedIn ? (user?.email || "") : draft.guest_email;
+      const apiClient = getApiClient(() => null);
+      const payload = {
+        product_name: draft.product_name,
+        quantity: draft.quantity,
+        unit_of_measurement: draft.unit_of_measurement,
+        date_needed: draft.date_needed,
+        budget_range:
+          draft.budget_min != null && draft.budget_max != null
+            ? { min: draft.budget_min, max: draft.budget_max, currency: "XCD" }
+            : undefined,
+        description: draft.description,
+        guest_name: guestName,
+        guest_email: guestEmail,
+      };
+      const response = await apiClient.post("/marketplace/requests", payload);
+      setStep(BotStep.REQUEST_SUBMITTED);
+      botReply(
+        isLoggedIn
+          ? `Your request has been submitted! Our team will review it and get back to you soon.`
+          : `Your request has been submitted! We'll reach out to ${draft.guest_email} once we've found what you need.`,
+        {
+          submittedRequestNumber: response.data?.request_number,
+          quickReplies: [
+            { label: "New request", value: "restart" },
+            { label: "Close", value: "close" },
+          ],
+        }
+      );
     } catch {
       setStep(BotStep.REQUEST_FAILED);
       botReply("Sorry, something went wrong submitting your request. Would you like to try again?", {
@@ -397,7 +383,7 @@ export function useBotConversation() {
         ],
       });
     }
-  }, [isLoggedIn, draft, dispatch, botReply]);
+  }, [isLoggedIn, user, draft, botReply]);
 
   // ── Submit country interest ─────────────────────────────────────────────────
 
@@ -542,9 +528,10 @@ export function useBotConversation() {
         }
 
         case BotStep.REQUEST_SUBMITTED:
-        case BotStep.COUNTRY_SUBMITTED: {
+        case BotStep.COUNTRY_SUBMITTED:
+        case BotStep.DISMISSED: {
           const lower = trimmed.toLowerCase();
-          if (lower === "restart" || lower.includes("new") || lower.includes("another")) {
+          if (lower === "restart" || lower.includes("new") || lower.includes("another") || lower.includes("yes") || lower.includes("help") || lower.includes("start")) {
             setMessages([]);
             setDraft({});
             didGreet.current = false;
@@ -619,5 +606,6 @@ export function useBotConversation() {
     isLoggedIn,
     sendMessage,
     handleQuickReply,
+    resetConversation,
   };
 }

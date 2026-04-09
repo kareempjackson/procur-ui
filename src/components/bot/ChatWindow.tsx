@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, FormEvent } from "react";
 import { PaperAirplaneIcon } from "@heroicons/react/24/solid";
-import { XMarkIcon } from "@heroicons/react/24/outline";
+import { XMarkIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
 import type { BotMessage, QuickReply } from "@/hooks/useBotConversation";
 import MessageBubble from "./MessageBubble";
 
@@ -11,10 +11,11 @@ interface ChatWindowProps {
   onSend: (text: string) => void;
   onQuickReply: (reply: QuickReply) => void;
   onClose: () => void;
+  onReset: () => void;
   visible: boolean;
 }
 
-export default function ChatWindow({ messages, onSend, onQuickReply, onClose, visible }: ChatWindowProps) {
+export default function ChatWindow({ messages, onSend, onQuickReply, onClose, onReset, visible }: ChatWindowProps) {
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -94,31 +95,59 @@ export default function ChatWindow({ messages, onSend, onQuickReply, onClose, vi
             <div style={{ fontSize: 11, opacity: 0.7, lineHeight: 1.2, marginTop: 2 }}>We help you find what you need</div>
           </div>
         </div>
-        <button
-          onClick={onClose}
-          aria-label="Close chat"
-          style={{
-            background: "rgba(255,255,255,.15)",
-            border: "none",
-            borderRadius: 8,
-            width: 30,
-            height: 30,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#fff",
-            cursor: "pointer",
-            transition: "background 0.15s",
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,.25)";
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,.15)";
-          }}
-        >
-          <XMarkIcon style={{ width: 18, height: 18 }} />
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <button
+            onClick={onReset}
+            aria-label="New conversation"
+            title="New conversation"
+            style={{
+              background: "rgba(255,255,255,.15)",
+              border: "none",
+              borderRadius: 8,
+              width: 30,
+              height: 30,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#fff",
+              cursor: "pointer",
+              transition: "background 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,.25)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,.15)";
+            }}
+          >
+            <ArrowPathIcon style={{ width: 16, height: 16 }} />
+          </button>
+          <button
+            onClick={onClose}
+            aria-label="Close chat"
+            style={{
+              background: "rgba(255,255,255,.15)",
+              border: "none",
+              borderRadius: 8,
+              width: 30,
+              height: 30,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#fff",
+              cursor: "pointer",
+              transition: "background 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,.25)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,.15)";
+            }}
+          >
+            <XMarkIcon style={{ width: 18, height: 18 }} />
+          </button>
+        </div>
       </div>
 
       {/* ── Messages ───────────────────────────────────────────────────── */}

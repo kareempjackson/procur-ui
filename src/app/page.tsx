@@ -3,9 +3,15 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useAppSelector } from "@/store";
-import { selectAuthUser } from "@/store/slices/authSlice";
+import { useRouter, usePathname } from "next/navigation";
+import { useAppDispatch, useAppSelector } from "@/store";
+import { selectAuthUser, signout } from "@/store/slices/authSlice";
+import {
+  fetchActiveCountries,
+  setCountry,
+  selectCountry,
+  selectCountries,
+} from "@/store/slices/countrySlice";
 import { getApiClient } from "@/lib/apiClient";
 import BuyerTopNavigation from "@/components/navigation/BuyerTopNavigation";
 import dynamic from "next/dynamic";
@@ -211,32 +217,34 @@ const FALLBACK_SELLERS: LandingSeller[] = [
 ];
 
 // ─── Static content ───────────────────────────────────────────────────────────
-const HERO_SLIDES = [
-  {
-    img: "/images/hero/hanna-long-JbGA85iuTiY-unsplash.jpg",
-    imgPosition: "center center",
-    h2: "Fresh from the field.\nDirect to you.",
-    p: "Shop verified Grenadian produce: plantain, bok choi, dasheen and more, sourced straight from the farm.",
-    cta: "Shop now",
-    href: "/browse",
-  },
-  {
-    img: "/images/hero/shelley-pauls-G7WdvR8rDPg-unsplash.jpg",
-    imgPosition: "center center",
-    h2: "Know exactly where\nyour food comes from.",
-    p: "Every supplier on Procur is reviewed and verified. No middlemen, no surprises. Just transparent, local supply.",
-    cta: "Browse produce",
-    href: "/browse",
-  },
-  {
-    img: "/images/hero/land-o-lakes-inc-BlXa_riHlp4-unsplash.jpg",
-    imgPosition: "center 10%",
-    h2: "Grow your reach.\nGrow your revenue.",
-    p: "List your produce and connect with buyers, restaurants and hotels across Grenada, all in one place.",
-    cta: "Get started",
-    href: "/signup?accountType=seller",
-  },
-];
+function getHeroSlides(countryName: string) {
+  return [
+    {
+      img: "/images/hero/hanna-long-JbGA85iuTiY-unsplash.jpg",
+      imgPosition: "center center",
+      h2: "Fresh from the field.\nDirect to you.",
+      p: `Shop verified produce from ${countryName}: plantain, bok choi, dasheen and more, sourced straight from the farm.`,
+      cta: "Shop now",
+      href: "/browse",
+    },
+    {
+      img: "/images/hero/shelley-pauls-G7WdvR8rDPg-unsplash.jpg",
+      imgPosition: "center center",
+      h2: "Know exactly where\nyour food comes from.",
+      p: "Every supplier on Procur is reviewed and verified. No middlemen, no surprises. Just transparent, local supply.",
+      cta: "Browse produce",
+      href: "/browse",
+    },
+    {
+      img: "/images/hero/land-o-lakes-inc-BlXa_riHlp4-unsplash.jpg",
+      imgPosition: "center 10%",
+      h2: "Grow your reach.\nGrow your revenue.",
+      p: `List your produce and connect with buyers, restaurants and hotels across ${countryName}, all in one place.`,
+      cta: "Get started",
+      href: "/signup?accountType=seller",
+    },
+  ];
+}
 
 const SELLER_COVERS = [
   "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=600&h=200&fit=crop",
@@ -252,6 +260,14 @@ const TESTIMONIALS = [
     name: "Jude Durham",
     farm: "Samaritan Farm",
     location: "St. Andrew, Grenada",
+    role: "Supplier",
+  },
+  {
+    quote:
+      "You just farm, you produce, you receive your money.",
+    name: "Alvin Forsyth",
+    farm: "AgrowFo",
+    location: "Grenada",
     role: "Supplier",
   },
   {
@@ -379,10 +395,73 @@ function usePrefersReducedMotion() {
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
+// Flag image component using flagcdn.com
+function CountryFlag({ code, size = 20 }: { code: string; size?: number }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`https://flagcdn.com/w40/${code.toLowerCase()}.png`}
+      srcSet={`https://flagcdn.com/w80/${code.toLowerCase()}.png 2x`}
+      alt={code}
+      width={size}
+      height={Math.round(size * 0.75)}
+      style={{ borderRadius: 2, objectFit: "cover", display: "block" }}
+    />
+  );
+}
+
 export default function Home() {
   const user = useAppSelector(selectAuthUser);
   const router = useRouter();
+  const pathname = usePathname();
+  const appDispatch = useAppDispatch();
   const reducedMotion = usePrefersReducedMotion();
+
+  // Island state
+  const { code: countryCode, name: countryName } = useAppSelector(selectCountry);
+  const countries = useAppSelector(selectCountries);
+  const [countryPickerOpen, setCountryPickerOpen] = useState(false);
+  const countryPickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    appDispatch(fetchActiveCountries());
+  }, [appDispatch]);
+
+  // Modal has its own backdrop click-to-close — no outside-click listener needed
+
+  const currentCountry = countries.find((i) => i.code === countryCode);
+  const currentCountryIso = currentCountry?.country_code || "GD";
+  const currentCountryName = countryName || "Grenada";
+
+  const heroSlides = useMemo(() => getHeroSlides(currentCountryName), [currentCountryName]);
+
+  const handleCountrySelect = (code: string) => {
+    setCountryPickerOpen(false);
+
+    // Find the selected country to get its full data
+    const selected = countries.find((i) => i.code === code);
+
+    // Update Redux state immediately so flag + name under logo updates
+    appDispatch(setCountry({
+      code,
+      name: selected?.name || code.toUpperCase(),
+      currency: selected?.currency || "XCD",
+    }));
+
+    // Set cookie so the API client sends the new country header
+    document.cookie = `country_code=${code}; path=/; max-age=${60 * 60 * 24 * 30}; samesite=lax`;
+
+    // Navigate to the country path
+    const segments = (pathname || "").split("/").filter(Boolean);
+    const firstSeg = segments[0];
+    const isCountryPath = countries.some((i) => i.code === firstSeg);
+    if (isCountryPath) {
+      segments[0] = code;
+    } else {
+      segments.unshift(code);
+    }
+    router.push(`/${segments.join("/")}`);
+  };
 
   // Data state — empty until both requests settle; skeleton shown in the interim
   const [products, setProducts] = useState<LandingProduct[]>([]);
@@ -393,6 +472,7 @@ export default function Home() {
   const [heroIdx, setHeroIdx] = useState(0);
   const [prevHeroIdx, setPrevHeroIdx] = useState<number | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [searchModalOpen, setSearchModalOpen] = useState(false);
@@ -404,8 +484,10 @@ export default function Home() {
   //    This makes revisits within the same browser session feel near-instant.
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
     const api = getApiClient(() => null);
-    const CACHE_KEY = "procur:home:v2";
+    const activeCountryCode = countryCode || "gda";
+    const CACHE_KEY = `procur:home:v2:${activeCountryCode}`;
     const CACHE_TTL = 2 * 60 * 1000; // 2 minutes
 
     function parseProducts(raw: Record<string, unknown>[]): LandingProduct[] {
@@ -504,14 +586,17 @@ export default function Home() {
       let newProducts: LandingProduct[] = [];
       let newSellers: LandingSeller[] = [];
 
+      // Only use fallback data for Grenada (the primary market with hardcoded demo data)
+      const useFallback = activeCountryCode === "gda";
+
       if (pResult.status === "fulfilled") {
         const pData = pResult.value?.data?.products;
         newProducts =
           Array.isArray(pData) && pData.length > 0
             ? parseProducts(pData)
-            : FALLBACK_PRODUCTS;
+            : useFallback ? FALLBACK_PRODUCTS : [];
       } else {
-        newProducts = FALLBACK_PRODUCTS;
+        newProducts = useFallback ? FALLBACK_PRODUCTS : [];
       }
 
       if (sResult.status === "fulfilled") {
@@ -519,19 +604,14 @@ export default function Home() {
         newSellers =
           Array.isArray(sData) && sData.length > 0
             ? parseSellers(sData)
-            : FALLBACK_SELLERS;
+            : useFallback ? FALLBACK_SELLERS : [];
       } else {
-        newSellers = FALLBACK_SELLERS;
+        newSellers = useFallback ? FALLBACK_SELLERS : [];
       }
 
-      // Only update state (and trigger re-render) when there was no fresh cache.
-      // If we already rendered from cache, skip the state update to prevent flicker —
-      // just silently refresh sessionStorage so the next visit gets updated data.
-      if (!hasFreshCache) {
-        setProducts(newProducts);
-        setSellers(newSellers);
-        setLoading(false);
-      }
+      setProducts(newProducts);
+      setSellers(newSellers);
+      setLoading(false);
 
       // Always refresh sessionStorage so the next visit gets the latest data
       try {
@@ -551,7 +631,7 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [countryCode]);
 
   // ── Hero auto-rotation ────────────────────────────────────────────────────────
   const heroTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -686,7 +766,7 @@ export default function Home() {
                 <div style={{ flexShrink: 0, width: 240 }}>
                   <Image src="/images/logos/procur-logo.svg" alt="Procur" width={80} height={21} style={{ filter: "brightness(0) invert(1)", opacity: 0.75 }} />
                   <p style={{ fontSize: 12, color: "rgba(245,241,234,.55)", lineHeight: 1.65, marginTop: 16, marginBottom: 0 }}>
-                    Procur is Grenada&apos;s agricultural marketplace, purpose-built to shorten supply chains and strengthen local food economies.
+                    Procur is {currentCountryName}&apos;s agricultural marketplace, purpose-built to shorten supply chains and strengthen local food economies.
                   </p>
                 </div>
                 <div style={{ flex: 1, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20 }}>
@@ -710,7 +790,7 @@ export default function Home() {
                 </div>
               </div>
               <div style={{ paddingTop: 18, paddingBottom: 28, borderTop: "1px solid rgba(245,241,234,.1)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <p style={{ fontSize: 11, color: "rgba(245,241,234,.35)", margin: 0 }}>&copy; 2026 Procur Grenada Ltd. All rights reserved.</p>
+                <p style={{ fontSize: 11, color: "rgba(245,241,234,.35)", margin: 0 }}>&copy; 2026 Procur {currentCountryName} Ltd. All rights reserved.</p>
                 <div style={{ display: "flex", gap: 16 }}>
                   {[{ label: "Privacy", href: "/legal/privacy" }, { label: "Terms", href: "/legal/terms" }, { label: "Cookies", href: "/legal/cookies" }, { label: "Accessibility", href: "/accessibility" }].map((l) => (
                     <Link key={l.label} href={l.href} style={{ fontSize: 11, color: "rgba(245,241,234,.35)", textDecoration: "none" }}>{l.label}</Link>
@@ -900,10 +980,11 @@ export default function Home() {
         </div>
         <div style={{ padding: "12px 18px", borderTop: "1px solid #ebe7df" }}>
           {user ? (
-            <Link
-              href="/auth/signout"
+            <button
+              onClick={() => { setMenuOpen(false); setLogoutModalOpen(true); }}
               style={{
                 display: "block",
+                width: "100%",
                 padding: 9,
                 background: "#2d4a3e",
                 color: "#f5f1ea",
@@ -911,11 +992,12 @@ export default function Home() {
                 fontWeight: 700,
                 textAlign: "center",
                 borderRadius: 10,
-                textDecoration: "none",
+                border: "none",
+                cursor: "pointer",
               }}
             >
               Log out
-            </Link>
+            </button>
           ) : (
             <Link
               href="/login"
@@ -1245,7 +1327,7 @@ export default function Home() {
                 letterSpacing: ".03em",
               }}
             >
-              🇬🇩 Grenada
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><CountryFlag code={currentCountryIso} size={14} /> {currentCountryName}</span>
             </span>
           </Link>
           {/* Search bar — navigates to /browse?q=... */}
@@ -1376,6 +1458,131 @@ export default function Home() {
               flexShrink: 0,
             }}
           >
+            {/* Country picker */}
+            <div ref={countryPickerRef} style={{ position: "relative" }}>
+              <button
+                onClick={() => setCountryPickerOpen(!countryPickerOpen)}
+                aria-label="Change country"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  padding: "5px 8px",
+                  borderRadius: 999,
+                  cursor: "pointer",
+                  border: "none",
+                  outline: "none",
+                  background: "transparent",
+                  flexShrink: 0,
+                }}
+              >
+                <CountryFlag code={currentCountryIso} size={22} />
+                <span className="v6-acct-desktop" style={{ fontSize: 11.5, fontWeight: 600, color: "#f5f1ea", lineHeight: 1 }}>{currentCountryName}</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="rgba(245,241,234,.5)" strokeWidth="2" width={10} height={10}>
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </button>
+            </div>
+            {/* Country selector modal */}
+            {countryPickerOpen && (
+              <>
+                <div
+                  onClick={() => setCountryPickerOpen(false)}
+                  style={{
+                    position: "fixed",
+                    inset: 0,
+                    background: "rgba(0,0,0,.4)",
+                    backdropFilter: "blur(4px)",
+                    WebkitBackdropFilter: "blur(4px)",
+                    zIndex: 9998,
+                  }}
+                />
+                <div
+                  style={{
+                    position: "fixed",
+                    top: "50%",
+                    left: "50%",
+                    transform: "translate(-50%, -50%)",
+                    background: "#fff",
+                    borderRadius: 24,
+                    zIndex: 9999,
+                    width: "90%",
+                    maxWidth: 400,
+                    overflow: "hidden",
+                  }}
+                >
+                  <div style={{ padding: "24px 24px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <h3 style={{ fontSize: 18, fontWeight: 700, color: "#1a1a1a", margin: 0, letterSpacing: "-0.01em" }}>
+                      Choose your country
+                    </h3>
+                    <button
+                      onClick={() => setCountryPickerOpen(false)}
+                      style={{ width: 30, height: 30, borderRadius: 999, border: "none", outline: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" width={18} height={18}>
+                        <path d="M18 6L6 18M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div style={{ padding: "16px 16px 20px", maxHeight: 400, overflowY: "auto" }}>
+                    {countries.map((c) => {
+                      const isActive = c.code === countryCode;
+                      return (
+                        <button
+                          key={c.code}
+                          onClick={() => handleCountrySelect(c.code)}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 16,
+                            width: "100%",
+                            padding: "14px 16px",
+                            border: "none",
+                            borderRadius: 14,
+                            background: isActive ? "#2d4a3e" : "transparent",
+                            cursor: "pointer",
+                            textAlign: "left",
+                            outline: "none",
+                            transition: "background .15s ease",
+                            marginBottom: 4,
+                          }}
+                          onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "rgba(0,0,0,.035)"; }}
+                          onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
+                        >
+                          <div style={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: 10,
+                            background: isActive ? "rgba(255,255,255,.15)" : "rgba(0,0,0,.04)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
+                            overflow: "hidden",
+                          }}>
+                            <CountryFlag code={c.country_code} size={28} />
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 14.5, fontWeight: 600, color: isActive ? "#fff" : "#1a1a1a", lineHeight: 1.2 }}>
+                              {c.name}
+                            </div>
+                            <div style={{ fontSize: 11.5, color: isActive ? "rgba(255,255,255,.55)" : "rgba(0,0,0,.35)", marginTop: 3, lineHeight: 1 }}>
+                              {c.currency}
+                            </div>
+                          </div>
+                          {isActive && (
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width={18} height={18} style={{ flexShrink: 0, opacity: 0.8 }}>
+                              <path d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            )}
+
             {/* Mobile search icon — hidden on desktop via CSS */}
             <button
               onClick={() => { setSearchModalOpen(true); setTimeout(() => mobileSearchRef.current?.focus(), 80); }}
@@ -1605,7 +1812,7 @@ export default function Home() {
 
       {/* ── Hero carousel ── */}
       <div className="v6-hero-wrap" style={{ position: "relative", height: 580, overflow: "hidden" }}>
-        {HERO_SLIDES.map((slide, i) => {
+        {heroSlides.map((slide, i) => {
           const isActive = heroIdx === i;
           const isPrev = prevHeroIdx === i;
           return (
@@ -1673,7 +1880,7 @@ export default function Home() {
                     margin: "0 0 16px",
                   }}
                 >
-                  Procur · Grenada
+                  Procur · {currentCountryName}
                 </p>
                 <h2
                   className="v6-hero-h2"
@@ -1929,13 +2136,64 @@ export default function Home() {
               ))}
         </div>
 
+        {/* ── Empty state when no products for this country ── */}
+        {!loading && products.length === 0 && (
+          <div style={{ textAlign: "center", padding: "120px 20px 80px" }}>
+            <div style={{
+              width: 72,
+              height: 72,
+              borderRadius: 999,
+              background: "rgba(45,74,62,.06)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              margin: "0 auto 24px",
+            }}>
+              <CountryFlag code={currentCountryIso} size={40} />
+            </div>
+            <h3 style={{ fontSize: 24, fontWeight: 700, color: "#1c2b23", margin: "0 0 10px", lineHeight: 1.3, letterSpacing: "-0.01em" }}>
+              Coming soon to {currentCountryName}
+            </h3>
+            <p style={{ fontSize: 14.5, color: "#8a9e92", maxWidth: 380, margin: "0 auto 40px", lineHeight: 1.6 }}>
+              We&apos;re working to bring Procur to {currentCountryName}. Explore fresh produce available in other countries.
+            </p>
+            <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10 }}>
+              {countries.filter((c) => c.code !== countryCode).map((c) => (
+                <button
+                  key={c.code}
+                  onClick={() => handleCountrySelect(c.code)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "14px 22px",
+                    borderRadius: 14,
+                    border: "none",
+                    background: "rgba(45,74,62,.045)",
+                    cursor: "pointer",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: "#2d4a3e",
+                    transition: "all .2s ease",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(45,74,62,.09)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(45,74,62,.045)"; }}
+                >
+                  <CountryFlag code={c.country_code} size={22} />
+                  {c.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* ── Best sellers scroll ── */}
-        <SecH
-          title="Best sellers in Grenada"
+        {products.length > 0 && <SecH
+          title={`Best sellers in ${currentCountryName}`}
           linkText="View all"
           linkHref="/browse"
-        />
-        <div style={{ position: "relative" }}>
+        />}
+        {(loading || products.length > 0) && <div style={{ position: "relative" }}>
           <div ref={bestSellersRef} className="v6-prod-scroll">
             {loading
               ? [...Array(8)].map((_, i) => (
@@ -2089,15 +2347,15 @@ export default function Home() {
               <path d="M9 18l6-6-6-6" />
             </svg>
           </button>
-        </div>
+        </div>}
 
         {/* ── Meet the farmers ── */}
-        <SecH
+        {(loading || sellers.length > 0) && <SecH
           title="Meet the farmers"
           linkText="All sellers"
           linkHref="/sellers"
-        />
-        <div className="v6-seller-grid">
+        />}
+        {(loading || sellers.length > 0) && <div className="v6-seller-grid">
           {loading
             ? [...Array(4)].map((_, i) => (
                 <div
@@ -2195,7 +2453,7 @@ export default function Home() {
                         marginBottom: 10,
                       }}
                     >
-                      {s.location || "Grenada"}
+                      {s.location || currentCountryName}
                     </div>
                     <div
                       style={{
@@ -2246,7 +2504,44 @@ export default function Home() {
                   </div>
                 </Link>
               ))}
-        </div>
+        </div>}
+
+        {/* ── Browse other countries ── */}
+        {!loading && products.length > 0 && countries.length > 1 && (
+          <div style={{ padding: "20px 0 0" }}>
+            <SecH title="Browse other countries" />
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+              {countries.filter((c) => c.code !== countryCode).map((c) => (
+                <button
+                  key={c.code}
+                  onClick={() => handleCountrySelect(c.code)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "12px 20px",
+                    borderRadius: 12,
+                    border: "1.5px solid rgba(45,74,62,.1)",
+                    background: "#f5f1ea",
+                    cursor: "pointer",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: "#2d4a3e",
+                    transition: "all .15s",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#2d4a3e"; e.currentTarget.style.background = "#fff"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(45,74,62,.1)"; e.currentTarget.style.background = "#f5f1ea"; }}
+                >
+                  <CountryFlag code={c.country_code} size={28} />
+                  <div style={{ textAlign: "left" }}>
+                    <div style={{ lineHeight: 1.2 }}>{c.name}</div>
+                    <div style={{ fontSize: 11, fontWeight: 400, color: "#8a9e92", marginTop: 2 }}>{c.currency}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── Testimonials ── */}
         <SecH title="What buyers & sellers say" />
@@ -2574,62 +2869,44 @@ export default function Home() {
                   marginBottom: 0,
                 }}
               >
-                Procur is Grenada&apos;s agricultural marketplace, purpose-built
+                Procur is {currentCountryName}&apos;s agricultural marketplace, purpose-built
                 to shorten supply chains and strengthen local food economies.
               </p>
               <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
                 {[
-                  <svg
-                    key="x"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    width={14}
-                    height={14}
-                  >
-                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.65l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                  </svg>,
-                  <svg
-                    key="ig"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    width={14}
-                    height={14}
-                  >
-                    <rect x="2" y="2" width="20" height="20" rx="5" />
-                    <circle cx="12" cy="12" r="4.5" />
-                    <circle
-                      cx="17.5"
-                      cy="6.5"
-                      r="1"
-                      fill="currentColor"
-                      stroke="none"
-                    />
-                  </svg>,
-                  <svg
-                    key="li"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    width={14}
-                    height={14}
-                  >
-                    <path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z" />
-                    <circle cx="4" cy="4" r="2" />
-                  </svg>,
-                  <svg
-                    key="fb"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    width={14}
-                    height={14}
-                  >
-                    <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z" />
-                  </svg>,
-                ].map((icon, i) => (
+                  {
+                    href: "https://www.facebook.com/procurapp",
+                    icon: (
+                      <svg viewBox="0 0 24 24" fill="currentColor" width={14} height={14}>
+                        <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z" />
+                      </svg>
+                    ),
+                  },
+                  {
+                    href: "https://www.linkedin.com/company/procurinc",
+                    icon: (
+                      <svg viewBox="0 0 24 24" fill="currentColor" width={14} height={14}>
+                        <path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z" />
+                        <circle cx="4" cy="4" r="2" />
+                      </svg>
+                    ),
+                  },
+                  {
+                    href: "https://www.instagram.com/procurhq",
+                    icon: (
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width={14} height={14}>
+                        <rect x="2" y="2" width="20" height="20" rx="5" />
+                        <circle cx="12" cy="12" r="4.5" />
+                        <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+                      </svg>
+                    ),
+                  },
+                ].map((social) => (
                   <a
-                    key={i}
-                    href="#"
+                    key={social.href}
+                    href={social.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     style={{
                       width: 34,
                       height: 34,
@@ -2642,7 +2919,7 @@ export default function Home() {
                       textDecoration: "none",
                     }}
                   >
-                    {icon}
+                    {social.icon}
                   </a>
                 ))}
               </div>
@@ -2750,7 +3027,7 @@ export default function Home() {
                 margin: 0,
               }}
             >
-              &copy; 2026 Procur Grenada Ltd. All rights reserved.
+              &copy; 2026 Procur {currentCountryName} Ltd. All rights reserved.
             </p>
             <div className="v6-ft-links" style={{ display: "flex", gap: 16 }}>
               {[
@@ -2776,6 +3053,99 @@ export default function Home() {
         </div>
       </footer>
     </div>
+
+    {/* Logout confirmation modal */}
+    {logoutModalOpen && (
+      <>
+        <div
+          onClick={() => setLogoutModalOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,.4)",
+            backdropFilter: "blur(3px)",
+            WebkitBackdropFilter: "blur(3px)",
+            zIndex: 9998,
+          }}
+        />
+        <div
+          style={{
+            position: "fixed",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            background: "#fff",
+            borderRadius: 20,
+            padding: "32px 28px 24px",
+            width: "90%",
+            maxWidth: 340,
+            zIndex: 9999,
+            textAlign: "center",
+          }}
+        >
+          <div style={{
+            width: 52,
+            height: 52,
+            borderRadius: 999,
+            background: "rgba(220,38,38,.08)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            margin: "0 auto 18px",
+          }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="1.8" strokeLinecap="round" width={24} height={24}>
+              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+          </div>
+          <h3 style={{ fontSize: 18, fontWeight: 700, color: "#1c2b23", margin: "0 0 6px" }}>
+            Log out?
+          </h3>
+          <p style={{ fontSize: 13.5, color: "#8a9e92", margin: "0 0 24px", lineHeight: 1.5 }}>
+            Are you sure you want to log out of your account?
+          </p>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button
+              onClick={() => setLogoutModalOpen(false)}
+              style={{
+                flex: 1,
+                padding: "11px 0",
+                borderRadius: 12,
+                border: "1.5px solid rgba(0,0,0,.1)",
+                background: "#fff",
+                fontSize: 13.5,
+                fontWeight: 600,
+                color: "#1c2b23",
+                cursor: "pointer",
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                setLogoutModalOpen(false);
+                appDispatch(signout());
+                router.replace("/login");
+              }}
+              style={{
+                flex: 1,
+                padding: "11px 0",
+                borderRadius: 12,
+                border: "none",
+                background: "#dc2626",
+                fontSize: 13.5,
+                fontWeight: 600,
+                color: "#fff",
+                cursor: "pointer",
+              }}
+            >
+              Log out
+            </button>
+          </div>
+        </div>
+      </>
+    )}
     </>
   );
 }
