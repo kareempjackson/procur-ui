@@ -9,6 +9,7 @@ import {
   updateProfile,
   type UpdateProfileDto,
 } from "@/store/slices/profileSlice";
+import { fetchActiveCountries, selectCountries } from "@/store/slices/countrySlice";
 import { getApiClient } from "@/lib/apiClient";
 
 const card: React.CSSProperties = { background: "#fff", border: "1px solid #ebe7df", borderRadius: 10 };
@@ -32,7 +33,21 @@ export default function SellerProfilePage() {
   const user = useAppSelector(selectAuthUser);
   const profileState = useAppSelector((s) => s.profile);
   const profile = profileState.profile;
+  const availableCountries = useAppSelector(selectCountries);
   const { show } = useToast();
+
+  useEffect(() => { dispatch(fetchActiveCountries()); }, [dispatch]);
+
+  // Country from organization registration — not editable
+  const orgCountryName = (() => {
+    const org = profile?.organization;
+    if (!org) return "";
+    if (org.countryId && availableCountries.length > 0) {
+      const match = availableCountries.find((c) => c.code === org.countryId);
+      if (match) return match.name;
+    }
+    return org.country || "";
+  })();
 
   const [activeTab, setActiveTab] = useState<"profile" | "password">("profile");
   const [fullname, setFullname] = useState(user?.fullname || "");
@@ -55,7 +70,7 @@ export default function SellerProfilePage() {
       setPhone(profile.phone_number || "");
       const org = profile.organization;
       if (org) {
-        const addr = org.address || [org.city, org.state, org.postalCode, org.country].filter(Boolean).join(", ");
+        const addr = org.address || [org.city, org.state, org.postalCode].filter(Boolean).join(", ");
         if (addr) setAddress(addr);
       }
     }
@@ -179,6 +194,11 @@ export default function SellerProfilePage() {
                 <div>
                   <span style={label}>Account Type</span>
                   <input type="text" disabled value={(user?.accountType || "").toString().toUpperCase()} style={{ ...inputStyle, background: "#f4f1eb", color: "#8a9e92", cursor: "not-allowed" }} />
+                </div>
+                <div>
+                  <span style={label}>Country</span>
+                  <input type="text" disabled value={orgCountryName || "—"} style={{ ...inputStyle, background: "#f4f1eb", color: "#8a9e92", cursor: "not-allowed" }} />
+                  <span style={{ fontSize: 10, color: "#8a9e92", marginTop: 3, display: "block" }}>Set during registration</span>
                 </div>
                 <div style={{ gridColumn: "1 / -1" }}>
                   <span style={label}>Address</span>

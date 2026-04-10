@@ -7,6 +7,7 @@ import { useAppDispatch, useAppSelector } from "@/store";
 import { selectAuthUser } from "@/store/slices/authSlice";
 import { getApiClient } from "@/lib/apiClient";
 import { fetchProfile, updateProfile } from "@/store/slices/profileSlice";
+import { fetchActiveCountries, selectCountries } from "@/store/slices/countrySlice";
 import { useToast } from "@/components/ui/Toast";
 import ProcurLoader from "@/components/ProcurLoader";
 
@@ -188,7 +189,21 @@ export default function SellerBusinessSettingsPage() {
   const dispatch      = useAppDispatch();
   const profile       = useAppSelector((s) => s.profile.profile);
   const profileStatus = useAppSelector((s) => s.profile.status);
+  const availableCountries = useAppSelector(selectCountries);
   const { show }      = useToast();
+
+  useEffect(() => { dispatch(fetchActiveCountries()); }, [dispatch]);
+
+  // Country from organization registration — not editable
+  const orgCountryName = (() => {
+    const org = profile?.organization;
+    if (!org) return "";
+    if (org.countryId && availableCountries.length > 0) {
+      const match = availableCountries.find((c) => c.code === org.countryId);
+      if (match) return match.name;
+    }
+    return org.country || "";
+  })();
 
   type Tab = "general" | "team" | "payments";
   const [activeTab, setActiveTab] = useState<Tab>("general");
@@ -236,7 +251,7 @@ export default function SellerBusinessSettingsPage() {
     setBusinessType(org?.businessType || "");
     setAddress(
       org?.address ||
-      [org?.city, org?.state, org?.postalCode, org?.country].filter(Boolean).join(", ") || ""
+      [org?.city, org?.state, org?.postalCode].filter(Boolean).join(", ") || ""
     );
     setPhone(profile.phone_number || "");
     setDescription(org?.description || "");
@@ -282,7 +297,7 @@ export default function SellerBusinessSettingsPage() {
     setBusinessType(org?.businessType || "");
     setAddress(
       org?.address ||
-      [org?.city, org?.state, org?.postalCode, org?.country].filter(Boolean).join(", ") || ""
+      [org?.city, org?.state, org?.postalCode].filter(Boolean).join(", ") || ""
     );
     setPhone(profile.phone_number || "");
     setDescription(org?.description || "");
@@ -608,6 +623,14 @@ export default function SellerBusinessSettingsPage() {
                     onChange={e => setPhone(e.target.value)}
                     placeholder="+1 (555) 123-4567" style={inputStyle}
                   />
+                </div>
+                <div>
+                  <label style={labelStyle}>Country</label>
+                  <input
+                    type="text" disabled value={orgCountryName || "—"}
+                    style={{ ...inputStyle, background: "#f4f1eb", color: MUTED, cursor: "not-allowed" }}
+                  />
+                  <span style={{ fontSize: 10, color: MUTED, marginTop: 3, display: "block" }}>Set during registration</span>
                 </div>
                 <div>
                   <label style={labelStyle}>Business Address</label>
