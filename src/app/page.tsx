@@ -9,6 +9,7 @@ import { selectAuthUser, signout } from "@/store/slices/authSlice";
 import {
   fetchActiveCountries,
   setCountry,
+  setCountryFromCode,
   selectCountry,
   selectCountries,
 } from "@/store/slices/countrySlice";
@@ -423,15 +424,25 @@ export default function Home() {
   const [countryPickerOpen, setCountryPickerOpen] = useState(false);
   const countryPickerRef = useRef<HTMLDivElement>(null);
 
+  // Read cookie synchronously so we never flash the wrong country on navigation
+  const cookieCountryCode = typeof document !== "undefined"
+    ? document.cookie.match(/(?:^|;\s*)country_code=([^;]*)/)?.[1] || null
+    : null;
+  const effectiveCountryCode = countryCode || cookieCountryCode || "gda";
+
   useEffect(() => {
     appDispatch(fetchActiveCountries());
-  }, [appDispatch]);
+    // If Redux has no country but cookie does, hydrate Redux from cookie
+    if (!countryCode && cookieCountryCode) {
+      appDispatch(setCountryFromCode(cookieCountryCode));
+    }
+  }, [appDispatch, countryCode, cookieCountryCode]);
 
   // Modal has its own backdrop click-to-close — no outside-click listener needed
 
-  const currentCountry = countries.find((i) => i.code === countryCode);
+  const currentCountry = countries.find((i) => i.code === effectiveCountryCode);
   const currentCountryIso = currentCountry?.country_code || "GD";
-  const currentCountryName = countryName || "Grenada";
+  const currentCountryName = currentCountry?.name || countryName || "Grenada";
 
   const heroSlides = useMemo(() => getHeroSlides(currentCountryName), [currentCountryName]);
 
@@ -486,7 +497,7 @@ export default function Home() {
     let cancelled = false;
     setLoading(true);
     const api = getApiClient(() => null);
-    const activeCountryCode = countryCode || "gda";
+    const activeCountryCode = effectiveCountryCode;
     const CACHE_KEY = `procur:home:v2:${activeCountryCode}`;
     const CACHE_TTL = 2 * 60 * 1000; // 2 minutes
 
@@ -631,7 +642,7 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [countryCode]);
+  }, [effectiveCountryCode]);
 
   // ── Hero auto-rotation ────────────────────────────────────────────────────────
   const heroTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
