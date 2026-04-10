@@ -2030,6 +2030,7 @@ export default function Home() {
         pointerEvents: transitioning ? "none" : "auto",
       }}>
         {/* ── Category shelf (overlaps hero) ── */}
+        {(loading || categoryBlocks.length > 0) && (
         <div className="v6-shelf">
           {loading
             ? [...Array(3)].map((_, i) => (
@@ -2068,6 +2069,7 @@ export default function Home() {
                 </div>
               ))}
         </div>
+        )}
 
         {/* ── Empty state when no products for this country ── */}
         {!loading && products.length === 0 && (
