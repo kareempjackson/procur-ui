@@ -1,6 +1,27 @@
 @import "tailwindcss";
 @import "leaflet/dist/leaflet.css";
 
+/* Route transition progress bar */
+@keyframes routeProgress {
+  0%   { width: 0; }
+  40%  { width: 60%; }
+  80%  { width: 85%; }
+  100% { width: 100%; }
+}
+
+/* Native View Transition API (Chrome 111+, Safari 18+) */
+@view-transition {
+  navigation: auto;
+}
+::view-transition-old(root) {
+  animation: 150ms ease-out both fade-out;
+}
+::view-transition-new(root) {
+  animation: 200ms ease-in both fade-in;
+}
+@keyframes fade-out { to { opacity: 0; } }
+@keyframes fade-in { from { opacity: 0; } }
+
 @font-face {
   font-family: 'Urbanist';
   src: url('/fonts/Urbanist-Regular.ttf') format('truetype');

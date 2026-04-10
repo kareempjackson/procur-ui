@@ -13,7 +13,7 @@ import {
 } from "@/store/slices/notificationsSlice";
 import { useNotificationsSocket } from "@/hooks/useNotificationsSocket";
 import { fetchProfile } from "@/store/slices/profileSlice";
-import { fetchActiveCountries, selectCountry, selectCountries } from "@/store/slices/countrySlice";
+import { fetchActiveCountries, selectCountry, selectCountries, setCountryFromCode } from "@/store/slices/countrySlice";
 
 function CountryFlag({ code, size = 20 }: { code: string; size?: number }) {
   return (
@@ -111,6 +111,19 @@ const SellerTopNavigation: React.FC = () => {
   useEffect(() => {
     if (!profile && profileStatus === "idle") dispatch(fetchProfile());
   }, [dispatch, profile, profileStatus]);
+
+  // Auto-set country from seller profile when not yet selected
+  useEffect(() => {
+    if (!activeCountryCode && availableCountries.length > 0 && profile?.organization?.country) {
+      const match = availableCountries.find(
+        (c) => c.country_code === profile.organization!.country || c.code === profile.organization!.country,
+      );
+      if (match) {
+        dispatch(setCountryFromCode(match.code));
+        document.cookie = `country_code=${match.code};path=/;max-age=${60 * 60 * 24 * 30};samesite=lax`;
+      }
+    }
+  }, [activeCountryCode, availableCountries, profile, dispatch]);
 
   const displayName =
     profile?.fullname?.trim() ||
@@ -274,7 +287,7 @@ const SellerTopNavigation: React.FC = () => {
           >
             seller
             <span style={{ display: "flex", alignItems: "center", gap: 4, color: "rgba(0,0,0,.35)", fontWeight: 600, textTransform: "none", letterSpacing: 0 }}>
-              · <CountryFlag code={sellerCountryIso} size={13} /> {activeCountryName || "Grenada"}
+              · <CountryFlag code={sellerCountryIso} size={13} /> {activeCountryName || ""}
             </span>
           </span>
         </Link>
@@ -290,7 +303,7 @@ const SellerTopNavigation: React.FC = () => {
           }}
         >
           {/* Text links */}
-          <Link href="/" style={textLinkStyle("/", true)}>Browse</Link>
+          <Link href={activeCountryCode ? `/${activeCountryCode}` : "/"} style={textLinkStyle("/", true)}>Browse</Link>
           <Link href="/seller" style={textLinkStyle("/seller", true)}>Dashboard</Link>
 
           {/* Icon-only links (verified only) */}
@@ -513,7 +526,7 @@ const SellerTopNavigation: React.FC = () => {
           <div style={{ padding: "8px 16px 14px" }}>
             {[
               { label: "Dashboard", href: "/seller" },
-              { label: "Browse Marketplace", href: "/" },
+              { label: "Browse Marketplace", href: activeCountryCode ? `/${activeCountryCode}` : "/" },
               { label: "Orders", href: "/seller/orders" },
               { label: "Inventory", href: "/seller/products" },
               { label: "Messages", href: "/seller/messages" },

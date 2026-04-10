@@ -92,7 +92,7 @@ const BuyerTopNavigation: React.FC = () => {
   const resolvedCode = homeCountryCode || reduxCountryCode || "gda";
   const homeCountry = availableCountries.find((c) => c.code === resolvedCode);
   const homeCountryIso = homeCountry?.country_code || "GD";
-  const homeCountryName = homeCountry?.name || "Grenada";
+  const homeCountryName = homeCountry?.name || "";
 
   const displayName =
     (authUser?.fullname?.trim()) ||

@@ -15,6 +15,9 @@ const supabaseHostFromEnv = (() => {
 const SUPABASE_PROD_HOST = "dbuxyviftwahgrgiftrw.supabase.co";
 
 const nextConfig: NextConfig = {
+  experimental: {
+    viewTransition: true,
+  },
   eslint: {
     ignoreDuringBuilds: true,
   },

@@ -4,6 +4,7 @@ import "./globals.css";
 import StoreProvider from "@/store/StoreProvider";
 import { I18nProvider } from "@/lib/i18n/I18nProvider";
 import BuyerAssistantBot from "@/components/bot/BuyerAssistantBot";
+import RouteTransition from "@/components/RouteTransition";
 
 const GA_MEASUREMENT_ID = "G-0W1025KKQ3";
 
@@ -134,7 +135,9 @@ export default function RootLayout({
       <body className="antialiased">
         <StoreProvider>
           <I18nProvider>
-            {children}
+            <RouteTransition>
+              {children}
+            </RouteTransition>
             <BuyerAssistantBot />
           </I18nProvider>
         </StoreProvider>
