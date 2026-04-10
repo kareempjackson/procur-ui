@@ -462,7 +462,7 @@ export default function Home() {
     // Set cookie so the API client sends the new country header
     document.cookie = `country_code=${code}; path=/; max-age=${60 * 60 * 24 * 30}; samesite=lax`;
 
-    // Update URL without a full navigation to avoid page flash
+    // Navigate to the country path — use router.replace for proper Next.js routing
     const segments = (pathname || "").split("/").filter(Boolean);
     const firstSeg = segments[0];
     const isCountryPath = countries.some((i) => i.code === firstSeg);
@@ -471,7 +471,7 @@ export default function Home() {
     } else {
       segments.unshift(code);
     }
-    window.history.replaceState(null, "", `/${segments.join("/")}`);
+    router.replace(`/${segments.join("/")}`);
   };
 
   // Data state — empty until both requests settle; skeleton shown on first load only
