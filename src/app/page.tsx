@@ -462,7 +462,7 @@ export default function Home() {
     // Set cookie so the API client sends the new country header
     document.cookie = `country_code=${code}; path=/; max-age=${60 * 60 * 24 * 30}; samesite=lax`;
 
-    // Navigate to the country path
+    // Update URL without a full navigation to avoid page flash
     const segments = (pathname || "").split("/").filter(Boolean);
     const firstSeg = segments[0];
     const isCountryPath = countries.some((i) => i.code === firstSeg);
@@ -471,13 +471,15 @@ export default function Home() {
     } else {
       segments.unshift(code);
     }
-    router.push(`/${segments.join("/")}`);
+    window.history.replaceState(null, "", `/${segments.join("/")}`);
   };
 
-  // Data state — empty until both requests settle; skeleton shown in the interim
+  // Data state — empty until both requests settle; skeleton shown on first load only
   const [products, setProducts] = useState<LandingProduct[]>([]);
   const [sellers, setSellers] = useState<LandingSeller[]>([]);
   const [loading, setLoading] = useState(true);
+  const [transitioning, setTransitioning] = useState(false);
+  const hasLoadedOnce = useRef(false);
 
   // UI state
   const [heroIdx, setHeroIdx] = useState(0);
@@ -495,7 +497,12 @@ export default function Home() {
   //    This makes revisits within the same browser session feel near-instant.
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    // Only show full skeleton on first load; subsequent switches use a subtle fade
+    if (hasLoadedOnce.current) {
+      setTransitioning(true);
+    } else {
+      setLoading(true);
+    }
     const api = getApiClient(() => null);
     const activeCountryCode = effectiveCountryCode;
     const CACHE_KEY = `procur:home:v2:${activeCountryCode}`;
@@ -578,6 +585,8 @@ export default function Home() {
           setProducts(cp);
           setSellers(cs);
           setLoading(false);
+          setTransitioning(false);
+          hasLoadedOnce.current = true;
           hasFreshCache = true;
         }
       }
@@ -623,6 +632,8 @@ export default function Home() {
       setProducts(newProducts);
       setSellers(newSellers);
       setLoading(false);
+      setTransitioning(false);
+      hasLoadedOnce.current = true;
 
       // Always refresh sessionStorage so the next visit gets the latest data
       try {
@@ -2013,7 +2024,11 @@ export default function Home() {
       </div>
 
       {/* ── Main content wrapper ── */}
-      <div className="v6-cw">
+      <div className="v6-cw" style={{
+        opacity: transitioning ? 0.4 : 1,
+        transition: "opacity .3s ease",
+        pointerEvents: transitioning ? "none" : "auto",
+      }}>
         {/* ── Category shelf (overlaps hero) ── */}
         <div className="v6-shelf">
           {loading

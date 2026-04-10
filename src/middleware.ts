@@ -91,11 +91,12 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Root path → geo-redirect to country
+  // Root path → redirect to country (prefer existing cookie, then geo-IP, then default)
   if (pathname === "/") {
-    const isoCode =
-      req.headers.get("x-vercel-ip-country") || "";
-    const countryCode = COUNTRY_TO_CODE[isoCode] || DEFAULT_COUNTRY;
+    const existingCode = req.cookies.get("country_code")?.value;
+    const isoCode = req.headers.get("x-vercel-ip-country") || "";
+    const geoCode = COUNTRY_TO_CODE[isoCode] || DEFAULT_COUNTRY;
+    const countryCode = existingCode || geoCode;
     const url = req.nextUrl.clone();
     url.pathname = `/${countryCode}`;
     const response = NextResponse.redirect(url);
