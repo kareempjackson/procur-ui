@@ -148,7 +148,7 @@ export default function SupplierClient({ supplierId }: { supplierId: string }) {
 
   const displayName = supplier.name || "Supplier";
   const sellerInit = displayName.trim().charAt(0).toUpperCase();
-  const readableLocation = supplier.location || "Grenada";
+  const readableLocation = supplier.location || "";
   const rating = supplier.average_rating ?? 0;
   const reviewCount = supplier.total_reviews || supplier.review_count || 0;
 

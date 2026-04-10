@@ -247,7 +247,7 @@ function BrowseContent() {
     (async () => {
       try {
         const res = await api.get("/marketplace/products", {
-          params: { limit: 100, location: "Grenada" },
+          params: { limit: 100 },
         });
         if (cancelled) return;
         const data = res?.data?.products;
@@ -1586,7 +1586,7 @@ function BrowseContent() {
                     <div
                       style={{ marginTop: 6, fontSize: 10.5, color: "#8a9e92" }}
                     >
-                      {p.seller.location || "Grenada"}
+                      {p.seller.location || ""}
                     </div>
                   </div>
                 </Link>

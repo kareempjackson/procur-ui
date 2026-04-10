@@ -758,7 +758,7 @@ export default function BuyerClient() {
                         <SellerLogoImg src={seller.logo_url} alt={seller.name} name={seller.name} size={44} />
                       </div>
                       <div style={{ fontSize: 14, fontWeight: 700, marginTop: 6, marginBottom: 2 }}>{seller.name}</div>
-                      <div style={{ fontSize: 11, color: "#8a9e92", marginBottom: 8 }}>{seller.location || "Grenada"}</div>
+                      <div style={{ fontSize: 11, color: "#8a9e92", marginBottom: 8 }}>{seller.location || ""}</div>
                       {seller.completed_orders != null
                         ? <div style={{ fontSize: 11, color: "#6a7f73" }}>{seller.completed_orders} orders completed</div>
                         : <div style={{ fontSize: 11, color: "#6a7f73" }}>Verified supplier</div>}

@@ -49,9 +49,7 @@ export default function MarketplaceClient() {
   const [currentDealSlide, setCurrentDealSlide] = useState(0);
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [selectedLocations, setSelectedLocations] = useState<string[]>([
-    "Grenada",
-  ]);
+  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 100]);
   const [minRating, setMinRating] = useState<number>(0);
   const [sortBy, setSortBy] = useState<
@@ -276,8 +274,10 @@ export default function MarketplaceClient() {
   const [allProducts, setAllProducts] = useState<MarketplaceCardProduct[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Limit location filter options to Grenada only for initial launch
-  const allLocations = ["Grenada"];
+  // Derive available locations from loaded products
+  const allLocations = Array.from(
+    new Set(allProducts.map((p) => p.location).filter(Boolean) as string[])
+  ).sort();
   const allTags = Array.from(
     new Set(allProducts.flatMap((p) => p.tags))
   ).sort();
@@ -355,7 +355,6 @@ export default function MarketplaceClient() {
             limit: 24,
             sort_by: "created_at",
             sort_order: "desc",
-            location: "Grenada",
           },
         });
 

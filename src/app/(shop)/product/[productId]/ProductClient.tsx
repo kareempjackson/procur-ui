@@ -179,7 +179,7 @@ export default function ProductClient({ productId }: { productId: string }) {
 
   const hasRating = typeof product.seller?.average_rating === "number";
   const sellerName = product.seller?.name || "Supplier";
-  const sellerLoc = product.seller?.location || "Grenada";
+  const sellerLoc = product.seller?.location || "";
   const sellerInit = sellerName.trim().charAt(0).toUpperCase();
 
   const harvestUpdate = product.harvest_update;
