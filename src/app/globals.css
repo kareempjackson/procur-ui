@@ -416,11 +416,14 @@ html {
 
 .v6-cat-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 280px));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 10px;
   margin-top: -80px;
   position: relative;
   z-index: 3;
+}
+.v6-cat-grid > * {
+  max-width: 380px;
 }
 
 .v6-cb-grid {
@@ -498,7 +501,7 @@ html {
 .v6-sn-scroll::-webkit-scrollbar { display: none; }
 
 @media (max-width: 1024px) {
-  .v6-cat-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 260px)); }
+  .v6-cat-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
   .v6-seller-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
