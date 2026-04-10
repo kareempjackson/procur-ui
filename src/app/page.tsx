@@ -1952,31 +1952,23 @@ export default function Home() {
           style={{
             position: "absolute",
             top: "50%",
-            left: 20,
+            left: 24,
             transform: "translateY(-50%)",
             zIndex: 3,
-            width: 40,
-            height: 40,
-            borderRadius: "50%",
+            width: 36,
+            height: 36,
+            borderRadius: 10,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            background: "rgba(245,241,234,.12)",
-            color: "rgba(245,241,234,.85)",
+            background: "#f5f1ea",
+            color: "#1c2b23",
             cursor: "pointer",
-            border: "1px solid rgba(245,241,234,.18)",
-            transition: "background .2s",
+            border: "none",
+            transition: "opacity .2s",
           }}
         >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            width={15}
-            height={15}
-          >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" width={15} height={15}>
             <path d="M15 18l-6-6 6-6" />
           </svg>
         </button>
@@ -1986,31 +1978,23 @@ export default function Home() {
           style={{
             position: "absolute",
             top: "50%",
-            right: 20,
+            right: 24,
             transform: "translateY(-50%)",
             zIndex: 3,
-            width: 40,
-            height: 40,
-            borderRadius: "50%",
+            width: 36,
+            height: 36,
+            borderRadius: 10,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            background: "rgba(245,241,234,.12)",
-            color: "rgba(245,241,234,.85)",
+            background: "#f5f1ea",
+            color: "#1c2b23",
             cursor: "pointer",
-            border: "1px solid rgba(245,241,234,.18)",
-            transition: "background .2s",
+            border: "none",
+            transition: "opacity .2s",
           }}
         >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            width={15}
-            height={15}
-          >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" width={15} height={15}>
             <path d="M9 18l6-6-6-6" />
           </svg>
         </button>
