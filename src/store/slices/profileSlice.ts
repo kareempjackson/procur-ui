@@ -44,6 +44,7 @@ export interface UserProfile {
     state?: string;
     postalCode?: string;
     country?: string;
+    countryId?: string;
     taxId?: string;
     website?: string;
     description?: string;

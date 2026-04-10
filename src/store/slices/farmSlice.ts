@@ -19,6 +19,7 @@ export type FarmProfile = {
   gps_lng: number | null;
   parish: string | null;
   country: string;
+  address: string | null;
   total_acreage: number | null;
   primary_crops: string[] | null;
   certifications: Certification[];

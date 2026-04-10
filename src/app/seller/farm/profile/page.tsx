@@ -11,6 +11,7 @@ import {
   Certification,
 } from "@/store/slices/farmSlice";
 import { fetchActiveCountries, selectCountries } from "@/store/slices/countrySlice";
+import { fetchProfile } from "@/store/slices/profileSlice";
 
 export default function FarmProfilePage() {
   const router = useRouter();
@@ -18,11 +19,27 @@ export default function FarmProfilePage() {
   const accessToken = useAppSelector((s) => s.auth.accessToken);
   const { profile, loading } = useAppSelector((s) => s.farm);
   const availableCountries = useAppSelector(selectCountries);
+  const userProfile = useAppSelector((s) => s.profile.profile);
+  const profileStatus = useAppSelector((s) => s.profile.status);
 
   useEffect(() => { dispatch(fetchActiveCountries()); }, [dispatch]);
+  useEffect(() => {
+    if (!userProfile && profileStatus === "idle") dispatch(fetchProfile());
+  }, [dispatch, userProfile, profileStatus]);
+
+  // Country comes from organization registration — not editable here
+  const orgCountryName = (() => {
+    const org = userProfile?.organization;
+    if (!org) return "";
+    if (org.countryId && availableCountries.length > 0) {
+      const match = availableCountries.find((c) => c.code === org.countryId);
+      if (match) return match.name;
+    }
+    return org.country || "";
+  })();
 
   const [parish, setParish] = useState("");
-  const [country, setCountry] = useState("GD");
+  const [address, setAddress] = useState("");
   const [gpsLat, setGpsLat] = useState("");
   const [gpsLng, setGpsLng] = useState("");
   const [acreage, setAcreage] = useState("");
@@ -39,7 +56,7 @@ export default function FarmProfilePage() {
   useEffect(() => {
     if (!profile) return;
     setParish(profile.parish ?? "");
-    setCountry(profile.country ?? "GD");
+    setAddress(profile.address ?? "");
     setGpsLat(profile.gps_lat?.toString() ?? "");
     setGpsLng(profile.gps_lng?.toString() ?? "");
     setAcreage(profile.total_acreage?.toString() ?? "");
@@ -73,7 +90,7 @@ export default function FarmProfilePage() {
         accessToken,
         payload: {
           parish: parish || undefined,
-          country: country || "GD",
+          address: address || undefined,
           gps_lat: gpsLat ? parseFloat(gpsLat) : undefined,
           gps_lng: gpsLng ? parseFloat(gpsLng) : undefined,
           total_acreage: acreage ? parseFloat(acreage) : undefined,
@@ -115,6 +132,17 @@ export default function FarmProfilePage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs text-[color:var(--secondary-muted-edge)] mb-1">
+                  Country
+                </label>
+                <div className="w-full rounded-lg border border-[color:var(--secondary-soft-highlight)] bg-gray-50 px-3 py-2 text-sm text-[color:var(--secondary-black)]">
+                  {orgCountryName || "—"}
+                </div>
+                <p className="text-[10px] text-[color:var(--secondary-muted-edge)] mt-1">
+                  Set during registration. Contact support to change.
+                </p>
+              </div>
+              <div>
+                <label className="block text-xs text-[color:var(--secondary-muted-edge)] mb-1">
                   Parish / District
                 </label>
                 <input
@@ -125,23 +153,18 @@ export default function FarmProfilePage() {
                   className="w-full rounded-lg border border-[color:var(--secondary-soft-highlight)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-accent2)]/30"
                 />
               </div>
-              <div>
-                <label className="block text-xs text-[color:var(--secondary-muted-edge)] mb-1">
-                  Country
-                </label>
-                <select
-                  value={country}
-                  onChange={(e) => setCountry(e.target.value)}
-                  className="w-full rounded-lg border border-[color:var(--secondary-soft-highlight)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-accent2)]/30"
-                >
-                  {availableCountries.map((c) => (
-                    <option key={c.code} value={c.country_code}>{c.name}</option>
-                  ))}
-                  {country && !availableCountries.some((c) => c.country_code === country) && (
-                    <option value={country}>{country}</option>
-                  )}
-                </select>
-              </div>
+            </div>
+            <div>
+              <label className="block text-xs text-[color:var(--secondary-muted-edge)] mb-1">
+                Address <span className="font-normal">(only visible to you and administrators)</span>
+              </label>
+              <input
+                type="text"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="e.g. 123 Main Road, Basseterre"
+                className="w-full rounded-lg border border-[color:var(--secondary-soft-highlight)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-accent2)]/30"
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>

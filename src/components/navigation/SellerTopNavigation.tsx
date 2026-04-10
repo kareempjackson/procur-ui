@@ -114,10 +114,14 @@ const SellerTopNavigation: React.FC = () => {
 
   // Auto-set country from seller profile when not yet selected
   useEffect(() => {
-    if (!activeCountryCode && availableCountries.length > 0 && profile?.organization?.country) {
-      const match = availableCountries.find(
-        (c) => c.country_code === profile.organization!.country || c.code === profile.organization!.country,
-      );
+    if (!activeCountryCode && availableCountries.length > 0 && profile?.organization) {
+      const org = profile.organization;
+      // Try countryId first (procur code like "kna"), then match by name or ISO code
+      const match = org.countryId
+        ? availableCountries.find((c) => c.code === org.countryId)
+        : availableCountries.find(
+            (c) => c.name === org.country || c.country_code === org.country || c.code === org.country,
+          );
       if (match) {
         dispatch(setCountryFromCode(match.code));
         document.cookie = `country_code=${match.code};path=/;max-age=${60 * 60 * 24 * 30};samesite=lax`;
