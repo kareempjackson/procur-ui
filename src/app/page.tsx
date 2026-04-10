@@ -2015,123 +2015,46 @@ export default function Home() {
           </svg>
         </button>
 
-        {/* Dots — bottom left */}
-        <div
-          className="v6-hero-dots"
-          style={{
-            position: "absolute",
-            bottom: 26,
-            left: 80,
-            zIndex: 3,
-            display: "flex",
-            gap: 5,
-            alignItems: "center",
-          }}
-        >
-          {[0, 1, 2].map((i) => (
-            <button
-              key={i}
-              onClick={() => goHero(i)}
-              style={{
-                width: heroIdx === i ? 26 : 6,
-                height: 6,
-                borderRadius: 999,
-                background: heroIdx === i ? "#f5f1ea" : "rgba(245,241,234,.28)",
-                cursor: "pointer",
-                border: "none",
-                padding: 0,
-                transition: "all .45s cubic-bezier(.4,0,.2,1)",
-              }}
-            />
-          ))}
-        </div>
       </div>
 
       {/* ── Main content wrapper ── */}
       <div className="v6-cw">
-        {/* ── Category blocks (overlaps hero) ── */}
-        <div className="v6-cat-grid">
+        {/* ── Category shelf (overlaps hero) ── */}
+        <div className="v6-shelf">
           {loading
-            ? [...Array(4)].map((_, i) => (
-                <div
-                  key={i}
-                  className="skel"
-                  style={{ borderRadius: 10, height: 192 }}
-                />
-              ))
-            : categoryBlocks.map((block) => (
-                <div
-                  key={block.title}
-                  style={{
-                    background: "#f5f1ea",
-                    borderRadius: 10,
-                    padding: "12px 14px 14px",
-                    border: "1px solid #e8e4dc",
-                  }}
-                >
-                  <h3
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      marginBottom: 8,
-                      color: "#3e5549",
-                      letterSpacing: ".06em",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    {block.title}
-                  </h3>
-                  <div className="v6-cb-grid">
-                    {block.items.map((item) => (
-                      <div key={item.label}>
-                        <div
-                          style={{
-                            width: "100%",
-                            aspectRatio: "1/1",
-                            borderRadius: 7,
-                            overflow: "hidden",
-                            position: "relative",
-                            background: "#ebe7df",
-                          }}
-                        >
-                          <ProductImg
-                            src={item.img}
-                            alt={item.label}
-                            sizes="80px"
-                          />
-                        </div>
-                        <span
-                          style={{
-                            display: "block",
-                            fontSize: 9.5,
-                            fontWeight: 600,
-                            color: "#5a7060",
-                            marginTop: 3,
-                            letterSpacing: ".01em",
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                          }}
-                        >
-                          {item.label}
-                        </span>
-                      </div>
+            ? [...Array(3)].map((_, i) => (
+                <div key={i} className="v6-shelf-cat">
+                  <div className="skel" style={{ width: 80, height: 18, borderRadius: 6, marginBottom: 12 }} />
+                  <div style={{ display: "flex", gap: 10 }}>
+                    {[0, 1].map((j) => (
+                      <div key={j} className="skel" style={{ width: 130, height: 164, borderRadius: 12, flexShrink: 0 }} />
                     ))}
                   </div>
-                  <Link
-                    href={block.browseHref}
-                    style={{
-                      display: "inline-block",
-                      marginTop: 8,
-                      fontSize: 10.5,
-                      fontWeight: 700,
-                      color: "#2d4a3e",
-                      textDecoration: "none",
-                      letterSpacing: ".02em",
-                    }}
-                  >
-                    {block.link}
-                  </Link>
+                </div>
+              ))
+            : categoryBlocks.map((block) => (
+                <div key={block.title} className="v6-shelf-cat">
+                  <div className="v6-shelf-header">
+                    <h3 className="v6-shelf-title">{block.title}</h3>
+                    <Link href={block.browseHref} className="v6-shelf-see-all">
+                      See all
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                    </Link>
+                  </div>
+                  <div className="v6-shelf-items">
+                    {block.items.map((item) => (
+                      <Link
+                        key={item.label}
+                        href={block.browseHref}
+                        className="v6-shelf-item"
+                      >
+                        <div className="v6-shelf-item-img">
+                          <ProductImg src={item.img} alt={item.label} sizes="140px" />
+                        </div>
+                        <span className="v6-shelf-item-label">{item.label}</span>
+                      </Link>
+                    ))}
+                  </div>
                 </div>
               ))}
         </div>
