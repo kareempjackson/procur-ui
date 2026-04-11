@@ -1,5 +1,10 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useAppDispatch, useAppSelector } from "@/store";
+import { fetchActiveCountries, selectCountry, selectCountries } from "@/store/slices/countrySlice";
 
 const NAV_LINKS = [
   { label: "Browse", href: "/browse" },
@@ -62,14 +67,37 @@ const LEGAL_LINKS = [
 ];
 
 export default function PublicPageShell({ children }: { children: React.ReactNode }) {
+  const dispatch = useAppDispatch();
+  const { code: countryCode, name: countryName } = useAppSelector(selectCountry);
+  const countries = useAppSelector(selectCountries);
+
+  useEffect(() => { dispatch(fetchActiveCountries()); }, [dispatch]);
+
+  // Resolve country from cookie if Redux doesn't have one yet
+  const [cookieCode, setCookieCode] = useState<string | null>(null);
+  useEffect(() => {
+    if (!countryCode && typeof document !== "undefined") {
+      const match = document.cookie.match(/(?:^|;\s*)country_code=([^;]*)/);
+      if (match?.[1]) setCookieCode(match[1]);
+    }
+  }, [countryCode]);
+
+  const activeCode = countryCode || cookieCode;
+  const activeCountry = countries.find((c) => c.code === activeCode);
+  const displayName = countryName || activeCountry?.name || "";
+  const flagIso = activeCountry?.country_code?.toLowerCase() || "";
+  const flagEmoji = flagIso ? String.fromCodePoint(...[...flagIso.toUpperCase()].map(c => 0x1F1E6 + c.charCodeAt(0) - 65)) : "";
+
   return (
     <div style={{ fontFamily: "'Urbanist', system-ui, sans-serif", background: "#faf8f4", color: "#1c2b23", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       {/* Header */}
       <header style={{ position: "sticky", top: 0, zIndex: 100, background: "#2d4a3e" }}>
         <div style={{ height: 58, display: "flex", alignItems: "center", padding: "0 24px", maxWidth: 1300, margin: "0 auto", width: "100%" }}>
-          <Link href="/" style={{ flexShrink: 0, marginRight: 28, textDecoration: "none", display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 3 }}>
+          <Link href={activeCode ? `/${activeCode}` : "/"} style={{ flexShrink: 0, marginRight: 28, textDecoration: "none", display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 3 }}>
             <Image src="/images/logos/procur-logo.svg" alt="Procur" width={88} height={23} style={{ filter: "brightness(0) invert(1)" }} priority />
-            <span style={{ fontSize: 9.5, fontWeight: 600, color: "rgba(245,241,234,.72)", lineHeight: 1, letterSpacing: ".03em" }}>🇬🇩 Grenada</span>
+            {displayName && (
+              <span style={{ fontSize: 9.5, fontWeight: 600, color: "rgba(245,241,234,.72)", lineHeight: 1, letterSpacing: ".03em" }}>{flagEmoji} {displayName}</span>
+            )}
           </Link>
           <nav style={{ display: "flex", alignItems: "center", gap: 4, flex: 1 }}>
             {NAV_LINKS.map(l => (
@@ -123,7 +151,7 @@ export default function PublicPageShell({ children }: { children: React.ReactNod
             <div style={{ flexShrink: 0, width: 240 }}>
               <Image src="/images/logos/procur-logo.svg" alt="Procur" width={80} height={21} style={{ filter: "brightness(0) invert(1)", opacity: 0.75 }} />
               <p style={{ fontSize: 12, color: "rgba(245,241,234,.55)", lineHeight: 1.65, marginTop: 16, marginBottom: 0 }}>
-                Procur is Grenada&apos;s agricultural marketplace, purpose-built to shorten supply chains and strengthen local food economies.
+                Procur is the Caribbean&apos;s agricultural marketplace, purpose-built to shorten supply chains and strengthen local food economies.
               </p>
               <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
                 {SOCIAL_ICONS.map((icon, i) => (
@@ -155,7 +183,7 @@ export default function PublicPageShell({ children }: { children: React.ReactNod
         {/* Bottom bar */}
         <div style={{ borderTop: "1px solid rgba(245,241,234,.1)", padding: "18px 20px 28px" }}>
           <div style={{ maxWidth: 1300, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <p style={{ fontSize: 11, color: "rgba(245,241,234,.35)", margin: 0 }}>&copy; 2026 Procur Grenada Ltd. All rights reserved.</p>
+            <p style={{ fontSize: 11, color: "rgba(245,241,234,.35)", margin: 0 }}>&copy; 2026 Procur Ltd. All rights reserved.</p>
             <div style={{ display: "flex", gap: 16 }}>
               {LEGAL_LINKS.map(l => (
                 <Link key={l.label} href={l.href} style={{ fontSize: 11, color: "rgba(245,241,234,.35)", textDecoration: "none" }}>{l.label}</Link>

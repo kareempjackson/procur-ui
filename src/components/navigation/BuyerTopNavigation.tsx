@@ -192,7 +192,7 @@ const BuyerTopNavigation: React.FC = () => {
         }}
       >
         {/* ── Left: logo + greeting ── */}
-        <Link href="/" style={{ textDecoration: "none", display: "flex", flexDirection: "column", gap: 1 }}>
+        <Link href={homeCountryCode ? `/${homeCountryCode}` : "/"} style={{ textDecoration: "none", display: "flex", flexDirection: "column", gap: 1 }}>
           <Image
             src="/images/logos/procur-logo.svg"
             alt="Procur"
