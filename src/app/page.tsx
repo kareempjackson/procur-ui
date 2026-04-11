@@ -779,7 +779,7 @@ export default function Home() {
                   Procur connects buyers directly with verified farmers: transparent pricing, reliable supply, and produce that&apos;s never more than a day from harvest.
                 </p>
                 <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                  <Link href="/" style={{ padding: "12px 28px", background: "#f5f1ea", color: "#1c2b23", fontSize: 13, fontWeight: 700, borderRadius: 999, textDecoration: "none" }}>Browse marketplace</Link>
+                  <Link href={`/${effectiveCountryCode}`} style={{ padding: "12px 28px", background: "#f5f1ea", color: "#1c2b23", fontSize: 13, fontWeight: 700, borderRadius: 999, textDecoration: "none" }}>Browse marketplace</Link>
                   <Link href="/signup?accountType=seller" style={{ padding: "12px 28px", background: "transparent", color: "#f5f1ea", fontSize: 13, fontWeight: 600, borderRadius: 999, border: "1px solid rgba(245,241,234,.2)", textDecoration: "none" }}>Become a supplier</Link>
                 </div>
               </div>
@@ -1321,7 +1321,7 @@ export default function Home() {
         >
           {/* Logo */}
           <Link
-            href="/"
+            href={`/${effectiveCountryCode}`}
             style={{
               flexShrink: 0,
               marginRight: 20,

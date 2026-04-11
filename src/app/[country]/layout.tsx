@@ -39,7 +39,7 @@ export default function CountryLayout({
     if (status === "succeeded" && countries.length > 0 && countryCode) {
       const valid = countries.some((i) => i.code === countryCode);
       if (!valid) {
-        router.replace("/gda");
+        router.replace("/");
       }
     }
   }, [status, countries, countryCode, router]);
