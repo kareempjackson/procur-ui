@@ -170,7 +170,7 @@ export default function CheckoutClient() {
     setAddrError(null);
     setSavingAddr(true);
     try {
-      const api = getApiClient(() => null);
+      const api = getApiClient();
       const res = await api.post("/buyers/addresses", {
         label: aName || "Home",
         contact_name: aName,
