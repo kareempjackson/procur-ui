@@ -1693,8 +1693,9 @@ export default function Home() {
                 </svg>
               </span>
             </button>
+            {(!user || user.accountType?.toLowerCase() === "buyer") && (
             <Link
-              href={user ? "/cart" : "/login?redirect=/cart"}
+              href="/cart"
               className="v6-cart-link"
               style={{
                 display: "flex",
@@ -1745,6 +1746,7 @@ export default function Home() {
                 Cart
               </span>
             </Link>
+            )}
           </div>
         </div>
         {/* Sub-nav — categories link to /browse?category=... */}
