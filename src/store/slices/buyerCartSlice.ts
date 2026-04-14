@@ -245,10 +245,10 @@ const buyerCartSlice = createSlice({
           (sum, group) => sum + group.subtotal,
           0
         );
-        state.cart.estimated_shipping = state.cart.seller_groups.reduce(
-          (sum, group) => sum + group.estimated_shipping,
-          0
-        );
+        // estimated_shipping is a single buyer-side fee from
+        // platform_fees_config.buyer_delivery_share — not the sum of
+        // per-seller groups (which are intentionally 0 server-side to
+        // avoid multiplying the fee per seller). Preserve it as-is.
         state.cart.estimated_tax = 0;
         state.cart.platform_fee_amount = Number(
           (
@@ -309,10 +309,7 @@ const buyerCartSlice = createSlice({
             (sum, group) => sum + group.subtotal,
             0
           );
-          state.cart.estimated_shipping = state.cart.seller_groups.reduce(
-            (sum, group) => sum + group.estimated_shipping,
-            0
-          );
+          // estimated_shipping is preserved (single buyer-side fee, see note above).
           state.cart.estimated_tax = 0;
           state.cart.platform_fee_amount = Number(
             (
