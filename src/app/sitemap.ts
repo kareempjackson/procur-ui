@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { sanityClient } from "@/lib/sanity/client";
 import { postSlugsQuery, type SanityPostSlug } from "@/lib/sanity/queries";
+import { createCountrySlug } from "@/lib/sellerUrl";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://procur.io";
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000/api/v1";
@@ -32,7 +33,7 @@ const STATIC_ROUTES: MetadataRoute.Sitemap = [
   { url: `${SITE_URL}/legal/cookies`, lastModified: new Date(), changeFrequency: "yearly", priority: 0.3 },
 ];
 
-type ApiSeller = { id: string; updated_at?: string };
+type ApiSeller = { id: string; slug?: string; location?: string; updated_at?: string };
 type ApiProduct = { id: string; name: string; country?: string; slug?: string; updated_at?: string };
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -57,12 +58,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     if (res.ok) {
       const data = await res.json();
       const sellers: ApiSeller[] = Array.isArray(data) ? data : (data.sellers ?? data.data ?? []);
-      sellerRoutes = sellers.map((s) => ({
-        url: `${SITE_URL}/sellers/${s.id}`,
-        lastModified: s.updated_at ? new Date(s.updated_at) : new Date(),
-        changeFrequency: "weekly" as const,
-        priority: 0.7,
-      }));
+      sellerRoutes = sellers
+        .filter((s) => s.slug)
+        .map((s) => ({
+          url: `${SITE_URL}/sellers/${createCountrySlug(s.location)}/${s.slug}`,
+          lastModified: s.updated_at ? new Date(s.updated_at) : new Date(),
+          changeFrequency: "weekly" as const,
+          priority: 0.7,
+        }));
     }
   } catch {
     // API unavailable at build time — skip seller routes

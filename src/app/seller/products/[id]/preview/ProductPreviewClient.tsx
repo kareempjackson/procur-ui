@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getApiClient } from "@/lib/apiClient";
 import { useAppSelector } from "@/store";
+import { selectCountry } from "@/store/slices/countrySlice";
 import type { SellerProduct } from "@/store/slices/sellerProductsSlice";
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
@@ -22,6 +23,7 @@ interface ProductPreviewClientProps { productId: string }
 export default function ProductPreviewClient({ productId }: ProductPreviewClientProps) {
   const router = useRouter();
   const accessToken = useAppSelector((s) => s.auth.accessToken);
+  const { currency: accountCurrency } = useAppSelector(selectCountry);
 
   const [isLoading,           setIsLoading]          = useState(true);
   const [error,               setError]              = useState<string | null>(null);
@@ -105,7 +107,7 @@ export default function ProductPreviewClient({ productId }: ProductPreviewClient
     { label: "Size",     value: product.size      },
     { label: "Barcode",  value: product.barcode   },
     { label: "Condition",value: product.condition },
-    { label: "Currency", value: product.currency || "XCD" },
+    { label: "Currency", value: accountCurrency },
   ].filter(a => a.value);
 
   return (
@@ -289,7 +291,7 @@ export default function ProductPreviewClient({ productId }: ProductPreviewClient
                 </span>
               </div>
               <div style={{ fontSize: 11.5, color: MUTED }}>
-                Currency: {product.currency || "XCD"}
+                Currency: {accountCurrency}
               </div>
             </div>
 

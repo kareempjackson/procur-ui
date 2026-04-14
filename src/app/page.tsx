@@ -14,6 +14,7 @@ import {
   selectCountries,
 } from "@/store/slices/countrySlice";
 import { getApiClient } from "@/lib/apiClient";
+import { buildSellerUrl } from "@/lib/sellerUrl";
 import BuyerTopNavigation from "@/components/navigation/BuyerTopNavigation";
 import CountryPulseSection from "@/components/landing/CountryPulseSection";
 import CountryTicker from "@/components/landing/CountryTicker";
@@ -28,6 +29,7 @@ import { ToastProvider } from "@/components/ui/Toast";
 // ─── Types ────────────────────────────────────────────────────────────────────
 type LandingSeller = {
   id: string;
+  slug?: string | null;
   name: string;
   logo_url?: string | null;
   header_image_url?: string | null;
@@ -279,6 +281,14 @@ const TESTIMONIALS = [
     name: "Brown Girl Cafe",
     location: "St. George, Grenada",
     role: "Buyer",
+  },
+  {
+    quote:
+      "Working with Procur has completely transformed the way I operate as a farmer. In the past, getting my produce to market was one of the hardest parts of the job. Dealing with transportation, finding buyers, and ensuring timely payment was always a challenge. Procur has given me access to reliable markets and helped me run my farm more professionally. I would strongly recommend them to any farmer looking to expand their reach and simplify their operations.",
+    name: "Carmelo Alexis",
+    farm: "T/A Agro-Tech Enterprise",
+    location: "Grenada",
+    role: "Supplier",
   },
 ];
 
@@ -667,7 +677,6 @@ export default function Home() {
   // ── Hero auto-rotation ────────────────────────────────────────────────────────
   const heroTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const bestSellersRef = useRef<HTMLDivElement>(null);
-  const testimonialsRef = useRef<HTMLDivElement>(null);
   function scrollSect(
     ref: React.RefObject<HTMLDivElement | null>,
     dir: number,
@@ -699,6 +708,7 @@ export default function Home() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
   function goHero(i: number) {
     setPrevHeroIdx(heroIdx);
     setHeroIdx(i);
@@ -2322,7 +2332,11 @@ export default function Home() {
             : popularSellers.map((s: LandingSeller, idx: number) => (
                 <Link
                   key={s.id}
-                  href={`/sellers/${s.id}`}
+                  href={buildSellerUrl({
+                    id: s.id,
+                    slug: s.slug ?? undefined,
+                    location: s.location ?? undefined,
+                  })}
                   style={{
                     background: "#f5f1ea",
                     borderRadius: 12,
@@ -2500,169 +2514,78 @@ export default function Home() {
 
         {/* ── Testimonials ── */}
         <SecH title="What buyers & sellers say" />
-        <div style={{ position: "relative" }}>
+        <div
+          className="v6-ticker"
+          style={{
+            position: "relative",
+            overflow: "hidden",
+            WebkitMaskImage:
+              "linear-gradient(to right, transparent 0, #000 80px, #000 calc(100% - 80px), transparent 100%)",
+            maskImage:
+              "linear-gradient(to right, transparent 0, #000 80px, #000 calc(100% - 80px), transparent 100%)",
+          }}
+        >
           <div
-            ref={testimonialsRef}
+            className="v6-ticker-track"
             style={{
               display: "flex",
               gap: 12,
-              overflowX: "auto",
-              scrollSnapType: "x mandatory",
-              scrollbarWidth: "none",
-              paddingBottom: 4,
+              width: "max-content",
+              animation: "v6-ticker-scroll 60s linear infinite",
             }}
           >
-            {TESTIMONIALS.map((t, i) => (
-              <div
-                key={i}
-                style={{
-                  flex: "0 0 300px",
-                  background: "#f5f1ea",
-                  borderRadius: 14,
-                  padding: "22px 22px 20px",
-                  display: "flex",
-                  flexDirection: "column",
-                  scrollSnapAlign: "start",
-                }}
-              >
-                <div
+            {[...TESTIMONIALS, ...TESTIMONIALS].map((t, i) => {
+              const sub =
+                "farm" in t
+                  ? (t as typeof t & { farm: string }).farm
+                  : t.location;
+              return (
+                <figure
+                  key={i}
+                  aria-hidden={i >= TESTIMONIALS.length}
                   style={{
-                    fontSize: 36,
-                    lineHeight: 0.9,
-                    color: "#2d4a3e",
-                    opacity: 0.2,
-                    fontFamily: "Georgia, 'Times New Roman', serif",
-                    marginBottom: 8,
-                    userSelect: "none",
-                  }}
-                >
-                  &ldquo;
-                </div>
-                <p
-                  style={{
-                    fontSize: 13.5,
-                    fontWeight: 500,
-                    lineHeight: 1.6,
-                    color: "#1c2b23",
-                    flex: 1,
+                    flex: "0 0 380px",
+                    minHeight: 280,
+                    padding: "8px 32px 8px 0",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "center",
                     margin: 0,
                   }}
                 >
-                  {t.quote}
-                </p>
-                <div
-                  style={{
-                    marginTop: 18,
-                    display: "flex",
-                    alignItems: "flex-end",
-                    justifyContent: "space-between",
-                    gap: 10,
-                  }}
-                >
-                  <div>
-                    <div
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 700,
-                        color: "#1c2b23",
-                      }}
-                    >
-                      {t.name}
-                    </div>
-                    <div
-                      style={{ fontSize: 11, color: "#8a9e92", marginTop: 2 }}
-                    >
-                      {"farm" in t
-                        ? (t as typeof t & { farm: string }).farm
-                        : t.location}
-                    </div>
-                  </div>
-                  <span
+                  <blockquote
                     style={{
-                      fontSize: 10,
-                      fontWeight: 700,
-                      color: "#2d4a3e",
-                      background: "rgba(45,74,62,.1)",
-                      borderRadius: 999,
-                      padding: "4px 10px",
-                      whiteSpace: "nowrap",
-                      flexShrink: 0,
+                      fontSize: 14,
+                      fontWeight: 400,
+                      lineHeight: 1.65,
+                      color: "#3e5549",
+                      margin: 0,
+                      letterSpacing: "-0.1px",
                     }}
                   >
-                    {t.role}
-                  </span>
-                </div>
-              </div>
-            ))}
+                    {t.quote}
+                  </blockquote>
+                  <figcaption
+                    style={{
+                      marginTop: 16,
+                      fontSize: 12,
+                      color: "#8a9e92",
+                      letterSpacing: "-0.05px",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    <span style={{ fontWeight: 700, color: "#1c2b23" }}>
+                      {t.name}
+                    </span>
+                    <span style={{ margin: "0 6px", opacity: 0.5 }}>·</span>
+                    {sub}
+                  </figcaption>
+                </figure>
+              );
+            })}
           </div>
-          <button
-            className="v6-arr v6-arr-l"
-            onClick={() => scrollSect(testimonialsRef, -1)}
-            style={{
-              position: "absolute",
-              left: -16,
-              top: "50%",
-              transform: "translateY(-50%)",
-              zIndex: 2,
-              width: 34,
-              height: 34,
-              borderRadius: "50%",
-              background: "#fff",
-              border: "1px solid #ebe7df",
-              boxShadow: "0 2px 8px rgba(28,43,35,.1)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#3e5549",
-            }}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              width={14}
-              height={14}
-            >
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
-          </button>
-          <button
-            className="v6-arr v6-arr-r"
-            onClick={() => scrollSect(testimonialsRef, 1)}
-            style={{
-              position: "absolute",
-              right: -16,
-              top: "50%",
-              transform: "translateY(-50%)",
-              zIndex: 2,
-              width: 34,
-              height: 34,
-              borderRadius: "50%",
-              background: "#fff",
-              border: "1px solid #ebe7df",
-              boxShadow: "0 2px 8px rgba(28,43,35,.1)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#3e5549",
-            }}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              width={14}
-              height={14}
-            >
-              <path d="M9 18l6-6-6-6" />
-            </svg>
-          </button>
         </div>
 
         {/* ── Pre-footer CTA ── */}
@@ -2700,8 +2623,8 @@ export default function Home() {
                 margin: 0,
               }}
             >
-              Source directly from verified Grenadian farms at fair, transparent
-              prices.
+              Source directly from verified {currentCountryName} farms at fair,
+              transparent prices.
             </p>
           </div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>

@@ -959,3 +959,12 @@ html {
     border-radius: 16px !important;
   }
 }
+
+@keyframes v6-ticker-scroll {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(-50%, 0, 0); }
+}
+.v6-ticker:hover .v6-ticker-track { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+  .v6-ticker-track { animation: none !important; }
+}

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import ImageGallery from "./ImageGallery";
+import { buildSellerUrl } from "@/lib/sellerUrl";
 
 interface ProductPageProps {
   params: Promise<{ country: string; slug: string }>;
@@ -9,6 +10,7 @@ interface ProductPageProps {
 
 type PublicSeller = {
   id: string;
+  slug?: string;
   name: string;
   location?: string;
   description?: string;
@@ -740,7 +742,7 @@ export default async function PublicProductPage({ params }: ProductPageProps) {
                       <p style={{ fontSize: 10, color: "#8a9e92", margin: "0 0 2px" }}>Sold by</p>
                       <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                         <Link
-                          href={`/sellers/${product.seller.id}`}
+                          href={buildSellerUrl(product.seller)}
                           style={{
                             fontSize: 13,
                             fontWeight: 700,
@@ -1035,7 +1037,7 @@ export default async function PublicProductPage({ params }: ProductPageProps) {
                   )}
 
                   <Link
-                    href={`/sellers/${product.seller.id}`}
+                    href={buildSellerUrl(product.seller)}
                     style={{
                       display: "inline-flex",
                       alignItems: "center",

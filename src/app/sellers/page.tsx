@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { buildSellerUrl } from "@/lib/sellerUrl";
 
 export const metadata: Metadata = {
   title: "Verified Farms & Suppliers",
@@ -24,6 +25,7 @@ export const metadata: Metadata = {
 
 type PublicSeller = {
   id: string;
+  slug?: string;
   name: string;
   description?: string;
   business_type?: string;
@@ -425,7 +427,7 @@ export default async function SellersPage() {
             return (
               <Link
                 key={seller.id}
-                href={`/sellers/${seller.id}`}
+                href={buildSellerUrl(seller)}
                 style={{
                   textDecoration: "none",
                   display: "flex",
