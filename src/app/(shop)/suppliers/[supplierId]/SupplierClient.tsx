@@ -175,23 +175,18 @@ export default function SupplierClient({ supplierId }: { supplierId: string }) {
       <section style={{ position: "relative" }}>
         {/* Cover */}
         <div style={{ height: 240, position: "relative", overflow: "hidden" }}>
-          {supplier.header_image_url ? (
-            <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={supplier.header_image_url}
-                alt={`${displayName} cover`}
-                style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
-              />
-              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(10,16,12,.2) 0%, rgba(10,16,12,.55) 100%)" }} />
-            </>
-          ) : (
-            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(140deg, #2d4a3e 0%, #3e6b58 60%, #c26838 100%)" }}>
-              <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(ellipse at 75% 50%, rgba(255,255,255,.06) 0%, transparent 65%)" }} />
-              {/* Pattern texture */}
-              <div aria-hidden="true" style={{ position: "absolute", inset: 0, backgroundImage: "url(/images/pattern.svg)", backgroundSize: "200px 200px", backgroundRepeat: "repeat", opacity: 0.06, mixBlendMode: "overlay" as any }} />
-            </div>
-          )}
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={
+                supplier.header_image_url ||
+                "/images/backgrounds/alyona-chipchikova-3Sm2M93sQeE-unsplash.jpg"
+              }
+              alt={`${displayName} cover`}
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+            />
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(10,16,12,.2) 0%, rgba(10,16,12,.55) 100%)" }} />
+          </>
         </div>
 
         {/* Seller identity card */}
