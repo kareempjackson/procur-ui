@@ -2424,52 +2424,6 @@ export default function Home() {
                     >
                       {s.location || currentCountryName}
                     </div>
-                    <div
-                      style={{
-                        fontSize: 11.5,
-                        color: "#6a7f73",
-                        lineHeight: 1.4,
-                        marginBottom: 10,
-                      }}
-                    >
-                      {s.completed_orders != null
-                        ? `${s.completed_orders} orders completed`
-                        : "Verified supplier on Procur"}
-                    </div>
-                    <div style={{ display: "flex", gap: 14 }}>
-                      {s.average_rating != null && (
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 4,
-                          }}
-                        >
-                          <svg
-                            viewBox="0 0 24 24"
-                            fill="#d4783c"
-                            width={12}
-                            height={12}
-                          >
-                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" />
-                          </svg>
-                          <span
-                            style={{
-                              fontSize: 11,
-                              fontWeight: 600,
-                              color: "#3e5549",
-                            }}
-                          >
-                            {s.average_rating.toFixed(1)}
-                          </span>
-                        </div>
-                      )}
-                      {s.review_count != null && (
-                        <span style={{ fontSize: 11, color: "#8a9e92" }}>
-                          {s.review_count} reviews
-                        </span>
-                      )}
-                    </div>
                   </div>
                 </Link>
               ))}
@@ -2592,10 +2546,10 @@ export default function Home() {
         <div
           className="v6-cta-box"
           style={{
-            margin: "56px 0 8px",
+            margin: "56px 0 80px",
             background: "#2d4a3e",
             borderRadius: 18,
-            padding: "60px 52px",
+            padding: "120px 52px",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
