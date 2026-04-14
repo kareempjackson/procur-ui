@@ -15,6 +15,8 @@ import {
 } from "@/store/slices/countrySlice";
 import { getApiClient } from "@/lib/apiClient";
 import BuyerTopNavigation from "@/components/navigation/BuyerTopNavigation";
+import CountryPulseSection from "@/components/landing/CountryPulseSection";
+import CountryTicker from "@/components/landing/CountryTicker";
 import dynamic from "next/dynamic";
 const BuyerClient = dynamic(() => import("./buyer/BuyerClient"), {
   ssr: false,
@@ -424,17 +426,24 @@ export default function Home() {
   const [countryPickerOpen, setCountryPickerOpen] = useState(false);
   const countryPickerRef = useRef<HTMLDivElement>(null);
 
-  // Read cookie synchronously so we never flash the wrong country on navigation
-  const cookieCountryCode = typeof document !== "undefined"
-    ? document.cookie.match(/(?:^|;\s*)country_code=([^;]*)/)?.[1] || null
-    : null;
+  // Read cookie inside an effect (not during render) so the first client
+  // render matches the SSR HTML exactly — otherwise the cookie-derived
+  // country code produces a hydration mismatch on the logo Link href.
+  const [cookieCountryCode, setCookieCountryCode] = useState<string | null>(null);
   const effectiveCountryCode = countryCode || cookieCountryCode || "gda";
 
   useEffect(() => {
     appDispatch(fetchActiveCountries());
+    const fromCookie =
+      typeof document !== "undefined"
+        ? document.cookie.match(/(?:^|;\s*)country_code=([^;]*)/)?.[1] || null
+        : null;
+    if (fromCookie && fromCookie !== cookieCountryCode) {
+      setCookieCountryCode(fromCookie);
+    }
     // If Redux has no country but cookie does, hydrate Redux from cookie
-    if (!countryCode && cookieCountryCode) {
-      appDispatch(setCountryFromCode(cookieCountryCode));
+    if (!countryCode && fromCookie) {
+      appDispatch(setCountryFromCode(fromCookie));
     }
   }, [appDispatch, countryCode, cookieCountryCode]);
 
@@ -2023,6 +2032,9 @@ export default function Home() {
           </svg>
         </button>
 
+        {/* ── Country Ticker (overlay at hero bottom) ── */}
+        <CountryTicker />
+
       </div>
 
       {/* ── Main content wrapper ── */}
@@ -2072,6 +2084,12 @@ export default function Home() {
               ))}
         </div>
         )}
+
+        {/* ── Country Pulse ── */}
+        <CountryPulseSection
+          countryCode={effectiveCountryCode}
+          countryName={currentCountryName}
+        />
 
         {/* ── Empty state when no products for this country ── */}
         {!loading && products.length === 0 && (

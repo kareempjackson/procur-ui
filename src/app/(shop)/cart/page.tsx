@@ -12,7 +12,10 @@ import {
 import { getEstimatedDeliveryRangeLabel } from "@/lib/utils/date";
 
 const DEBOUNCE_DELAY = 500;
-const MIN_ORDER = 30;
+// Fallbacks; live values come from cart.min_order_per_seller / min_order_total
+// (admin-configurable in platform_fees_config).
+const DEFAULT_MIN_ORDER_PER_SELLER = 75;
+const DEFAULT_MIN_ORDER_TOTAL = 100;
 
 const AVATAR_COLORS = ["#2d4a3e", "#d4783c", "#5a7650", "#1c2b23", "#407178", "#653011"];
 function avatarColor(name: string) {
@@ -96,9 +99,16 @@ export default function CartPage() {
   const total = subtotal + shipping + fee;
   const totalItems = sellers.reduce((s, g) => s + g.items.reduce((ss, i) => ss + getQty(i.id, i.quantity), 0), 0);
   const hasOutOfStock = sellers.some((g) => g.items.some((i) => !i.inStock));
-  const belowMin = subtotal < MIN_ORDER;
-  const shortfall = Math.max(0, MIN_ORDER - subtotal);
-  const canCheckout = !belowMin && !hasOutOfStock;
+  const minOrderPerSeller = cart?.min_order_per_seller ?? DEFAULT_MIN_ORDER_PER_SELLER;
+  const minOrderTotal = cart?.min_order_total ?? DEFAULT_MIN_ORDER_TOTAL;
+  const sellersBelowMin = sellers
+    .map((g) => ({ name: g.name, sub: sellerSub(g.items), shortfall: Math.max(0, minOrderPerSeller - sellerSub(g.items)) }))
+    .filter((g) => g.shortfall > 0);
+  const belowSellerMin = sellersBelowMin.length > 0;
+  const belowTotalMin = subtotal < minOrderTotal;
+  const totalShortfall = Math.max(0, minOrderTotal - subtotal);
+  const belowMin = belowSellerMin || belowTotalMin;
+  const canCheckout = !belowMin && !hasOutOfStock && sellers.length > 0;
 
   if (status === "loading" && !cart) {
     return (
@@ -169,9 +179,17 @@ export default function CartPage() {
                   <svg viewBox="0 0 24 24" fill="none" stroke="#d4783c" strokeWidth="2" strokeLinecap="round" width={15} height={15} style={{ flexShrink: 0, marginTop: 1 }}>
                     <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
                   </svg>
-                  <span style={{ fontSize: 12.5, color: "#1c2b23" }}>
-                    <strong>Minimum order ${MIN_ORDER.toFixed(2)}</strong> — add ${shortfall.toFixed(2)} more to proceed.
-                  </span>
+                  <div style={{ fontSize: 12.5, color: "#1c2b23", lineHeight: 1.5 }}>
+                    <div style={{ marginBottom: belowSellerMin || belowTotalMin ? 4 : 0 }}>
+                      <strong>Minimum order requirements:</strong> XCD {minOrderPerSeller.toFixed(2)} per farm, XCD {minOrderTotal.toFixed(2)} overall.
+                    </div>
+                    {belowTotalMin && (
+                      <div>• Add XCD {totalShortfall.toFixed(2)} more to reach the overall minimum.</div>
+                    )}
+                    {sellersBelowMin.map((s) => (
+                      <div key={s.name}>• {s.name}: add XCD {s.shortfall.toFixed(2)} more (or remove items).</div>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -187,6 +205,7 @@ export default function CartPage() {
               {/* Seller group cards */}
               {sellers.map((seller) => {
                 const sub = sellerSub(seller.items);
+                const sellerShortfall = Math.max(0, minOrderPerSeller - sub);
                 return (
                   <div key={seller.id} style={{ background: "#fff", border: "1px solid #ebe7df", borderRadius: 10, overflow: "hidden" }}>
 
@@ -201,8 +220,10 @@ export default function CartPage() {
                       </div>
                       <div style={{ textAlign: "right" }}>
                         <div style={{ fontSize: 14, fontWeight: 800, color: "#1c2b23", fontVariantNumeric: "tabular-nums" }}>${sub.toFixed(2)}</div>
-                        <div style={{ fontSize: 10, color: "#b0c0b6", marginTop: 1 }}>
-                          {seller.shipping === 0 ? "Free shipping" : `$${seller.shipping.toFixed(2)} shipping`}
+                        <div style={{ fontSize: 10, color: sellerShortfall > 0 ? "#d4783c" : "#b0c0b6", marginTop: 1, fontWeight: sellerShortfall > 0 ? 700 : 400 }}>
+                          {sellerShortfall > 0
+                            ? `Add XCD ${sellerShortfall.toFixed(2)} to meet farm min`
+                            : seller.shipping === 0 ? "Free shipping" : `$${seller.shipping.toFixed(2)} shipping`}
                         </div>
                       </div>
                     </div>
@@ -346,7 +367,9 @@ export default function CartPage() {
                   </Link>
                   {belowMin && (
                     <p style={{ fontSize: 11, color: "#d4783c", textAlign: "center", marginTop: 8, margin: "8px 0 0" }}>
-                      Add ${shortfall.toFixed(2)} more to unlock checkout
+                      {belowTotalMin
+                        ? `Add XCD ${totalShortfall.toFixed(2)} more to unlock checkout`
+                        : `Each farm needs at least XCD ${minOrderPerSeller.toFixed(2)}`}
                     </p>
                   )}
                 </div>

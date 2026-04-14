@@ -438,24 +438,24 @@ html {
 /* ── Category shelf ── */
 .v6-shelf {
   display: flex;
-  gap: 0;
-  margin-top: -56px;
+  gap: 28px;
+  margin-top: 32px;
   position: relative;
   z-index: 3;
-  background: #f5f1ea;
-  border-radius: 18px;
-  border: 1px solid #e8e4dc;
-  padding: 24px 8px 24px 24px;
-  overflow: hidden;
+  background: transparent;
+  border-radius: 0;
+  border: none;
+  padding: 0;
+  overflow: visible;
 }
 .v6-shelf-cat {
   flex: 1 1 0;
   min-width: 0;
-  padding-right: 16px;
+  padding-right: 0;
 }
 .v6-shelf-cat + .v6-shelf-cat {
-  padding-left: 16px;
-  border-left: 1px solid #e8e4dc;
+  padding-left: 0;
+  border-left: none;
 }
 .v6-shelf-header {
   display: flex;

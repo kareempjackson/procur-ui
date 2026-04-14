@@ -68,6 +68,8 @@ export interface Cart {
   estimated_tax: number;
   total: number;
   currency: string;
+  min_order_per_seller?: number;
+  min_order_total?: number;
   updated_at: string;
 }
 
