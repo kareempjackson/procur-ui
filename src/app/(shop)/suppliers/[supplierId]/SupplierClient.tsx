@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/store";
-import { fetchSellerProducts } from "@/store/slices/buyerMarketplaceSlice";
+import { fetchSellerProducts, fetchSellerById } from "@/store/slices/buyerMarketplaceSlice";
 import { addToCartAsync } from "@/store/slices/buyerCartSlice";
 import ProcurLoader from "@/components/ProcurLoader";
 import { getApiClient } from "@/lib/apiClient";
@@ -34,6 +34,7 @@ export default function SupplierClient({ supplierId }: { supplierId: string }) {
   const [cartAdding, setCartAdding] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
+    dispatch(fetchSellerById(supplierId));
     dispatch(fetchSellerProducts(supplierId));
   }, [dispatch, supplierId]);
 

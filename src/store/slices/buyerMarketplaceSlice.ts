@@ -282,6 +282,25 @@ export const fetchSellerProducts = createAsyncThunk(
   }
 );
 
+/**
+ * Fetch a single seller's public profile (used on supplier detail page so
+ * a hard refresh hydrates currentSeller without depending on the sellers list).
+ */
+export const fetchSellerById = createAsyncThunk(
+  "buyerMarketplace/fetchSellerById",
+  async (sellerId: string, { rejectWithValue }) => {
+    try {
+      const client = getClient();
+      const { data } = await client.get(`/marketplace/sellers/${sellerId}`);
+      return data as Seller;
+    } catch (err) {
+      return rejectWithValue(
+        extractErrorMessage(err, "Failed to fetch seller")
+      );
+    }
+  }
+);
+
 export const fetchSellers = createAsyncThunk(
   "buyerMarketplace/fetchSellers",
   async (
@@ -528,6 +547,11 @@ const buyerMarketplaceSlice = createSlice({
       .addCase(fetchSellerProducts.rejected, (state, action) => {
         state.sellerProductsStatus = "failed";
         state.sellerProductsError = action.payload as string;
+      })
+
+      // Fetch Seller By Id (full profile — survives hard refresh)
+      .addCase(fetchSellerById.fulfilled, (state, action) => {
+        state.currentSeller = action.payload;
       })
 
       // Fetch Sellers
