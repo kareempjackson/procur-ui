@@ -249,6 +249,8 @@ export default function SellerBusinessSettingsPage() {
     const org = profile.organization;
     setBusinessName(org?.businessName || org?.name || "");
     setBusinessType(org?.businessType || "");
+    setTaxId(org?.taxId || "");
+    setRegistrationNumber(org?.registrationNumber || "");
     setAddress(
       org?.address ||
       [org?.city, org?.state, org?.postalCode].filter(Boolean).join(", ") || ""
@@ -295,6 +297,8 @@ export default function SellerBusinessSettingsPage() {
     const org = profile.organization;
     setBusinessName(org?.businessName || org?.name || "");
     setBusinessType(org?.businessType || "");
+    setTaxId(org?.taxId || "");
+    setRegistrationNumber(org?.registrationNumber || "");
     setAddress(
       org?.address ||
       [org?.city, org?.state, org?.postalCode].filter(Boolean).join(", ") || ""
@@ -343,8 +347,8 @@ export default function SellerBusinessSettingsPage() {
 
       await dispatch(updateProfile({
         businessName, businessType, address, phone, description,
-        ...(taxId              ? { taxId }              : {}),
-        ...(registrationNumber ? { registrationNumber } : {}),
+        taxId,
+        registrationNumber,
         ...(farmersIdPath      ? { farmersIdPath }      : {}),
         ...(logoPath           ? { logoPath }           : {}),
         ...(headerImagePath    ? { headerImagePath }    : {}),

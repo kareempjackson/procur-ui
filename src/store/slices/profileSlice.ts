@@ -46,6 +46,7 @@ export interface UserProfile {
     country?: string;
     countryId?: string;
     taxId?: string;
+    registrationNumber?: string;
     website?: string;
     description?: string;
   };
