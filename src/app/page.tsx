@@ -290,6 +290,14 @@ const TESTIMONIALS = [
     location: "Grenada",
     role: "Supplier",
   },
+  {
+    quote:
+      "Our experience with Procur has grown to be immensely satisfying. Not only have the relationship between our restaurant and the Procur team meshed as a unit, the ease of not having to run around to different supermarkets or vendors searching for a specific product has been one of the greatest time-saving benefits for us. Though at inception the running was not as smooth, the Procur team ensured all discrepancies were handled in a timely manner, which contributed to building our trust and reliability in them. We can now scroll, tap and wait for our produce to be delivered right to our doorsteps. Thank you Procur.",
+    name: "Lloyd Panchoo",
+    farm: "Choos",
+    location: "Grenada",
+    role: "Buyer",
+  },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
