@@ -11,6 +11,14 @@ const COUNTRY_TO_CODE: Record<string, string> = {
   AG: "atg", // Antigua & Barbuda
   JM: "jam", // Jamaica
   KN: "kna", // St. Kitts & Nevis
+  CO: "col", // Colombia
+  PA: "pan", // Panama
+  CR: "cri", // Costa Rica
+  EC: "ecu", // Ecuador
+  BR: "bra", // Brazil
+  CL: "chl", // Chile
+  PE: "per", // Peru
+  MX: "mex", // Mexico
 };
 
 const DEFAULT_COUNTRY = "gda";
