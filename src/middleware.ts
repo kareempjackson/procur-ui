@@ -175,6 +175,18 @@ export async function middleware(req: NextRequest) {
     return response;
   }
 
+  // Legacy/shared /browse links → redirect to country-scoped /{country}/browse
+  // so shareable URLs preserve country context.
+  if (pathname === "/browse" || pathname.startsWith("/browse/")) {
+    const existingCode = req.cookies.get("country_code")?.value;
+    const isoCode = req.headers.get("x-vercel-ip-country") || "";
+    const geoCode = COUNTRY_TO_CODE[isoCode] || DEFAULT_COUNTRY;
+    const countryCode = existingCode || geoCode;
+    const url = req.nextUrl.clone();
+    url.pathname = `/${countryCode}${pathname}`;
+    return NextResponse.redirect(url);
+  }
+
   // Check if first path segment is an island code
   const segments = pathname.split("/").filter(Boolean);
   const firstSegment = segments[0];

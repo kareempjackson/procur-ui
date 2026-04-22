@@ -726,7 +726,8 @@ export default function Home() {
   // ── Search ────────────────────────────────────────────────────────────────────
   function handleSearch() {
     const q = searchInput.trim();
-    router.push(q ? `/browse?q=${encodeURIComponent(q)}` : "/browse");
+    const base = `/${effectiveCountryCode}/browse`;
+    router.push(q ? `${base}?q=${encodeURIComponent(q)}` : base);
   }
 
   // ── Computed ──────────────────────────────────────────────────────────────────

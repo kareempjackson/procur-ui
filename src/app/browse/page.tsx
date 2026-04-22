@@ -4,9 +4,34 @@ import React, { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useAppSelector } from "@/store";
-import { selectCountryCode } from "@/store/slices/countrySlice";
+import { useAppDispatch, useAppSelector } from "@/store";
+import {
+  fetchActiveCountries,
+  selectCountry,
+  selectCountries,
+  setCountryFromCode,
+} from "@/store/slices/countrySlice";
 import { getApiClient } from "@/lib/apiClient";
+
+// ─── Country flag ────────────────────────────────────────────────────────────
+function CountryFlag({ code, size = 14 }: { code: string; size?: number }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`https://flagcdn.com/w40/${code.toLowerCase()}.png`}
+      srcSet={`https://flagcdn.com/w80/${code.toLowerCase()}.png 2x`}
+      alt={code}
+      width={size}
+      height={Math.round(size * 0.75)}
+      style={{
+        borderRadius: 2,
+        objectFit: "cover",
+        display: "inline-block",
+        verticalAlign: "middle",
+      }}
+    />
+  );
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type BrowseProduct = {
@@ -269,7 +294,32 @@ function BrowseContent() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const countryCode = useAppSelector(selectCountryCode);
+
+  // ── Country context (Redux + cookie hydration) ──
+  const dispatch = useAppDispatch();
+  const { code: countryCode, name: countryName } = useAppSelector(selectCountry);
+  const countries = useAppSelector(selectCountries);
+  const [cookieCountryCode, setCookieCountryCode] = useState<string | null>(null);
+  const effectiveCountryCode = countryCode || cookieCountryCode || "gda";
+
+  useEffect(() => {
+    dispatch(fetchActiveCountries());
+    const fromCookie =
+      typeof document !== "undefined"
+        ? document.cookie.match(/(?:^|;\s*)country_code=([^;]*)/)?.[1] || null
+        : null;
+    if (fromCookie && fromCookie !== cookieCountryCode) {
+      setCookieCountryCode(fromCookie);
+    }
+    if (!countryCode && fromCookie) {
+      dispatch(setCountryFromCode(fromCookie));
+    }
+  }, [dispatch, countryCode, cookieCountryCode]);
+
+  const currentCountry = countries.find((c) => c.code === effectiveCountryCode);
+  const currentCountryIso = currentCountry?.country_code || "GD";
+  const currentCountryName = currentCountry?.name || countryName || "Grenada";
+
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -278,7 +328,7 @@ function BrowseContent() {
   // Reset pagination when country changes
   useEffect(() => {
     setPage(1);
-  }, [countryCode]);
+  }, [effectiveCountryCode]);
 
   // Fetch the current page — appends when page > 1, replaces on page 1
   useEffect(() => {
@@ -293,7 +343,7 @@ function BrowseContent() {
           limit: PAGE_LIMIT,
           page,
         };
-        if (countryCode) params.country_id = countryCode;
+        if (effectiveCountryCode) params.country_id = effectiveCountryCode;
         const res = await api.get("/marketplace/products", { params });
         if (cancelled) return;
         const raw = res?.data?.products;
@@ -317,7 +367,7 @@ function BrowseContent() {
     return () => {
       cancelled = true;
     };
-  }, [countryCode, page]);
+  }, [effectiveCountryCode, page]);
 
   // Infinite scroll: request next page when sentinel enters view
   useEffect(() => {
@@ -396,7 +446,8 @@ function BrowseContent() {
       params.category
         ? p.set("category", params.category)
         : p.delete("category");
-    router.replace(`/browse${p.toString() ? "?" + p.toString() : ""}`, {
+    const base = `/${effectiveCountryCode}/browse`;
+    router.replace(`${base}${p.toString() ? "?" + p.toString() : ""}`, {
       scroll: false,
     });
   }
@@ -423,7 +474,7 @@ function BrowseContent() {
     setSearchInput("");
     setAvailableOnly(false);
     setSidebarOpen(false);
-    router.replace("/browse", { scroll: false });
+    router.replace(`/${effectiveCountryCode}/browse`, { scroll: false });
   }
 
   const activeCount =
@@ -601,9 +652,13 @@ function BrowseContent() {
                 color: "rgba(245,241,234,.72)",
                 lineHeight: 1,
                 letterSpacing: ".03em",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
               }}
             >
-              🇬🇩 Grenada
+              <CountryFlag code={currentCountryIso} size={11} />
+              {currentCountryName}
             </span>
           </Link>
           {/* Search bar */}
@@ -963,7 +1018,7 @@ function BrowseContent() {
                 <span style={{ color: "#1c2b23", fontWeight: 600 }}>
                   {filtered.length}
                 </span>{" "}
-                products available in Grenada
+                products available in {currentCountryName}
               </>
             )}
           </>
@@ -1664,8 +1719,9 @@ function BrowseContent() {
                   marginBottom: 0,
                 }}
               >
-                Procur is Grenada&apos;s agricultural marketplace, purpose-built
-                to shorten supply chains and strengthen local food economies.
+                Procur is {currentCountryName}&apos;s agricultural marketplace,
+                purpose-built to shorten supply chains and strengthen local food
+                economies.
               </p>
               <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
                 {[
@@ -1843,7 +1899,7 @@ function BrowseContent() {
                 margin: 0,
               }}
             >
-              &copy; 2026 Procur Grenada Ltd. All rights reserved.
+              &copy; 2026 Procur {currentCountryName} Ltd. All rights reserved.
             </p>
             <div style={{ display: "flex", gap: 16 }}>
               {[
