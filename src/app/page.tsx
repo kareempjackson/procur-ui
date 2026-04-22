@@ -758,6 +758,7 @@ export default function Home() {
         items: Array.from(prodMap.values()).map((p) => ({
           img: productImage(p),
           label: p.name,
+          href: toProductHref(p),
         })),
       }));
   }, [products]);
@@ -2088,7 +2089,7 @@ export default function Home() {
                     {block.items.map((item) => (
                       <Link
                         key={item.label}
-                        href={block.browseHref}
+                        href={item.href}
                         className="v6-shelf-item"
                       >
                         <div className="v6-shelf-item-img">
