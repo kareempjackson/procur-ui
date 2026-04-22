@@ -4,6 +4,8 @@ import React, { useEffect, useMemo, useState, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useAppSelector } from "@/store";
+import { selectCountryCode } from "@/store/slices/countrySlice";
 import { getApiClient } from "@/lib/apiClient";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -231,7 +233,6 @@ function BrowseContent() {
   const [selectedCats, setSelectedCats] = useState<string[]>(
     initCat ? [initCat] : [],
   );
-  const [maxPrice, setMaxPrice] = useState(500);
   const [sortBy, setSortBy] = useState("relevance");
   const [availableOnly, setAvailableOnly] = useState(false);
   const [products, setProducts] = useState<BrowseProduct[]>([]);
@@ -239,6 +240,7 @@ function BrowseContent() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const countryCode = useAppSelector(selectCountryCode);
 
   // ── Fetch products ──
   useEffect(() => {
@@ -246,9 +248,9 @@ function BrowseContent() {
     const api = getApiClient(() => null);
     (async () => {
       try {
-        const res = await api.get("/marketplace/products", {
-          params: { limit: 100 },
-        });
+        const params: Record<string, string | number> = { limit: 100 };
+        if (countryCode) params.country_id = countryCode;
+        const res = await api.get("/marketplace/products", { params });
         if (cancelled) return;
         const data = res?.data?.products;
         if (Array.isArray(data) && data.length > 0) {
@@ -311,7 +313,7 @@ function BrowseContent() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [countryCode]);
 
   // ── Mobile detection ──
   useEffect(() => {
@@ -344,21 +346,20 @@ function BrowseContent() {
           selectedCats.some(
             (c) => p.category.toLowerCase() === c.toLowerCase(),
           );
-        const priceOk = p.current_price <= maxPrice;
         const qOk =
           !q ||
           p.name.toLowerCase().includes(q) ||
           p.seller.name.toLowerCase().includes(q) ||
           p.category.toLowerCase().includes(q);
         const availOk = !availableOnly || p.in_stock === true;
-        return catOk && priceOk && qOk && availOk;
+        return catOk && qOk && availOk;
       })
       .sort((a, b) => {
         if (sortBy === "price_asc") return a.current_price - b.current_price;
         if (sortBy === "price_desc") return b.current_price - a.current_price;
         return 0;
       });
-  }, [products, selectedCats, maxPrice, query, sortBy, availableOnly]);
+  }, [products, selectedCats, query, sortBy, availableOnly]);
 
   // ── URL helpers ──
   function pushURL(params: { q?: string; category?: string }) {
@@ -391,7 +392,6 @@ function BrowseContent() {
 
   function resetFilters() {
     setSelectedCats([]);
-    setMaxPrice(500);
     setQuery("");
     setSearchInput("");
     setAvailableOnly(false);
@@ -400,7 +400,7 @@ function BrowseContent() {
   }
 
   const activeCount =
-    selectedCats.length + (maxPrice < 500 ? 1 : 0) + (query ? 1 : 0) + (availableOnly ? 1 : 0);
+    selectedCats.length + (query ? 1 : 0) + (availableOnly ? 1 : 0);
 
   // ── Render ──
   return (
@@ -1178,63 +1178,6 @@ function BrowseContent() {
               </span>
               In Stock
             </button>
-          </div>
-
-          {/* Price */}
-          <div
-            style={{
-              marginBottom: 20,
-              paddingBottom: 20,
-              borderBottom: "1px solid #ebe7df",
-            }}
-          >
-            <h4
-              style={{
-                fontSize: 13,
-                fontWeight: 700,
-                color: "#1c2b23",
-                marginBottom: 12,
-              }}
-            >
-              Max Price
-            </h4>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                marginBottom: 8,
-              }}
-            >
-              <span style={{ fontSize: 12, color: "#6a7f73" }}>Up to</span>
-              <span style={{ fontSize: 14, fontWeight: 700, color: "#1c2b23" }}>
-                ${maxPrice}
-              </span>
-            </div>
-            <input
-              type="range"
-              min={1}
-              max={500}
-              value={maxPrice}
-              onChange={(e) => setMaxPrice(Number(e.target.value))}
-              style={{
-                width: "100%",
-                accentColor: "#2d4a3e",
-                cursor: "pointer",
-              }}
-            />
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                fontSize: 10,
-                color: "#8a9e92",
-                marginTop: 4,
-              }}
-            >
-              <span>$0</span>
-              <span>$500</span>
-            </div>
           </div>
 
           {/* Sort */}
