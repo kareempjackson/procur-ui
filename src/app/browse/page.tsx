@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState, Suspense } from "react";
+import React, { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -220,6 +220,35 @@ function toHref(p: BrowseProduct) {
   return `/products/${countrySlug}/${productSlug}`;
 }
 
+function parseBrowseProduct(p: Record<string, unknown>): BrowseProduct {
+  const seller = (p.seller as Record<string, unknown>) ?? {};
+  return {
+    id: String(p.id),
+    name: String(p.name),
+    category: String(p.category ?? "Other"),
+    current_price:
+      typeof p.current_price === "number" ? p.current_price : 0,
+    unit: String(p.unit ?? "lb"),
+    image_url:
+      (p.image_url as string | null) ??
+      (p.images as string[])?.[0] ??
+      null,
+    in_stock: (p.in_stock as boolean | null) ?? null,
+    seller: {
+      id: String(seller.id ?? ""),
+      name: String(seller.name ?? "Seller"),
+      logo_url: (seller.logo_url as string | null) ?? null,
+      location: (seller.location as string | null) ?? null,
+      average_rating: (seller.average_rating as number | null) ?? null,
+      review_count: (seller.review_count as number | null) ?? null,
+      completed_orders: (seller.completed_orders as number | null) ?? null,
+      is_verified: (seller.is_verified as boolean | null) ?? null,
+    },
+  };
+}
+
+const PAGE_LIMIT = 40;
+
 // ─── Browse content (requires Suspense for useSearchParams) ──────────────────
 function BrowseContent() {
   const searchParams = useSearchParams();
@@ -241,79 +270,77 @@ function BrowseContent() {
   const [isMobile, setIsMobile] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const countryCode = useAppSelector(selectCountryCode);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
-  // ── Fetch products ──
+  // Reset pagination when country changes
+  useEffect(() => {
+    setPage(1);
+  }, [countryCode]);
+
+  // Fetch the current page — appends when page > 1, replaces on page 1
   useEffect(() => {
     let cancelled = false;
     const api = getApiClient(() => null);
+    const isFirstPage = page === 1;
+    if (isFirstPage) setLoading(true);
+    else setLoadingMore(true);
     (async () => {
       try {
-        const params: Record<string, string | number> = { limit: 100 };
+        const params: Record<string, string | number> = {
+          limit: PAGE_LIMIT,
+          page,
+        };
         if (countryCode) params.country_id = countryCode;
         const res = await api.get("/marketplace/products", { params });
         if (cancelled) return;
-        const data = res?.data?.products;
-        if (Array.isArray(data) && data.length > 0) {
-          setProducts(
-            data.map(
-              (p: Record<string, unknown>): BrowseProduct => ({
-                id: String(p.id),
-                name: String(p.name),
-                category: String(p.category ?? "Other"),
-                current_price:
-                  typeof p.current_price === "number" ? p.current_price : 0,
-                unit: String(p.unit ?? "lb"),
-                image_url:
-                  (p.image_url as string | null) ??
-                  (p.images as string[])?.[0] ??
-                  null,
-                in_stock: (p.in_stock as boolean | null) ?? null,
-                seller: {
-                  id: String((p.seller as Record<string, unknown>)?.id ?? ""),
-                  name: String(
-                    (p.seller as Record<string, unknown>)?.name ?? "Seller",
-                  ),
-                  logo_url:
-                    ((p.seller as Record<string, unknown>)?.logo_url as
-                      | string
-                      | null) ?? null,
-                  location:
-                    ((p.seller as Record<string, unknown>)?.location as
-                      | string
-                      | null) ?? null,
-                  average_rating:
-                    ((p.seller as Record<string, unknown>)?.average_rating as
-                      | number
-                      | null) ?? null,
-                  review_count:
-                    ((p.seller as Record<string, unknown>)?.review_count as
-                      | number
-                      | null) ?? null,
-                  completed_orders:
-                    ((p.seller as Record<string, unknown>)?.completed_orders as
-                      | number
-                      | null) ?? null,
-                  is_verified:
-                    ((p.seller as Record<string, unknown>)?.is_verified as
-                      | boolean
-                      | null) ?? null,
-                },
-              }),
-            ),
-          );
-        } else {
-          setProducts(FALLBACK);
+        const raw = res?.data?.products;
+        const t = typeof res?.data?.total === "number" ? res.data.total : 0;
+        const parsed = Array.isArray(raw) ? raw.map(parseBrowseProduct) : [];
+        setTotal(t);
+        if (isFirstPage) {
+          setProducts(parsed.length > 0 ? parsed : FALLBACK);
+        } else if (parsed.length > 0) {
+          setProducts((prev) => [...prev, ...parsed]);
         }
       } catch {
-        if (!cancelled) setProducts(FALLBACK);
+        if (!cancelled && isFirstPage) setProducts(FALLBACK);
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          setLoadingMore(false);
+        }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [countryCode]);
+  }, [countryCode, page]);
+
+  // Infinite scroll: request next page when sentinel enters view
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const hasMore = products.length < total;
+    if (!hasMore) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (
+          entries[0]?.isIntersecting &&
+          !loading &&
+          !loadingMore &&
+          products.length < total
+        ) {
+          setPage((p) => p + 1);
+        }
+      },
+      { rootMargin: "400px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loading, loadingMore, products.length, total]);
 
   // ── Mobile detection ──
   useEffect(() => {
@@ -1534,6 +1561,21 @@ function BrowseContent() {
                   </div>
                 </Link>
               ))}
+            </div>
+          )}
+
+          {/* Infinite-scroll sentinel + loading indicator */}
+          {products.length < total && (
+            <div
+              ref={sentinelRef}
+              style={{
+                padding: "32px 0 8px",
+                textAlign: "center",
+                fontSize: 12,
+                color: "#8a9e92",
+              }}
+            >
+              {loadingMore ? "Loading more…" : ""}
             </div>
           )}
         </div>
