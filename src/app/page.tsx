@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useParams } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/store";
 import { selectAuthUser, signout } from "@/store/slices/authSlice";
 import {
@@ -435,6 +435,7 @@ export default function Home() {
   const user = useAppSelector(selectAuthUser);
   const router = useRouter();
   const pathname = usePathname();
+  const params = useParams();
   const appDispatch = useAppDispatch();
   const reducedMotion = usePrefersReducedMotion();
 
@@ -444,11 +445,18 @@ export default function Home() {
   const [countryPickerOpen, setCountryPickerOpen] = useState(false);
   const countryPickerRef = useRef<HTMLDivElement>(null);
 
+  // URL-derived country is the most authoritative source on country routes
+  // (/{code}, /{code}/browse, etc.) and resolves synchronously on first
+  // render — preventing a flash of default-country content on back-nav.
+  const urlCountryCode =
+    typeof params?.country === "string" ? (params.country as string) : null;
+
   // Read cookie inside an effect (not during render) so the first client
   // render matches the SSR HTML exactly — otherwise the cookie-derived
   // country code produces a hydration mismatch on the logo Link href.
   const [cookieCountryCode, setCookieCountryCode] = useState<string | null>(null);
-  const effectiveCountryCode = countryCode || cookieCountryCode || "gda";
+  const effectiveCountryCode =
+    urlCountryCode || countryCode || cookieCountryCode || "gda";
 
   useEffect(() => {
     appDispatch(fetchActiveCountries());

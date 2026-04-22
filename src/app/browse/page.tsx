@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams, useRouter, useParams } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/store";
 import {
   fetchActiveCountries,
@@ -278,6 +278,7 @@ const PAGE_LIMIT = 40;
 function BrowseContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const params = useParams();
 
   const initQ = searchParams.get("q") ?? "";
   const initCat = searchParams.get("category") ?? "";
@@ -300,7 +301,14 @@ function BrowseContent() {
   const { code: countryCode, name: countryName } = useAppSelector(selectCountry);
   const countries = useAppSelector(selectCountries);
   const [cookieCountryCode, setCookieCountryCode] = useState<string | null>(null);
-  const effectiveCountryCode = countryCode || cookieCountryCode || "gda";
+
+  // URL-derived country is the most authoritative source on country routes
+  // (e.g. /{code}/browse) and resolves synchronously on first render —
+  // preventing a flash of default-country content on back-nav.
+  const urlCountryCode =
+    typeof params?.country === "string" ? (params.country as string) : null;
+  const effectiveCountryCode =
+    urlCountryCode || countryCode || cookieCountryCode || "gda";
 
   useEffect(() => {
     dispatch(fetchActiveCountries());
