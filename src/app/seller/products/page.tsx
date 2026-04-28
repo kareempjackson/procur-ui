@@ -145,7 +145,7 @@ export default function SellerProductsPage() {
 
   // Derived sort params
   const [sortBy, sortOrder] = sortKey.split("-") as [string, "asc" | "desc"];
-  const apiSortBy = sortBy === "base_price" ? "price" : sortBy;
+  const apiSortBy = sortBy;
 
   // Fetch whenever filter/page changes
   useEffect(() => {

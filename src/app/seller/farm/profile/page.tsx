@@ -89,8 +89,11 @@ export default function FarmProfilePage() {
       upsertFarmProfile({
         accessToken,
         payload: {
-          parish: parish || undefined,
-          address: address || undefined,
+          // Text fields: send raw — empty string means the user cleared the
+          // input and expects the column to be empty after save. The numeric
+          // fields below stay conditional because parseFloat("") = NaN.
+          parish,
+          address,
           gps_lat: gpsLat ? parseFloat(gpsLat) : undefined,
           gps_lng: gpsLng ? parseFloat(gpsLng) : undefined,
           total_acreage: acreage ? parseFloat(acreage) : undefined,

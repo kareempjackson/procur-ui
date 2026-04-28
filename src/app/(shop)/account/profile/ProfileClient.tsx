@@ -190,16 +190,18 @@ export default function ProfileClient() {
     e.preventDefault();
 
     if (activeTab === "profile") {
+      // Send raw values — empty string means the user explicitly cleared
+      // the field, and the backend DTO now persists that as an actual clear.
       const updateData: UpdateProfileDto = {
-        fullname: formData.fullname || undefined,
-        phone: formData.phone || undefined,
-        businessName: formData.organizationName || undefined,
-        businessType: formData.businessType || undefined,
-        address: formData.street || undefined,
-        city: formData.city || undefined,
-        state: formData.state || undefined,
-        postalCode: formData.postalCode || undefined,
-        country: formData.country || undefined,
+        fullname: formData.fullname,
+        phone: formData.phone,
+        businessName: formData.organizationName,
+        businessType: formData.businessType,
+        address: formData.street,
+        city: formData.city,
+        state: formData.state,
+        postalCode: formData.postalCode,
+        country: formData.country,
       };
 
       try {

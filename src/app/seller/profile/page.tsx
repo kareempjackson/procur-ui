@@ -99,10 +99,14 @@ export default function SellerProfilePage() {
   };
 
   const handleSaveProfile = async () => {
+    // Send the raw field values — empty strings are intentional clears.
+    // The backend DTO trims and persists them, so deleting an input and
+    // saving actually clears the column instead of silently keeping the
+    // old value.
     const data: UpdateProfileDto = {
-      fullname: fullname || undefined,
-      phone: phone || undefined,
-      address: address || undefined,
+      fullname,
+      phone,
+      address,
     };
     try {
       await dispatch(updateProfile(data)).unwrap();
