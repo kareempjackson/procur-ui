@@ -71,6 +71,8 @@ export default function SellerDashboardPage() {
 
   const [balance, setBalance] = useState<{ amount: number; currency: string } | null>(null);
   const [orderTab, setOrderTab] = useState<"all" | "pending" | "active">("all");
+  const [productPage, setProductPage] = useState(0);
+  const PRODUCTS_PER_PAGE = 12;
 
   const displayName =
     profile?.fullname?.trim() ||
@@ -566,8 +568,13 @@ export default function SellerDashboardPage() {
               <div style={{ height: 8 }} />
             </div>
 
-            {/* Products horizontal scroll */}
-            {inventory.length > 0 && (
+            {/* Products paginated grid */}
+            {inventory.length > 0 && (() => {
+              const totalPages = Math.max(1, Math.ceil(inventory.length / PRODUCTS_PER_PAGE));
+              const safePage = Math.min(productPage, totalPages - 1);
+              const start = safePage * PRODUCTS_PER_PAGE;
+              const pageItems = inventory.slice(start, start + PRODUCTS_PER_PAGE);
+              return (
               <div style={card}>
                 <div
                   style={{
@@ -589,14 +596,13 @@ export default function SellerDashboardPage() {
                 </div>
                 <div
                   style={{
-                    display: "flex",
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
                     gap: 10,
-                    overflowX: "auto",
-                    padding: "0 20px 20px",
-                    scrollbarWidth: "none",
+                    padding: "0 20px 16px",
                   }}
                 >
-                  {inventory.slice(0, 14).map((p) => {
+                  {pageItems.map((p) => {
                     const imgUrl =
                       p.images?.find((img) => img.is_primary)?.image_url ??
                       p.images?.[0]?.image_url;
@@ -614,8 +620,6 @@ export default function SellerDashboardPage() {
                         key={p.id}
                         onClick={() => router.push(`/seller/products/${p.id}/edit`)}
                         style={{
-                          flexShrink: 0,
-                          width: 136,
                           border: "1px solid #ebe7df",
                           borderRadius: 8,
                           overflow: "hidden",
@@ -632,7 +636,7 @@ export default function SellerDashboardPage() {
                               alt={p.name}
                               fill
                               style={{ objectFit: "cover" }}
-                              sizes="136px"
+                              sizes="(max-width: 768px) 50vw, 160px"
                             />
                           ) : (
                             <div
@@ -687,8 +691,63 @@ export default function SellerDashboardPage() {
                     );
                   })}
                 </div>
+                {totalPages > 1 && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "10px 20px 16px",
+                      borderTop: "1px solid #f0eee9",
+                    }}
+                  >
+                    <span style={{ fontSize: 11, color: "#8a9e92" }}>
+                      {start + 1}–{Math.min(start + PRODUCTS_PER_PAGE, inventory.length)} of {inventory.length}
+                    </span>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button
+                        type="button"
+                        onClick={() => setProductPage((p) => Math.max(0, p - 1))}
+                        disabled={safePage === 0}
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 600,
+                          padding: "6px 10px",
+                          borderRadius: 6,
+                          border: "1px solid #ebe7df",
+                          background: "#fff",
+                          color: safePage === 0 ? "#c5cdc8" : "#1c2b23",
+                          cursor: safePage === 0 ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        ← Prev
+                      </button>
+                      <span style={{ fontSize: 11, color: "#1c2b23", alignSelf: "center", padding: "0 4px" }}>
+                        {safePage + 1} / {totalPages}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setProductPage((p) => Math.min(totalPages - 1, p + 1))}
+                        disabled={safePage >= totalPages - 1}
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 600,
+                          padding: "6px 10px",
+                          borderRadius: 6,
+                          border: "1px solid #ebe7df",
+                          background: "#fff",
+                          color: safePage >= totalPages - 1 ? "#c5cdc8" : "#1c2b23",
+                          cursor: safePage >= totalPages - 1 ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        Next →
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
+              );
+            })()}
           </div>
 
           {/* ────────────── RIGHT ────────────── */}
