@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useAppDispatch, useAppSelector } from "@/store";
 import { fetchOrders } from "@/store/slices/buyerOrdersSlice";
 import ProcurLoader from "@/components/ProcurLoader";
+import { formatMoney } from "@/lib/utils/formatMoney";
 
 const COLS_DESKTOP = "200px 1fr 96px 96px 72px 108px";
 const COLS_MOBILE = "1fr auto";
@@ -104,8 +105,15 @@ export default function BuyerOrdersPage() {
   // Reset local page when filter/search changes
   useEffect(() => { setLocalPage(1); }, [tab, search]);
 
-  function fmtUSD(n: number) {
-    return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
+  // Aggregate-across-orders summary uses a single currency (orders may mix currencies
+  // in the buyer's history, but the dashboard tile is a rough total). Per-order rows
+  // use each order's own currency via `formatMoney(amount, order.currency)`.
+  const summaryCurrency =
+    (ordersList.find((o) => (o as any)?.currency) as any)?.currency as
+      | string
+      | undefined ?? "USD";
+  function fmtSummary(n: number) {
+    return formatMoney(n, summaryCurrency);
   }
 
   const TABS: { key: StatusKey; label: string }[] = [
@@ -172,7 +180,7 @@ export default function BuyerOrdersPage() {
               },
               {
                 label: "Total Paid",
-                value: fmtUSD(summary.totalPaid),
+                value: fmtSummary(summary.totalPaid),
                 note: "Across all orders",
                 noteColor: "#8a9e92",
                 noteArrow: false,
@@ -554,7 +562,7 @@ export default function BuyerOrdersPage() {
                                   fontVariantNumeric: "tabular-nums",
                                 }}
                               >
-                                ${unitPrice.toFixed(2)}
+                                {formatMoney(unitPrice, (order as any)?.currency)}
                               </span>
                             </div>
                           );
@@ -576,7 +584,7 @@ export default function BuyerOrdersPage() {
                         fontVariantNumeric: "tabular-nums",
                       }}
                     >
-                      ${(order.total_amount || 0).toFixed(2)}
+                      {formatMoney(order.total_amount, (order as any)?.currency)}
                     </div>
 
                     {/* Status */}

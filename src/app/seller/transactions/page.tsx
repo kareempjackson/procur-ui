@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAppDispatch, useAppSelector } from "@/store";
 import ProcurLoader from "@/components/ProcurLoader";
+import { formatMoney } from "@/lib/utils/formatMoney";
 import {
   fetchSellerTransactions,
   fetchTransactionsSummary,
@@ -90,7 +91,7 @@ const STATUS_META: Record<string, { bg: string; color: string; icon: string }> =
 
 const fmt = (n: number, currency = "USD") => {
   const isNeg = n < 0;
-  const f = new Intl.NumberFormat("en-US", { style: "currency", currency }).format(Math.abs(n));
+  const f = formatMoney(Math.abs(n), currency);
   return isNeg ? `-${f}` : f;
 };
 

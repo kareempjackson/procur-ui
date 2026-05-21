@@ -12,6 +12,7 @@ import {
   setCountryFromCode,
 } from "@/store/slices/countrySlice";
 import { getApiClient } from "@/lib/apiClient";
+import { formatMoney } from "@/lib/utils/formatMoney";
 
 // ─── Country flag ────────────────────────────────────────────────────────────
 function CountryFlag({ code, size = 14 }: { code: string; size?: number }) {
@@ -1582,7 +1583,7 @@ function BrowseContent() {
                           color: "#2d4a3e",
                         }}
                       >
-                        ${p.current_price.toFixed(2)}
+                        {formatMoney(p.current_price, (p as any).currency)}
                         <span
                           style={{
                             fontWeight: 400,

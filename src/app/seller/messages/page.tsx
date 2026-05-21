@@ -10,6 +10,7 @@ import { useSelector } from "react-redux";
 import { selectAuthToken, selectAuthUser } from "@/store/slices/authSlice";
 import { getSupabaseClient } from "@/lib/supabaseClient";
 import { useMessagingSocket } from "@/hooks/useMessagingSocket";
+import { formatMoney } from "@/lib/utils/formatMoney";
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const BG    = "#faf8f4";
@@ -810,7 +811,7 @@ function ContextPanel({ conv, item }: { conv: ApiConversation; item: any }) {
           <div style={rowStyle}>
             <span style={{ color: MUTED }}>Total</span>
             <span style={{ fontWeight: 600, color: DARK }}>
-              {new Intl.NumberFormat("en-US", { style: "currency", currency: item.currency || "USD" }).format(item.total_amount || 0)}
+              {formatMoney(item.total_amount, item.currency)}
             </span>
           </div>
           {item.status && (
@@ -845,8 +846,7 @@ function ContextPanel({ conv, item }: { conv: ApiConversation; item: any }) {
           <div style={{ fontSize: 14, fontWeight: 700, color: DARK, marginBottom: 4 }}>{item.name}</div>
           <div style={{ fontSize: 12, color: MUTED, marginBottom: 6 }}>{item.category}</div>
           <div style={{ fontSize: 16, fontWeight: 800, color: ORANGE }}>
-            {new Intl.NumberFormat("en-US", { style: "currency", currency: item.currency || "USD" })
-              .format(item.sale_price ?? item.base_price ?? 0)}
+            {formatMoney(item.sale_price ?? item.base_price ?? 0, item.currency)}
           </div>
         </div>
       </div>

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/store";
+import { formatMoney } from "@/lib/utils/formatMoney";
 import {
   fetchProductRequests,
   setFilters,
@@ -18,8 +19,7 @@ const getStatusMeta = (request: any) => {
   return                                              { text: "New Request",        bg: "rgba(45,74,62,.08)",   color: "#2d4a3e" };
 };
 
-const fmtCurrency = (n: number, currency = "USD") =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency }).format(n);
+const fmtCurrency = (n: number, currency = "USD") => formatMoney(n, currency);
 
 const fmtDate = (d?: string) =>
   d ? new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "Not specified";

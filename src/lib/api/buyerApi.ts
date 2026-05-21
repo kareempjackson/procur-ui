@@ -57,6 +57,42 @@ export interface ToggleHarvestLikeDto {
   is_like: boolean;
 }
 
+export interface SavedPaymentMethod {
+  id: string;
+  stripe_payment_method_id: string;
+  brand: string | null;
+  last4: string | null;
+  exp_month: number | null;
+  exp_year: number | null;
+  cardholder_name: string | null;
+  is_default: boolean;
+  created_at: string;
+}
+
+export interface SetupIntentResponse {
+  client_secret: string;
+  customer_id: string;
+}
+
+export interface OrderRefund {
+  id: string;
+  order_id: string;
+  parent_order_id: string | null;
+  refund_number: string;
+  credit_note_number: string;
+  amount_cents: number;
+  currency: string;
+  reason: string;
+  reason_code: string;
+  refund_method: "card" | "buyer_credit";
+  status: "pending" | "succeeded" | "failed" | "cancelled";
+  stripe_refund_id: string | null;
+  initiated_by_role: "admin" | "buyer" | "system";
+  created_at: string;
+  succeeded_at: string | null;
+  failed_at: string | null;
+}
+
 // Get token function - reuse the same storage shape as auth slice (`auth` key)
 const getToken = () => {
   if (typeof window === "undefined") return null;
@@ -251,6 +287,11 @@ export const buyerApi = {
     return response.data;
   },
 
+  deleteAddress: async (addressId: string): Promise<void> => {
+    const api = getApiClient(getToken);
+    await api.delete(`/buyers/addresses/${addressId}`);
+  },
+
   // ==================== ORDERS ====================
   getOrders: async (params?: any) => {
     const api = getApiClient(getToken);
@@ -268,6 +309,58 @@ export const buyerApi = {
   getTransactions: async (params?: any) => {
     const api = getApiClient(getToken);
     const response = await api.get("/buyers/transactions", { params });
+    return response.data;
+  },
+
+  // ==================== PAYMENT METHODS (Stripe saved cards) ====================
+  listPaymentMethods: async (): Promise<SavedPaymentMethod[]> => {
+    const api = getApiClient(getToken);
+    const response = await api.get("/payment-methods");
+    return response.data;
+  },
+
+  createSetupIntent: async (): Promise<SetupIntentResponse> => {
+    const api = getApiClient(getToken);
+    const response = await api.post("/payment-methods/setup-intent");
+    return response.data;
+  },
+
+  confirmPaymentMethod: async (
+    stripe_payment_method_id: string,
+  ): Promise<SavedPaymentMethod> => {
+    const api = getApiClient(getToken);
+    const response = await api.post("/payment-methods", {
+      stripe_payment_method_id,
+    });
+    return response.data;
+  },
+
+  deletePaymentMethod: async (id: string): Promise<void> => {
+    const api = getApiClient(getToken);
+    await api.delete(`/payment-methods/${id}`);
+  },
+
+  setDefaultPaymentMethod: async (id: string): Promise<void> => {
+    const api = getApiClient(getToken);
+    await api.patch(`/payment-methods/${id}/default`);
+  },
+
+  // ==================== REFUNDS (read-only buyer view) ====================
+  getOrderRefunds: async (orderId: string): Promise<OrderRefund[]> => {
+    const api = getApiClient(getToken);
+    const response = await api.get(`/buyers/orders/${orderId}/refunds`);
+    return response.data;
+  },
+
+  downloadCreditNote: async (
+    orderId: string,
+    refundId: string,
+  ): Promise<Blob> => {
+    const api = getApiClient(getToken);
+    const response = await api.get(
+      `/buyers/orders/${orderId}/refunds/${refundId}/credit-note`,
+      { responseType: "blob" },
+    );
     return response.data;
   },
 };

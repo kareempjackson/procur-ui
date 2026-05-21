@@ -9,6 +9,7 @@ import { fetchSellerProducts, fetchSellerById } from "@/store/slices/buyerMarket
 import { addToCartAsync } from "@/store/slices/buyerCartSlice";
 import ProcurLoader from "@/components/ProcurLoader";
 import { getApiClient } from "@/lib/apiClient";
+import { formatMoney } from "@/lib/utils/formatMoney";
 import { useSelector } from "react-redux";
 import { selectAuthToken } from "@/store/slices/authSlice";
 
@@ -71,6 +72,7 @@ export default function SupplierClient({ supplierId }: { supplierId: string }) {
           id: p.id,
           name: p.name,
           price,
+          currency: p.currency,
           unit: p.unit_of_measurement,
           category: p.category,
           image:
@@ -385,7 +387,7 @@ export default function SupplierClient({ supplierId }: { supplierId: string }) {
                         </h3>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
                           <span style={{ fontSize: 16, fontWeight: 800, color: "#1c2b23" }}>
-                            ${p.price.toFixed(2)}
+                            {formatMoney(p.price, p.currency)}
                             <span style={{ fontSize: 11, fontWeight: 400, color: "#8a9e92" }}> /{p.unit}</span>
                           </span>
                           <span style={{ fontSize: 11, color: "#8a9e92", background: "#f5f1ea", padding: "2px 8px", borderRadius: 999 }}>

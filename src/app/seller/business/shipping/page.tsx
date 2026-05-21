@@ -6,6 +6,7 @@ import { useAppDispatch, useAppSelector } from "@/store";
 import { fetchActiveCountries, selectCountry, selectCountries } from "@/store/slices/countrySlice";
 import { getApiClient } from "@/lib/apiClient";
 import { useToast } from "@/components/ui/Toast";
+import { formatMoney } from "@/lib/utils/formatMoney";
 
 function CountryFlag({ code, size = 20 }: { code: string; size?: number }) {
   return (
@@ -227,9 +228,8 @@ export default function ShippingRoutesPage() {
                   </div>
                   <div style={{ textAlign: "right", flexShrink: 0 }}>
                     <div style={{ fontSize: 16, fontWeight: 700, color: "#2d4a3e" }}>
-                      ${route.shipping_fee.toFixed(2)}
+                      {formatMoney(route.shipping_fee, route.currency)}
                     </div>
-                    <div style={{ fontSize: 10, color: "#8a9e92" }}>{route.currency}</div>
                   </div>
                   <button
                     onClick={() => handleDelete(route.id)}

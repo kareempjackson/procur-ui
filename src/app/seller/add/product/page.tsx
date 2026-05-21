@@ -9,6 +9,8 @@ import { getApiClient } from "@/lib/apiClient";
 import { ADMIN_CATALOG_PRODUCT_CATEGORIES } from "@/lib/adminCatalogProductCategories";
 import { useAppDispatch, useAppSelector } from "@/store";
 import { createSellerProduct } from "@/store/slices/sellerProductsSlice";
+import { selectCountry } from "@/store/slices/countrySlice";
+import { formatMoney } from "@/lib/utils/formatMoney";
 
 // ── Enums ──────────────────────────────────────────────────────────────────────
 
@@ -94,6 +96,7 @@ export default function AddProductPage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const accessToken = useAppSelector((s) => s.auth.accessToken);
+  const { currency: accountCurrency } = useAppSelector(selectCountry);
 
   // ── Submit state ─────────────────────────────────────────────────────────────
   type SubmitStep = null | "creating" | "uploading" | "done";
@@ -767,7 +770,7 @@ export default function AddProductPage() {
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <div>
                       <span style={{ fontSize: 16, fontWeight: 800, color: "#1c2b23" }}>
-                        ${formData.base_price > 0 ? formData.base_price.toFixed(2) : "0.00"}
+                        {formatMoney(formData.base_price, accountCurrency)}
                       </span>
                       <span style={{ fontSize: 11, color: "#8a9e92", marginLeft: 4 }}>/ {formData.unit_of_measurement}</span>
                     </div>

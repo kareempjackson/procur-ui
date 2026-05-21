@@ -6,6 +6,7 @@ import { useAppDispatch, useAppSelector } from "@/store";
 import { getApiClient } from "@/lib/apiClient";
 import { fetchSellerOrders } from "@/store/slices/sellerOrdersSlice";
 import ProcurLoader from "@/components/ProcurLoader";
+import { formatMoney } from "@/lib/utils/formatMoney";
 
 // ── Enums ─────────────────────────────────────────────────────────────────────
 enum OrderStatus {
@@ -144,8 +145,7 @@ function getOrderItemImage(item: OrderItem): string | null {
   return item.product_image || item.image_url || fromSnapshotPrimary || fromSnapshotAny || item.product_snapshot?.image_url || null;
 }
 
-const fmt = (n: number, currency = "USD") =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency }).format(n);
+const fmt = (n: number, currency = "USD") => formatMoney(n, currency);
 
 // ── Shared styles ──────────────────────────────────────────────────────────────
 const card: React.CSSProperties = {

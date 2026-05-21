@@ -8,7 +8,9 @@ import { useAppDispatch, useAppSelector } from "@/store";
 import { fetchOrderDetail } from "@/store/slices/buyerOrdersSlice";
 import ProcurLoader from "@/components/ProcurLoader";
 import { getApiClient } from "@/lib/apiClient";
+import { buyerApi, type OrderRefund } from "@/lib/api/buyerApi";
 import { useToast } from "@/components/ui/Toast";
+import { makeMoneyFormatter } from "@/lib/utils/formatMoney";
 
 // Note: legacy demo data removed; page now uses live order data only
 
@@ -27,12 +29,34 @@ export default function OrderConfirmationPage() {
   const [downloadingInvoice, setDownloadingInvoice] = useState(false);
   const [groupOrders, setGroupOrders] = useState<any[] | null>(null);
   const [groupLoading, setGroupLoading] = useState(false);
+  const [refunds, setRefunds] = useState<OrderRefund[]>([]);
 
   useEffect(() => {
     if (orderId) {
       dispatch(fetchOrderDetail(orderId));
+      buyerApi
+        .getOrderRefunds(orderId)
+        .then(setRefunds)
+        .catch(() => setRefunds([]));
     }
   }, [orderId, dispatch]);
+
+  const downloadCreditNote = async (refund: OrderRefund) => {
+    try {
+      const blob = await buyerApi.downloadCreditNote(orderId, refund.id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `procur-credit-note-${refund.credit_note_number}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to download credit note", err);
+      show("Failed to download credit note");
+    }
+  };
 
   const loading = orderDetailStatus === "loading";
   const order = currentOrder as any | null;
@@ -80,23 +104,39 @@ export default function OrderConfirmationPage() {
   const aggregatedTotals = useMemo(() => {
     const list = ordersToDisplay;
     const subtotal = list.reduce((sum, o) => sum + Number(o?.subtotal || 0), 0);
-    const buyerShipping = list.reduce(
+    // Prefer parent-level shipping when fulfillments are present (children carry 0
+    // shipping in the multi-seller flow — buyer pays it once on the parent).
+    const childShipping = list.reduce(
       (sum, o) => sum + Number(o?.shipping_amount || o?.shipping_cost || 0),
       0
     );
+    const parentShipping = Number((order as any)?.shipping_amount || 0);
+    const buyerShipping = hasFulfillments && parentShipping > childShipping
+      ? parentShipping
+      : childShipping;
     const sellerShipping = list.reduce(
       (sum, o) => sum + Number(o?.seller_shipping_amount || 0),
       0
     );
-    const tax = list.reduce((sum, o) => sum + Number(o?.tax_amount || 0), 0);
-    const discount = list.reduce(
+    const childTax = list.reduce((sum, o) => sum + Number(o?.tax_amount || 0), 0);
+    const parentTax = Number((order as any)?.tax_amount || 0);
+    const tax = hasFulfillments && parentTax > childTax ? parentTax : childTax;
+    const childDiscount = list.reduce(
       (sum, o) => sum + Number(o?.discount_amount || 0),
       0
     );
-    const total = list.reduce(
+    const parentDiscount = Number((order as any)?.discount_amount || 0);
+    const discount = hasFulfillments && parentDiscount > childDiscount
+      ? parentDiscount
+      : childDiscount;
+    // Source of truth for what the buyer actually paid: parent order total when present,
+    // otherwise the sum of the single/child orders' totals.
+    const parentTotal = Number((order as any)?.total_amount || 0);
+    const childrenTotal = list.reduce(
       (sum, o) => sum + Number(o?.total_amount || 0),
       0
     );
+    const total = hasFulfillments && parentTotal > 0 ? parentTotal : childrenTotal;
     // Derive transaction fee from totals when not explicitly stored
     const explicitFee = list.reduce(
       (sum, o) => sum + Number(o?.transaction_fee || o?.platform_fee_amount || 0),
@@ -105,7 +145,14 @@ export default function OrderConfirmationPage() {
     const derivedFee = Math.max(0, total - subtotal - buyerShipping - tax + discount);
     const transactionFee = explicitFee > 0 ? explicitFee : derivedFee;
     return { subtotal, buyerShipping, sellerShipping, tax, discount, transactionFee, total };
-  }, [ordersToDisplay]);
+  }, [ordersToDisplay, hasFulfillments, order]);
+
+  // Uses the order's currency (COP, XCD, USD, etc.) — locale rules render thousands
+  // separators and fractional digits appropriately (COP shows no decimals via es-CO).
+  const fmt = useMemo(
+    () => makeMoneyFormatter((order as any)?.currency),
+    [order]
+  );
 
   const shipping = order?.shipping_address || {};
   const addrLine1 =
@@ -477,7 +524,7 @@ export default function OrderConfirmationPage() {
                 <div style={{ textAlign: "right" }}>
                   <p style={{ fontSize: 12, color: S.muted, marginBottom: 4 }}>Subtotal</p>
                   <p style={{ fontSize: 18, fontWeight: 800, color: S.dark }}>
-                    ${Number(o.subtotal || 0).toFixed(2)}
+                    {fmt(o.subtotal)}
                   </p>
                 </div>
               </div>
@@ -520,10 +567,10 @@ export default function OrderConfirmationPage() {
                     </div>
                     <div style={{ textAlign: "right" }}>
                       <p style={{ fontWeight: 600, fontSize: 14, color: S.dark }}>
-                        ${Number(item.total_price || item.unit_price * item.quantity || 0).toFixed(2)}
+                        {fmt(item.total_price || item.unit_price * item.quantity)}
                       </p>
                       <p style={{ fontSize: 12, color: S.muted }}>
-                        ${Number(item.unit_price || 0).toFixed(2)} each
+                        {fmt(item.unit_price)} each
                       </p>
                     </div>
                   </div>
@@ -584,26 +631,68 @@ export default function OrderConfirmationPage() {
 
         {/* Shipping & Payment */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
-          {/* Shipping Address */}
-          <div style={card}>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: S.dark, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
-              📍 Shipping Address
-            </h3>
-            <div style={{ fontSize: 13, color: S.dark, lineHeight: 1.7 }}>
-              {(shipping.name || shipping.contact_name) && (
-                <p style={{ fontWeight: 600 }}>{shipping.name || shipping.contact_name}</p>
-              )}
-              {addrLine1 && <p style={{ color: S.muted }}>{addrLine1}</p>}
-              {addrLine2 && <p style={{ color: S.muted }}>{addrLine2}</p>}
-              {(addrCity || addrState || addrPostal) && (
-                <p style={{ color: S.muted }}>{[addrCity, addrState, addrPostal].filter(Boolean).join(" ")}</p>
-              )}
-              {addrCountry && <p style={{ color: S.muted }}>{addrCountry}</p>}
-              {(shipping.phone || shipping.contact_phone) && (
-                <p style={{ color: S.muted, marginTop: 4 }}>{shipping.phone || shipping.contact_phone}</p>
-              )}
+          {/* Shipping / Pickup */}
+          {order?.fulfillment_method === "pickup" && order?.pickup_location ? (
+            <div style={card}>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: S.dark, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
+                📦 Pickup Location
+              </h3>
+              <div style={{ fontSize: 13, color: S.dark, lineHeight: 1.7 }}>
+                <p style={{ fontWeight: 600 }}>{order.pickup_location.seller_name}</p>
+                {(() => {
+                  const a = order.pickup_location.address || {};
+                  const lines = [
+                    [a.street_address, a.address_line2].filter(Boolean).join(", "),
+                    [a.city, a.state, a.postal_code].filter(Boolean).join(", "),
+                    a.country,
+                  ].filter(Boolean);
+                  return (
+                    <>
+                      {lines.map((l, i) => (
+                        <p key={i} style={{ color: S.muted }}>{l}</p>
+                      ))}
+                      {(a.contact_name || a.contact_phone) && (
+                        <p style={{ color: S.muted, marginTop: 4 }}>
+                          {[a.contact_name, a.contact_phone].filter(Boolean).join(" · ")}
+                        </p>
+                      )}
+                      {a.hours && (
+                        <p style={{ color: S.muted, marginTop: 4 }}>{a.hours}</p>
+                      )}
+                      {a.instructions && (
+                        <p style={{ color: S.muted, marginTop: 8, fontStyle: "italic" }}>
+                          {a.instructions}
+                        </p>
+                      )}
+                    </>
+                  );
+                })()}
+                <p style={{ marginTop: 10, fontSize: 11.5, color: S.muted }}>
+                  Show this confirmation when collecting your order.
+                </p>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div style={card}>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: S.dark, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
+                📍 Shipping Address
+              </h3>
+              <div style={{ fontSize: 13, color: S.dark, lineHeight: 1.7 }}>
+                {(shipping.name || shipping.contact_name) && (
+                  <p style={{ fontWeight: 600 }}>{shipping.name || shipping.contact_name}</p>
+                )}
+                {addrLine1 && <p style={{ color: S.muted }}>{addrLine1}</p>}
+                {addrLine2 && <p style={{ color: S.muted }}>{addrLine2}</p>}
+                {(addrCity || addrState || addrPostal) && (
+                  <p style={{ color: S.muted }}>{[addrCity, addrState, addrPostal].filter(Boolean).join(" ")}</p>
+                )}
+                {addrCountry && <p style={{ color: S.muted }}>{addrCountry}</p>}
+                {(shipping.phone || shipping.contact_phone) && (
+                  <p style={{ color: S.muted, marginTop: 4 }}>{shipping.phone || shipping.contact_phone}</p>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Payment Method */}
           <div style={card}>
@@ -612,14 +701,78 @@ export default function OrderConfirmationPage() {
             </h3>
             <div style={{ fontSize: 13 }}>
               <p style={{ fontWeight: 600, color: S.dark, textTransform: "capitalize", marginBottom: 4 }}>
-                {order?.payment_status || "pending"}
+                {String(order?.payment_method || "").replaceAll("_", " ") || "—"}
               </p>
-              <p style={{ color: S.muted }}>
-                Total ${Number(order?.total_amount || 0).toFixed(2)}
+              <PaymentStatusBadge status={order?.payment_status} />
+              <p style={{ color: S.muted, marginTop: 6 }}>
+                Total {fmt(order?.total_amount)}
               </p>
             </div>
           </div>
         </div>
+
+        {/* Refunds */}
+        {refunds.length > 0 && (
+          <div style={card}>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: S.dark, marginBottom: 12 }}>
+              Refunds
+            </h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {refunds.map((r) => (
+                <div
+                  key={r.id}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    border: `1px solid ${S.border}`,
+                    borderRadius: 10,
+                    padding: 12,
+                    background: "#fff",
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 600, color: S.dark, fontSize: 13 }}>
+                      {r.refund_number}
+                    </div>
+                    <div style={{ color: S.muted, fontSize: 12 }}>
+                      {r.refund_method === "card" ? "Card refund" : "Procur credit"} ·{" "}
+                      {new Date(r.created_at).toLocaleDateString("en-GB", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })}{" "}
+                      · {r.status}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{ fontWeight: 700, color: "#B14315" }}>
+                      -{fmt(r.amount_cents / 100)}
+                    </div>
+                    {r.status === "succeeded" && (
+                      <button
+                        type="button"
+                        onClick={() => downloadCreditNote(r)}
+                        style={{
+                          background: "none",
+                          border: `1px solid ${S.border}`,
+                          borderRadius: 999,
+                          padding: "6px 12px",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: S.dark,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Credit note PDF
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Order Summary */}
         <div style={card}>
@@ -627,22 +780,34 @@ export default function OrderConfirmationPage() {
             Order Summary
           </h3>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {[
-              { label: "Subtotal", value: aggregatedTotals.subtotal },
-              { label: "Tax", value: aggregatedTotals.tax },
-              { label: "Buyer Shipping", value: aggregatedTotals.buyerShipping },
-              { label: "Seller Shipping", value: aggregatedTotals.sellerShipping },
-              { label: "Transaction Fee", value: aggregatedTotals.transactionFee },
-            ].map(({ label, value }) => (
-              <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                <span style={{ color: S.muted }}>{label}</span>
-                <span style={{ fontWeight: 600, color: S.dark }}>${Number(value || 0).toFixed(2)}</span>
-              </div>
-            ))}
+            {(() => {
+              const lines: { label: string; value: number }[] = [
+                { label: "Subtotal", value: aggregatedTotals.subtotal },
+                { label: "Tax", value: aggregatedTotals.tax },
+                { label: "Buyer Shipping", value: aggregatedTotals.buyerShipping },
+                { label: "Seller Shipping", value: aggregatedTotals.sellerShipping },
+                { label: "Transaction Fee", value: aggregatedTotals.transactionFee },
+              ];
+              const sumLines =
+                aggregatedTotals.subtotal +
+                aggregatedTotals.tax +
+                aggregatedTotals.buyerShipping +
+                aggregatedTotals.transactionFee;
+              const gap = aggregatedTotals.total - sumLines + aggregatedTotals.discount;
+              if (gap > 0.01) {
+                lines.push({ label: "Additional fees", value: gap });
+              }
+              return lines.map(({ label, value }) => (
+                <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                  <span style={{ color: S.muted }}>{label}</span>
+                  <span style={{ fontWeight: 600, color: S.dark }}>{fmt(value)}</span>
+                </div>
+              ));
+            })()}
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, borderTop: `1px dashed ${S.border}`, paddingTop: 10, marginTop: 2 }}>
               <span style={{ color: aggregatedTotals.discount > 0 ? "#059669" : S.muted }}>Discount</span>
               <span style={{ fontWeight: 600, color: aggregatedTotals.discount > 0 ? "#059669" : S.dark }}>
-                {aggregatedTotals.discount > 0 ? "-" : ""}${Number(aggregatedTotals.discount || 0).toFixed(2)}
+                {aggregatedTotals.discount > 0 ? "-" : ""}{fmt(aggregatedTotals.discount)}
               </span>
             </div>
             <div
@@ -655,7 +820,7 @@ export default function OrderConfirmationPage() {
             >
               <span style={{ fontWeight: 700, fontSize: 15, color: S.dark }}>Total paid by buyer</span>
               <span style={{ fontWeight: 800, fontSize: 20, color: S.dark }}>
-                ${Number(aggregatedTotals.total || 0).toFixed(2)}
+                {fmt(aggregatedTotals.total)}
               </span>
             </div>
           </div>
@@ -683,5 +848,40 @@ export default function OrderConfirmationPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+function PaymentStatusBadge({ status }: { status?: string | null }) {
+  const s = String(status || "pending").toLowerCase();
+  const palette: Record<
+    string,
+    { label: string; bg: string; fg: string }
+  > = {
+    paid: { label: "Payment captured", bg: "#dcfce7", fg: "#15803d" },
+    pending: { label: "Payment pending", bg: "#fef3c7", fg: "#92400e" },
+    failed: { label: "Payment failed", bg: "#fee2e2", fg: "#b91c1c" },
+    refunded: { label: "Refunded", bg: "#fde6db", fg: "#9a3412" },
+    partially_refunded: {
+      label: "Partially refunded",
+      bg: "#fde6db",
+      fg: "#9a3412",
+    },
+  };
+  const tone = palette[s] || palette.pending;
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        padding: "2px 8px",
+        borderRadius: 999,
+        background: tone.bg,
+        color: tone.fg,
+        fontSize: 11,
+        fontWeight: 700,
+        letterSpacing: ".02em",
+      }}
+    >
+      {tone.label}
+    </span>
   );
 }

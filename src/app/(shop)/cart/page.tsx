@@ -10,6 +10,7 @@ import {
   removeCartItemAsync,
 } from "@/store/slices/buyerCartSlice";
 import { getEstimatedDeliveryRangeLabel } from "@/lib/utils/date";
+import { makeMoneyFormatter } from "@/lib/utils/formatMoney";
 
 const DEBOUNCE_DELAY = 500;
 // Fallbacks; live values come from cart.min_order_per_seller / min_order_total
@@ -28,6 +29,7 @@ export default function CartPage() {
   const dispatch = useAppDispatch();
   const { cart, status, error } = useAppSelector((s) => s.buyerCart);
   const deliveryLabel = getEstimatedDeliveryRangeLabel();
+  const fmt = makeMoneyFormatter(cart?.currency);
 
   const [localQty, setLocalQty] = useState<Record<string, number>>({});
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
@@ -181,13 +183,13 @@ export default function CartPage() {
                   </svg>
                   <div style={{ fontSize: 12.5, color: "#1c2b23", lineHeight: 1.5 }}>
                     <div style={{ marginBottom: belowSellerMin || belowTotalMin ? 4 : 0 }}>
-                      <strong>Minimum order requirements:</strong> XCD {minOrderPerSeller.toFixed(2)} per farm, XCD {minOrderTotal.toFixed(2)} overall.
+                      <strong>Minimum order requirements:</strong> {fmt(minOrderPerSeller)} per farm, {fmt(minOrderTotal)} overall.
                     </div>
                     {belowTotalMin && (
-                      <div>• Add XCD {totalShortfall.toFixed(2)} more to reach the overall minimum.</div>
+                      <div>• Add {fmt(totalShortfall)} more to reach the overall minimum.</div>
                     )}
                     {sellersBelowMin.map((s) => (
-                      <div key={s.name}>• {s.name}: add XCD {s.shortfall.toFixed(2)} more (or remove items).</div>
+                      <div key={s.name}>• {s.name}: add {fmt(s.shortfall)} more (or remove items).</div>
                     ))}
                   </div>
                 </div>
@@ -219,11 +221,11 @@ export default function CartPage() {
                         <span style={{ fontSize: 10.5, color: "#b0c0b6", marginLeft: 2 }}>Delivery {deliveryLabel}</span>
                       </div>
                       <div style={{ textAlign: "right" }}>
-                        <div style={{ fontSize: 14, fontWeight: 800, color: "#1c2b23", fontVariantNumeric: "tabular-nums" }}>${sub.toFixed(2)}</div>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: "#1c2b23", fontVariantNumeric: "tabular-nums" }}>{fmt(sub)}</div>
                         <div style={{ fontSize: 10, color: sellerShortfall > 0 ? "#d4783c" : "#b0c0b6", marginTop: 1, fontWeight: sellerShortfall > 0 ? 700 : 400 }}>
                           {sellerShortfall > 0
-                            ? `Add XCD ${sellerShortfall.toFixed(2)} to meet farm min`
-                            : seller.shipping === 0 ? "Free shipping" : `$${seller.shipping.toFixed(2)} shipping`}
+                            ? `Add ${fmt(sellerShortfall)} to meet farm min`
+                            : seller.shipping === 0 ? "Free shipping" : `${fmt(seller.shipping)} shipping`}
                         </div>
                       </div>
                     </div>
@@ -258,7 +260,7 @@ export default function CartPage() {
                           {/* Name + unit */}
                           <div style={{ minWidth: 0 }}>
                             <div style={{ fontSize: 13, fontWeight: 700, color: "#1c2b23", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.name}</div>
-                            <div style={{ fontSize: 10.5, color: "#b0c0b6", marginTop: 1 }}>${item.price.toFixed(2)}/{item.unit}</div>
+                            <div style={{ fontSize: 10.5, color: "#b0c0b6", marginTop: 1 }}>{fmt(item.price)}/{item.unit}</div>
                           </div>
 
                           {/* Actions: qty + price + remove */}
@@ -295,7 +297,7 @@ export default function CartPage() {
 
                             {/* Line total */}
                             <div style={{ textAlign: "right", minWidth: 60 }}>
-                              <div style={{ fontSize: 14, fontWeight: 800, color: "#1c2b23", fontVariantNumeric: "tabular-nums" }}>${lineTotal.toFixed(2)}</div>
+                              <div style={{ fontSize: 14, fontWeight: 800, color: "#1c2b23", fontVariantNumeric: "tabular-nums" }}>{fmt(lineTotal)}</div>
                             </div>
 
                             {/* Remove */}
@@ -330,9 +332,9 @@ export default function CartPage() {
                 {/* Summary rows */}
                 <div style={{ padding: "14px 18px" }}>
                   {[
-                    { label: `Subtotal (${totalItems} item${totalItems !== 1 ? "s" : ""})`, val: `$${subtotal.toFixed(2)}` },
-                    { label: "Delivery", val: shipping === 0 ? "Free" : `$${shipping.toFixed(2)}` },
-                    { label: `Platform fee (${feeRate.toFixed(0)}%)`, val: `$${fee.toFixed(2)}` },
+                    { label: `Subtotal (${totalItems} item${totalItems !== 1 ? "s" : ""})`, val: fmt(subtotal) },
+                    { label: "Delivery", val: shipping === 0 ? "Free" : fmt(shipping) },
+                    { label: `Platform fee (${feeRate.toFixed(0)}%)`, val: fmt(fee) },
                   ].map((row, i, arr) => (
                     <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", fontSize: 12.5, borderBottom: i < arr.length - 1 ? "1px solid rgba(235,231,223,.3)" : "none" }}>
                       <span style={{ color: "#8a9e92", fontWeight: 500 }}>{row.label}</span>
@@ -344,7 +346,7 @@ export default function CartPage() {
                 {/* Total */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderTop: "1px solid #ebe7df", background: "#faf8f4" }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: "#1c2b23" }}>Total</span>
-                  <span style={{ fontSize: 20, fontWeight: 800, color: "#1c2b23", letterSpacing: "-.2px", fontVariantNumeric: "tabular-nums" }}>${total.toFixed(2)}</span>
+                  <span style={{ fontSize: 20, fontWeight: 800, color: "#1c2b23", letterSpacing: "-.2px", fontVariantNumeric: "tabular-nums" }}>{fmt(total)}</span>
                 </div>
 
                 {/* CTA */}
@@ -368,8 +370,8 @@ export default function CartPage() {
                   {belowMin && (
                     <p style={{ fontSize: 11, color: "#d4783c", textAlign: "center", marginTop: 8, margin: "8px 0 0" }}>
                       {belowTotalMin
-                        ? `Add XCD ${totalShortfall.toFixed(2)} more to unlock checkout`
-                        : `Each farm needs at least XCD ${minOrderPerSeller.toFixed(2)}`}
+                        ? `Add ${fmt(totalShortfall)} more to unlock checkout`
+                        : `Each farm needs at least ${fmt(minOrderPerSeller)}`}
                     </p>
                   )}
                 </div>

@@ -14,6 +14,8 @@ import {
   type ProductImage as ExistingImage,
 } from "@/store/slices/sellerProductsSlice";
 import ProcurLoader from "@/components/ProcurLoader";
+import { selectCountry } from "@/store/slices/countrySlice";
+import { formatMoney } from "@/lib/utils/formatMoney";
 
 // Fallback shim in case any stale code still references this symbol
 const createAuthenticatedSupabaseClient = (_accessToken: string) =>
@@ -127,6 +129,7 @@ export default function EditProductClient({
   const router = useRouter();
   const dispatch = useAppDispatch();
   const accessToken = useAppSelector((state) => state.auth.accessToken);
+  const { currency: accountCurrency } = useAppSelector(selectCountry);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1128,7 +1131,7 @@ export default function EditProductClient({
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <span className="text-lg font-semibold text-[var(--secondary-black)]">
-                          ${(formData.base_price || 0).toFixed(2)}
+                          {formatMoney(formData.base_price, accountCurrency)}
                         </span>
                         <span className="text-sm text-[var(--primary-base)]">
                           / {formData.unit_of_measurement || "unit"}

@@ -10,16 +10,12 @@ import { fetchSellerInsights } from "@/store/slices/sellerInsightsSlice";
 import { fetchProfile } from "@/store/slices/profileSlice";
 import { selectAuthUser } from "@/store/slices/authSlice";
 import { getApiClient } from "@/lib/apiClient";
+import { formatMoney } from "@/lib/utils/formatMoney";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmt(amount: number | undefined | null, currency = "XCD") {
-  const n = Number(amount ?? 0);
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 0,
-  }).format(Number.isFinite(n) ? n : 0);
+  return formatMoney(amount, currency);
 }
 
 const STATUS_META: Record<string, { label: string; bg: string; color: string }> = {

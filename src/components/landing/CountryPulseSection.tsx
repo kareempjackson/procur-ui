@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { getApiClient } from "@/lib/apiClient";
+import { formatMoney } from "@/lib/utils/formatMoney";
 
 export type SignalType = "in_demand" | "scarce" | "trending" | "surplus";
 
@@ -135,9 +136,7 @@ const EMPTY_SIGNALS: Record<SignalType, PulseEntry[]> = {
 
 export function formatPrice(p?: number | null, currency?: string | null) {
   if (p == null) return null;
-  const code = currency || "XCD";
-  const symbol = code === "USD" ? "$" : code === "XCD" ? "EC$" : `${code} `;
-  return `${symbol}${p.toFixed(2)}`;
+  return formatMoney(p, currency || "XCD");
 }
 
 export default function CountryPulseSection({

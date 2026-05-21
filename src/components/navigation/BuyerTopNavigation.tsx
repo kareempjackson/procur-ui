@@ -15,6 +15,7 @@ import { fetchCart } from "@/store/slices/buyerCartSlice";
 import { fetchBuyerCreditBalance } from "@/store/slices/buyerCreditsSlice";
 import { useNotificationsSocket } from "@/hooks/useNotificationsSocket";
 import { getApiClient } from "@/lib/apiClient";
+import { formatMoney } from "@/lib/utils/formatMoney";
 import {
   fetchActiveCountries,
   selectCountries,
@@ -251,7 +252,7 @@ const BuyerTopNavigation: React.FC = () => {
           {creditAmount > 0 && (
             <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 9px", borderRadius: 999, background: "rgba(52,211,153,.1)", border: "1px solid rgba(52,211,153,.22)", fontSize: 11, fontWeight: 600, color: "#6ee7b7", whiteSpace: "nowrap", marginRight: 4 }}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width={11} height={11}><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" /></svg>
-              ${creditAmount.toFixed(2)}
+              {formatMoney(creditAmount, credits?.currency)}
             </div>
           )}
 

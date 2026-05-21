@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import ImageGallery from "./ImageGallery";
 import { buildSellerUrl } from "@/lib/sellerUrl";
+import { formatMoney } from "@/lib/utils/formatMoney";
 
 interface ProductPageProps {
   params: Promise<{ country: string; slug: string }>;
@@ -483,7 +484,7 @@ export default async function PublicProductPage({ params }: ProductPageProps) {
                       letterSpacing: "-.5px",
                     }}
                   >
-                    ${product.current_price.toFixed(2)}
+                    {formatMoney(product.current_price, product.currency)}
                   </span>
                   <span style={{ fontSize: 15, color: "#8a9e92", fontWeight: 500 }}>
                     per {product.unit_of_measurement}
@@ -493,7 +494,7 @@ export default async function PublicProductPage({ params }: ProductPageProps) {
                   <p style={{ fontSize: 13, color: "#8a9e92", margin: "4px 0 0" }}>
                     Was{" "}
                     <span style={{ textDecoration: "line-through" }}>
-                      ${product.base_price.toFixed(2)}
+                      {formatMoney(product.base_price, product.currency)}
                     </span>{" "}
                     <span style={{ color: "#d4783c", fontWeight: 700 }}>{discountPct}% off</span>
                   </p>
@@ -685,7 +686,7 @@ export default async function PublicProductPage({ params }: ProductPageProps) {
                           letterSpacing: "-.4px",
                         }}
                       >
-                        ${product.current_price.toFixed(2)}
+                        {formatMoney(product.current_price, product.currency)}
                       </span>
                       <span style={{ fontSize: 13, color: "#8a9e92" }}>
                         / {product.unit_of_measurement}
@@ -693,7 +694,7 @@ export default async function PublicProductPage({ params }: ProductPageProps) {
                     </div>
                     {product.sale_price && product.sale_price < product.base_price && (
                       <p style={{ fontSize: 12, color: "#d4783c", fontWeight: 700, margin: "3px 0 0" }}>
-                        Save {discountPct}% — was ${product.base_price.toFixed(2)}
+                        Save {discountPct}% — was {formatMoney(product.base_price, product.currency)}
                       </p>
                     )}
                   </div>

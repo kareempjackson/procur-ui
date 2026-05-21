@@ -14,6 +14,7 @@ import {
   CubeIcon,
 } from "@heroicons/react/24/outline";
 import { getApiClient } from "@/lib/apiClient";
+import { formatMoney } from "@/lib/utils/formatMoney";
 import { useAppDispatch, useAppSelector } from "@/store";
 import { fetchSellerOrders } from "@/store/slices/sellerOrdersSlice";
 import ProcurLoader from "@/components/ProcurLoader";
@@ -174,12 +175,8 @@ export default function ShippingClient() {
     }
   };
 
-  const formatCurrency = (amount: number, currency: string = "USD") => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currency,
-    }).format(amount);
-  };
+  const formatCurrency = (amount: number, currency: string = "USD") =>
+    formatMoney(amount, currency);
 
   // Calculate stats
   const readyToShipCount = ordersReadyToShip.length;

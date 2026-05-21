@@ -7,6 +7,7 @@ import { fetchTransactions } from "@/store/slices/buyerTransactionsSlice";
 import ProcurLoader from "@/components/ProcurLoader";
 import { Alert } from "@/components/ui/Alert";
 import { useToast } from "@/components/ui/Toast";
+import { formatMoney } from "@/lib/utils/formatMoney";
 
 // Design tokens
 const T = {
@@ -299,28 +300,28 @@ export default function BuyerTransactionsPage() {
     ? [
         {
           label: "Total Spent",
-          value: new Intl.NumberFormat("en-US", { style: "currency", currency: summary.currency || "USD" }).format(summary.total_spent),
+          value: formatMoney(summary.total_spent, summary.currency),
           sub: `${summary.total_transactions} transactions`,
           accentColor: T.orange,
           icon: <IconBanknotes size={28} color={T.orange} />,
         },
         {
           label: "Refunds",
-          value: new Intl.NumberFormat("en-US", { style: "currency", currency: summary.currency || "USD" }).format(summary.total_refunds),
+          value: formatMoney(summary.total_refunds, summary.currency),
           sub: "Returned to account",
           accentColor: T.teal,
           icon: <IconTrendDown size={28} color={T.teal} />,
         },
         {
           label: "Average",
-          value: new Intl.NumberFormat("en-US", { style: "currency", currency: summary.currency || "USD" }).format(summary.average_transaction_amount),
+          value: formatMoney(summary.average_transaction_amount, summary.currency),
           sub: "Per transaction",
           accentColor: "#5b7fa6",
           icon: <IconBanknotes size={28} color="#5b7fa6" />,
         },
         {
           label: "Fees Paid",
-          value: new Intl.NumberFormat("en-US", { style: "currency", currency: summary.currency || "USD" }).format(summary.total_fees),
+          value: formatMoney(summary.total_fees, summary.currency),
           sub: "Platform & processing",
           accentColor: "#b08040",
           icon: <IconCreditCard size={28} color="#b08040" />,
@@ -542,17 +543,10 @@ export default function BuyerTransactionsPage() {
                         </td>
                         <td style={{ padding: "16px 24px" }}>
                           <div style={{ fontWeight: 700, fontSize: 13, color: T.dark }}>
-                            {new Intl.NumberFormat("en-US", {
-                              style: "currency",
-                              currency: transaction.currency || "USD",
-                            }).format(transaction.amount || 0)}
+                            {formatMoney(transaction.amount, transaction.currency)}
                           </div>
                           <div style={{ fontSize: 10, color: T.muted, marginTop: 2 }}>
-                            Net:{" "}
-                            {new Intl.NumberFormat("en-US", {
-                              style: "currency",
-                              currency: transaction.currency || "USD",
-                            }).format(transaction.net_amount || 0)}
+                            Net: {formatMoney(transaction.net_amount, transaction.currency)}
                           </div>
                         </td>
                         <td style={{ padding: "16px 24px" }}>

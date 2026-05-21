@@ -5,6 +5,7 @@ import { useAppDispatch, useAppSelector } from "@/store";
 import { fetchTransactions } from "@/store/slices/buyerTransactionsSlice";
 import { fetchOrders } from "@/store/slices/buyerOrdersSlice";
 import ProcurLoader from "@/components/ProcurLoader";
+import { formatMoney } from "@/lib/utils/formatMoney";
 
 // Design tokens
 const T = {
@@ -88,12 +89,8 @@ export default function AnalyticsClient() {
   ).length;
   const cancelledOrders = orders.filter((o) => o.status === "cancelled").length;
 
-  const formatCurrency = (amount: number, currency = "USD") => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency,
-    }).format(amount);
-  };
+  const formatCurrency = (amount: number, currency: string | null | undefined = "USD") =>
+    formatMoney(amount, currency);
 
   // Stat card definitions
   const statCards = [

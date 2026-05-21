@@ -47,6 +47,19 @@ export interface CartItem {
   added_at: string;
 }
 
+export interface PickupAddress {
+  street_address?: string;
+  address_line2?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+  country?: string;
+  contact_name?: string;
+  contact_phone?: string;
+  instructions?: string;
+  hours?: string;
+}
+
 export interface SellerGroup {
   seller_org_id: string;
   seller_name: string;
@@ -54,6 +67,8 @@ export interface SellerGroup {
   subtotal: number;
   estimated_shipping: number;
   total: number;
+  /** Non-null => seller offers pickup. Drives the Delivery/Pickup picker at checkout. */
+  pickup_address?: PickupAddress | null;
 }
 
 export interface Cart {

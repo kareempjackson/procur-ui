@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getApiClient } from "@/lib/apiClient";
 import { useToast } from "@/components/ui/Toast";
+import { formatMoney } from "@/lib/utils/formatMoney";
 import {
   ArrowLeftIcon,
   TagIcon,
@@ -248,7 +249,7 @@ export default function RequestDetailClient({
                   <p className="text-base font-semibold text-[var(--secondary-black)]">
                     {typeof budgetMin === "number" &&
                     typeof budgetMax === "number"
-                      ? `${budgetCurrency} ${budgetMin.toFixed(2)} - ${budgetCurrency} ${budgetMax.toFixed(2)} / ${unit}`
+                      ? `${formatMoney(budgetMin, budgetCurrency)} - ${formatMoney(budgetMax, budgetCurrency)} / ${unit}`
                       : "—"}
                   </p>
                 </div>
@@ -353,7 +354,7 @@ export default function RequestDetailClient({
                   <p className="text-xl font-bold text-[var(--primary-accent2)]">
                     {typeof budgetMin === "number" &&
                     typeof budgetMax === "number"
-                      ? `${budgetCurrency} ${budgetMin.toFixed(2)} - ${budgetCurrency} ${budgetMax.toFixed(2)}`
+                      ? `${formatMoney(budgetMin, budgetCurrency)} - ${formatMoney(budgetMax, budgetCurrency)}`
                       : "—"}
                   </p>
                   <p className="text-xs text-[var(--secondary-muted-edge)] mt-1">
@@ -430,8 +431,8 @@ export default function RequestDetailClient({
                 {typeof budgetMin === "number" &&
                   typeof budgetMax === "number" && (
                     <p className="text-xs text-[var(--secondary-muted-edge)] mt-1">
-                      Budget range: {budgetCurrency} {budgetMin.toFixed(2)} -{" "}
-                      {budgetCurrency} {budgetMax.toFixed(2)}
+                      Budget range: {formatMoney(budgetMin, budgetCurrency)} -{" "}
+                      {formatMoney(budgetMax, budgetCurrency)}
                     </p>
                   )}
               </div>

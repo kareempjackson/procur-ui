@@ -6,6 +6,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import { useAppDispatch, useAppSelector } from "@/store";
+import { formatMoney } from "@/lib/utils/formatMoney";
 import {
   fetchDashboardMetrics, fetchSalesAnalytics, AnalyticsPeriod,
   selectDashboardMetrics, selectSalesAnalytics,
@@ -34,10 +35,7 @@ const PERIODS = [
   { key: AnalyticsPeriod.THIS_YEAR,    label: "Year" },
 ];
 
-const fmt = (n: number, cur = "XCD") =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency", currency: cur, maximumFractionDigits: 0,
-  }).format(n);
+const fmt = (n: number, cur = "XCD") => formatMoney(n, cur);
 
 const fmtPct = (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`;
 
@@ -357,9 +355,9 @@ export default function AnalyticsClient() {
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0ece4" />
                       <XAxis dataKey="date" tick={{ fontSize: 11, fontFamily: F }} tickFormatter={fmtDate} />
-                      <YAxis tick={{ fontSize: 11, fontFamily: F }} tickFormatter={v => `$${Number(v).toLocaleString()}`} />
+                      <YAxis tick={{ fontSize: 11, fontFamily: F }} tickFormatter={v => fmt(Number(v), cur)} />
                       <Tooltip
-                        formatter={(v: any) => [`$${Number(v).toLocaleString()}`, "Revenue"]}
+                        formatter={(v: any) => [fmt(Number(v), cur), "Revenue"]}
                         labelFormatter={fmtDate}
                         contentStyle={tooltipStyle}
                       />
@@ -408,10 +406,10 @@ export default function AnalyticsClient() {
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0ece4" />
                     <XAxis type="number" tick={{ fontSize: 11, fontFamily: F }}
-                      tickFormatter={v => `$${Number(v).toLocaleString()}`} />
+                      tickFormatter={v => fmt(Number(v), cur)} />
                     <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fontFamily: F }} width={100} />
                     <Tooltip
-                      formatter={(v: any) => [`$${Number(v).toLocaleString()}`, "Revenue"]}
+                      formatter={(v: any) => [fmt(Number(v), cur), "Revenue"]}
                       contentStyle={tooltipStyle}
                     />
                     <Bar dataKey="revenue" fill={ORANGE} radius={[0, 4, 4, 0]} />

@@ -9,7 +9,11 @@ import {
   updateProfile,
   type UpdateProfileDto,
 } from "@/store/slices/profileSlice";
-import { fetchActiveCountries, selectCountries } from "@/store/slices/countrySlice";
+import {
+  fetchActiveCountries,
+  selectCountries,
+  selectCountry,
+} from "@/store/slices/countrySlice";
 import { getApiClient } from "@/lib/apiClient";
 
 const card: React.CSSProperties = { background: "#fff", border: "1px solid #ebe7df", borderRadius: 10 };
@@ -218,6 +222,17 @@ export default function SellerProfilePage() {
           </div>
         )}
 
+        {/* Pickup Location Section */}
+        {activeTab === "profile" && (
+          <PickupLocationSection
+            card={card}
+            inputStyle={inputStyle}
+            label={label}
+            primaryBtn={primaryBtn}
+            ghostBtn={ghostBtn}
+          />
+        )}
+
         {/* Password Tab */}
         {activeTab === "password" && (
           <div style={{ ...card, padding: "24px" }}>
@@ -256,6 +271,303 @@ export default function SellerProfilePage() {
           </div>
         )}
       </main>
+    </div>
+  );
+}
+
+interface PickupAddressState {
+  enabled: boolean;
+  street_address?: string;
+  address_line2?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+  country?: string;
+  contact_name?: string;
+  contact_phone?: string;
+  instructions?: string;
+  hours?: string;
+}
+
+// Locale-aware placeholder presets for the pickup form. Keyed by country.code from the
+// active country slice (e.g. 'gda' Grenada, 'col' Colombia). Default fallback covers
+// everything else, including new countries we haven't tailored to yet.
+const PICKUP_PLACEHOLDERS: Record<
+  string,
+  {
+    streetLabel: string;
+    streetPlaceholder: string;
+    line2Label: string;
+    line2Placeholder: string;
+    cityLabel: string;
+    cityPlaceholder: string;
+    stateLabel: string;
+    statePlaceholder: string;
+    postalLabel: string;
+    postalPlaceholder: string;
+    countryLabel: string;
+    contactNameLabel: string;
+    contactNamePlaceholder: string;
+    contactPhoneLabel: string;
+    contactPhonePlaceholder: string;
+    hoursLabel: string;
+    hoursPlaceholder: string;
+    instructionsLabel: string;
+    instructionsHelper: string;
+    instructionsPlaceholder: string;
+  }
+> = {
+  col: {
+    streetLabel: "Dirección *",
+    streetPlaceholder: "Ej: Calle 100 #15-20",
+    line2Label: "Información adicional (apto, piso, conjunto, barrio)",
+    line2Placeholder: "Local 3, Barrio El Poblado",
+    cityLabel: "Ciudad / Municipio *",
+    cityPlaceholder: "Bogotá",
+    stateLabel: "Departamento",
+    statePlaceholder: "Cundinamarca",
+    postalLabel: "Código postal",
+    postalPlaceholder: "110111",
+    countryLabel: "País *",
+    contactNameLabel: "Persona de contacto",
+    contactNamePlaceholder: "Maria González",
+    contactPhoneLabel: "Teléfono",
+    contactPhonePlaceholder: "+57 300 123 4567",
+    hoursLabel: "Horario",
+    hoursPlaceholder: "Lun-Sáb 9am-6pm",
+    instructionsLabel: "Instrucciones de recogida",
+    instructionsHelper: "(visibles para el comprador)",
+    instructionsPlaceholder:
+      "Timbrar en el local. Horario de recogida estrictamente cumplido.",
+  },
+  gda: {
+    streetLabel: "Street address *",
+    streetPlaceholder: "12 Main Street",
+    line2Label: "Address line 2 / apt / unit",
+    line2Placeholder: "Apt 2B",
+    cityLabel: "Town / Village *",
+    cityPlaceholder: "St. George's",
+    stateLabel: "Parish",
+    statePlaceholder: "St. George",
+    postalLabel: "Postal code",
+    postalPlaceholder: "",
+    countryLabel: "Country *",
+    contactNameLabel: "Contact name",
+    contactNamePlaceholder: "Andre Joseph",
+    contactPhoneLabel: "Contact phone",
+    contactPhonePlaceholder: "+1 473 405 1234",
+    hoursLabel: "Hours",
+    hoursPlaceholder: "Mon-Sat 9am-6pm",
+    instructionsLabel: "Pickup instructions",
+    instructionsHelper: "(shown to buyer)",
+    instructionsPlaceholder:
+      "Ring the bell at the loading dock. Pickup hours strictly enforced.",
+  },
+  default: {
+    streetLabel: "Street address *",
+    streetPlaceholder: "12 Main Street",
+    line2Label: "Address line 2 / apt / unit",
+    line2Placeholder: "Apt 2B",
+    cityLabel: "City / Town *",
+    cityPlaceholder: "City",
+    stateLabel: "State / Parish",
+    statePlaceholder: "State or parish",
+    postalLabel: "Postal code",
+    postalPlaceholder: "",
+    countryLabel: "Country *",
+    contactNameLabel: "Contact name",
+    contactNamePlaceholder: "Full name",
+    contactPhoneLabel: "Contact phone",
+    contactPhonePlaceholder: "+1 555 123 4567",
+    hoursLabel: "Hours",
+    hoursPlaceholder: "Mon-Sat 9am-6pm",
+    instructionsLabel: "Pickup instructions",
+    instructionsHelper: "(shown to buyer)",
+    instructionsPlaceholder:
+      "Ring the bell at the loading dock. Pickup hours strictly enforced.",
+  },
+};
+
+function PickupLocationSection({
+  card,
+  inputStyle,
+  label,
+  primaryBtn,
+  ghostBtn,
+}: {
+  card: React.CSSProperties;
+  inputStyle: React.CSSProperties;
+  label: React.CSSProperties;
+  primaryBtn: React.CSSProperties;
+  ghostBtn: React.CSSProperties;
+}) {
+  const { show } = useToast();
+  const country = useAppSelector(selectCountry);
+  const ph = PICKUP_PLACEHOLDERS[country?.code || ""] || PICKUP_PLACEHOLDERS.default;
+  const [pickup, setPickup] = useState<PickupAddressState>({ enabled: false });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const client = getApiClient();
+        const { data } = await client.get<PickupAddressState>("/sellers/pickup-address");
+        if (!cancelled) {
+          // Pre-fill country from the active country slice for first-time setup, so a
+          // Grenadian seller doesn't have to type "Grenada".
+          if (!data.country && country?.name) {
+            setPickup({ ...data, country: country.name });
+          } else {
+            setPickup(data);
+          }
+        }
+      } catch (err) {
+        if (!cancelled) show("Failed to load pickup location");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [show, country?.name]);
+
+  const set = (k: keyof PickupAddressState, v: string) =>
+    setPickup((prev) => ({ ...prev, [k]: v }));
+
+  const handleSave = async () => {
+    if (!pickup.street_address?.trim() || !pickup.city?.trim() || !pickup.country?.trim()) {
+      show("Street, city, and country are required.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const client = getApiClient();
+      await client.patch("/sellers/pickup-address", {
+        street_address: pickup.street_address,
+        address_line2: pickup.address_line2,
+        city: pickup.city,
+        state: pickup.state,
+        postal_code: pickup.postal_code,
+        country: pickup.country,
+        contact_name: pickup.contact_name,
+        contact_phone: pickup.contact_phone,
+        instructions: pickup.instructions,
+        hours: pickup.hours,
+      });
+      setPickup((prev) => ({ ...prev, enabled: true }));
+      show("Pickup location saved");
+    } catch (err: any) {
+      show(err?.response?.data?.message || "Failed to save pickup location");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDisable = async () => {
+    if (!confirm("Disable pickup? Buyers will no longer see this option at checkout.")) return;
+    setSaving(true);
+    try {
+      const client = getApiClient();
+      await client.patch("/sellers/pickup-address", { disabled: true });
+      setPickup({ enabled: false });
+      show("Pickup disabled");
+    } catch (err) {
+      show("Failed to disable pickup");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{ ...card, padding: "24px", marginTop: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: "#1c2b23" }}>Pickup location</div>
+        {pickup.enabled && (
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              padding: "2px 8px",
+              borderRadius: 999,
+              background: "#dcfce7",
+              color: "#15803d",
+            }}
+          >
+            Offering pickup
+          </span>
+        )}
+      </div>
+      <p style={{ fontSize: 12, color: "#8a9e92", marginBottom: 20, lineHeight: 1.55 }}>
+        When set, buyers see "Pickup" as a checkout option for single-seller orders against your
+        store. Pickup orders are paid by card upfront, then collected here.
+      </p>
+
+      {loading ? (
+        <p style={{ fontSize: 13, color: "#8a9e92" }}>Loading…</p>
+      ) : (
+        <>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <span style={label}>{ph.streetLabel}</span>
+              <input value={pickup.street_address || ""} onChange={(e) => set("street_address", e.target.value)} placeholder={ph.streetPlaceholder} style={inputStyle} />
+            </div>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <span style={label}>{ph.line2Label}</span>
+              <input value={pickup.address_line2 || ""} onChange={(e) => set("address_line2", e.target.value)} placeholder={ph.line2Placeholder} style={inputStyle} />
+            </div>
+            <div>
+              <span style={label}>{ph.cityLabel}</span>
+              <input value={pickup.city || ""} onChange={(e) => set("city", e.target.value)} placeholder={ph.cityPlaceholder} style={inputStyle} />
+            </div>
+            <div>
+              <span style={label}>{ph.stateLabel}</span>
+              <input value={pickup.state || ""} onChange={(e) => set("state", e.target.value)} placeholder={ph.statePlaceholder} style={inputStyle} />
+            </div>
+            <div>
+              <span style={label}>{ph.postalLabel}</span>
+              <input value={pickup.postal_code || ""} onChange={(e) => set("postal_code", e.target.value)} placeholder={ph.postalPlaceholder} style={inputStyle} />
+            </div>
+            <div>
+              <span style={label}>{ph.countryLabel}</span>
+              <input value={pickup.country || ""} onChange={(e) => set("country", e.target.value)} placeholder={country?.name || "Country"} style={inputStyle} />
+            </div>
+            <div>
+              <span style={label}>{ph.contactNameLabel}</span>
+              <input value={pickup.contact_name || ""} onChange={(e) => set("contact_name", e.target.value)} placeholder={ph.contactNamePlaceholder} style={inputStyle} />
+            </div>
+            <div>
+              <span style={label}>{ph.contactPhoneLabel}</span>
+              <input value={pickup.contact_phone || ""} onChange={(e) => set("contact_phone", e.target.value)} placeholder={ph.contactPhonePlaceholder} style={inputStyle} />
+            </div>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <span style={label}>{ph.hoursLabel}</span>
+              <input value={pickup.hours || ""} onChange={(e) => set("hours", e.target.value)} placeholder={ph.hoursPlaceholder} style={inputStyle} />
+            </div>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <span style={label}>{ph.instructionsLabel} <span style={{ fontWeight: 400, color: "#8a9e92" }}>{ph.instructionsHelper}</span></span>
+              <textarea
+                value={pickup.instructions || ""}
+                onChange={(e) => set("instructions", e.target.value)}
+                placeholder={ph.instructionsPlaceholder}
+                rows={3}
+                style={{ ...inputStyle, resize: "vertical" }}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 20, paddingTop: 16, borderTop: "1px solid #f0ece4" }}>
+            {pickup.enabled && (
+              <button onClick={handleDisable} disabled={saving} style={{ ...ghostBtn, borderColor: "#f0b0b0", color: "#c0392b" }}>
+                Disable pickup
+              </button>
+            )}
+            <button onClick={handleSave} disabled={saving} style={{ ...primaryBtn, opacity: saving ? 0.6 : 1 }}>
+              {saving ? "Saving…" : pickup.enabled ? "Update pickup location" : "Enable pickup"}
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

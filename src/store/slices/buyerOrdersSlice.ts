@@ -87,12 +87,21 @@ export interface Order {
 
 export interface CreateOrderDto {
   items: { product_id: string; quantity: number }[];
-  shipping_address_id: string;
+  /** Required for delivery orders. Omit when fulfillment_method is 'pickup'. */
+  shipping_address_id?: string;
   billing_address_id?: string;
   buyer_notes?: string;
   preferred_delivery_date?: string;
   credits_applied_cents?: number;
-  payment_method?: "bank_transfer" | "cash_on_delivery" | "cheque_on_delivery";
+  payment_method?:
+    | "bank_transfer"
+    | "cash_on_delivery"
+    | "cheque_on_delivery"
+    | "credit_card";
+  stripe_payment_method_id?: string;
+  stripe_payment_intent_id?: string;
+  save_payment_method?: boolean;
+  fulfillment_method?: "delivery" | "pickup";
 }
 
 export interface OrdersFilters {

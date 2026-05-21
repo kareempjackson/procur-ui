@@ -9,9 +9,9 @@ import {
   fetchPayoutRequests,
   fetchCreditTransactions,
 } from "@/store/slices/sellerPayoutsSlice";
+import { formatMoney } from "@/lib/utils/formatMoney";
 
-const fmt = (n: number, currency = "USD") =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency }).format(n);
+const fmt = (n: number, currency = "USD") => formatMoney(n, currency);
 
 const fmtDate = (d: string | null) =>
   d ? new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "—";

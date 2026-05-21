@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getApiClient } from "@/lib/apiClient";
+import { formatMoney } from "@/lib/utils/formatMoney";
 
 type TickerEntry = {
   country_code: string;
@@ -27,20 +28,7 @@ function isoToFlag(iso: string | null | undefined): string {
 
 function formatPrice(price: number | null, currency: string | null): string {
   if (price == null) return "";
-  const code = currency || "XCD";
-  const symbol =
-    code === "USD"
-      ? "$"
-      : code === "XCD"
-        ? "EC$"
-        : code === "TTD"
-          ? "TT$"
-          : code === "JMD"
-            ? "J$"
-            : code === "BBD"
-              ? "BB$"
-              : `${code} `;
-  return `${symbol}${price.toFixed(2)}`;
+  return formatMoney(price, currency || "XCD");
 }
 
 export default function CountryTicker() {

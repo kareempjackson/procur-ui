@@ -6,6 +6,7 @@ import Link from "next/link";
 import TopNavigation from "@/components/navigation/TopNavigation";
 import Footer from "@/components/footer/Footer";
 import { getApiClient } from "@/lib/apiClient";
+import { formatMoney } from "@/lib/utils/formatMoney";
 import ProcurLoader from "@/components/ProcurLoader";
 import SupplierAvatar from "@/components/buyer/SupplierAvatar";
 import {
@@ -779,7 +780,7 @@ export default function MarketplaceClient() {
                           </div>
                           <div className="flex items-center gap-2 mb-2">
                             <span className="text-lg font-bold text-[var(--secondary-black)]">
-                              ${p.price.toFixed(2)}
+                              {formatMoney(p.price, (p as any).currency)}
                             </span>
                             <span className="flex items-center gap-1 text-sm text-gray-500">
                               <MapPinIcon className="h-4 w-4" />

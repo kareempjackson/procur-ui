@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createCountrySlug } from "@/lib/sellerUrl";
+import { formatMoney } from "@/lib/utils/formatMoney";
 
 interface SellerPageProps {
   params: Promise<{ country: string; slug: string }>;
@@ -525,7 +526,7 @@ export default async function PublicSellerProfile({ params }: SellerPageProps) {
                       style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}
                     >
                       <span style={{ fontSize: 16, fontWeight: 800, color: "#1c2b23" }}>
-                        ${p.current_price.toFixed(2)}
+                        {formatMoney(p.current_price, (p as any).currency)}
                         <span
                           style={{ fontSize: 11, fontWeight: 400, color: "#8a9e92" }}
                         >

@@ -14,6 +14,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { useAppSelector } from "@/store";
 import { selectAuthToken } from "@/store/slices/authSlice";
+import { formatMoney } from "@/lib/utils/formatMoney";
 import { getApiClient } from "@/lib/apiClient";
 import ProcurLoader from "@/components/ProcurLoader";
 import { useToast } from "@/components/ui/Toast";
@@ -83,11 +84,7 @@ export default function TransactionDetailClient({
 
   const formatCurrency = (amount: number, currency: string = "USD") => {
     const isNegative = amount < 0;
-    const absAmount = Math.abs(amount);
-    const formatted = new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currency,
-    }).format(absAmount);
+    const formatted = formatMoney(Math.abs(amount), currency);
     return isNegative ? `-${formatted}` : formatted;
   };
 

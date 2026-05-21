@@ -11,6 +11,7 @@ import {
 } from "@/store/slices/sellerProductsSlice";
 import ProcurLoader from "@/components/ProcurLoader";
 import { useToast } from "@/components/ui/Toast";
+import { formatMoney } from "@/lib/utils/formatMoney";
 
 // ── Enums ──────────────────────────────────────────────────────────────────────
 
@@ -71,8 +72,8 @@ function getPrimaryImage(product: Product): string | undefined {
   );
 }
 
-function fmt(price: number): string {
-  return price.toFixed(2);
+function fmt(price: number, currency?: string | null): string {
+  return formatMoney(price, currency);
 }
 
 // ── Shared styles ──────────────────────────────────────────────────────────────
@@ -407,11 +408,11 @@ export default function SellerProductsPage() {
                       <div style={{ display: "flex", alignItems: "baseline", gap: 5 }}>
                         {hasDiscount ? (
                           <>
-                            <span style={{ fontSize: 15, fontWeight: 800, color: "#d4783c" }}>${fmt(product.sale_price!)}</span>
-                            <span style={{ fontSize: 11, color: "#b0b8b4", textDecoration: "line-through" }}>${fmt(product.base_price)}</span>
+                            <span style={{ fontSize: 15, fontWeight: 800, color: "#d4783c" }}>{fmt(product.sale_price!, product.currency)}</span>
+                            <span style={{ fontSize: 11, color: "#b0b8b4", textDecoration: "line-through" }}>{fmt(product.base_price, product.currency)}</span>
                           </>
                         ) : (
-                          <span style={{ fontSize: 15, fontWeight: 800, color: "#1c2b23" }}>${fmt(product.base_price)}</span>
+                          <span style={{ fontSize: 15, fontWeight: 800, color: "#1c2b23" }}>{fmt(product.base_price, product.currency)}</span>
                         )}
                         <span style={{ fontSize: 11, color: "#8a9e92" }}>/{product.unit_of_measurement}</span>
                       </div>
@@ -501,11 +502,11 @@ export default function SellerProductsPage() {
                         <td style={{ padding: "12px 16px", whiteSpace: "nowrap" }}>
                           {hasDiscount ? (
                             <>
-                              <span style={{ fontWeight: 700, color: "#d4783c" }}>${fmt(product.sale_price!)}</span>
-                              <span style={{ fontSize: 11, color: "#b0b8b4", textDecoration: "line-through", marginLeft: 5 }}>${fmt(product.base_price)}</span>
+                              <span style={{ fontWeight: 700, color: "#d4783c" }}>{fmt(product.sale_price!, product.currency)}</span>
+                              <span style={{ fontSize: 11, color: "#b0b8b4", textDecoration: "line-through", marginLeft: 5 }}>{fmt(product.base_price, product.currency)}</span>
                             </>
                           ) : (
-                            <span style={{ fontWeight: 700, color: "#1c2b23" }}>${fmt(product.base_price)}</span>
+                            <span style={{ fontWeight: 700, color: "#1c2b23" }}>{fmt(product.base_price, product.currency)}</span>
                           )}
                           <span style={{ fontSize: 11, color: "#8a9e92", marginLeft: 4 }}>/{product.unit_of_measurement}</span>
                         </td>

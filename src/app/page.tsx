@@ -15,6 +15,7 @@ import {
 } from "@/store/slices/countrySlice";
 import { getApiClient } from "@/lib/apiClient";
 import { buildSellerUrl } from "@/lib/sellerUrl";
+import { formatMoney } from "@/lib/utils/formatMoney";
 import BuyerTopNavigation from "@/components/navigation/BuyerTopNavigation";
 import CountryPulseSection from "@/components/landing/CountryPulseSection";
 import CountryTicker from "@/components/landing/CountryTicker";
@@ -2239,7 +2240,7 @@ export default function Home() {
                           color: "#2d4a3e",
                         }}
                       >
-                        ${p.current_price.toFixed(2)}{" "}
+                        {formatMoney(p.current_price, (p as any).currency)}{" "}
                         <span
                           style={{
                             fontWeight: 400,

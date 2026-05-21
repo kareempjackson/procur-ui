@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { buyerApi } from "@/lib/api/buyerApi";
+import {
+  Elements,
+  CardElement,
+  useStripe,
+  useElements,
+} from "@stripe/react-stripe-js";
+import { getStripe } from "@/lib/stripe";
+import { buyerApi, type SavedPaymentMethod } from "@/lib/api/buyerApi";
 import { useToast } from "@/components/ui/use-toast";
 
 // Design tokens
@@ -13,6 +20,7 @@ const T = {
   orange: "#d4783c",
   dark: "#1c2b23",
   muted: "#8a9e92",
+  danger: "#c0392b",
   font: "'Urbanist', system-ui, sans-serif",
   cardRadius: 12,
   btnRadius: 999,
@@ -65,11 +73,40 @@ const paymentOptions: {
 ];
 
 export default function BuyerPaymentMethodsPage() {
+  return (
+    <Elements stripe={getStripe()}>
+      <PaymentMethodsInner />
+    </Elements>
+  );
+}
+
+function PaymentMethodsInner() {
   const { show } = useToast();
   const [preferredMethod, setPreferredMethod] =
     useState<OfflinePaymentMethod | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // Saved cards
+  const [cards, setCards] = useState<SavedPaymentMethod[]>([]);
+  const [cardsLoading, setCardsLoading] = useState(true);
+  const [showAddCard, setShowAddCard] = useState(false);
+  const [working, setWorking] = useState<string | null>(null); // id of card we're mutating
+
+  const refreshCards = async () => {
+    try {
+      const list = await buyerApi.listPaymentMethods();
+      setCards(list);
+    } catch (err) {
+      console.error("Failed to load saved cards", err);
+    } finally {
+      setCardsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshCards();
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -130,6 +167,35 @@ export default function BuyerPaymentMethodsPage() {
     }
   }
 
+  async function handleSetDefault(id: string) {
+    setWorking(id);
+    try {
+      await buyerApi.setDefaultPaymentMethod(id);
+      await refreshCards();
+      show("Default card updated");
+    } catch (err) {
+      console.error(err);
+      show("Failed to update default card");
+    } finally {
+      setWorking(null);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm("Remove this saved card?")) return;
+    setWorking(id);
+    try {
+      await buyerApi.deletePaymentMethod(id);
+      await refreshCards();
+      show("Card removed");
+    } catch (err) {
+      console.error(err);
+      show("Failed to remove card");
+    } finally {
+      setWorking(null);
+    }
+  }
+
   return (
     <div style={{ minHeight: "100vh", background: T.pageBg, fontFamily: T.font }}>
       <main style={{ maxWidth: 1152, margin: "0 auto", padding: "40px 24px" }}>
@@ -139,13 +205,120 @@ export default function BuyerPaymentMethodsPage() {
             Payment Methods
           </h1>
           <p style={{ fontSize: 13, color: T.muted, margin: 0 }}>
-            Choose your preferred offline payment method for future orders.
+            Manage saved cards or choose your preferred offline payment method.
           </p>
         </div>
 
+        {/* Saved cards */}
+        <div
+          style={{
+            background: T.cardBg,
+            borderRadius: T.cardRadius,
+            border: `1px solid ${T.cardBorder}`,
+            padding: 20,
+            maxWidth: 560,
+            marginBottom: 24,
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <h2 style={{ fontSize: 13, fontWeight: 600, color: T.dark, margin: 0 }}>
+              Saved cards
+            </h2>
+            {!showAddCard && (
+              <button
+                type="button"
+                onClick={() => setShowAddCard(true)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: T.orange,
+                  cursor: "pointer",
+                  fontFamily: T.font,
+                }}
+              >
+                + Add card
+              </button>
+            )}
+          </div>
+
+          {cardsLoading ? (
+            <p style={{ fontSize: 13, color: T.muted }}>Loading saved cards...</p>
+          ) : cards.length === 0 && !showAddCard ? (
+            <p style={{ fontSize: 13, color: T.muted }}>
+              No cards saved yet. Add one to enable instant card checkout.
+            </p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {cards.map((c) => (
+                <div
+                  key={c.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: 14,
+                    background: "#fff",
+                    border: `1px solid ${T.cardBorder}`,
+                    borderRadius: 10,
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: T.dark }}>
+                      {(c.brand || "card").toUpperCase()} •••• {c.last4 || "????"}
+                      {c.is_default && (
+                        <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, color: T.teal, background: `${T.teal}1A`, padding: "1px 6px", borderRadius: 4 }}>
+                          Default
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: T.muted, marginTop: 2 }}>
+                      Expires {String(c.exp_month).padStart(2, "0")}/{String(c.exp_year).slice(-2)}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    {!c.is_default && (
+                      <button
+                        type="button"
+                        onClick={() => handleSetDefault(c.id)}
+                        disabled={working === c.id}
+                        style={{ background: "none", border: "none", color: T.teal, fontSize: 12, fontWeight: 600, cursor: working === c.id ? "wait" : "pointer", fontFamily: T.font }}
+                      >
+                        Make default
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(c.id)}
+                      disabled={working === c.id}
+                      style={{ background: "none", border: "none", color: T.danger, fontSize: 12, fontWeight: 600, cursor: working === c.id ? "wait" : "pointer", fontFamily: T.font }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {showAddCard && (
+            <AddCardForm
+              onCancel={() => setShowAddCard(false)}
+              onAdded={async () => {
+                setShowAddCard(false);
+                await refreshCards();
+                show("Card added");
+              }}
+              onError={(msg) => show(msg)}
+            />
+          )}
+        </div>
+
+        {/* Offline preferred method */}
         <div style={{ background: T.cardBg, borderRadius: T.cardRadius, border: `1px solid ${T.cardBorder}`, padding: 20, maxWidth: 560 }}>
           <h2 style={{ fontSize: 13, fontWeight: 600, color: T.dark, marginBottom: 16, margin: "0 0 16px 0" }}>
-            Default payment method
+            Preferred offline method
           </h2>
 
           {loading ? (
@@ -229,6 +402,114 @@ export default function BuyerPaymentMethodsPage() {
           )}
         </div>
       </main>
+    </div>
+  );
+}
+
+function AddCardForm({
+  onCancel,
+  onAdded,
+  onError,
+}: {
+  onCancel: () => void;
+  onAdded: () => Promise<void> | void;
+  onError: (msg: string) => void;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [submitting, setSubmitting] = useState(false);
+  const [complete, setComplete] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async () => {
+    setError(null);
+    if (!stripe || !elements) {
+      setError("Stripe is not ready yet. Please try again.");
+      return;
+    }
+    const cardEl = elements.getElement(CardElement);
+    if (!cardEl) {
+      setError("Card form is not ready.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const { client_secret } = await buyerApi.createSetupIntent();
+      const { setupIntent, error: confirmErr } =
+        await stripe.confirmCardSetup(client_secret, {
+          payment_method: { card: cardEl },
+        });
+      if (confirmErr || !setupIntent || setupIntent.status !== "succeeded") {
+        const msg =
+          confirmErr?.message ||
+          "We couldn't save that card. Please try again.";
+        setError(msg);
+        onError(msg);
+        return;
+      }
+      const pmId =
+        typeof setupIntent.payment_method === "string"
+          ? setupIntent.payment_method
+          : setupIntent.payment_method?.id;
+      if (!pmId) throw new Error("Stripe did not return a payment method id");
+      await buyerApi.confirmPaymentMethod(pmId);
+      await onAdded();
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || "Failed to add card";
+      setError(typeof msg === "string" ? msg : "Failed to add card");
+      onError("Failed to add card");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div style={{ marginTop: 14, padding: 14, background: "#fff", border: `1px solid ${T.cardBorder}`, borderRadius: 10 }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: T.dark, marginBottom: 10 }}>
+        Add a new card
+      </div>
+      <div style={{ padding: "12px 14px", borderRadius: 8, border: `1px solid ${T.cardBorder}`, background: "#fafaf9" }}>
+        <CardElement
+          options={{
+            style: {
+              base: {
+                fontSize: "13px",
+                color: T.dark,
+                fontFamily: T.font,
+                "::placeholder": { color: T.muted },
+              },
+              invalid: { color: T.danger },
+            },
+            hidePostalCode: true,
+          }}
+          onChange={(e) => {
+            setComplete(e.complete);
+            setError(e.error?.message || null);
+          }}
+        />
+      </div>
+      {error && (
+        <div style={{ marginTop: 8, fontSize: 12, color: T.danger }}>{error}</div>
+      )}
+      <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end", gap: 8 }}>
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={submitting}
+          style={{ padding: "8px 16px", borderRadius: T.btnRadius, background: "transparent", border: `1px solid ${T.cardBorder}`, color: T.dark, fontWeight: 600, fontSize: 13, cursor: submitting ? "wait" : "pointer", fontFamily: T.font }}
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={submitting || !complete}
+          style={{ padding: "8px 18px", borderRadius: T.btnRadius, background: submitting || !complete ? "#d1d5db" : T.orange, color: "#fff", fontWeight: 600, fontSize: 13, border: "none", cursor: submitting || !complete ? "not-allowed" : "pointer", fontFamily: T.font }}
+        >
+          {submitting ? "Saving..." : "Save card"}
+        </button>
+      </div>
     </div>
   );
 }

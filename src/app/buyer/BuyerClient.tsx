@@ -19,6 +19,7 @@ import {
   selectCountries,
   setCountry,
 } from "@/store/slices/countrySlice";
+import { formatMoney } from "@/lib/utils/formatMoney";
 
 function CountryFlag({ code, size = 20 }: { code: string; size?: number }) {
   return (
@@ -460,7 +461,7 @@ export default function BuyerClient() {
             <svg viewBox="0 0 24 24" fill="none" stroke="#d4783c" strokeWidth="1.5" width={16} height={16}><circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" /><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6" /></svg>
             <span style={{ fontSize: 13, color: "#1c2b23" }}>
               <strong>{cartCount} item{cartCount !== 1 ? "s" : ""}</strong> in your cart
-              {cart?.subtotal ? ` ($${Number(cart.subtotal).toFixed(2)})` : ""}
+              {cart?.subtotal ? ` (${formatMoney(cart.subtotal, cart.currency)})` : ""}
             </span>
             <Link href="/cart" style={{ fontSize: 13, fontWeight: 700, color: "#d4783c", textDecoration: "none", marginLeft: 2 }}>Complete order →</Link>
           </div>
@@ -540,7 +541,7 @@ export default function BuyerClient() {
                   <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "12px 12px 14px" }}>
                     <div style={{ fontSize: 12.5, fontWeight: 700, color: "#fff", marginBottom: 4, lineHeight: 1.2 }}>{products[0].name}</div>
                     <div style={{ fontSize: 14, fontWeight: 800, color: "#d4783c" }}>
-                      ${products[0].current_price?.toFixed(2)}<span style={{ fontSize: 10, fontWeight: 400, color: "rgba(255,255,255,.55)" }}>/{products[0].unit_of_measurement}</span>
+                      {formatMoney(products[0].current_price, (products[0] as any).currency)}<span style={{ fontSize: 10, fontWeight: 400, color: "rgba(255,255,255,.55)" }}>/{products[0].unit_of_measurement}</span>
                     </div>
                     {canOrder(products[0])
                       ? <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); addToCart(products[0].id); }} style={{ marginTop: 8, width: "100%", padding: "7px 0", background: "#d4783c", color: "#fff", border: "none", borderRadius: 999, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>+ Add to cart</button>
@@ -556,7 +557,7 @@ export default function BuyerClient() {
                   <div style={{ padding: "8px 10px 10px", background: "rgba(0,0,0,.35)" }}>
                     <div style={{ fontSize: 11.5, fontWeight: 700, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{products[1].name}</div>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 3 }}>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: "#d4783c" }}>${products[1].current_price?.toFixed(2)}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: "#d4783c" }}>{formatMoney(products[1].current_price, (products[1] as any).currency)}</span>
                       {canOrder(products[1])
                         ? <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); addToCart(products[1].id); }} style={{ width: 22, height: 22, borderRadius: "50%", background: "#d4783c", color: "#fff", border: "none", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit", lineHeight: 1 }}>+</button>
                         : <span style={{ fontSize: 9, color: "rgba(255,255,255,.45)", fontWeight: 600 }}>{orderStatus(products[1]).label}</span>}
@@ -572,7 +573,7 @@ export default function BuyerClient() {
                   <div style={{ padding: "8px 10px 10px", background: "rgba(0,0,0,.35)" }}>
                     <div style={{ fontSize: 11.5, fontWeight: 700, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{products[2].name}</div>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 3 }}>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: "#d4783c" }}>${products[2].current_price?.toFixed(2)}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: "#d4783c" }}>{formatMoney(products[2].current_price, (products[2] as any).currency)}</span>
                       {canOrder(products[2])
                         ? <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); addToCart(products[2].id); }} style={{ width: 22, height: 22, borderRadius: "50%", background: "#d4783c", color: "#fff", border: "none", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit", lineHeight: 1 }}>+</button>
                         : <span style={{ fontSize: 9, color: "rgba(255,255,255,.45)", fontWeight: 600 }}>{orderStatus(products[2]).label}</span>}
@@ -718,7 +719,7 @@ export default function BuyerClient() {
                         <div style={{ fontSize: 10.5, color: "#8a9e92", marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.seller?.name}</div>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                           <div style={{ fontSize: 15, fontWeight: 700, color: "#2d4a3e" }}>
-                            ${p.current_price?.toFixed(2)}<span style={{ fontSize: 10, fontWeight: 400, color: "#8a9e92" }}> /{p.unit_of_measurement}</span>
+                            {formatMoney(p.current_price, (p as any).currency)}<span style={{ fontSize: 10, fontWeight: 400, color: "#8a9e92" }}> /{p.unit_of_measurement}</span>
                           </div>
                           {(() => { const os = orderStatus(p); return os.can
                             ? <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); addToCart(p.id); }} style={{ background: "#d4783c", color: "#fff", border: "none", borderRadius: 999, padding: "5px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Add</button>
@@ -915,7 +916,7 @@ export default function BuyerClient() {
                         )}
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 8, borderTop: "1px solid #e8e4dc" }}>
                           <div>
-                            <div style={{ fontSize: 16, fontWeight: 700, color: "#2d4a3e", lineHeight: 1 }}>${p.current_price?.toFixed(2)}<span style={{ fontSize: 10, fontWeight: 400, color: "#8a9e92" }}> /{p.unit_of_measurement}</span></div>
+                            <div style={{ fontSize: 16, fontWeight: 700, color: "#2d4a3e", lineHeight: 1 }}>{formatMoney(p.current_price, (p as any).currency)}<span style={{ fontSize: 10, fontWeight: 400, color: "#8a9e92" }}> /{p.unit_of_measurement}</span></div>
                             <div style={{ fontSize: 10, color: "#8a9e92", marginTop: 2 }}>{(() => { const os = orderStatus(p); return os.can ? `${p.stock_quantity - cartQtyFor(String(p.id))} ${p.unit_of_measurement} avail.` : os.label; })()}</div>
                           </div>
                           {!canOrder(p) ? (

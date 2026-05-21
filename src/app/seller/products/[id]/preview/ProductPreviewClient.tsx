@@ -6,6 +6,7 @@ import Link from "next/link";
 import { getApiClient } from "@/lib/apiClient";
 import { useAppSelector } from "@/store";
 import { selectCountry } from "@/store/slices/countrySlice";
+import { formatMoney } from "@/lib/utils/formatMoney";
 import type { SellerProduct } from "@/store/slices/sellerProductsSlice";
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
@@ -275,15 +276,15 @@ export default function ProductPreviewClient({ productId }: ProductPreviewClient
                 {hasDiscount ? (
                   <>
                     <span style={{ fontSize: 30, fontWeight: 800, color: ORANGE }}>
-                      ${product.sale_price!.toFixed(2)}
+                      {formatMoney(product.sale_price!, accountCurrency)}
                     </span>
                     <span style={{ fontSize: 18, color: "#c0bdb8", textDecoration: "line-through" }}>
-                      ${product.base_price.toFixed(2)}
+                      {formatMoney(product.base_price, accountCurrency)}
                     </span>
                   </>
                 ) : (
                   <span style={{ fontSize: 30, fontWeight: 800, color: DARK }}>
-                    ${product.base_price.toFixed(2)}
+                    {formatMoney(product.base_price, accountCurrency)}
                   </span>
                 )}
                 <span style={{ fontSize: 15, color: MUTED }}>

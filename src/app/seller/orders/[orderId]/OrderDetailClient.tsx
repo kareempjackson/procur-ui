@@ -16,6 +16,7 @@ import { fetchHarvestLogs } from "@/store/slices/farmSlice";
 import ProcurLoader from "@/components/ProcurLoader";
 import { useToast } from "@/components/ui/Toast";
 import { getApiClient } from "@/lib/apiClient";
+import { formatMoney } from "@/lib/utils/formatMoney";
 
 interface OrderDetailClientProps {
   orderId: string;
@@ -126,8 +127,7 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
     }
   };
 
-  const fmt = (amount: number, currency = "USD") =>
-    new Intl.NumberFormat("en-US", { style: "currency", currency }).format(amount);
+  const fmt = (amount: number, currency = "USD") => formatMoney(amount, currency);
 
   const fmtDate = (d?: string) =>
     d

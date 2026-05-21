@@ -9,6 +9,7 @@ import { addToCartAsync } from "@/store/slices/buyerCartSlice";
 import { getApiClient } from "@/lib/apiClient";
 import ProcurLoader from "@/components/ProcurLoader";
 import { useToast } from "@/components/ui/Toast";
+import { makeMoneyFormatter, formatMoney } from "@/lib/utils/formatMoney";
 
 const C = {
   white: "#fff",
@@ -36,6 +37,7 @@ export default function ProductClient({ productId }: { productId: string }) {
   const { currentProduct: product, productDetailStatus, productDetailError } =
     useAppSelector((s) => s.buyerMarketplace);
   const authToken = useAppSelector((s) => s.auth.accessToken);
+  const fmt = makeMoneyFormatter(product?.currency);
 
   const [quantity, setQuantity] = useState(1);
   const [activeImg, setActiveImg] = useState(0);
@@ -77,7 +79,7 @@ export default function ProductClient({ productId }: { productId: string }) {
   const handleAddToCart = async () => {
     if (!product) return;
     if (isOOS) return show("This item is currently out of stock.");
-    if (!meetsMin) return show(`Minimum order is $${MIN_ORDER.toFixed(2)}.`);
+    if (!meetsMin) return show(`Minimum order is ${fmt(MIN_ORDER)}.`);
     try {
       await dispatch(addToCartAsync({ productId, quantity })).unwrap();
       show(`Added ${quantity} ${product.unit_of_measurement || "items"} to cart!`);
@@ -89,7 +91,7 @@ export default function ProductClient({ productId }: { productId: string }) {
   const handleBuyNow = async () => {
     if (!product) return;
     if (isOOS) return show("This item is currently out of stock.");
-    if (!meetsMin) return show(`Minimum order is $${MIN_ORDER.toFixed(2)}.`);
+    if (!meetsMin) return show(`Minimum order is ${fmt(MIN_ORDER)}.`);
     try {
       await dispatch(addToCartAsync({ productId, quantity })).unwrap();
       window.location.href = "/checkout";
@@ -386,7 +388,7 @@ export default function ProductClient({ productId }: { productId: string }) {
             <div style={{ marginBottom: 20 }}>
               <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
                 <span style={{ fontSize: 32, fontWeight: 800, color: "#1c2b23", letterSpacing: "-.5px" }}>
-                  ${product.current_price.toFixed(2)}
+                  {fmt(product.current_price)}
                 </span>
                 <span style={{ fontSize: 15, color: "#8a9e92", fontWeight: 500 }}>
                   per {product.unit_of_measurement}
@@ -394,7 +396,7 @@ export default function ProductClient({ productId }: { productId: string }) {
               </div>
               {product.sale_price && product.sale_price < product.base_price && (
                 <p style={{ fontSize: 13, color: "#8a9e92", margin: "4px 0 0" }}>
-                  Was <span style={{ textDecoration: "line-through" }}>${product.base_price.toFixed(2)}</span>{" "}
+                  Was <span style={{ textDecoration: "line-through" }}>{fmt(product.base_price)}</span>{" "}
                   <span style={{ color: C.orange, fontWeight: 700 }}>{discountPct}% off</span>
                 </p>
               )}
@@ -544,13 +546,13 @@ export default function ProductClient({ productId }: { productId: string }) {
                 <div style={{ marginBottom: 16 }}>
                   <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
                     <span style={{ fontSize: 28, fontWeight: 800, color: "#1c2b23", letterSpacing: "-.4px" }}>
-                      ${product.current_price.toFixed(2)}
+                      {fmt(product.current_price)}
                     </span>
                     <span style={{ fontSize: 13, color: "#8a9e92" }}>/ {product.unit_of_measurement}</span>
                   </div>
                   {product.sale_price && product.sale_price < product.base_price && (
                     <p style={{ fontSize: 12, color: C.orange, fontWeight: 700, margin: "3px 0 0" }}>
-                      Save {discountPct}% — was ${product.base_price.toFixed(2)}
+                      Save {discountPct}% — was {fmt(product.base_price)}
                     </p>
                   )}
                 </div>
@@ -622,13 +624,13 @@ export default function ProductClient({ productId }: { productId: string }) {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
                     <span style={{ fontSize: 12, color: "#8a9e92", fontWeight: 500 }}>Order total</span>
                     <span style={{ fontSize: 20, fontWeight: 800, color: "#1c2b23", letterSpacing: "-.2px" }}>
-                      ${(product.current_price * quantity).toFixed(2)}
+                      {fmt(product.current_price * quantity)}
                     </span>
                   </div>
 
                   {!meetsMin && !isOOS && (
                     <p style={{ fontSize: 12, color: "#92400e", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "8px 12px", margin: "8px 0 0" }}>
-                      Min. order ${MIN_ORDER.toFixed(2)} — add ${(MIN_ORDER - product.current_price * quantity).toFixed(2)} more
+                      Min. order {fmt(MIN_ORDER)} — add {fmt(MIN_ORDER - product.current_price * quantity)} more
                     </p>
                   )}
                 </div>
@@ -719,7 +721,7 @@ export default function ProductClient({ productId }: { productId: string }) {
                         <div style={{ fontSize: 11, color: "#8a9e92" }}>{sellerName}</div>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8 }}>
                           <span style={{ fontSize: 15, fontWeight: 800, color: "#1c2b23" }}>
-                            ${rpPrice.toFixed(2)}{" "}
+                            {formatMoney(rpPrice, rp.currency || product?.currency)}{" "}
                             <span style={{ fontWeight: 400, fontSize: 10, color: "#8a9e92" }}>/{rp.unit_of_measurement || "lb"}</span>
                           </span>
                           <button
