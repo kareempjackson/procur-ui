@@ -16,6 +16,7 @@ import { fetchBuyerCreditBalance } from "@/store/slices/buyerCreditsSlice";
 import { useNotificationsSocket } from "@/hooks/useNotificationsSocket";
 import { getApiClient } from "@/lib/apiClient";
 import { formatMoney } from "@/lib/utils/formatMoney";
+import { useRoleSwitcher } from "@/components/auth/RoleSwitcher";
 import {
   fetchActiveCountries,
   selectCountries,
@@ -123,6 +124,10 @@ const BuyerTopNavigation: React.FC = () => {
       : [];
   const unreadCount = safeItems.filter((n: any) => !n.read_at).length;
   const cartCount = (cart?.unique_products ?? 0) + optimisticCount;
+
+  // Role-switch action lives in a hook so the modal survives the dropdown
+  // panel unmounting when the user clicks the menu item.
+  const roleSwitcher = useRoleSwitcher();
 
   // ── shared micro-styles ──────────────────────────────────────────────────
   const iconBtn: React.CSSProperties = {
@@ -247,7 +252,7 @@ const BuyerTopNavigation: React.FC = () => {
         </div>
 
         {/* ── Right: icons ── */}
-        <div className="bn-right" style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 2 }}>
+        <div className="bn-right" style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 }}>
           {/* Credits */}
           {creditAmount > 0 && (
             <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 9px", borderRadius: 999, background: "rgba(52,211,153,.1)", border: "1px solid rgba(52,211,153,.22)", fontSize: 11, fontWeight: 600, color: "#6ee7b7", whiteSpace: "nowrap", marginRight: 4 }}>
@@ -375,6 +380,16 @@ const BuyerTopNavigation: React.FC = () => {
                     {item.label}
                   </Link>
                 ))}
+                {roleSwitcher.visible && (
+                  <div style={{ borderTop: "1px solid #f0ece4", padding: "6px 0" }}>
+                    <button
+                      onClick={() => { setActiveDropdown(null); roleSwitcher.trigger(); }}
+                      style={{ display: "block", width: "100%", textAlign: "left", padding: "9px 14px", fontSize: 13, fontWeight: 500, color: "#1c2b23", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}
+                    >
+                      {roleSwitcher.label}
+                    </button>
+                  </div>
+                )}
                 <div style={{ borderTop: "1px solid #f0ece4", padding: "6px 0" }}>
                   <button style={{ display: "block", width: "100%", textAlign: "left", padding: "9px 14px", fontSize: 13, color: "#c0392b", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontWeight: 500 }}
                     onClick={() => { dispatch(signout()); setActiveDropdown(null); router.replace("/login"); }}>
@@ -411,9 +426,18 @@ const BuyerTopNavigation: React.FC = () => {
                 {item.label}
               </Link>
             ))}
+            {roleSwitcher.visible && (
+              <button
+                onClick={() => { setMobileMenuOpen(false); roleSwitcher.trigger(); }}
+                style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 0", fontSize: 14, fontWeight: 600, color: "rgba(245,241,234,.8)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", borderBottom: "1px solid rgba(245,241,234,.06)" }}
+              >
+                {roleSwitcher.label}
+              </button>
+            )}
           </div>
         </div>
       )}
+      {roleSwitcher.modal}
       {/* Country picker modal */}
       {countryPickerOpen && !confirmCountry && (
         <>

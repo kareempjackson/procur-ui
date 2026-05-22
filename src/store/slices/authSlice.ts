@@ -16,12 +16,22 @@ export type AuthUser = {
   organizationRole?: string | null;
 };
 
+export type OrganizationMembership = {
+  id: string;
+  name: string;
+  accountType: string; // 'buyer' | 'seller' | 'government'
+  role: string;
+  isActive: boolean;
+};
+
 export type AuthState = {
   accessToken: string | null;
   tokenType: string | null;
   expiresIn: number | null;
   refreshToken: string | null;
   user: AuthUser | null;
+  organizations: OrganizationMembership[];
+  organizationsStatus: "idle" | "loading" | "succeeded" | "failed";
   status: "idle" | "loading" | "succeeded" | "failed";
   error: string | null;
 };
@@ -32,6 +42,8 @@ const initialState: AuthState = {
   expiresIn: null,
   refreshToken: null,
   user: null,
+  organizations: [],
+  organizationsStatus: "idle",
   status: "idle",
   error: null,
 };
@@ -223,6 +235,86 @@ export const verifyOtp = createAsyncThunk(
   }
 );
 
+// ==================== Multi-org / role-toggle thunks ====================
+
+/** Load every org the current user belongs to. Backs the mode-switcher pill. */
+export const fetchMyOrganizations = createAsyncThunk(
+  "auth/fetchMyOrganizations",
+  async (_, { rejectWithValue }) => {
+    try {
+      const client = getClient();
+      const { data } = await client.get("/auth/organizations");
+      return (data?.organizations || []) as OrganizationMembership[];
+    } catch (err: unknown) {
+      return rejectWithValue(
+        extractErrorMessage(err, "Failed to load organizations")
+      );
+    }
+  }
+);
+
+/** Switch the active org. Backend re-mints tokens scoped to the new org. */
+export const switchOrganization = createAsyncThunk(
+  "auth/switchOrganization",
+  async (organizationId: string, { rejectWithValue }) => {
+    try {
+      const client = getClient();
+      const { data } = await client.post("/auth/switch-organization", {
+        organizationId,
+      });
+      return data as AuthResponsePayload;
+    } catch (err: unknown) {
+      return rejectWithValue(
+        extractErrorMessage(err, "Failed to switch organization")
+      );
+    }
+  }
+);
+
+type BecomeRolePayload = {
+  businessName: string;
+  businessType?: string;
+  countryId?: string;
+};
+
+/** Create a seller org for an existing user and switch into it. */
+export const becomeSeller = createAsyncThunk(
+  "auth/becomeSeller",
+  async (payload: BecomeRolePayload, { rejectWithValue }) => {
+    try {
+      const client = getClient();
+      const { data } = await client.post(
+        "/auth/onboarding/become-seller",
+        payload
+      );
+      return data as AuthResponsePayload;
+    } catch (err: unknown) {
+      return rejectWithValue(
+        extractErrorMessage(err, "Failed to start selling")
+      );
+    }
+  }
+);
+
+/** Create a buyer org for an existing user and switch into it. */
+export const becomeBuyer = createAsyncThunk(
+  "auth/becomeBuyer",
+  async (payload: BecomeRolePayload, { rejectWithValue }) => {
+    try {
+      const client = getClient();
+      const { data } = await client.post(
+        "/auth/onboarding/become-buyer",
+        payload
+      );
+      return data as AuthResponsePayload;
+    } catch (err: unknown) {
+      return rejectWithValue(
+        extractErrorMessage(err, "Failed to start buying")
+      );
+    }
+  }
+);
+
 /** Silently exchange a refresh token for a new access token + rotated refresh token. */
 export const refreshTokenAsync = createAsyncThunk(
   "auth/refreshToken",
@@ -253,6 +345,8 @@ const authSlice = createSlice({
       state.expiresIn = null;
       state.refreshToken = null;
       state.user = null;
+      state.organizations = [];
+      state.organizationsStatus = "idle";
       state.status = "idle";
       state.error = null;
       if (typeof window !== "undefined") {
@@ -439,6 +533,57 @@ const authSlice = createSlice({
         state.refreshToken = null;
         state.user = null;
         state.status = "idle";
+      })
+
+      // ── fetchMyOrganizations ────────────────────────────────────────────────
+      .addCase(fetchMyOrganizations.pending, (state) => {
+        state.organizationsStatus = "loading";
+      })
+      .addCase(fetchMyOrganizations.fulfilled, (state, action) => {
+        state.organizationsStatus = "succeeded";
+        state.organizations = action.payload;
+      })
+      .addCase(fetchMyOrganizations.rejected, (state) => {
+        state.organizationsStatus = "failed";
+      })
+
+      // ── switchOrganization / becomeSeller / becomeBuyer ─────────────────────
+      // All three rotate tokens and update the active user payload; we collapse
+      // their fulfilled handlers into one shape since the response is identical.
+      .addCase(switchOrganization.fulfilled, (state, action: PayloadAction<AuthResponsePayload>) => {
+        state.accessToken = action.payload.accessToken;
+        state.tokenType = action.payload.tokenType;
+        state.expiresIn = action.payload.expiresIn;
+        state.refreshToken = action.payload.refreshToken;
+        state.user = action.payload.user;
+        // Recompute isActive flags locally so the UI reflects the switch before the next
+        // fetchMyOrganizations call (otherwise the old pill stays highlighted).
+        const newActiveId = action.payload.user.organizationId;
+        state.organizations = state.organizations.map((o) => ({
+          ...o,
+          isActive: o.id === newActiveId,
+        }));
+        saveToStorage(state);
+      })
+      .addCase(becomeSeller.fulfilled, (state, action: PayloadAction<AuthResponsePayload>) => {
+        state.accessToken = action.payload.accessToken;
+        state.tokenType = action.payload.tokenType;
+        state.expiresIn = action.payload.expiresIn;
+        state.refreshToken = action.payload.refreshToken;
+        state.user = action.payload.user;
+        // New org is now active; old organizations list is stale until next fetch — flag
+        // its status so the UI knows to reload it.
+        state.organizationsStatus = "idle";
+        saveToStorage(state);
+      })
+      .addCase(becomeBuyer.fulfilled, (state, action: PayloadAction<AuthResponsePayload>) => {
+        state.accessToken = action.payload.accessToken;
+        state.tokenType = action.payload.tokenType;
+        state.expiresIn = action.payload.expiresIn;
+        state.refreshToken = action.payload.refreshToken;
+        state.user = action.payload.user;
+        state.organizationsStatus = "idle";
+        saveToStorage(state);
       });
   },
 });
@@ -449,5 +594,9 @@ export const selectAuthToken = (state: RootState) => state.auth.accessToken;
 export const selectAuthUser = (state: RootState) => state.auth.user;
 export const selectAuthStatus = (state: RootState) => state.auth.status;
 export const selectAuthError = (state: RootState) => state.auth.error;
+export const selectMyOrganizations = (state: RootState) =>
+  state.auth.organizations;
+export const selectOrganizationsStatus = (state: RootState) =>
+  state.auth.organizationsStatus;
 
 export default authSlice.reducer;

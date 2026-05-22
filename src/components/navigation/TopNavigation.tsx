@@ -13,6 +13,7 @@ import {
 import { useI18n } from "@/lib/i18n/I18nProvider";
 import { useAppSelector } from "@/store";
 import { selectAuthUser } from "@/store/slices/authSlice";
+import RoleSwitcher from "@/components/auth/RoleSwitcher";
 
 interface DropdownItem {
   title: string;
@@ -487,6 +488,9 @@ const TopNavigation: React.FC = () => {
 
         {/* Right Side Actions - anchored to nav right, independent of center */}
         <div className="hidden lg:flex items-center space-x-6 absolute right-8 top-1/2 -translate-y-1/2">
+          {/* Role toggle for signed-in users (renders nothing for visitors) */}
+          <RoleSwitcher variant="buyer" />
+
           {/* Country Selector (fixed to Grenada, modal disabled) */}
           <span className="flex items-center space-x-1 text-gray-700">
             <span className="text-lg">{selectedCountry.flag}</span>

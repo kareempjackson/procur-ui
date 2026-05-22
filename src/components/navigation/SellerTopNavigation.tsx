@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/store";
 import { selectAuthUser, signout } from "@/store/slices/authSlice";
+import { useRoleSwitcher } from "@/components/auth/RoleSwitcher";
 import {
   fetchNotifications,
   markNotificationRead,
@@ -160,6 +161,10 @@ const SellerTopNavigation: React.FC = () => {
       ? (items as any).data
       : [];
   const unreadCount = safeItems.filter((n: any) => !n.read_at).length;
+
+  // Role-switch action lives in a hook so the modal survives the dropdown
+  // panel unmounting when the user clicks the menu item.
+  const roleSwitcher = useRoleSwitcher();
 
   // ── Shared micro-styles ─────────────────────────────────────────────────────
 
@@ -329,7 +334,7 @@ const SellerTopNavigation: React.FC = () => {
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 2,
+            gap: 8,
           }}
         >
           {/* Notifications */}
@@ -495,6 +500,16 @@ const SellerTopNavigation: React.FC = () => {
                     </Link>
                   ))}
                 </div>
+                {roleSwitcher.visible && (
+                  <div style={{ borderTop: "1px solid #f0ece4", padding: "4px 0" }}>
+                    <button
+                      onClick={() => { setActiveDropdown(null); roleSwitcher.trigger(); }}
+                      style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 14px", fontSize: 13, fontWeight: 500, color: "#1c2b23", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}
+                    >
+                      {roleSwitcher.label}
+                    </button>
+                  </div>
+                )}
                 <div style={{ borderTop: "1px solid #f0ece4", padding: "4px 0" }}>
                   <button
                     onClick={() => { dispatch(signout()); setActiveDropdown(null); router.replace("/login"); }}
@@ -547,6 +562,14 @@ const SellerTopNavigation: React.FC = () => {
                 {item.label}
               </Link>
             ))}
+            {roleSwitcher.visible && (
+              <button
+                onClick={() => { setMobileMenuOpen(false); roleSwitcher.trigger(); }}
+                style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 0", fontSize: 14, fontWeight: 600, color: "#2d4a3e", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", borderBottom: "1px solid #ebe7df" }}
+              >
+                {roleSwitcher.label}
+              </button>
+            )}
             <button
               onClick={() => { dispatch(signout()); setMobileMenuOpen(false); router.replace("/login"); }}
               style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 0", fontSize: 14, fontWeight: 600, color: "#d4783c", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}
@@ -556,6 +579,7 @@ const SellerTopNavigation: React.FC = () => {
           </div>
         </div>
       )}
+      {roleSwitcher.modal}
     </nav>
   );
 };

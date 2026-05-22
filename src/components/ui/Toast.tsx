@@ -176,3 +176,14 @@ export function useToast() {
   if (!ctx) throw new Error("useToast must be used within <ToastProvider>");
   return ctx;
 }
+
+/**
+ * Non-throwing variant for components that may be mounted on pages where
+ * `<ToastProvider>` isn't in scope (e.g. shared nav components prerendered on
+ * routes that don't wrap with it). Returns a no-op `show()` so the caller can
+ * still queue a notification without crashing the prerender.
+ */
+export function useOptionalToast(): ToastContextType {
+  const ctx = useContext(ToastContext);
+  return ctx ?? { show: () => {} };
+}

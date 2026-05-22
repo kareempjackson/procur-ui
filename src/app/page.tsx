@@ -861,7 +861,7 @@ export default function Home() {
 
   // ─── Render ───────────────────────────────────────────────────────────────────
   return (
-    <>
+    <ToastProvider>
       {isSellerBrowsing && <SellerTopNavigation />}
       <div
         style={{
@@ -2989,6 +2989,6 @@ export default function Home() {
         </div>
       </>
     )}
-    </>
+    </ToastProvider>
   );
 }
