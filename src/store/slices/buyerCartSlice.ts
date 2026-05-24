@@ -86,6 +86,13 @@ export interface Cart {
   min_order_per_seller?: number;
   min_order_total?: number;
   updated_at: string;
+  /** Single-seller carts where the seller has opted into self-delivery in the buyer's country. */
+  seller_delivery_option?: {
+    available: boolean;
+    reason?: "multi_seller" | "cross_country" | "out_of_zone" | "seller_disabled";
+    localities?: string[];
+    notes?: string | null;
+  };
 }
 
 interface BuyerCartState {

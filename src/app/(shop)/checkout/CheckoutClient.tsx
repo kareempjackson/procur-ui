@@ -148,13 +148,19 @@ function CheckoutInner() {
     cart?.seller_groups.length === 1 ? cart.seller_groups[0] : null;
   const pickupAvailable = Boolean(singleSellerGroup?.pickup_address);
 
-  const [fulfillmentMethod, setFulfillmentMethod] = useState<"delivery" | "pickup">(
-    "delivery",
-  );
-  const isPickup = fulfillmentMethod === "pickup";
+  // Seller-self-delivery eligibility (single-seller, same country, seller has opted in).
+  // Address-in-zone is still enforced server-side at order creation.
+  const sellerDeliveryOption = cart?.seller_delivery_option;
+  const sellerDeliveryAvailable = Boolean(sellerDeliveryOption?.available);
 
-  // Card-only context: Colombia OR pickup. Same restriction in both cases.
-  const cardOnlyContext = isColombia || isPickup;
+  const [fulfillmentMethod, setFulfillmentMethod] = useState<
+    "delivery" | "pickup" | "seller_delivery"
+  >("delivery");
+  const isPickup = fulfillmentMethod === "pickup";
+  const isSellerDelivery = fulfillmentMethod === "seller_delivery";
+
+  // Card-only context: Colombia OR pickup OR seller-delivery. Same restriction in all cases.
+  const cardOnlyContext = isColombia || isPickup || isSellerDelivery;
 
   const visiblePaymentMethods = useMemo(
     () =>
@@ -164,12 +170,15 @@ function CheckoutInner() {
     [cardOnlyContext],
   );
 
-  // Defend against cart edits that remove pickup availability mid-flow.
+  // Defend against cart edits that remove option availability mid-flow.
   useEffect(() => {
     if (!pickupAvailable && fulfillmentMethod === "pickup") {
       setFulfillmentMethod("delivery");
     }
-  }, [pickupAvailable, fulfillmentMethod]);
+    if (!sellerDeliveryAvailable && fulfillmentMethod === "seller_delivery") {
+      setFulfillmentMethod("delivery");
+    }
+  }, [pickupAvailable, sellerDeliveryAvailable, fulfillmentMethod]);
 
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
@@ -495,7 +504,7 @@ function CheckoutInner() {
       billing_address_id?: string;
       buyer_notes?: string;
       credits_applied_cents?: number;
-      fulfillment_method?: "delivery" | "pickup";
+      fulfillment_method?: "delivery" | "pickup" | "seller_delivery";
     },
   ): Promise<string | null> => {
     if (!stripe) {
@@ -643,33 +652,79 @@ function CheckoutInner() {
           <div>
             {step === "delivery" && (
               <div>
-                {/* Fulfillment method picker — only shown when the cart's single seller offers pickup */}
-                {pickupAvailable && singleSellerGroup && (
+                {/* Fulfillment method picker — only shown when the cart's single seller offers pickup or self-delivery */}
+                {(pickupAvailable || sellerDeliveryAvailable) && singleSellerGroup && (
                   <div style={{ background: "#f5f1ea", borderRadius: 12, border: "1px solid #e8e4dc", padding: "20px", marginBottom: 14 }}>
                     <h2 style={{ fontSize: 15, fontWeight: 700, color: "#1c2b23", margin: "0 0 12px" }}>
                       {isColombia ? "¿Cómo quieres recibirlo?" : "How would you like to receive it?"}
                     </h2>
                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      {(["delivery", "pickup"] as const).map((m) => (
+                      {(
+                        [
+                          "delivery",
+                          ...(pickupAvailable ? (["pickup"] as const) : []),
+                          ...(sellerDeliveryAvailable
+                            ? (["seller_delivery"] as const)
+                            : []),
+                        ] as const
+                      ).map((m) => (
                         <label key={m} style={{ display: "flex", gap: 12, padding: "12px 14px", borderRadius: 10, border: `1.5px solid ${fulfillmentMethod === m ? "#2d4a3e" : "#e8e4dc"}`, background: fulfillmentMethod === m ? "rgba(45,74,62,.06)" : "#fff", cursor: "pointer" }}>
                           <input type="radio" name="fulfillment" value={m} checked={fulfillmentMethod === m} onChange={() => setFulfillmentMethod(m)} style={{ marginTop: 2, accentColor: "#2d4a3e", flexShrink: 0 }} />
                           <div>
                             <div style={{ fontSize: 13, fontWeight: 700, color: "#1c2b23" }}>
                               {m === "delivery"
                                 ? isColombia ? "Entrega a domicilio" : "Delivery"
-                                : isColombia ? "Recoger en el local" : "Pickup"}
+                                : m === "pickup"
+                                  ? isColombia ? "Recoger en el local" : "Pickup"
+                                  : isColombia ? "Entrega del vendedor" : "Seller delivers it"}
                             </div>
                             <div style={{ fontSize: 12, color: "#8a9e92", marginTop: 1 }}>
                               {m === "delivery"
                                 ? isColombia ? "Courier a tu dirección guardada" : "Courier to your saved address"
-                                : isColombia
-                                  ? `Recoge en ${singleSellerGroup.seller_name}, pago con tarjeta`
-                                  : `Collect from ${singleSellerGroup.seller_name}, paid by card`}
+                                : m === "pickup"
+                                  ? isColombia
+                                    ? `Recoge en ${singleSellerGroup.seller_name}, pago con tarjeta`
+                                    : `Collect from ${singleSellerGroup.seller_name}, paid by card`
+                                  : isColombia
+                                    ? `${singleSellerGroup.seller_name} lo entrega personalmente, pago con tarjeta`
+                                    : `${singleSellerGroup.seller_name} drops it off personally, paid by card`}
                             </div>
                           </div>
                         </label>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {/* Self-delivery zone info card */}
+                {isSellerDelivery && sellerDeliveryOption && singleSellerGroup && (
+                  <div style={{ background: "#f5f1ea", borderRadius: 12, border: "1px solid #e8e4dc", padding: "20px", marginBottom: 14 }}>
+                    <h2 style={{ fontSize: 15, fontWeight: 700, color: "#1c2b23", margin: "0 0 6px" }}>
+                      {isColombia ? "Entrega del vendedor" : "Seller will deliver it"}
+                    </h2>
+                    <div style={{ fontSize: 13, color: "#1c2b23", fontWeight: 600 }}>{singleSellerGroup.seller_name}</div>
+                    {sellerDeliveryOption.localities && sellerDeliveryOption.localities.length > 0 && (
+                      <div style={{ marginTop: 8 }}>
+                        <div style={{ fontSize: 11.5, fontWeight: 700, color: "#8a9e92", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 4 }}>
+                          {isColombia ? "Zonas de entrega" : "Delivery areas"}
+                        </div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                          {sellerDeliveryOption.localities.map((l) => (
+                            <span key={l} style={{ fontSize: 12, padding: "2px 8px", borderRadius: 999, background: "#fff", border: "1px solid #e8e4dc", color: "#1c2b23" }}>{l}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {sellerDeliveryOption.notes && (
+                      <div style={{ marginTop: 10, padding: "8px 10px", background: "#fff", borderRadius: 8, border: "1px solid #e8e4dc", color: "#3e5549", fontSize: 12 }}>
+                        {sellerDeliveryOption.notes}
+                      </div>
+                    )}
+                    <p style={{ fontSize: 11.5, color: "#8a9e92", marginTop: 12, marginBottom: 0 }}>
+                      {isColombia
+                        ? "Asegúrate de que tu dirección de entrega esté en una de las zonas listadas."
+                        : "Make sure your delivery address is in one of the listed areas — we double-check when you place the order."}
+                    </p>
                   </div>
                 )}
 

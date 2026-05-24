@@ -233,6 +233,17 @@ export default function SellerProfilePage() {
           />
         )}
 
+        {/* Self-Delivery Section */}
+        {activeTab === "profile" && (
+          <SelfDeliverySection
+            card={card}
+            inputStyle={inputStyle}
+            label={label}
+            primaryBtn={primaryBtn}
+            ghostBtn={ghostBtn}
+          />
+        )}
+
         {/* Password Tab */}
         {activeTab === "password" && (
           <div style={{ ...card, padding: "24px" }}>
@@ -564,6 +575,308 @@ function PickupLocationSection({
             )}
             <button onClick={handleSave} disabled={saving} style={{ ...primaryBtn, opacity: saving ? 0.6 : 1 }}>
               {saving ? "Saving…" : pickup.enabled ? "Update pickup location" : "Enable pickup"}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+interface SelfDeliveryState {
+  enabled: boolean;
+  localities: string[];
+  notes: string | null;
+}
+
+function SelfDeliverySection({
+  card,
+  inputStyle,
+  label,
+  primaryBtn,
+  ghostBtn,
+}: {
+  card: React.CSSProperties;
+  inputStyle: React.CSSProperties;
+  label: React.CSSProperties;
+  primaryBtn: React.CSSProperties;
+  ghostBtn: React.CSSProperties;
+}) {
+  const { show } = useToast();
+  const [state, setState] = useState<SelfDeliveryState>({
+    enabled: false,
+    localities: [],
+    notes: null,
+  });
+  const [draftLocality, setDraftLocality] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const client = getApiClient();
+        const { data } = await client.get<SelfDeliveryState>(
+          "/sellers/self-delivery-settings"
+        );
+        if (!cancelled) {
+          setState({
+            enabled: !!data?.enabled,
+            localities: Array.isArray(data?.localities) ? data.localities : [],
+            notes: data?.notes ?? null,
+          });
+        }
+      } catch {
+        if (!cancelled) show("Failed to load self-delivery settings");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [show]);
+
+  const addLocality = () => {
+    const trimmed = draftLocality.trim();
+    if (!trimmed) return;
+    const exists = state.localities.some(
+      (l) => l.toLowerCase() === trimmed.toLowerCase()
+    );
+    if (exists) {
+      setDraftLocality("");
+      return;
+    }
+    setState((prev) => ({ ...prev, localities: [...prev.localities, trimmed] }));
+    setDraftLocality("");
+  };
+
+  const removeLocality = (locality: string) =>
+    setState((prev) => ({
+      ...prev,
+      localities: prev.localities.filter((l) => l !== locality),
+    }));
+
+  const handleSave = async () => {
+    if (state.localities.length === 0) {
+      show("Add at least one delivery locality before enabling.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const client = getApiClient();
+      await client.patch("/sellers/self-delivery-settings", {
+        enabled: true,
+        localities: state.localities,
+        notes: state.notes ?? "",
+      });
+      setState((prev) => ({ ...prev, enabled: true }));
+      show("Self-delivery settings saved");
+    } catch (err: any) {
+      show(
+        err?.response?.data?.message || "Failed to save self-delivery settings"
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDisable = async () => {
+    if (
+      !confirm(
+        "Disable self-delivery? Buyers will no longer see this option at checkout."
+      )
+    )
+      return;
+    setSaving(true);
+    try {
+      const client = getApiClient();
+      await client.patch("/sellers/self-delivery-settings", { enabled: false });
+      setState((prev) => ({ ...prev, enabled: false }));
+      show("Self-delivery disabled");
+    } catch {
+      show("Failed to disable self-delivery");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{ ...card, padding: "24px", marginTop: 16 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 6,
+        }}
+      >
+        <div style={{ fontSize: 15, fontWeight: 700, color: "#1c2b23" }}>
+          Self-delivery
+        </div>
+        {state.enabled && (
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              padding: "2px 8px",
+              borderRadius: 999,
+              background: "#dcfce7",
+              color: "#15803d",
+            }}
+          >
+            Offering self-delivery
+          </span>
+        )}
+      </div>
+      <p
+        style={{
+          fontSize: 12,
+          color: "#8a9e92",
+          marginBottom: 20,
+          lineHeight: 1.55,
+        }}
+      >
+        Add the cities or parishes you personally deliver to. Buyers in those
+        areas will see &quot;Seller delivers it&quot; as a checkout option for
+        single-seller orders. You receive the full delivery fee at clearing.
+      </p>
+
+      {loading ? (
+        <p style={{ fontSize: 13, color: "#8a9e92" }}>Loading…</p>
+      ) : (
+        <>
+          <div style={{ marginBottom: 16 }}>
+            <span style={label}>Delivery localities</span>
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 6,
+                marginBottom: 8,
+                minHeight: 22,
+              }}
+            >
+              {state.localities.length === 0 && (
+                <span style={{ fontSize: 12, color: "#8a9e92" }}>
+                  No localities added yet.
+                </span>
+              )}
+              {state.localities.map((locality) => (
+                <span
+                  key={locality}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "4px 10px",
+                    borderRadius: 999,
+                    background: "#f0ece4",
+                    fontSize: 12,
+                    color: "#1c2b23",
+                  }}
+                >
+                  {locality}
+                  <button
+                    type="button"
+                    onClick={() => removeLocality(locality)}
+                    aria-label={`Remove ${locality}`}
+                    style={{
+                      border: "none",
+                      background: "transparent",
+                      cursor: "pointer",
+                      color: "#8a9e92",
+                      fontSize: 13,
+                      padding: 0,
+                      lineHeight: 1,
+                    }}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                value={draftLocality}
+                onChange={(e) => setDraftLocality(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === ",") {
+                    e.preventDefault();
+                    addLocality();
+                  }
+                }}
+                placeholder="e.g. St. George's"
+                style={{ ...inputStyle, flex: 1 }}
+              />
+              <button
+                type="button"
+                onClick={addLocality}
+                style={{ ...ghostBtn, padding: "8px 14px" }}
+              >
+                Add
+              </button>
+            </div>
+            <span
+              style={{
+                fontSize: 10,
+                color: "#8a9e92",
+                marginTop: 4,
+                display: "block",
+              }}
+            >
+              Press Enter or comma to add. We match the buyer&apos;s shipping
+              address case-insensitively against this list.
+            </span>
+          </div>
+
+          <div style={{ marginBottom: 4 }}>
+            <span style={label}>Notes (optional)</span>
+            <textarea
+              value={state.notes ?? ""}
+              onChange={(e) =>
+                setState((prev) => ({ ...prev, notes: e.target.value }))
+              }
+              placeholder="e.g. Wed & Sat after 3pm only"
+              rows={2}
+              style={{ ...inputStyle, resize: "vertical" }}
+            />
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: 10,
+              marginTop: 20,
+              paddingTop: 16,
+              borderTop: "1px solid #f0ece4",
+            }}
+          >
+            {state.enabled && (
+              <button
+                onClick={handleDisable}
+                disabled={saving}
+                style={{
+                  ...ghostBtn,
+                  borderColor: "#f0b0b0",
+                  color: "#c0392b",
+                }}
+              >
+                Disable self-delivery
+              </button>
+            )}
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              style={{ ...primaryBtn, opacity: saving ? 0.6 : 1 }}
+            >
+              {saving
+                ? "Saving…"
+                : state.enabled
+                ? "Update self-delivery"
+                : "Enable self-delivery"}
             </button>
           </div>
         </>

@@ -10,6 +10,7 @@ import {
   fetchOrderTimeline,
   acceptOrder,
   rejectOrder,
+  updateOrderStatus,
   clearCurrentOrder,
 } from "@/store/slices/sellerOrdersSlice";
 import { fetchHarvestLogs } from "@/store/slices/farmSlice";
@@ -124,6 +125,27 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
     if (rejectOrder.fulfilled.match(result)) {
       setShowRejectModal(false);
       dispatch(fetchOrderTimeline(orderId));
+    }
+  };
+
+  // Self-delivery transitions reuse the existing shipped/delivered states.
+  // "On my way" maps to shipped; "Mark delivered" to delivered.
+  const handleSelfDeliveryStatus = async (next: "shipped" | "delivered") => {
+    const result = await dispatch(
+      updateOrderStatus({
+        orderId,
+        statusData: { status: next },
+      })
+    );
+    if (updateOrderStatus.fulfilled.match(result)) {
+      dispatch(fetchOrderTimeline(orderId));
+      show(
+        next === "shipped"
+          ? "Marked on the way"
+          : "Marked delivered — nice work."
+      );
+    } else {
+      show("Failed to update order status");
     }
   };
 
@@ -584,6 +606,123 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
             {/* Shipping information */}
             <div style={card}>
               <h2 style={{ fontSize: 15, fontWeight: 700, color: "#1c2b23", margin: "0 0 18px" }}>Shipping Information</h2>
+
+              {/* Self-delivery action panel — only when this order is seller_delivery */}
+              {(currentOrder as { fulfillment_method?: string }).fulfillment_method === "seller_delivery" && (() => {
+                const addr = currentOrder.shipping_address as Record<string, string | undefined> | null | undefined;
+                const buyerPhone =
+                  (addr?.contact_phone || addr?.phone) ?? null;
+                const mapsLines = [
+                  addr?.street ||
+                    addr?.street_address ||
+                    addr?.address_line1,
+                  addr?.apartment || addr?.address_line2,
+                  addr?.city,
+                  addr?.state,
+                  addr?.postal_code || addr?.zip,
+                  addr?.country,
+                ]
+                  .filter(Boolean)
+                  .join(", ");
+                const mapsUrl = mapsLines
+                  ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsLines)}`
+                  : null;
+                const status = (currentOrder.status || "").toLowerCase();
+                const canMarkOnTheWay = ["accepted", "processing"].includes(status);
+                const canMarkDelivered = ["shipped", "processing", "accepted"].includes(status);
+                const onTheWay = status === "shipped";
+
+                return (
+                  <div
+                    style={{
+                      marginBottom: 18,
+                      padding: "16px 18px",
+                      borderRadius: 10,
+                      border: "1px solid #cfe6d7",
+                      background: "#f1faf3",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#15803d" }}>
+                        You are delivering this order
+                      </div>
+                      {onTheWay && (
+                        <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999, background: "#dcfce7", color: "#15803d" }}>
+                          On the way
+                        </span>
+                      )}
+                    </div>
+                    {mapsUrl && (
+                      <a
+                        href={mapsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: "#15803d",
+                          textDecoration: "none",
+                          marginBottom: 6,
+                        }}
+                      >
+                        Open in Maps →
+                      </a>
+                    )}
+                    {buyerPhone && (
+                      <div style={{ fontSize: 12, color: "#1c2b23" }}>
+                        Buyer phone:{" "}
+                        <a href={`tel:${buyerPhone}`} style={{ color: "#15803d", fontWeight: 600, textDecoration: "none" }}>
+                          {buyerPhone}
+                        </a>
+                      </div>
+                    )}
+                    <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+                      <button
+                        type="button"
+                        onClick={() => handleSelfDeliveryStatus("shipped")}
+                        disabled={!canMarkOnTheWay || currentOrderStatus === "loading"}
+                        style={{
+                          flex: 1,
+                          padding: "10px 14px",
+                          border: "none",
+                          borderRadius: 999,
+                          background: canMarkOnTheWay ? "#2d7a46" : "#cbd5d1",
+                          color: "#fff",
+                          fontSize: 13,
+                          fontWeight: 700,
+                          cursor: canMarkOnTheWay ? "pointer" : "not-allowed",
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        On my way
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSelfDeliveryStatus("delivered")}
+                        disabled={!canMarkDelivered || currentOrderStatus === "loading"}
+                        style={{
+                          flex: 1,
+                          padding: "10px 14px",
+                          border: "1.5px solid #2d7a46",
+                          borderRadius: 999,
+                          background: "#fff",
+                          color: "#2d7a46",
+                          fontSize: 13,
+                          fontWeight: 700,
+                          cursor: canMarkDelivered ? "pointer" : "not-allowed",
+                          fontFamily: "inherit",
+                          opacity: canMarkDelivered ? 1 : 0.5,
+                        }}
+                      >
+                        Mark delivered
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
                 {/* Shipping address */}

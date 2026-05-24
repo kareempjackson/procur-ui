@@ -101,7 +101,7 @@ export interface CreateOrderDto {
   stripe_payment_method_id?: string;
   stripe_payment_intent_id?: string;
   save_payment_method?: boolean;
-  fulfillment_method?: "delivery" | "pickup";
+  fulfillment_method?: "delivery" | "pickup" | "seller_delivery";
 }
 
 export interface OrdersFilters {
