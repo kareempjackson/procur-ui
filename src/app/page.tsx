@@ -58,7 +58,7 @@ const FALLBACK_PRODUCTS: LandingProduct[] = [
     name: "Plantain",
     category: "Vegetables",
     current_price: 2.5,
-    unit: "lb",
+    unit: "kg",
     image_url:
       "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400&h=400&fit=crop",
     seller: {
@@ -74,7 +74,7 @@ const FALLBACK_PRODUCTS: LandingProduct[] = [
     name: "Plantain",
     category: "Vegetables",
     current_price: 2.5,
-    unit: "lb",
+    unit: "kg",
     image_url:
       "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400&h=400&fit=crop",
     seller: {
@@ -90,7 +90,7 @@ const FALLBACK_PRODUCTS: LandingProduct[] = [
     name: "Plantain",
     category: "Vegetables",
     current_price: 2.0,
-    unit: "lb",
+    unit: "kg",
     image_url:
       "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400&h=400&fit=crop",
     seller: {
@@ -106,7 +106,7 @@ const FALLBACK_PRODUCTS: LandingProduct[] = [
     name: "Banana (ripe)",
     category: "Fruits",
     current_price: 1.5,
-    unit: "lb",
+    unit: "kg",
     image_url:
       "https://images.unsplash.com/photo-1603833665858-e61d17a86224?w=400&h=400&fit=crop",
     seller: {
@@ -122,7 +122,7 @@ const FALLBACK_PRODUCTS: LandingProduct[] = [
     name: "Bok Choi",
     category: "Vegetables",
     current_price: 2.5,
-    unit: "lb",
+    unit: "kg",
     image_url:
       "https://images.unsplash.com/photo-1587132137056-bfbf0166836e?w=400&h=400&fit=crop",
     seller: {
@@ -138,7 +138,7 @@ const FALLBACK_PRODUCTS: LandingProduct[] = [
     name: "Tania",
     category: "Root Crops",
     current_price: 6.0,
-    unit: "lb",
+    unit: "kg",
     image_url:
       "https://images.unsplash.com/photo-1590779033100-9f60a05a013d?w=400&h=400&fit=crop",
     seller: {
@@ -154,7 +154,7 @@ const FALLBACK_PRODUCTS: LandingProduct[] = [
     name: "Pumpkin",
     category: "Vegetables",
     current_price: 2.75,
-    unit: "lb",
+    unit: "kg",
     image_url:
       "https://images.unsplash.com/photo-1509622905150-fa66d3906e09?w=400&h=400&fit=crop",
     seller: {
@@ -170,7 +170,7 @@ const FALLBACK_PRODUCTS: LandingProduct[] = [
     name: "Gospo Sweet",
     category: "Fruits",
     current_price: 0.5,
-    unit: "lb",
+    unit: "kg",
     image_url:
       "https://images.unsplash.com/photo-1587162146766-e06b1189b907?w=400&h=400&fit=crop",
     seller: {
@@ -544,7 +544,10 @@ export default function Home() {
           category: String(p.category ?? "Other"),
           current_price:
             typeof p.current_price === "number" ? p.current_price : 0,
-          unit: String(p.unit ?? "lb"),
+          // API returns `unit_of_measurement`, not `unit` — so the previous
+          // `?? "lb"` was always firing. Read the real field and fall back
+          // to the platform's metric default.
+          unit: String(p.unit_of_measurement ?? p.unit ?? "kg"),
           image_url:
             (p.image_url as string | null) ??
             (p.images as string[])?.[0] ??

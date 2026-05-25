@@ -61,7 +61,7 @@ export default function RequestClient() {
     produceName: "",
     category: "",
     quantity: "",
-    unit: "lb",
+    unit: "kg",
     qualityGrade: "first-grade",
     deliveryLocation: "",
     deliveryDate: "",

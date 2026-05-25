@@ -722,7 +722,7 @@ export default function ProductClient({ productId }: { productId: string }) {
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8 }}>
                           <span style={{ fontSize: 15, fontWeight: 800, color: "#1c2b23" }}>
                             {formatMoney(rpPrice, rp.currency || product?.currency)}{" "}
-                            <span style={{ fontWeight: 400, fontSize: 10, color: "#8a9e92" }}>/{rp.unit_of_measurement || "lb"}</span>
+                            <span style={{ fontWeight: 400, fontSize: 10, color: "#8a9e92" }}>/{rp.unit_of_measurement || "kg"}</span>
                           </span>
                           <button
                             onClick={(e) => { e.preventDefault(); if (rpStock > 0) handleAddRelated(rp.id); }}
