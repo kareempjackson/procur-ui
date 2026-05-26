@@ -914,21 +914,29 @@ export default function BuyerClient() {
                             {(p.tags || []).slice(0, 2).map((t) => <span key={t} style={{ padding: "1px 7px", background: "#ebe7df", borderRadius: 4, fontSize: 10, fontWeight: 600, color: "#3e5549" }}>{t}</span>)}
                           </div>
                         )}
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 8, borderTop: "1px solid #e8e4dc" }}>
-                          <div>
-                            <div style={{ fontSize: 16, fontWeight: 700, color: "#2d4a3e", lineHeight: 1 }}>{formatMoney(p.current_price, (p as any).currency)}<span style={{ fontSize: 10, fontWeight: 400, color: "#8a9e92" }}> /{p.unit_of_measurement}</span></div>
-                            <div style={{ fontSize: 10, color: "#8a9e92", marginTop: 2 }}>{(() => { const os = orderStatus(p); return os.can ? `${p.stock_quantity - cartQtyFor(String(p.id))} ${p.unit_of_measurement} avail.` : os.label; })()}</div>
+                        {/* Stacked footer: price block on top, controls on a dedicated full-width row.
+                            Avoids the price string ($150.000 vs $14,300.00 vs $3.99) pushing the
+                            stepper + Add button into overlap on narrow cards. */}
+                        <div style={{ paddingTop: 8, borderTop: "1px solid #e8e4dc", display: "flex", flexDirection: "column", gap: 8 }}>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 16, fontWeight: 700, color: "#2d4a3e", lineHeight: 1.15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {formatMoney(p.current_price, (p as any).currency)}
+                              <span style={{ fontSize: 10, fontWeight: 400, color: "#8a9e92" }}> /{p.unit_of_measurement}</span>
+                            </div>
+                            <div style={{ fontSize: 10, color: "#8a9e92", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {(() => { const os = orderStatus(p); return os.can ? `${p.stock_quantity - cartQtyFor(String(p.id))} ${p.unit_of_measurement} avail.` : os.label; })()}
+                            </div>
                           </div>
                           {!canOrder(p) ? (
-                            <span style={{ fontSize: 10, color: "#8a9e92", fontWeight: 600, padding: "5px 10px", background: "#ebe7df", borderRadius: 999 }}>{orderStatus(p).label}</span>
+                            <span style={{ fontSize: 10, color: "#8a9e92", fontWeight: 600, padding: "5px 10px", background: "#ebe7df", borderRadius: 999, alignSelf: "flex-start" }}>{orderStatus(p).label}</span>
                           ) : (
-                            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 3, border: "1px solid #e8e4dc", borderRadius: 999, padding: "3px 5px" }}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 3, border: "1px solid #e8e4dc", borderRadius: 999, padding: "3px 5px", flexShrink: 0 }}>
                                 <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setQtys((prev) => ({ ...prev, [String(p.id)]: Math.max(min, qty - 1) })); }} style={{ width: 18, height: 18, borderRadius: "50%", background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
                                 <span style={{ fontSize: 11, fontWeight: 600, minWidth: 20, textAlign: "center" }}>{qty}</span>
                                 <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setQtys((prev) => ({ ...prev, [String(p.id)]: Math.min(p.stock_quantity || 5000, qty + 1) })); }} style={{ width: 18, height: 18, borderRadius: "50%", background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
                               </div>
-                              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); addToCart(p.id); }} style={{ padding: "5px 11px", background: "#d4783c", color: "#fff", border: "none", borderRadius: 999, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Add</button>
+                              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); addToCart(p.id); }} style={{ padding: "5px 14px", background: "#d4783c", color: "#fff", border: "none", borderRadius: 999, fontSize: 11, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>Add</button>
                             </div>
                           )}
                         </div>

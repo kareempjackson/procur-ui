@@ -9,7 +9,6 @@ import {
   updateCartItemAsync,
   removeCartItemAsync,
 } from "@/store/slices/buyerCartSlice";
-import { getEstimatedDeliveryRangeLabel } from "@/lib/utils/date";
 import { makeMoneyFormatter } from "@/lib/utils/formatMoney";
 
 const DEBOUNCE_DELAY = 500;
@@ -28,7 +27,6 @@ function avatarColor(name: string) {
 export default function CartPage() {
   const dispatch = useAppDispatch();
   const { cart, status, error } = useAppSelector((s) => s.buyerCart);
-  const deliveryLabel = getEstimatedDeliveryRangeLabel();
   const fmt = makeMoneyFormatter(cart?.currency);
 
   const [localQty, setLocalQty] = useState<Record<string, number>>({});
@@ -218,15 +216,14 @@ export default function CartPage() {
                           {seller.name.charAt(0).toUpperCase()}
                         </div>
                         <span style={{ fontSize: 13, fontWeight: 700, color: "#1c2b23" }}>{seller.name}</span>
-                        <span style={{ fontSize: 10.5, color: "#b0c0b6", marginLeft: 2 }}>Delivery {deliveryLabel}</span>
                       </div>
                       <div style={{ textAlign: "right" }}>
                         <div style={{ fontSize: 14, fontWeight: 800, color: "#1c2b23", fontVariantNumeric: "tabular-nums" }}>{fmt(sub)}</div>
-                        <div style={{ fontSize: 10, color: sellerShortfall > 0 ? "#d4783c" : "#b0c0b6", marginTop: 1, fontWeight: sellerShortfall > 0 ? 700 : 400 }}>
-                          {sellerShortfall > 0
-                            ? `Add ${fmt(sellerShortfall)} to meet farm min`
-                            : seller.shipping === 0 ? "Free shipping" : `${fmt(seller.shipping)} shipping`}
-                        </div>
+                        {sellerShortfall > 0 && (
+                          <div style={{ fontSize: 10, color: "#d4783c", marginTop: 1, fontWeight: 700 }}>
+                            Add {fmt(sellerShortfall)} to meet farm min
+                          </div>
+                        )}
                       </div>
                     </div>
 

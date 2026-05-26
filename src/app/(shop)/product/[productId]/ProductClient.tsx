@@ -10,6 +10,7 @@ import { getApiClient } from "@/lib/apiClient";
 import ProcurLoader from "@/components/ProcurLoader";
 import { useToast } from "@/components/ui/Toast";
 import { makeMoneyFormatter, formatMoney } from "@/lib/utils/formatMoney";
+import { selectCountry } from "@/store/slices/countrySlice";
 
 const C = {
   white: "#fff",
@@ -37,6 +38,7 @@ export default function ProductClient({ productId }: { productId: string }) {
   const { currentProduct: product, productDetailStatus, productDetailError } =
     useAppSelector((s) => s.buyerMarketplace);
   const authToken = useAppSelector((s) => s.auth.accessToken);
+  const activeCountry = useAppSelector(selectCountry);
   const fmt = makeMoneyFormatter(product?.currency);
 
   const [quantity, setQuantity] = useState(1);
@@ -611,7 +613,10 @@ export default function ProductClient({ productId }: { productId: string }) {
                         const v = parseInt(e.target.value);
                         if (!isNaN(v)) setQuantity(Math.max(minQty(), Math.min(v, product.stock_quantity || 9999)));
                       }}
-                      style={{ flex: 1, border: "none", borderLeft: "1px solid #e8e4dc", borderRight: "1px solid #e8e4dc", outline: "none", textAlign: "center", fontFamily: C.font, fontSize: 15, fontWeight: 700, color: "#1c2b23", background: "#fff", height: "100%" }}
+                      // minWidth: 0 + boxSizing override the native number-input intrinsic
+                      // min-content width (which otherwise pushes the + button past the
+                      // container's right edge on narrow side-column layouts).
+                      style={{ flex: 1, minWidth: 0, width: "100%", boxSizing: "border-box", border: "none", borderLeft: "1px solid #e8e4dc", borderRight: "1px solid #e8e4dc", outline: "none", textAlign: "center", fontFamily: C.font, fontSize: 15, fontWeight: 700, color: "#1c2b23", background: "#fff", height: "100%" }}
                     />
                     <button
                       onClick={() => setQuantity((q) => Math.min(q + 1, product.stock_quantity || 9999))}
@@ -661,7 +666,11 @@ export default function ProductClient({ productId }: { productId: string }) {
                 {[
                   {
                     icon: <svg viewBox="0 0 24 24" fill="none" stroke="#2d4a3e" strokeWidth="2" strokeLinecap="round" width={14} height={14}><rect x="1" y="3" width="15" height="13" /><polygon points="16 8 20 8 23 11 23 16 16 16 16 8" /><circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" /></svg>,
-                    text: "Typically 1–2 days within Grenada",
+                    // Country comes from the active session's country (selectCountry).
+                    // Falls back to a generic phrase only if the slice hasn't hydrated.
+                    text: activeCountry?.name
+                      ? `Typically 1–2 days within ${activeCountry.name}`
+                      : "Typically 1–2 days local delivery",
                   },
                   {
                     icon: <svg viewBox="0 0 24 24" fill="none" stroke="#2d4a3e" strokeWidth="2" strokeLinecap="round" width={14} height={14}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>,
